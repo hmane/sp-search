@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "sp-search",
+    "packageManager": "npm",
+    "skipFeatureDeployment": "true",
+    "componentType": "webpart",
+    "componentName": "SPSearchManager",
+    "componentDescription": "Saved searches, shared searches, collections, history, and result annotations",
+    "plusBeta": false,
+    "isCreatingSolution": false,
+    "nodeVersion": "22.14.0",
+    "sdksVersions": {},
+    "version": "1.21.1",
+    "libraryName": "sp-search",
+    "libraryId": "45db56d4-82af-4e61-b722-3b4766320c68",
+    "environment": "spo",
+    "solutionShortDescription": "sp-search description",
+    "isDomainIsolated": false,
+    "template": "react"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
+  "compilerOptions": {
+    "target": "es5",
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "declaration": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "outDir": "lib",
+    "inlineSources": false,
+    "noImplicitAny": true,
+
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@microsoft"
+    ],
+    "types": [
+      "webpack-env"
+    ],
+    "lib": [
+      "es5",
+      "dom",
+      "es2015.core",
+      "es2015.collection",
+      "es2015.promise",
+      "es2015.iterable",
+      "es2015.symbol"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@store/*": ["src/libraries/spSearchStore/*"],
+      "@interfaces/*": ["src/libraries/spSearchStore/interfaces/*"],
+      "@services/*": ["src/libraries/spSearchStore/services/*"],
+      "@providers/*": ["src/libraries/spSearchStore/providers/*"],
+      "@registries/*": ["src/libraries/spSearchStore/registries/*"],
+      "@orchestrator/*": ["src/libraries/spSearchStore/orchestrator/*"],
+      "@webparts/*": ["src/webparts/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
+}

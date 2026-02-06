@@ -1,0 +1,549 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+// ─── Main Container ────────────────────────────────────────
+.spSearchManager {
+  padding: 0;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText);
+  font-family: $ms-font-family-base;
+}
+
+// ─── Header ────────────────────────────────────────────────
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+}
+
+.headerTitle {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// ─── Pivot Tabs ────────────────────────────────────────────
+.pivotContainer {
+  margin-bottom: 12px;
+}
+
+// ─── Saved Search List ─────────────────────────────────────
+.savedSearchList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.categoryGroup {
+  margin-bottom: 12px;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    .categoryLabel {
+      color: "[theme:themePrimary, default: #0078d4]";
+    }
+  }
+}
+
+.categoryChevron {
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  transition: transform 200ms ease;
+}
+
+.categoryChevronExpanded {
+  transform: rotate(90deg);
+}
+
+.categoryLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  transition: color 150ms ease;
+}
+
+.categoryCount {
+  font-size: 12px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin-left: 4px;
+}
+
+.categoryItems {
+  padding-left: 0;
+}
+
+.savedSearchItem {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  position: relative;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+
+    .itemActions {
+      opacity: 1;
+    }
+  }
+}
+
+.savedSearchIcon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 16px;
+  color: "[theme:themePrimary, default: #0078d4]";
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border-radius: 4px;
+}
+
+.savedSearchBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.savedSearchTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.savedSearchQuery {
+  font-size: 12px;
+  line-height: 16px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin: 2px 0 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.savedSearchMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.categoryBadge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  background-color: "[theme:neutralLight, default: #edebe9]";
+  color: "[theme:bodySubtext, default: #605e5c]";
+  white-space: nowrap;
+}
+
+.metaDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+  flex-shrink: 0;
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+// ─── Inline Rename ─────────────────────────────────────────
+.inlineRenameContainer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.inlineRenameInput {
+  flex: 1;
+  min-width: 0;
+}
+
+// ─── History Items ─────────────────────────────────────────
+.historyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  cursor: pointer;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+}
+
+.historyIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 14px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.historyBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.historyQuery {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+}
+
+.historyTimestamp {
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  flex-shrink: 0;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.historyToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+}
+
+// ─── Collections ───────────────────────────────────────────
+.collectionsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.collectionItem {
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+}
+
+.collectionHeader {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+}
+
+.collectionChevron {
+  flex-shrink: 0;
+  width: 20px;
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  transition: transform 200ms ease;
+}
+
+.collectionChevronExpanded {
+  transform: rotate(90deg);
+}
+
+.collectionIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 16px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.collectionBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.collectionName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+}
+
+.collectionCount {
+  font-size: 12px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.collectionActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .collectionHeader:hover & {
+    opacity: 1;
+  }
+}
+
+.collectionItems {
+  padding: 0 12px 8px 50px;
+}
+
+.collectionPinnedItem {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 2px;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+
+    .pinnedItemActions {
+      opacity: 1;
+    }
+  }
+}
+
+.pinnedItemIcon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-size: 12px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.pinnedItemTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: "[theme:link, default: #0078d4]";
+  color: var(--link);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:linkHovered, default: #004578]";
+    color: var(--linkHovered);
+  }
+}
+
+.pinnedItemActions {
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.collectionToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+}
+
+// ─── Empty States ──────────────────────────────────────────
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+  margin-bottom: 16px;
+}
+
+.emptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0 0 8px 0;
+}
+
+.emptyDescription {
+  font-size: 13px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin: 0;
+  max-width: 300px;
+}
+
+// ─── Loading State ─────────────────────────────────────────
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+// ─── Error Container ───────────────────────────────────────
+.errorContainer {
+  margin: 8px 0;
+}
+
+// ─── Dialog Styles ─────────────────────────────────────────
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 4px;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// ─── Share Dialog ──────────────────────────────────────────
+.shareDialogContent {
+  padding: 0;
+}
+
+.shareLinkContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.shareLinkInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shareLinkUrl {
+  flex: 1;
+  min-width: 0;
+}
+
+.shareUserContainer {
+  padding: 16px 0;
+}
+
+.shareUserPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  text-align: center;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  font-size: 13px;
+}
+
+.shareUserPlaceholderIcon {
+  font-size: 32px;
+  color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+  margin-bottom: 12px;
+}
+
+// ─── Toast / Success message ───────────────────────────────
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: "[theme:successBackground, default: #dff6dd]";
+  border-radius: 2px;
+  font-size: 13px;
+  color: "[theme:bodyText, default: #323130]";
+  margin-bottom: 8px;
+}
+
+.successIcon {
+  color: "[theme:successIcon, default: #107c10]";
+  font-size: 16px;
+}
+
+// ─── Delete Confirmation ───────────────────────────────────
+.deleteWarning {
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 14px;
+  line-height: 20px;
+}

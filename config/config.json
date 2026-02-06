@@ -1,0 +1,64 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "sp-search-store-library": {
+      "components": [
+        {
+          "entrypoint": "./lib/index.js",
+          "manifest": "./src/libraries/spSearchStore/SpSearchStoreLibrary.manifest.json"
+        }
+      ]
+    },
+    "sp-search-box-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchBox/SpSearchBoxWebPart.js",
+          "manifest": "./src/webparts/spSearchBox/SpSearchBoxWebPart.manifest.json"
+        }
+      ]
+    },
+    "sp-search-results-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchResults/SpSearchResultsWebPart.js",
+          "manifest": "./src/webparts/spSearchResults/SpSearchResultsWebPart.manifest.json"
+        }
+      ]
+    },
+    "sp-search-filters-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchFilters/SpSearchFiltersWebPart.js",
+          "manifest": "./src/webparts/spSearchFilters/SpSearchFiltersWebPart.manifest.json"
+        }
+      ]
+    },
+    "sp-search-verticals-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchVerticals/SpSearchVerticalsWebPart.js",
+          "manifest": "./src/webparts/spSearchVerticals/SpSearchVerticalsWebPart.manifest.json"
+        }
+      ]
+    },
+    "sp-search-manager-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchManager/SpSearchManagerWebPart.js",
+          "manifest": "./src/webparts/spSearchManager/SpSearchManagerWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "SpSearchStoreLibraryStrings": "lib/libraries/spSearchStore/loc/{locale}.js",
+    "SpSearchBoxWebPartStrings": "lib/webparts/spSearchBox/loc/{locale}.js",
+    "SpSearchResultsWebPartStrings": "lib/webparts/spSearchResults/loc/{locale}.js",
+    "SpSearchFiltersWebPartStrings": "lib/webparts/spSearchFilters/loc/{locale}.js",
+    "SpSearchVerticalsWebPartStrings": "lib/webparts/spSearchVerticals/loc/{locale}.js",
+    "SpSearchManagerWebPartStrings": "lib/webparts/spSearchManager/loc/{locale}.js",
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+  }
+}

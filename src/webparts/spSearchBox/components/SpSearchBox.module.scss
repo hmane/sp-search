@@ -1,0 +1,224 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.searchBoxContainer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 8px 0;
+  box-sizing: border-box;
+}
+
+.searchBoxWrapper {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  background-color: "[theme:inputBackground, default: #ffffff]";
+  background-color: var(--inputBackground, #ffffff);
+  border: 1px solid "[theme:inputBorder, default: #8a8886]";
+  border: 1px solid var(--inputBorder, #8a8886);
+  border-radius: 4px;
+  transition: border-color 0.1s ease, box-shadow 0.1s ease;
+
+  &:hover {
+    border-color: "[theme:inputBorderHovered, default: #323130]";
+    border-color: var(--inputBorderHovered, #323130);
+  }
+
+  &.focused {
+    border-color: "[theme:themePrimary, default: #0078d4]";
+    border-color: var(--themePrimary, #0078d4);
+    box-shadow: 0 0 0 1px "[theme:themePrimary, default: #0078d4]";
+    box-shadow: 0 0 0 1px var(--themePrimary, #0078d4);
+  }
+}
+
+.scopeSelector {
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 180px;
+  border-right: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-right: 1px solid var(--neutralLight, #edebe9);
+
+  :global {
+    .ms-Dropdown {
+      &::after {
+        border: none;
+      }
+    }
+
+    .ms-Dropdown-title {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      padding-left: 12px;
+      padding-right: 28px;
+      height: 32px;
+      line-height: 32px;
+    }
+
+    .ms-Dropdown-caretDownWrapper {
+      right: 8px;
+      height: 32px;
+      line-height: 32px;
+    }
+  }
+}
+
+.searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  :global {
+    .ms-SearchBox {
+      border: none;
+      background: transparent;
+      height: 32px;
+
+      &::after {
+        border: none;
+      }
+    }
+
+    .ms-SearchBox-iconContainer {
+      display: none;
+    }
+
+    .ms-SearchBox-field {
+      font-size: 14px;
+      padding-left: 12px;
+    }
+
+    .ms-SearchBox-clearButton {
+      .ms-Button {
+        height: 32px;
+        width: 32px;
+      }
+    }
+  }
+}
+
+.searchButton {
+  flex: 0 0 auto;
+  margin-left: 4px;
+
+  :global {
+    .ms-Button {
+      min-width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 0 3px 3px 0;
+      background-color: "[theme:themePrimary, default: #0078d4]";
+      background-color: var(--themePrimary, #0078d4);
+      color: "[theme:white, default: #ffffff]";
+      color: var(--white, #ffffff);
+      padding: 0 12px;
+
+      &:hover {
+        background-color: "[theme:themeDarkAlt, default: #106ebe]";
+        background-color: var(--themeDarkAlt, #106ebe);
+      }
+
+      &:active {
+        background-color: "[theme:themeDark, default: #005a9e]";
+        background-color: var(--themeDark, #005a9e);
+      }
+
+      .ms-Button-icon {
+        color: "[theme:white, default: #ffffff]";
+        color: var(--white, #ffffff);
+      }
+    }
+  }
+}
+
+.suggestionsContainer {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: "[theme:inputBackground, default: #ffffff]";
+  background-color: var(--inputBackground, #ffffff);
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid var(--neutralLight, #edebe9);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.suggestionGroup {
+  padding: 4px 0;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+    border-bottom: 1px solid var(--neutralLighter, #f3f2f1);
+  }
+}
+
+.suggestionGroupHeader {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  color: var(--neutralSecondary, #605e5c);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.suggestionItem {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText, #323130);
+
+  &:hover {
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    background-color: var(--neutralLighter, #f3f2f1);
+  }
+}
+
+.suggestionIcon {
+  margin-right: 8px;
+  font-size: 14px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  color: var(--neutralSecondary, #605e5c);
+}
+
+.suggestionText {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchBoxOuter {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+// Responsive: full width on smaller viewports
+@media (max-width: 480px) {
+  .searchBoxContainer {
+    max-width: 100%;
+    padding: 4px 0;
+  }
+
+  .searchBoxOuter {
+    max-width: 100%;
+  }
+
+  .scopeSelector {
+    min-width: 100px;
+    max-width: 140px;
+  }
+}

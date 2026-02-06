@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "sp-search-client-side-solution",
+    "id": "45db56d4-82af-4e61-b722-3b4766320c68",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Hemant Mane",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.21.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Enterprise SharePoint Search Solution"
+      },
+      "longDescription": {
+        "default": "SP Search delivers five interconnected web parts that communicate via a shared Zustand store, providing rich search layouts, saved searches, sharing, collections, and comprehensive result detail."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "SP Search",
+        "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, and Search Manager web parts with shared Zustand store.",
+        "id": "8051ab65-8eae-4408-b5ad-b61c9e6a0baf",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/sp-search.sppkg"
+  }
+}

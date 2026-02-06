@@ -1,0 +1,9 @@
+{
+  "id": "2d98e8cb-8fdc-41e8-b803-a6da32d82b25",
+  "alias": "SpSearchStoreLibrary",
+  "componentType": "Library",
+
+  // The "*" signifies that the version should be taken from the package.json
+  "version": "*",
+  "manifestVersion": 2
+}

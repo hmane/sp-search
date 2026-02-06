@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "1836671c-a710-45b4-9a83-55c65344a3d5",
+  "alias": "SpSearchResultsWebPart",
+  "componentType": "WebPart",
+
+  // The "*" signifies that the version should be taken from the package.json
+  "version": "*",
+  "manifestVersion": 2,
+
+  // If true, the component can only be installed on sites where Custom Script is allowed.
+  // Components that allow authors to embed arbitrary script code should set this to true.
+  // https://support.office.com/en-us/article/Turn-scripting-capabilities-on-or-off-1f2c515f-5d7e-448a-9fd7-835da935584f
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "TeamsPersonalApp", "TeamsTab", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+
+  "preconfiguredEntries": [{
+    "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+    "group": { "default": "Advanced" },
+    "title": { "default": "SP Search Results" },
+    "description": { "default": "Rich result display with configurable layouts, detail panel, and bulk actions" },
+    "officeFabricIconFontName": "Page",
+    "properties": {
+      "searchContextId": "default",
+      "queryTemplate": "{searchTerms}",
+      "selectedProperties": "Title,Path,HitHighlightedSummary,Author,LastModifiedTime,Created,FileType,SPSiteURL,SiteName,FileExtension,SecondaryFileExtension,ContentTypeId,UniqueId,NormSiteID,NormWebID,NormListID,NormUniqueID,ServerRedirectedURL,ServerRedirectedEmbedURL,ServerRedirectedPreviewURL,PictureThumbnailURL",
+      "pageSize": 25,
+      "defaultLayout": "list",
+      "showResultCount": true,
+      "showSortDropdown": true,
+      "enableSelection": false
+    }
+  }]
+}
