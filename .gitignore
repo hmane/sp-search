@@ -2,33 +2,68 @@
 logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Dependency directories
-node_modules
+node_modules/
 
 # Build generated files
-dist
-lib
-release
-solution
-temp
+dist/
+lib/
+release/
+temp/
 *.sppkg
-.heft
 
-# Coverage directory used by tools like istanbul
-coverage
+# SharePoint solution folder
+sharepoint/solution/
+
+# SPFx build cache
+.heft/
+.rush/
+*.tsbuildinfo
+
+# Fast-serve
+fast-serve/
+
+# Coverage directory
+coverage/
+
+# Jest cache
+.jest/
+
+# Cache directories
+.cache/
+
+# Environment files (security)
+.env
+.env.local
+.env.*.local
 
 # OSX
 .DS_Store
+Thumbs.db
 
-# Visual Studio files
+# Visual Studio / VS Code
 .ntvs_analysis.dat
-.vs
-bin
-obj
+.vs/
+bin/
+obj/
+*.suo
+*.user
+
+# JetBrains IDEs
+.idea/
 
 # Resx Generated Code
 *.resx.ts
 
 # Styles Generated Code
 *.scss.ts
+
+# Local development
+*.local.json
+serve.json.local
+
+# Bundle analyzer
+temp/stats/
