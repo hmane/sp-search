@@ -83,12 +83,15 @@ export interface IUISlice {
     item: ISearchResult | undefined;
   };
   bulkSelection: string[];
+  /** Current user's Azure AD security group IDs (for audience targeting) */
+  currentUserGroups: string[];
   // Actions
   setLayout: (key: string) => void;
   toggleSearchManager: (isOpen?: boolean) => void;
   setPreviewItem: (item: ISearchResult | undefined) => void;
   toggleSelection: (itemKey: string, multiSelect: boolean) => void;
   clearSelection: () => void;
+  setCurrentUserGroups: (groups: string[]) => void;
 }
 
 // ─── User Slice ──────────────────────────────────────────────
@@ -116,6 +119,8 @@ export interface ICollectionItem {
   title: string;
   metadata: Record<string, unknown>;
   sortOrder: number;
+  /** User-defined tags/annotations for this item */
+  tags: string[];
 }
 
 export interface ISearchCollection {

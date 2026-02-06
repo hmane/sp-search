@@ -1,9 +1,8 @@
-import { SPFI } from '@pnp/sp';
-import '@pnp/sp/webs';
-import '@pnp/sp/lists';
-import '@pnp/sp/items';
-import '@pnp/sp/site-users/web';
-import '@pnp/sp/batching';
+import 'spfx-toolkit/lib/utilities/context/pnpImports/lists';
+import 'spfx-toolkit/lib/utilities/context/pnpImports/security';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { createSPExtractor } from 'spfx-toolkit/lib/utilities/listItemHelper';
+import { BatchBuilder } from 'spfx-toolkit/lib/utilities/batchBuilder';
 import {
   ISavedSearch,
   ISearchCollection,
@@ -16,6 +15,7 @@ import {
 const SAVED_QUERIES_LIST = 'SearchSavedQueries';
 const HISTORY_LIST = 'SearchHistory';
 const COLLECTIONS_LIST = 'SearchCollections';
+const CONFIG_LIST = 'SearchConfiguration';
 
 /**
  * Compute SHA-256 hash of the full search state for deduplication.
@@ -39,59 +39,83 @@ async function computeStateHash(stateJson: string): Promise<string> {
 }
 
 /**
- * Maps a raw SharePoint list item to ISavedSearch.
+ * Extract IPersonaInfo[] from a multi-value person field using SPExtractor.
  */
-function mapToSavedSearch(item: Record<string, unknown>): ISavedSearch {
+function extractSharedWith(item: Record<string, unknown>): IPersonaInfo[] {
   const sharedWith: IPersonaInfo[] = [];
   const rawShared = item.SharedWith as Array<Record<string, unknown>> | undefined;
   if (rawShared && Array.isArray(rawShared)) {
     for (let i = 0; i < rawShared.length; i++) {
+      const userExt = createSPExtractor(rawShared[i]);
       sharedWith.push({
-        displayText: (rawShared[i].Title as string) || '',
-        email: (rawShared[i].EMail as string) || '',
+        displayText: userExt.string('Title', ''),
+        email: userExt.string('EMail', ''),
         imageUrl: undefined,
       });
     }
   }
+  return sharedWith;
+}
 
+/**
+ * Extract author IPersonaInfo from Author expand field.
+ */
+function extractAuthor(item: Record<string, unknown>): IPersonaInfo {
   const authorRaw = item.Author as Record<string, unknown> | undefined;
+  if (authorRaw) {
+    const ext = createSPExtractor(authorRaw);
+    return {
+      displayText: ext.string('Title', ''),
+      email: ext.string('EMail', ''),
+      imageUrl: undefined,
+    };
+  }
+  return { displayText: '', email: '', imageUrl: undefined };
+}
+
+/**
+ * Maps a raw SharePoint list item to ISavedSearch using SPExtractor.
+ */
+function mapToSavedSearch(item: Record<string, unknown>): ISavedSearch {
+  const ext = createSPExtractor(item);
 
   return {
-    id: item.Id as number || 0,
-    title: (item.Title as string) || '',
-    queryText: (item.QueryText as string) || '',
-    searchState: (item.SearchState as string) || '{}',
-    searchUrl: (item.SearchUrl as string) || '',
-    entryType: ((item.EntryType as string) || 'SavedSearch') as 'SavedSearch' | 'SharedSearch',
-    category: (item.Category as string) || '',
-    sharedWith,
-    resultCount: (item.ResultCount as number) || 0,
-    lastUsed: new Date((item.LastUsed as string) || (item.Created as string) || ''),
-    created: new Date((item.Created as string) || ''),
-    author: {
-      displayText: authorRaw ? (authorRaw.Title as string || '') : '',
-      email: authorRaw ? (authorRaw.EMail as string || '') : '',
-      imageUrl: undefined,
-    },
+    id: ext.number('Id', 0),
+    title: ext.string('Title', ''),
+    queryText: ext.string('QueryText', ''),
+    searchState: ext.string('SearchState', '{}'),
+    searchUrl: ext.string('SearchUrl', ''),
+    entryType: (ext.string('EntryType', 'SavedSearch') as 'SavedSearch' | 'SharedSearch'),
+    category: ext.string('Category', ''),
+    sharedWith: extractSharedWith(item),
+    resultCount: ext.number('ResultCount', 0),
+    lastUsed: ext.date('LastUsed') || ext.date('Created') || new Date(),
+    created: ext.date('Created') || new Date(),
+    author: extractAuthor(item),
   };
 }
 
 /**
- * Maps a raw SharePoint list item to ISearchHistoryEntry.
+ * Maps a raw SharePoint list item to ISearchHistoryEntry using SPExtractor.
  */
 function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
+  const ext = createSPExtractor(item);
+
   let clickedItems: ISearchHistoryEntry['clickedItems'] = [];
-  const rawClicked = item.ClickedItems as string | undefined;
+  const rawClicked = ext.string('ClickedItems', '');
   if (rawClicked) {
     try {
       const parsed: unknown = JSON.parse(rawClicked);
       if (Array.isArray(parsed)) {
-        clickedItems = parsed.map((c: Record<string, unknown>) => ({
-          url: (c.url as string) || '',
-          title: (c.title as string) || '',
-          position: (c.position as number) || 0,
-          timestamp: new Date((c.timestamp as string) || ''),
-        }));
+        clickedItems = parsed.map((c: Record<string, unknown>) => {
+          const cExt = createSPExtractor(c);
+          return {
+            url: cExt.string('url', ''),
+            title: cExt.string('title', ''),
+            position: cExt.number('position', 0),
+            timestamp: new Date((c.timestamp as string) || ''),
+          };
+        });
       }
     } catch {
       // Malformed JSON — ignore
@@ -99,15 +123,15 @@ function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
   }
 
   return {
-    id: (item.Id as number) || 0,
-    queryHash: (item.QueryHash as string) || '',
-    queryText: (item.Title as string) || '',
-    vertical: (item.Vertical as string) || '',
-    scope: (item.Scope as string) || '',
-    searchState: (item.SearchState as string) || '{}',
-    resultCount: (item.ResultCount as number) || 0,
+    id: ext.number('Id', 0),
+    queryHash: ext.string('QueryHash', ''),
+    queryText: ext.string('Title', ''),
+    vertical: ext.string('Vertical', ''),
+    scope: ext.string('Scope', ''),
+    searchState: ext.string('SearchState', '{}'),
+    resultCount: ext.number('ResultCount', 0),
     clickedItems,
-    searchTimestamp: new Date((item.SearchTimestamp as string) || (item.Created as string) || ''),
+    searchTimestamp: ext.date('SearchTimestamp') || ext.date('Created') || new Date(),
   };
 }
 
@@ -120,80 +144,76 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
   const grouped: Map<string, Array<Record<string, unknown>>> = new Map();
 
   for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const collectionName = (item.CollectionName as string) || 'Untitled';
+    const ext = createSPExtractor(items[i]);
+    const collectionName = ext.string('CollectionName', 'Untitled');
     const existing = grouped.get(collectionName);
     if (existing) {
-      existing.push(item);
+      existing.push(items[i]);
     } else {
-      grouped.set(collectionName, [item]);
+      grouped.set(collectionName, [items[i]]);
     }
   }
 
   const collections: ISearchCollection[] = [];
 
   grouped.forEach((groupItems, collectionName) => {
-    // Use first item's metadata for collection-level properties
     const first = groupItems[0];
+    const firstExt = createSPExtractor(first);
 
-    const sharedWith: IPersonaInfo[] = [];
-    const rawShared = first.SharedWith as Array<Record<string, unknown>> | undefined;
-    if (rawShared && Array.isArray(rawShared)) {
-      for (let i = 0; i < rawShared.length; i++) {
-        sharedWith.push({
-          displayText: (rawShared[i].Title as string) || '',
-          email: (rawShared[i].EMail as string) || '',
-          imageUrl: undefined,
-        });
-      }
-    }
+    // Map items WITH their real SharePoint list item IDs and per-item tags
+    const collectionItems: ICollectionItem[] = [];
+    const tagUnion: Set<string> = new Set();
 
-    let tags: string[] = [];
-    const rawTags = first.Tags as string | undefined;
-    if (rawTags) {
-      try {
-        const parsed: unknown = JSON.parse(rawTags);
-        if (Array.isArray(parsed)) {
-          tags = parsed as string[];
-        }
-      } catch {
-        // Malformed JSON — ignore
-      }
-    }
+    for (let i = 0; i < groupItems.length; i++) {
+      const giExt = createSPExtractor(groupItems[i]);
 
-    const authorRaw = first.Author as Record<string, unknown> | undefined;
-
-    // Map items WITH their real SharePoint list item IDs
-    const collectionItems: ICollectionItem[] = groupItems.map((gi) => ({
-      id: (gi.Id as number) || 0, // Real list item ID for unpin
-      url: (gi.ItemUrl as string) || '',
-      title: (gi.ItemTitle as string) || (gi.Title as string) || '',
-      metadata: (() => {
+      // Parse per-item tags
+      let itemTags: string[] = [];
+      const rawItemTags = giExt.string('Tags', '');
+      if (rawItemTags) {
         try {
-          const raw = gi.ItemMetadata as string;
-          return raw ? JSON.parse(raw) as Record<string, unknown> : {};
+          const parsedTags: unknown = JSON.parse(rawItemTags);
+          if (Array.isArray(parsedTags)) {
+            itemTags = parsedTags as string[];
+          }
         } catch {
-          return {};
+          // Malformed JSON — ignore
         }
-      })(),
-      sortOrder: (gi.SortOrder as number) || 0,
-    }));
+      }
+
+      // Add to collection-level tag union
+      for (let t = 0; t < itemTags.length; t++) {
+        tagUnion.add(itemTags[t]);
+      }
+
+      collectionItems.push({
+        id: giExt.number('Id', 0),
+        url: giExt.string('ItemUrl', ''),
+        title: giExt.string('ItemTitle', '') || giExt.string('Title', ''),
+        metadata: (() => {
+          try {
+            const raw = giExt.string('ItemMetadata', '');
+            return raw ? JSON.parse(raw) as Record<string, unknown> : {};
+          } catch {
+            return {};
+          }
+        })(),
+        sortOrder: giExt.number('SortOrder', 0),
+        tags: itemTags,
+      });
+    }
 
     // Sort by SortOrder
     collectionItems.sort((a, b) => a.sortOrder - b.sortOrder);
 
     collections.push({
-      id: (first.Id as number) || 0,
+      id: firstExt.number('Id', 0),
       collectionName,
       items: collectionItems,
-      sharedWith,
-      tags,
-      created: new Date((first.Created as string) || ''),
-      author: {
-        displayText: authorRaw ? (authorRaw.Title as string || '') : '',
-        email: authorRaw ? (authorRaw.EMail as string || '') : '',
-        imageUrl: undefined,
-      },
+      sharedWith: extractSharedWith(first),
+      tags: Array.from(tagUnion),
+      created: firstExt.date('Created') || new Date(),
+      author: extractAuthor(first),
     });
   });
 
@@ -204,35 +224,58 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
  * SearchManagerService — CRUD operations for saved searches, collections,
  * and search history using SharePoint hidden lists.
  *
+ * Uses SPContext.sp from spfx-toolkit for all SharePoint operations.
+ * No SPFI constructor injection needed — SPContext is initialized once
+ * in the web part onInit and available globally.
+ *
  * CRITICAL: SearchHistory list WILL exceed 5,000 items.
  * All queries MUST use CAML with Author/AuthorId as the FIRST filter predicate.
  */
 export class SearchManagerService {
-  private readonly _sp: SPFI;
   private _currentUserId: number = 0;
+  private _initFailed: boolean = false;
 
-  public constructor(sp: SPFI) {
-    this._sp = sp;
+  /**
+   * Initialize the service by resolving the current user ID.
+   * The user ID is critical for CAML queries that use AuthorId.
+   *
+   * If the current user cannot be resolved, the service enters a degraded
+   * state where read operations return empty results and write operations
+   * are silently skipped (prevents creating orphaned items).
+   */
+  public async initialize(): Promise<void> {
+    // Reset failure state to allow retries after transient errors
+    this._initFailed = false;
+    this._currentUserId = 0;
+
+    try {
+      const user = await SPContext.sp.web.currentUser();
+      this._currentUserId = user.Id || 0;
+      if (this._currentUserId === 0) {
+        this._initFailed = true;
+        SPContext.logger.warn('SearchManagerService: Current user ID resolved to 0');
+      } else {
+        SPContext.logger.info('SearchManagerService: Initialized', { userId: this._currentUserId });
+      }
+    } catch (error) {
+      this._initFailed = true;
+      SPContext.logger.warn('SearchManagerService: Failed to resolve current user', { error });
+    }
   }
 
   /**
-   * Initialize the service by resolving the current user ID and email.
-   * The user ID is critical for CAML queries that use AuthorId.
+   * Returns true if the service is ready for write operations.
+   * False when currentUser resolution failed — prevents creating
+   * orphaned items that the user can never retrieve.
    */
-  public async initialize(): Promise<void> {
-    try {
-      const user = await this._sp.web.currentUser();
-      this._currentUserId = user.Id || 0;
-    } catch {
-      // Fallback — will use 0 for user ID
-    }
+  public get isReady(): boolean {
+    return this._currentUserId > 0 && !this._initFailed;
   }
 
   // ─── Saved Searches ────────────────────────────────────────
 
   /**
    * Load all saved searches for the current user (owned + shared with me).
-   * Queries owned items and items shared with the user, then merges.
    */
   public async loadSavedSearches(): Promise<ISavedSearch[]> {
     try {
@@ -244,7 +287,7 @@ export class SearchManagerService {
       ].join(',');
 
       // Query 1: Items owned by current user
-      const ownedItems = await this._sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+      const ownedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
         .items
         .select(selectFields)
         .expand('Author', 'SharedWith')
@@ -252,11 +295,10 @@ export class SearchManagerService {
         .orderBy('LastUsed', false)
         .top(200)();
 
-      // Query 2: Items shared with current user (where user is in SharedWith field)
-      // SharedWith is a multi-value Person field - use the LookupId sub-property
+      // Query 2: Items shared with current user
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
-        sharedItems = await this._sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+        sharedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
           .items
           .select(selectFields)
           .expand('Author', 'SharedWith')
@@ -264,7 +306,7 @@ export class SearchManagerService {
           .orderBy('LastUsed', false)
           .top(100)() as Array<Record<string, unknown>>;
       } catch {
-        // SharedWith field query may fail if not indexed; fall back to owned only
+        // SharedWith field query may fail if not indexed
       }
 
       // Merge and deduplicate by Id
@@ -288,8 +330,10 @@ export class SearchManagerService {
         return dateB.getTime() - dateA.getTime();
       });
 
+      SPContext.logger.info('SearchManagerService: Loaded saved searches', { count: allItems.length });
       return allItems.map(mapToSavedSearch);
-    } catch {
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to load saved searches', error);
       return [];
     }
   }
@@ -305,7 +349,12 @@ export class SearchManagerService {
     category: string,
     resultCount: number
   ): Promise<ISavedSearch> {
-    const result = await this._sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+    SPContext.logger.info('SearchManagerService: Saving search', { title });
+
+    const result = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
       .items
       .add({
         Title: title,
@@ -318,7 +367,6 @@ export class SearchManagerService {
         LastUsed: new Date().toISOString(),
       });
 
-    // PnPjs v3 returns { data, item } - extract the data
     const addedItem = (result as { data?: Record<string, unknown> }).data || result;
     return mapToSavedSearch(addedItem as Record<string, unknown>);
   }
@@ -336,6 +384,9 @@ export class SearchManagerService {
       resultCount?: number;
     }
   ): Promise<void> {
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
     const payload: Record<string, unknown> = {};
     if (updates.title !== undefined) {
       payload.Title = updates.title;
@@ -354,16 +405,23 @@ export class SearchManagerService {
     }
     payload.LastUsed = new Date().toISOString();
 
-    await this._sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+    await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
       .items.getById(id).update(payload);
+
+    SPContext.logger.info('SearchManagerService: Updated saved search', { id });
   }
 
   /**
    * Delete a saved search.
    */
   public async deleteSavedSearch(id: number): Promise<void> {
-    await this._sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+    await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
       .items.getById(id).delete();
+
+    SPContext.logger.info('SearchManagerService: Deleted saved search', { id });
   }
 
   // ─── Search History ────────────────────────────────────────
@@ -376,8 +434,6 @@ export class SearchManagerService {
    */
   public async loadHistory(maxItems: number = 50): Promise<ISearchHistoryEntry[]> {
     try {
-      // Use CAML to ensure Author is the FIRST filter predicate
-      // AuthorId is an indexed column which enables efficient filtering
       const camlQuery = `
         <View>
           <Query>
@@ -407,18 +463,19 @@ export class SearchManagerService {
         </View>
       `;
 
-      const items = await this._sp.web.lists.getByTitle(HISTORY_LIST)
+      const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
       return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
-    } catch {
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to load history', error);
       return [];
     }
   }
 
   /**
    * Log a search to the history list (async, non-blocking).
-   * Uses full state hash for deduplication (includes filters, sort, etc.).
+   * Uses full state hash for deduplication.
    *
    * @returns The history entry ID (for click tracking)
    */
@@ -429,6 +486,9 @@ export class SearchManagerService {
     searchState: string,
     resultCount: number
   ): Promise<number> {
+    if (!this.isReady) {
+      return 0;
+    }
     try {
       const queryHash = await computeStateHash(searchState);
 
@@ -456,21 +516,19 @@ export class SearchManagerService {
         </View>
       `;
 
-      const existing = await this._sp.web.lists.getByTitle(HISTORY_LIST)
+      const existing = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
       if (existing && existing.length > 0) {
-        // Update existing entry's timestamp and result count
         const existingId = (existing[0] as Record<string, unknown>).Id as number;
-        await this._sp.web.lists.getByTitle(HISTORY_LIST)
+        await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
           .items.getById(existingId).update({
             ResultCount: resultCount,
             SearchTimestamp: new Date().toISOString(),
           });
         return existingId;
       } else {
-        // Create new history entry
-        const result = await this._sp.web.lists.getByTitle(HISTORY_LIST)
+        const result = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
           .items.add({
             Title: queryText.length > 255 ? queryText.substring(0, 255) : queryText,
             QueryHash: queryHash,
@@ -504,8 +562,7 @@ export class SearchManagerService {
     }
 
     try {
-      // Load existing clicked items
-      const item = await this._sp.web.lists.getByTitle(HISTORY_LIST)
+      const item = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .items.getById(historyId)
         .select('ClickedItems')();
 
@@ -531,7 +588,7 @@ export class SearchManagerService {
         timestamp: new Date().toISOString(),
       });
 
-      await this._sp.web.lists.getByTitle(HISTORY_LIST)
+      await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .items.getById(historyId).update({
           ClickedItems: JSON.stringify(existing),
         });
@@ -542,12 +599,13 @@ export class SearchManagerService {
 
   /**
    * Clear all search history for the current user.
-   * Uses batched delete for efficiency and handles large lists properly.
+   * Uses BatchBuilder from spfx-toolkit for efficient batched deletes.
    */
   public async clearHistory(): Promise<void> {
+    if (!this.isReady) {
+      return;
+    }
     try {
-      // Use CAML to get all history items for current user (Author-first)
-      // Process in batches to handle large lists
       let hasMore = true;
       while (hasMore) {
         const camlQuery = `
@@ -567,7 +625,7 @@ export class SearchManagerService {
           </View>
         `;
 
-        const items = await this._sp.web.lists.getByTitle(HISTORY_LIST)
+        const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
           .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
         if (!items || items.length === 0) {
@@ -575,24 +633,25 @@ export class SearchManagerService {
           break;
         }
 
-        // Use batched delete for efficiency
-        const [batchedSP, execute] = this._sp.batched();
-        const list = batchedSP.web.lists.getByTitle(HISTORY_LIST);
+        // Use BatchBuilder from spfx-toolkit
+        const batch = new BatchBuilder(SPContext.sp, { batchSize: 100 });
+        const listOps = batch.list(HISTORY_LIST);
 
         for (let i = 0; i < items.length; i++) {
           const itemId = (items[i] as Record<string, unknown>).Id as number;
-          list.items.getById(itemId).delete();
+          listOps.delete(itemId);
         }
 
-        await execute();
+        await batch.execute();
 
-        // If we got less than 100, we're done
         if (items.length < 100) {
           hasMore = false;
         }
       }
-    } catch {
-      // Swallow errors
+
+      SPContext.logger.info('SearchManagerService: Cleared history');
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to clear history', error);
     }
   }
 
@@ -600,7 +659,6 @@ export class SearchManagerService {
 
   /**
    * Load all collections for the current user (owned + shared with me).
-   * Queries owned items and items shared with the user, then merges.
    */
   public async loadCollections(): Promise<ISearchCollection[]> {
     try {
@@ -611,8 +669,7 @@ export class SearchManagerService {
         'SharedWith/Id', 'SharedWith/Title', 'SharedWith/EMail'
       ].join(',');
 
-      // Query 1: Items owned by current user
-      const ownedItems = await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+      const ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
         .items
         .select(selectFields)
         .expand('Author', 'SharedWith')
@@ -620,10 +677,9 @@ export class SearchManagerService {
         .orderBy('CollectionName', true)
         .top(500)();
 
-      // Query 2: Items shared with current user
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
-        sharedItems = await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+        sharedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
           .items
           .select(selectFields)
           .expand('Author', 'SharedWith')
@@ -631,7 +687,7 @@ export class SearchManagerService {
           .orderBy('CollectionName', true)
           .top(200)() as Array<Record<string, unknown>>;
       } catch {
-        // SharedWith field query may fail if not indexed; fall back to owned only
+        // SharedWith field query may fail if not indexed
       }
 
       // Merge and deduplicate by Id
@@ -648,8 +704,10 @@ export class SearchManagerService {
         }
       }
 
+      SPContext.logger.info('SearchManagerService: Loaded collections', { count: allItems.length });
       return mapToCollection(allItems);
-    } catch {
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to load collections', error);
       return [];
     }
   }
@@ -658,8 +716,10 @@ export class SearchManagerService {
    * Create a new collection.
    */
   public async createCollection(name: string): Promise<void> {
-    // Create a placeholder item to establish the collection
-    await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+    await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .items.add({
         Title: name,
         CollectionName: name,
@@ -668,6 +728,8 @@ export class SearchManagerService {
         SortOrder: 0,
         Tags: '[]',
       });
+
+    SPContext.logger.info('SearchManagerService: Created collection', { name });
   }
 
   /**
@@ -677,9 +739,12 @@ export class SearchManagerService {
     collectionName: string,
     itemUrl: string,
     itemTitle: string,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
+    tags?: string[]
   ): Promise<void> {
-    // Use CAML to get current max sort order for this collection (Author-first)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
     const camlQuery = `
       <View>
         <Query>
@@ -706,14 +771,14 @@ export class SearchManagerService {
       </View>
     `;
 
-    const existing = await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    const existing = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
     const maxOrder = existing.length > 0
       ? ((existing[0] as Record<string, unknown>).SortOrder as number || 0) + 1
       : 0;
 
-    await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .items.add({
         Title: itemTitle,
         CollectionName: collectionName,
@@ -721,25 +786,60 @@ export class SearchManagerService {
         ItemTitle: itemTitle,
         ItemMetadata: JSON.stringify(metadata),
         SortOrder: maxOrder,
-        Tags: '[]',
+        Tags: JSON.stringify(tags || []),
       });
+
+    SPContext.logger.info('SearchManagerService: Pinned item to collection', { collectionName, itemTitle });
+  }
+
+  /**
+   * Update the tags on a specific collection item.
+   * Tags are stored as a JSON array in the Tags column.
+   */
+  public async updateItemTags(itemId: number, tags: string[]): Promise<void> {
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+    // Sanitize: trim, remove empties, deduplicate, limit length
+    const sanitized: string[] = [];
+    const seen: Set<string> = new Set();
+    for (let i = 0; i < tags.length; i++) {
+      const trimmed = tags[i].trim();
+      if (trimmed.length > 0 && trimmed.length <= 50 && !seen.has(trimmed)) {
+        sanitized.push(trimmed);
+        seen.add(trimmed);
+      }
+      if (sanitized.length >= 20) {
+        break;
+      }
+    }
+
+    await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+      .items.getById(itemId).update({
+        Tags: JSON.stringify(sanitized),
+      });
+
+    SPContext.logger.info('SearchManagerService: Updated item tags', { itemId, tagCount: sanitized.length });
   }
 
   /**
    * Remove a pinned item from a collection.
-   * Uses the real SharePoint list item ID.
    */
   public async unpinFromCollection(itemId: number): Promise<void> {
-    await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+    await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .items.getById(itemId).delete();
   }
 
   /**
-   * Delete an entire collection (all its items).
-   * Uses batched delete for efficiency.
+   * Delete an entire collection using BatchBuilder.
    */
   public async deleteCollection(collectionName: string): Promise<void> {
-    // Use CAML with Author-first predicate
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
     const camlQuery = `
       <View>
         <Query>
@@ -763,30 +863,32 @@ export class SearchManagerService {
       </View>
     `;
 
-    const items = await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    const items = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
     if (items.length === 0) {
       return;
     }
 
-    // Use batched delete
-    const [batchedSP, execute] = this._sp.batched();
-    const list = batchedSP.web.lists.getByTitle(COLLECTIONS_LIST);
+    const batch = new BatchBuilder(SPContext.sp, { batchSize: 100 });
+    const listOps = batch.list(COLLECTIONS_LIST);
 
     for (let i = 0; i < items.length; i++) {
       const itemId = (items[i] as Record<string, unknown>).Id as number;
-      list.items.getById(itemId).delete();
+      listOps.delete(itemId);
     }
 
-    await execute();
+    await batch.execute();
+    SPContext.logger.info('SearchManagerService: Deleted collection', { collectionName, itemCount: items.length });
   }
 
   /**
-   * Rename a collection.
+   * Rename a collection using BatchBuilder.
    */
   public async renameCollection(oldName: string, newName: string): Promise<void> {
-    // Use CAML with Author-first predicate
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
     const camlQuery = `
       <View>
         <Query>
@@ -810,19 +912,237 @@ export class SearchManagerService {
       </View>
     `;
 
-    const items = await this._sp.web.lists.getByTitle(COLLECTIONS_LIST)
+    const items = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
-    // Use batched update
-    const [batchedSP, execute] = this._sp.batched();
-    const list = batchedSP.web.lists.getByTitle(COLLECTIONS_LIST);
+    const batch = new BatchBuilder(SPContext.sp, { batchSize: 100 });
+    const listOps = batch.list(COLLECTIONS_LIST);
 
     for (let i = 0; i < items.length; i++) {
       const itemId = (items[i] as Record<string, unknown>).Id as number;
-      list.items.getById(itemId).update({ CollectionName: newName });
+      listOps.update(itemId, { CollectionName: newName });
     }
 
-    await execute();
+    await batch.execute();
+    SPContext.logger.info('SearchManagerService: Renamed collection', { oldName, newName });
+  }
+
+  // ─── Sharing ─────────────────────────────────────────────
+
+  /**
+   * Share a saved search with specific users.
+   * Updates SharedWith field and sets item-level read permissions.
+   */
+  public async shareToUsers(savedSearchId: number, userEmails: string[]): Promise<void> {
+    if (userEmails.length === 0) {
+      return;
+    }
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+
+    SPContext.logger.info('SearchManagerService: Sharing search', { savedSearchId, userCount: userEmails.length });
+
+    const list = SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST);
+    const item = list.items.getById(savedSearchId);
+
+    // Resolve user IDs
+    const userIds: number[] = [];
+    for (let i = 0; i < userEmails.length; i++) {
+      try {
+        const user = await SPContext.sp.web.ensureUser(userEmails[i]);
+        if (user.data && user.data.Id) {
+          userIds.push(user.data.Id);
+        }
+      } catch {
+        SPContext.logger.warn('SearchManagerService: Could not resolve user', { email: userEmails[i] });
+      }
+    }
+
+    if (userIds.length === 0) {
+      return;
+    }
+
+    // Update SharedWith field
+    await item.update({
+      SharedWithId: { results: userIds },
+      EntryType: 'SharedSearch',
+    });
+
+    // Break role inheritance and grant read access
+    try {
+      await item.breakRoleInheritance(true, false);
+
+      const READ_ROLE_DEF_ID = 1073741826;
+      for (let i = 0; i < userIds.length; i++) {
+        await item.roleAssignments.add(userIds[i], READ_ROLE_DEF_ID);
+      }
+    } catch {
+      // Permission operations may fail; SharedWith update still succeeded
+      SPContext.logger.warn('SearchManagerService: Could not set item-level permissions', { savedSearchId });
+    }
+  }
+
+  // ─── History Cleanup ────────────────────────────────────────
+
+  /**
+   * Delete history entries older than the specified number of days.
+   * Uses BatchBuilder for efficient batched deletes.
+   */
+  public async cleanupHistory(ttlDays: number): Promise<number> {
+    if (!this.isReady) {
+      return 0;
+    }
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - ttlDays);
+    const cutoffIso = cutoff.toISOString();
+
+    let totalDeleted = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <And>
+                <Eq>
+                  <FieldRef Name="Author" LookupId="TRUE" />
+                  <Value Type="Integer">${this._currentUserId}</Value>
+                </Eq>
+                <Lt>
+                  <FieldRef Name="SearchTimestamp" />
+                  <Value Type="DateTime" IncludeTimeValue="TRUE">${cutoffIso}</Value>
+                </Lt>
+              </And>
+            </Where>
+          </Query>
+          <RowLimit>100</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      if (!items || items.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const batch = new BatchBuilder(SPContext.sp, { batchSize: 100 });
+      const listOps = batch.list(HISTORY_LIST);
+
+      for (let i = 0; i < items.length; i++) {
+        const itemId = (items[i] as Record<string, unknown>).Id as number;
+        listOps.delete(itemId);
+      }
+
+      await batch.execute();
+      totalDeleted += items.length;
+
+      if (items.length < 100) {
+        hasMore = false;
+      }
+    }
+
+    SPContext.logger.info('SearchManagerService: History cleanup complete', { ttlDays, totalDeleted });
+    return totalDeleted;
+  }
+
+  // ─── State Snapshots (StateId Fallback) ─────────────────────
+
+  /**
+   * Save a full state snapshot to SearchConfiguration list.
+   * @returns The list item ID to use as ?sid= parameter
+   */
+  public async saveStateSnapshot(stateJson: string): Promise<number> {
+    const result = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
+      .items.add({
+        Title: 'StateSnapshot-' + new Date().getTime(),
+        ConfigType: 'StateSnapshot',
+        ConfigValue: stateJson,
+      });
+
+    const addedItem = (result as { data?: Record<string, unknown> }).data || result;
+    return (addedItem as Record<string, unknown>).Id as number || 0;
+  }
+
+  /**
+   * Load a state snapshot by item ID.
+   */
+  public async loadStateSnapshot(stateId: number): Promise<string> {
+    try {
+      const item = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
+        .items.getById(stateId)
+        .select('ConfigValue')();
+
+      return ((item as Record<string, unknown>).ConfigValue as string) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Load promoted result rules from SearchConfiguration list.
+   */
+  public async loadPromotedResultRules(): Promise<Array<{
+    id: number;
+    matchType: string;
+    matchValue: string;
+    promotedItems: Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>;
+    audienceGroups: string[];
+    startDate: string | undefined;
+    endDate: string | undefined;
+    verticalScope: string[] | undefined;
+    isActive: boolean;
+  }>> {
+    try {
+      const items = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
+        .items
+        .filter("ConfigType eq 'PromotedResult'")
+        .select('Id', 'Title', 'ConfigValue')
+        .top(100)();
+
+      const rules: Array<{
+        id: number;
+        matchType: string;
+        matchValue: string;
+        promotedItems: Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>;
+        audienceGroups: string[];
+        startDate: string | undefined;
+        endDate: string | undefined;
+        verticalScope: string[] | undefined;
+        isActive: boolean;
+      }> = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const ext = createSPExtractor(items[i] as Record<string, unknown>);
+        try {
+          const config = JSON.parse(ext.string('ConfigValue', '{}')) as Record<string, unknown>;
+          rules.push({
+            id: ext.number('Id', 0),
+            matchType: (config.matchType as string) || 'contains',
+            matchValue: (config.matchValue as string) || '',
+            promotedItems: (config.promotedItems as Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>) || [],
+            audienceGroups: (config.audienceGroups as string[]) || [],
+            startDate: config.startDate as string | undefined,
+            endDate: config.endDate as string | undefined,
+            verticalScope: config.verticalScope as string[] | undefined,
+            isActive: config.isActive !== false,
+          });
+        } catch {
+          // Skip malformed config entries
+        }
+      }
+
+      return rules;
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to load promoted result rules', error);
+      return [];
+    }
   }
 
   // ─── Helpers ───────────────────────────────────────────────

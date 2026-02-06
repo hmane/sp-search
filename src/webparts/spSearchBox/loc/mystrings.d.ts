@@ -11,6 +11,8 @@ declare interface ISpSearchBoxWebPartStrings {
   SearchBehaviorBoth: string;
   EnableScopeSelectorFieldLabel: string;
   EnableSuggestionsFieldLabel: string;
+  EnableQueryBuilderFieldLabel: string;
+  EnableSearchManagerFieldLabel: string;
 }
 
 declare module 'SpSearchBoxWebPartStrings' {

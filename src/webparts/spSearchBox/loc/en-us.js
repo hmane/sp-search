@@ -11,6 +11,8 @@ define([], function() {
     "SearchBehaviorOnButton": "On button click",
     "SearchBehaviorBoth": "Both Enter key and button",
     "EnableScopeSelectorFieldLabel": "Enable scope selector",
-    "EnableSuggestionsFieldLabel": "Enable search suggestions"
+    "EnableSuggestionsFieldLabel": "Enable search suggestions",
+    "EnableQueryBuilderFieldLabel": "Enable visual query builder",
+    "EnableSearchManagerFieldLabel": "Enable saved searches button"
   }
 });

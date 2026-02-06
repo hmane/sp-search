@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { IconButton } from '@fluentui/react/lib/Button';
+import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
 import styles from './SpSearchFilters.module.scss';
 import type { ISpSearchFiltersProps } from './ISpSearchFiltersProps';
 import FilterGroup from './FilterGroup';
@@ -9,6 +11,12 @@ import type {
   IFilterConfig,
   ISearchStore
 } from '@interfaces/index';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const VisualFilterBuilder: any = createLazyComponent(
+  () => import('./VisualFilterBuilder') as any,
+  { errorMessage: 'Failed to load visual filter builder' }
+);
 
 /**
  * Finds the IFilterConfig that matches a given managed property name.
@@ -53,7 +61,7 @@ function useStoreState<T>(
 }
 
 const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFiltersProps): React.ReactElement => {
-  const { store, applyMode, showClearAll } = props;
+  const { store, applyMode, showClearAll, enableVisualFilterBuilder } = props;
 
   // Stable selectors to avoid re-subscriptions
   const selectRefiners = React.useCallback(function (s: ISearchStore): IRefiner[] {
@@ -80,6 +88,9 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   // Pending filters for manual mode
   const [pendingFilters, setPendingFilters] = React.useState<IActiveFilter[]>([]);
   const [hasPendingChanges, setHasPendingChanges] = React.useState<boolean>(false);
+
+  // Visual Filter Builder toggle
+  const [isBuilderOpen, setIsBuilderOpen] = React.useState<boolean>(false);
 
   // Determine which filters to display: pending (manual mode) or live (instant mode)
   const displayFilters: IActiveFilter[] = applyMode === 'manual' && hasPendingChanges
@@ -159,6 +170,20 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     }
   }
 
+  /** Handle applying filters from the visual filter builder. */
+  function handleBuilderApply(builderFilters: IActiveFilter[]): void {
+    if (!store) {
+      return;
+    }
+    const storeState: ISearchStore = store.getState();
+    storeState.clearAllFilters();
+    for (let i = 0; i < builderFilters.length; i++) {
+      storeState.setRefiner(builderFilters[i]);
+    }
+    setIsBuilderOpen(false);
+    setHasPendingChanges(false);
+  }
+
   /** Apply pending filters in manual mode. */
   function handleApply(): void {
     if (!store) {
@@ -181,7 +206,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   if (!store) {
     return (
       <div className={styles.spSearchFilters}>
-        <div className={styles.emptyState}>
+        <div className={styles.emptyState} role="status">
           No search context configured. Please set a Search Context ID in the web part properties.
         </div>
       </div>
@@ -191,7 +216,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   if (refiners.length === 0) {
     return (
       <div className={styles.spSearchFilters}>
-        <div className={styles.emptyState}>
+        <div className={styles.emptyState} role="status">
           No filters available. Perform a search to see available filters.
         </div>
       </div>
@@ -200,6 +225,30 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
 
   return (
     <div className={styles.spSearchFilters}>
+      {/* Visual Filter Builder toggle */}
+      {enableVisualFilterBuilder && (
+        <div className={styles.visualFilterBuilderToggle}>
+          <IconButton
+            iconProps={{ iconName: isBuilderOpen ? 'Cancel' : 'Filter' }}
+            title={isBuilderOpen ? 'Close visual filter builder' : 'Open visual filter builder'}
+            ariaLabel={isBuilderOpen ? 'Close visual filter builder' : 'Open visual filter builder'}
+            onClick={function (): void { setIsBuilderOpen(!isBuilderOpen); }}
+            checked={isBuilderOpen}
+          />
+        </div>
+      )}
+
+      {/* Visual Filter Builder panel */}
+      {enableVisualFilterBuilder && isBuilderOpen && (
+        <VisualFilterBuilder
+          refiners={refiners}
+          filterConfig={configs}
+          activeFilters={displayFilters}
+          onApplyFilters={handleBuilderApply}
+          onCancel={function (): void { setIsBuilderOpen(false); }}
+        />
+      )}
+
       {/* Active filter pill bar */}
       <FilterPillBar
         activeFilters={displayFilters}

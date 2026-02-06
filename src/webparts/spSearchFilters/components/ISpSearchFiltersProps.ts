@@ -6,4 +6,5 @@ export interface ISpSearchFiltersProps {
   applyMode: 'instant' | 'manual';
   operatorBetweenFilters: 'AND' | 'OR';
   showClearAll: boolean;
+  enableVisualFilterBuilder: boolean;
 }

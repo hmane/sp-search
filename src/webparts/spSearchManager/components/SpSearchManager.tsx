@@ -11,6 +11,8 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { ISpSearchManagerProps } from './ISpSearchManagerProps';
 import {
   ISavedSearch,
@@ -122,6 +124,18 @@ function useStoreState(
  */
 const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   const { store, service, theme } = props;
+
+  // Derive WebPartContext from props or SPContext fallback
+  const resolvedContext: WebPartContext | undefined = React.useMemo(function (): WebPartContext | undefined {
+    if (props.context) {
+      return props.context;
+    }
+    try {
+      return SPContext.context.context as WebPartContext;
+    } catch {
+      return undefined;
+    }
+  }, [props.context]);
 
   const {
     savedSearches,
@@ -360,7 +374,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       <div className={styles.spSearchManager}>
         {/* Error bar */}
         {error && (
-          <div className={styles.errorContainer}>
+          <div className={styles.errorContainer} role="alert">
             <MessageBar
               messageBarType={MessageBarType.error}
               isMultiline={false}
@@ -374,7 +388,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
 
         {/* Success message */}
         {successMessage && (
-          <div className={styles.successMessage}>
+          <div className={styles.successMessage} role="status" aria-live="polite">
             <Icon iconName="StatusCircleCheckmark" className={styles.successIcon} />
             <span>{successMessage}</span>
           </div>
@@ -495,6 +509,9 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
           isOpen={shareTarget !== undefined}
           search={shareTarget}
           onDismiss={handleShareDismiss}
+          service={service}
+          context={resolvedContext}
+          onShareComplete={handleSavedSearchDataChanged}
         />
       </div>
     );

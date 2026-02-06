@@ -1,1 +1,12 @@
 export { SharePointSearchProvider } from './SharePointSearchProvider';
+export { RecentSearchProvider } from './RecentSearchProvider';
+export { TrendingQueryProvider } from './TrendingQueryProvider';
+export { ManagedPropertyProvider } from './ManagedPropertyProvider';
+export { OpenAction } from './actions/OpenAction';
+export { PreviewAction } from './actions/PreviewAction';
+export { ShareAction } from './actions/ShareAction';
+export { PinAction } from './actions/PinAction';
+export { CopyLinkAction } from './actions/CopyLinkAction';
+export { DownloadAction } from './actions/DownloadAction';
+export { CompareAction } from './actions/CompareAction';
+export { ExportCsvAction } from './actions/ExportCsvAction';

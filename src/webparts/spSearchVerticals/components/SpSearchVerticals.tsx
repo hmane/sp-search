@@ -9,6 +9,7 @@ import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
 import styles from './SpSearchVerticals.module.scss';
 import type { ISpSearchVerticalsProps } from './ISpSearchVerticalsProps';
 import type { IVerticalDefinition } from '@interfaces/index';
+import { isInAudience } from '@services/index';
 import VerticalTab from './VerticalTab';
 
 /**
@@ -39,6 +40,7 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
   const verticals: IVerticalDefinition[] = useStore(store, function (s) { return s.verticals; });
   const verticalCounts: Record<string, number> = useStore(store, function (s) { return s.verticalCounts; });
   const setVertical: (key: string) => void = useStore(store, function (s) { return s.setVertical; });
+  const currentUserGroups: string[] = useStore(store, function (s) { return s.currentUserGroups; });
 
   // Container ref for overflow measurement
   // Using undefined cast to satisfy @rushstack/no-new-null while matching RefObject<HTMLDivElement>
@@ -112,6 +114,10 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
   const visibleVerticals: IVerticalDefinition[] = [];
   for (let i: number = 0; i < verticals.length; i++) {
     const v: IVerticalDefinition = verticals[i];
+    // Audience targeting: hide verticals the current user is not targeted for
+    if (v.audienceGroups && v.audienceGroups.length > 0 && !isInAudience(v.audienceGroups, currentUserGroups)) {
+      continue;
+    }
     const count: number | undefined = verticalCounts[v.key];
     const isEmpty: boolean = count !== undefined && count === 0;
     if (hideEmptyVerticals && isEmpty && v.key !== currentVerticalKey) {

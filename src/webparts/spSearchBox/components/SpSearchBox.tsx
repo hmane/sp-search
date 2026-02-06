@@ -4,26 +4,12 @@ import type { ISpSearchBoxProps } from './ISpSearchBoxProps';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { IconButton } from '@fluentui/react/lib/Button';
-import { Icon } from '@fluentui/react/lib/Icon';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
-import type { ISearchScope, ISuggestion } from '@interfaces/index';
-
-/**
- * Group suggestions by groupName for rendering grouped lists.
- */
-function groupSuggestions(items: ISuggestion[]): Record<string, ISuggestion[]> {
-  const grouped: Record<string, ISuggestion[]> = {};
-  for (let i = 0; i < items.length; i++) {
-    const s = items[i];
-    if (!grouped[s.groupName]) {
-      grouped[s.groupName] = [];
-    }
-    grouped[s.groupName].push(s);
-  }
-  return grouped;
-}
+import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty } from '@interfaces/index';
+import QueryBuilder from './QueryBuilder';
+import SuggestionDropdown from './SuggestionDropdown';
 
 /**
  * SpSearchBox -- functional component for the search box web part.
@@ -39,6 +25,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     enableScopeSelector,
     searchScopes,
     enableSuggestions,
+    enableQueryBuilder,
     enableSearchManager,
     theme,
   } = props;
@@ -54,6 +41,10 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [inputValue, setInputValue] = React.useState<string>(queryText);
   const [isFocused, setIsFocused] = React.useState<boolean>(false);
   const [showSuggestions, setShowSuggestions] = React.useState<boolean>(false);
+  const [isQueryBuilderOpen, setIsQueryBuilderOpen] = React.useState<boolean>(false);
+  const [schemaProperties, setSchemaProperties] = React.useState<IManagedProperty[]>([]);
+  const [schemaLoading, setSchemaLoading] = React.useState<boolean>(false);
+  const [schemaError, setSchemaError] = React.useState<string | undefined>(undefined);
 
   // ─── Refs ───────────────────────────────────────────────────────
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -124,7 +115,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     const value = newValue !== undefined ? newValue : '';
     setInputValue(value);
 
-    if (enableSuggestions && value.length >= 2) {
+    if (enableSuggestions && !isQueryBuilderOpen && value.length >= 2) {
       // Debounce suggestion fetching
       if (debounceTimerRef.current !== undefined) {
         clearTimeout(debounceTimerRef.current);
@@ -132,14 +123,19 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       debounceTimerRef.current = setTimeout(function (): void {
         debounceTimerRef.current = undefined;
         setShowSuggestions(true);
-        // Trigger suggestion providers through the store
+        // Trigger suggestion providers through the store, sorted by priority
         const state = store.getState();
-        const providers = state.registries.suggestions.getAll();
+        const providers: ISuggestionProvider[] = state.registries.suggestions.getAll()
+          .slice()
+          .sort(function (a: ISuggestionProvider, b: ISuggestionProvider): number {
+            return a.priority - b.priority;
+          });
         if (providers.length > 0) {
-          const allSuggestions: ISuggestion[] = [];
+          // Collect results keyed by provider id to maintain priority order
+          const resultsByProvider: Map<string, ISuggestion[]> = new Map();
           let remaining = providers.length;
           for (let idx = 0; idx < providers.length; idx++) {
-            (function (provider): void {
+            (function (provider: ISuggestionProvider): void {
               const context = {
                 searchContextId: 'default',
                 siteUrl: '',
@@ -148,24 +144,50 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               if (provider.isEnabled(context)) {
                 provider.getSuggestions(value, context)
                   .then(function (results): void {
-                    for (let j = 0; j < results.length; j++) {
-                      allSuggestions.push(results[j]);
-                    }
+                    resultsByProvider.set(provider.id, results);
                     remaining--;
                     if (remaining <= 0) {
-                      state.setSuggestions(allSuggestions);
+                      // Merge in priority order
+                      const merged: ISuggestion[] = [];
+                      for (let p = 0; p < providers.length; p++) {
+                        const providerResults = resultsByProvider.get(providers[p].id);
+                        if (providerResults) {
+                          for (let r = 0; r < providerResults.length; r++) {
+                            merged.push(providerResults[r]);
+                          }
+                        }
+                      }
+                      state.setSuggestions(merged);
                     }
                   })
                   .catch(function (): void {
                     remaining--;
                     if (remaining <= 0) {
-                      state.setSuggestions(allSuggestions);
+                      const merged: ISuggestion[] = [];
+                      for (let p = 0; p < providers.length; p++) {
+                        const providerResults = resultsByProvider.get(providers[p].id);
+                        if (providerResults) {
+                          for (let r = 0; r < providerResults.length; r++) {
+                            merged.push(providerResults[r]);
+                          }
+                        }
+                      }
+                      state.setSuggestions(merged);
                     }
                   });
               } else {
                 remaining--;
                 if (remaining <= 0) {
-                  state.setSuggestions(allSuggestions);
+                  const merged: ISuggestion[] = [];
+                  for (let p = 0; p < providers.length; p++) {
+                    const providerResults = resultsByProvider.get(providers[p].id);
+                    if (providerResults) {
+                      for (let r = 0; r < providerResults.length; r++) {
+                        merged.push(providerResults[r]);
+                      }
+                    }
+                  }
+                  state.setSuggestions(merged);
                 }
               }
             })(providers[idx]);
@@ -250,7 +272,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
    */
   function handleFocus(): void {
     setIsFocused(true);
-    if (enableSuggestions && suggestions.length > 0 && inputValue.length >= 2) {
+    if (enableSuggestions && !isQueryBuilderOpen && suggestions.length > 0 && inputValue.length >= 2) {
       setShowSuggestions(true);
     }
   }
@@ -269,6 +291,53 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     store.getState().toggleSearchManager();
   }
 
+  function handleToggleQueryBuilder(): void {
+    const next = !isQueryBuilderOpen;
+    setIsQueryBuilderOpen(next);
+    if (next) {
+      setShowSuggestions(false);
+      loadSchema();
+    }
+  }
+
+  function loadSchema(): void {
+    if (schemaLoading || schemaProperties.length > 0) {
+      return;
+    }
+    setSchemaLoading(true);
+    setSchemaError(undefined);
+
+    const state = store.getState();
+    const providers = state.registries.dataProviders.getAll();
+    const provider = providers.find((p) => typeof p.getSchema === 'function') || providers[0];
+
+    if (!provider || typeof provider.getSchema !== 'function') {
+      const fallback = state.filterConfig.map((config) => ({
+        name: config.managedProperty,
+        type: 'Text',
+        alias: config.displayName,
+        queryable: true,
+        retrievable: false,
+        refinable: false,
+        sortable: false,
+      } as IManagedProperty));
+      setSchemaProperties(fallback);
+      setSchemaLoading(false);
+      return;
+    }
+
+    provider.getSchema()
+      .then((props) => {
+        setSchemaProperties(props || []);
+        setSchemaLoading(false);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to load managed properties';
+        setSchemaError(message);
+        setSchemaLoading(false);
+      });
+  }
+
   // ─── Build scope dropdown options ───────────────────────────────
   const scopeOptions: IDropdownOption[] = [];
   if (enableScopeSelector && searchScopes) {
@@ -279,10 +348,6 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       });
     }
   }
-
-  // ─── Group suggestions for display ─────────────────────────────
-  const groupedSuggestions = groupSuggestions(suggestions);
-  const groupNames = Object.keys(groupedSuggestions);
 
   // ─── Build Fluent UI theme from IReadonlyTheme ─────────────────
   let fluentTheme: ITheme | undefined;
@@ -347,9 +412,22 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               <IconButton
                 iconProps={{ iconName: 'SearchBookmark' }}
                 title="Saved searches and history"
-                ariaLabel="Open saved searches and history"
+                ariaLabel="Saved searches and history"
+                aria-expanded={isSearchManagerOpen}
                 onClick={handleToggleSearchManager}
                 checked={isSearchManagerOpen}
+              />
+            </div>
+          )}
+          {enableQueryBuilder && (
+            <div className={styles.queryBuilderButton}>
+              <IconButton
+                iconProps={{ iconName: 'Filter' }}
+                title="Advanced query builder"
+                ariaLabel="Advanced query builder"
+                aria-expanded={isQueryBuilderOpen}
+                onClick={handleToggleQueryBuilder}
+                checked={isQueryBuilderOpen}
               />
             </div>
           )}
@@ -358,37 +436,26 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
       {/* Suggestions dropdown */}
       {enableSuggestions && showSuggestions && suggestions.length > 0 && (
-        <div className={styles.suggestionsContainer}>
-          {groupNames.map(function (groupName): React.ReactElement {
-            const groupItems = groupedSuggestions[groupName];
-            return (
-              <div key={groupName} className={styles.suggestionGroup}>
-                <div className={styles.suggestionGroupHeader}>{groupName}</div>
-                {groupItems.map(function (suggestion, idx): React.ReactElement {
-                  return (
-                    <div
-                      key={groupName + '-' + String(idx)}
-                      className={styles.suggestionItem}
-                      onClick={function (): void { handleSuggestionClick(suggestion); }}
-                      role="option"
-                      aria-selected={false}
-                    >
-                      {suggestion.iconName && (
-                        <Icon
-                          iconName={suggestion.iconName}
-                          className={styles.suggestionIcon}
-                        />
-                      )}
-                      <span className={styles.suggestionText}>
-                        {suggestion.displayText}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
+        <SuggestionDropdown
+          suggestions={suggestions}
+          onSelect={handleSuggestionClick}
+          onDismiss={function (): void { setShowSuggestions(false); }}
+        />
+      )}
+
+      {enableQueryBuilder && isQueryBuilderOpen && (
+        <QueryBuilder
+          properties={schemaProperties}
+          isLoading={schemaLoading}
+          errorMessage={schemaError}
+          onApply={function (kql: string): void {
+            setInputValue(kql);
+            executeSearch(kql);
+          }}
+          onClear={function (): void {
+            setInputValue('');
+          }}
+        />
       )}
     </div>
   );

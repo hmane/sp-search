@@ -28,7 +28,9 @@
       "searchBehavior": "both",
       "enableScopeSelector": false,
       "searchScopes": [],
-      "enableSuggestions": true
+      "enableSuggestions": true,
+      "enableQueryBuilder": false,
+      "enableSearchManager": true
     }
   }]
 }

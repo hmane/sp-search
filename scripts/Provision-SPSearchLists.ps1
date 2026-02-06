@@ -230,7 +230,7 @@ Ensure-HiddenList -ListName "SearchConfiguration" -Description "SP Search: Admin
 
 # Columns
 Ensure-Field -ListName "SearchConfiguration" -FieldName "ConfigType" -FieldType "Choice" -Choices @("Scope", "VerticalPreset", "LayoutMapping", "ManagedPropertyMap", "PromotedResult", "StateSnapshot")
-Ensure-Field -ListName "SearchConfiguration" -FieldName "ConfigData" -FieldType "Note"
+Ensure-Field -ListName "SearchConfiguration" -FieldName "ConfigValue" -FieldType "Note"
 Ensure-Field -ListName "SearchConfiguration" -FieldName "IsActive" -FieldType "Boolean"
 Ensure-Field -ListName "SearchConfiguration" -FieldName "SortOrder" -FieldType "Number"
 Ensure-Field -ListName "SearchConfiguration" -FieldName "ExpiresAt" -FieldType "DateTime"
@@ -254,21 +254,21 @@ $defaultScopes = @(
     @{
         Title = "All SharePoint"
         ConfigType = "Scope"
-        ConfigData = '{"id":"all","label":"All SharePoint"}'
+        ConfigValue = '{"id":"all","label":"All SharePoint"}'
         IsActive = $true
         SortOrder = 1
     },
     @{
         Title = "Current Site"
         ConfigType = "Scope"
-        ConfigData = '{"id":"currentsite","label":"Current Site","kqlPath":"path:{Site.URL}"}'
+        ConfigValue = '{"id":"currentsite","label":"Current Site","kqlPath":"path:{Site.URL}"}'
         IsActive = $true
         SortOrder = 2
     },
     @{
         Title = "Current Hub"
         ConfigType = "Scope"
-        ConfigData = '{"id":"hub","label":"Current Hub","kqlPath":"DepartmentId:{Hub}"}'
+        ConfigValue = '{"id":"hub","label":"Current Hub","kqlPath":"DepartmentId:{Hub}"}'
         IsActive = $true
         SortOrder = 3
     }
@@ -289,14 +289,14 @@ $defaultLayouts = @(
     @{
         Title = "List Layout"
         ConfigType = "LayoutMapping"
-        ConfigData = '{"id":"list","displayName":"List","iconName":"BulletedList","isDefault":true}'
+        ConfigValue = '{"id":"list","displayName":"List","iconName":"BulletedList","isDefault":true}'
         IsActive = $true
         SortOrder = 1
     },
     @{
         Title = "Compact Layout"
         ConfigType = "LayoutMapping"
-        ConfigData = '{"id":"compact","displayName":"Compact","iconName":"AlignLeft","isDefault":false}'
+        ConfigValue = '{"id":"compact","displayName":"Compact","iconName":"AlignLeft","isDefault":false}'
         IsActive = $true
         SortOrder = 2
     }

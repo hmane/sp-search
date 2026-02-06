@@ -1,6 +1,7 @@
-import { SPFI } from '@pnp/sp';
-import '@pnp/sp/search';
-import { ISearchQuery as IPnPSearchQuery, ISearchResult as IPnPSearchResult, SearchResults } from '@pnp/sp/search';
+import 'spfx-toolkit/lib/utilities/context/pnpImports/search';
+import type { ISearchQuery as IPnPSearchQuery, ISearchResult as IPnPSearchResult, SearchResults } from '@pnp/sp/search';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { fetchManagedProperties } from '@services/index';
 import {
   ISearchDataProvider,
   ISearchQuery,
@@ -16,6 +17,7 @@ import {
 /**
  * Default SharePoint Search data provider.
  * Wraps PnPjs sp.search() and maps results to the normalized interface.
+ * Uses SPContext.sp for PnPjs access — no constructor injection needed.
  */
 export class SharePointSearchProvider implements ISearchDataProvider {
   public readonly id: string = 'sharepoint-search';
@@ -23,12 +25,6 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   public readonly supportsRefiners: boolean = true;
   public readonly supportsCollapsing: boolean = true;
   public readonly supportsSorting: boolean = true;
-
-  private readonly _sp: SPFI;
-
-  public constructor(sp: SPFI) {
-    this._sp = sp;
-  }
 
   public async execute(query: ISearchQuery, signal: AbortSignal): Promise<ISearchResponse> {
     // Build PnPjs search request
@@ -80,7 +76,7 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     }
 
     // Execute search
-    const searchResults: SearchResults = await this._sp.search(searchRequest);
+    const searchResults: SearchResults = await SPContext.sp.search(searchRequest);
 
     // Check abort after API call
     if (signal.aborted) {
@@ -117,7 +113,7 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     }
 
     try {
-      const results = await this._sp.search({
+      const results = await SPContext.sp.search({
         Querytext: query,
         RowLimit: 0,
         QueryTemplate: '{searchTerms}',
@@ -141,38 +137,8 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   }
 
   public async getSchema(): Promise<IManagedProperty[]> {
-    // Fetch managed properties from the search schema
-    // This uses the search REST API to get property metadata
-    try {
-      const results = await this._sp.search({
-        Querytext: '*',
-        RowLimit: 1,
-        SelectProperties: ['Title'],
-        ClientType: 'SPSearch',
-      });
-
-      // Extract properties from the result metadata
-      const properties: IManagedProperty[] = [];
-      const rawProperties = results.RawSearchResults?.PrimaryQueryResult?.RelevantResults?.Properties;
-      if (rawProperties) {
-        for (const prop of rawProperties) {
-          if (prop.Key && prop.Key !== 'RowCount' && prop.Key !== 'TotalRows') {
-            properties.push({
-              name: prop.Key,
-              type: typeof prop.Value === 'number' ? 'Integer' : 'Text',
-              queryable: true,
-              retrievable: true,
-              refinable: false,
-              sortable: false,
-            });
-          }
-        }
-      }
-
-      return properties;
-    } catch {
-      return [];
-    }
+    const result = await fetchManagedProperties();
+    return result.properties;
   }
 
   /**

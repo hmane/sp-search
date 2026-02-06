@@ -1,13 +1,21 @@
 import * as React from 'react';
 import { Card, Header, Content } from 'spfx-toolkit/lib/components/Card/components';
+import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import styles from './SpSearchFilters.module.scss';
 import CheckboxFilter from './CheckboxFilter';
 import DateRangeFilter from './DateRangeFilter';
+import ToggleFilter from './ToggleFilter';
+import SliderFilter from './SliderFilter';
 import type {
   IRefiner,
   IActiveFilter,
   IFilterConfig
 } from '@interfaces/index';
+
+// Lazy-load heavy filter components (DevExtreme TagBox, DevExtreme TreeView, PnP PeoplePicker)
+const LazyTagBoxFilter = React.lazy(function () { return import('./TagBoxFilter'); });
+const LazyTaxonomyTreeFilter = React.lazy(function () { return import('./TaxonomyTreeFilter'); });
+const LazyPeoplePickerFilter = React.lazy(function () { return import('./PeoplePickerFilter'); });
 
 export interface IFilterGroupProps {
   refiner: IRefiner;
@@ -27,6 +35,61 @@ function countActiveForFilter(filterName: string, activeFilters: IActiveFilter[]
     }
   }
   return count;
+}
+
+/** Fallback spinner shown while lazy filter components load. */
+const LazyFallback: React.ReactElement = React.createElement(
+  Spinner,
+  { size: SpinnerSize.small, label: 'Loading filter...' }
+);
+
+/**
+ * Render the appropriate filter component based on filterType config.
+ */
+function renderFilterComponent(
+  refiner: IRefiner,
+  config: IFilterConfig | undefined,
+  activeFilters: IActiveFilter[],
+  onToggleRefiner: (filter: IActiveFilter) => void
+): React.ReactElement {
+  const filterType: string = config ? config.filterType : 'checkbox';
+  const commonProps = {
+    filterName: refiner.filterName,
+    values: refiner.values,
+    config: config,
+    activeFilters: activeFilters,
+    onToggleRefiner: onToggleRefiner
+  };
+
+  switch (filterType) {
+    case 'daterange':
+      return React.createElement(DateRangeFilter, commonProps);
+    case 'toggle':
+      return React.createElement(ToggleFilter, commonProps);
+    case 'tagbox':
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyTagBoxFilter, commonProps)
+      );
+    case 'slider':
+      return React.createElement(SliderFilter, commonProps);
+    case 'taxonomy':
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyTaxonomyTreeFilter, commonProps)
+      );
+    case 'people':
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyPeoplePickerFilter, commonProps)
+      );
+    case 'checkbox':
+    default:
+      return React.createElement(CheckboxFilter, commonProps);
+  }
 }
 
 const FilterGroup: React.FC<IFilterGroupProps> = (props: IFilterGroupProps): React.ReactElement => {
@@ -61,23 +124,7 @@ const FilterGroup: React.FC<IFilterGroupProps> = (props: IFilterGroupProps): Rea
         </div>
       </Header>
       <Content padding="compact">
-        {config && config.filterType === 'daterange' ? (
-          <DateRangeFilter
-            filterName={refiner.filterName}
-            values={refiner.values}
-            config={config}
-            activeFilters={activeFilters}
-            onToggleRefiner={onToggleRefiner}
-          />
-        ) : (
-          <CheckboxFilter
-            filterName={refiner.filterName}
-            values={refiner.values}
-            config={config}
-            activeFilters={activeFilters}
-            onToggleRefiner={onToggleRefiner}
-          />
-        )}
+        {renderFilterComponent(refiner, config, activeFilters, onToggleRefiner)}
       </Content>
     </Card>
   );

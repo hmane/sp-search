@@ -9,6 +9,7 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
     item: undefined,
   },
   bulkSelection: [],
+  currentUserGroups: [],
 
   setLayout: (key: string): void => {
     set({ activeLayoutKey: key });
@@ -48,5 +49,9 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
 
   clearSelection: (): void => {
     set({ bulkSelection: [] });
+  },
+
+  setCurrentUserGroups: (groups: string[]): void => {
+    set({ currentUserGroups: groups });
   },
 });

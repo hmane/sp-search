@@ -1,0 +1,178 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.schemaHelper {
+  margin-bottom: 8px;
+}
+
+.schemaHelperRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.schemaHelperTextField {
+  flex: 1;
+}
+
+.browseButton {
+  margin-top: 29px; // Align with TextField content (label height + padding)
+  flex-shrink: 0;
+}
+
+.schemaPanel {
+  padding: 0 4px;
+}
+
+.propertySearch {
+  margin-bottom: 12px;
+}
+
+.pivotBar {
+  margin-bottom: 12px;
+}
+
+.propertyRow {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid $ms-color-neutralLighter;
+
+  &:hover {
+    background-color: $ms-color-neutralLighter;
+  }
+}
+
+.propertyName {
+  flex: 1;
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.propertyAlias {
+  flex: 0 0 100px;
+  font-style: italic;
+  font-size: 12px;
+  color: $ms-color-neutralSecondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeTag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background-color: $ms-color-neutralLighter;
+  font-size: 11px;
+  color: $ms-color-neutralPrimary;
+  flex: 0 0 60px;
+  text-align: center;
+  margin: 0 8px;
+}
+
+.flagsContainer {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.flagIcon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #107c10; // green
+}
+
+.flagIconEmpty {
+  width: 20px;
+  height: 20px;
+}
+
+.flagHeader {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 4px 8px;
+}
+
+.flagHeaderLabel {
+  width: 20px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: $ms-color-neutralSecondary;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 2px solid $ms-color-neutralTertiaryAlt;
+  margin-bottom: 4px;
+}
+
+.headerName {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: $ms-color-neutralSecondary;
+  text-transform: uppercase;
+}
+
+.headerAlias {
+  flex: 0 0 100px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $ms-color-neutralSecondary;
+  text-transform: uppercase;
+}
+
+.headerType {
+  flex: 0 0 60px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $ms-color-neutralSecondary;
+  text-transform: uppercase;
+  text-align: center;
+  margin: 0 8px;
+}
+
+.propertyList {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.unauthorizedMessage {
+  margin-top: 4px;
+}
+
+.refreshLink {
+  padding: 12px 0;
+  text-align: center;
+}
+
+.resultCount {
+  font-size: 12px;
+  color: $ms-color-neutralSecondary;
+  margin-bottom: 8px;
+}
+
+.loadingContainer {
+  padding: 24px 0;
+  text-align: center;
+}
+
+.emptyMessage {
+  padding: 24px;
+  text-align: center;
+  color: $ms-color-neutralSecondary;
+  font-style: italic;
+}

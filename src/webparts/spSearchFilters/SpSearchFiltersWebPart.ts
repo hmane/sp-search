@@ -14,14 +14,17 @@ import type { StoreApi } from 'zustand/vanilla';
 import * as strings from 'SpSearchFiltersWebPartStrings';
 import SpSearchFilters from './components/SpSearchFilters';
 import type { ISpSearchFiltersProps } from './components/ISpSearchFiltersProps';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { getStore } from '@store/store';
 import type { ISearchStore } from '@interfaces/index';
+import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 
 export interface ISpSearchFiltersWebPartProps {
   searchContextId: string;
   applyMode: 'instant' | 'manual';
   operatorBetweenFilters: 'AND' | 'OR';
   showClearAll: boolean;
+  enableVisualFilterBuilder: boolean;
 }
 
 export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSearchFiltersWebPartProps> {
@@ -35,17 +38,22 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         store: this._store,
         applyMode: this.properties.applyMode || 'instant',
         operatorBetweenFilters: this.properties.operatorBetweenFilters || 'AND',
-        showClearAll: this.properties.showClearAll !== false
+        showClearAll: this.properties.showClearAll !== false,
+        enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder
       }
     );
 
     ReactDom.render(element, this.domElement);
   }
 
-  protected onInit(): Promise<void> {
+  protected async onInit(): Promise<void> {
+    await SPContext.basic(this.context, 'SPSearchFilters');
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
-    return Promise.resolve();
+
+    // Register all built-in filter types (checkbox, daterange, toggle, tagbox, slider, taxonomy, people)
+    const filterTypes = this._store.getState().registries.filterTypes;
+    registerBuiltInFilterTypes(filterTypes);
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -102,6 +110,11 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                 }),
                 PropertyPaneToggle('showClearAll', {
                   label: strings.ShowClearAllLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableVisualFilterBuilder', {
+                  label: strings.EnableVisualFilterBuilderLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
                 })

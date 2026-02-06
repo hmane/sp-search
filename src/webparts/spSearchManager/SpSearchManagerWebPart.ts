@@ -40,7 +40,8 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
         store: this._store,
         service: this._service,
         theme: this._theme,
-        mode: this.properties.mode || 'standalone'
+        mode: this.properties.mode || 'standalone',
+        context: this.context
       }
     );
 
@@ -55,8 +56,8 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
 
-    // Create and initialize the SearchManagerService
-    this._service = new SearchManagerService(SPContext.sp);
+    // Create and initialize the SearchManagerService (uses SPContext.sp internally)
+    this._service = new SearchManagerService();
     await this._service.initialize();
   }
 

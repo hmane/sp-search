@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
 import { ISearchResult } from '@interfaces/index';
 import styles from './SpSearchResults.module.scss';
 
@@ -12,7 +13,11 @@ export interface IDataGridLayoutProps {
 }
 
 // ─── Lazy-loaded DevExtreme DataGrid ─────────────────────
-const DataGrid = React.lazy(() => import(/* webpackChunkName: 'DevExtremeDataGrid' */ 'devextreme-react/data-grid'));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const DataGrid: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'DevExtremeDataGrid' */ 'devextreme-react/data-grid') as any,
+  { errorMessage: 'Failed to load data grid' }
+);
 
 /**
  * Formats an ISO date string into a short locale-friendly format.
@@ -148,26 +153,24 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
 
   return (
     <div className={styles.dataGridContainer}>
-      <React.Suspense fallback={<div style={{ padding: 20 }}>Loading grid...</div>}>
-        <DataGrid
-          dataSource={gridData}
-          keyExpr="key"
-          showBorders={true}
-          columnAutoWidth={true}
-          rowAlternationEnabled={true}
-          hoverStateEnabled={true}
-          onRowClick={handleRowClick}
-          onSelectionChanged={handleSelectionChanged}
-          selection={enableSelection ? { mode: 'multiple', showCheckBoxesMode: 'always' } : undefined}
-          selectedRowKeys={enableSelection ? selectedKeys : undefined}
-          height="auto"
-        >
-          {/* Title column with custom render */}
-          <div data-options="dxTemplate" data-name="titleTemplate">
-            {titleCellRender}
-          </div>
-        </DataGrid>
-      </React.Suspense>
+      <DataGrid
+        dataSource={gridData}
+        keyExpr="key"
+        showBorders={true}
+        columnAutoWidth={true}
+        rowAlternationEnabled={true}
+        hoverStateEnabled={true}
+        onRowClick={handleRowClick}
+        onSelectionChanged={handleSelectionChanged}
+        selection={enableSelection ? { mode: 'multiple', showCheckBoxesMode: 'always' } : undefined}
+        selectedRowKeys={enableSelection ? selectedKeys : undefined}
+        height="auto"
+      >
+        {/* Title column with custom render */}
+        <div data-options="dxTemplate" data-name="titleTemplate">
+          {titleCellRender}
+        </div>
+      </DataGrid>
     </div>
   );
 };

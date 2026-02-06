@@ -65,6 +65,15 @@ function formatUrlBreadcrumb(url: string): string {
 }
 
 /**
+ * Sanitizes HitHighlightedSummary HTML from SharePoint Search API.
+ * Strips all tags except safe formatting tags used for hit highlighting.
+ */
+function sanitizeSummaryHtml(html: string): string {
+  // Allow only safe tags used by SharePoint search highlighting
+  return html.replace(/<\/?(?!(?:b|strong|em|i|mark|c0|ddd)\b)[^>]*>/gi, '');
+}
+
+/**
  * Formats an ISO date string into a short locale-friendly format.
  */
 function formatDate(isoDate: string): string {
@@ -147,7 +156,7 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
               {item.summary && (
                 <div
                   className={styles.resultSummary}
-                  dangerouslySetInnerHTML={{ __html: item.summary }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(item.summary) }}
                 />
               )}
               <div className={styles.resultMeta}>

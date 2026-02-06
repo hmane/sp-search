@@ -25,6 +25,8 @@ interface IUrlState {
   currentPage?: number;
   scope?: string;
   activeLayoutKey?: string;
+  /** If set, a ?sid= was found — caller should load the snapshot and apply it */
+  stateId?: number;
 }
 
 // ─── URL Param Keys ─────────────────────────────────────────────
@@ -38,9 +40,13 @@ const PARAM_PAGE = 'p';
 const PARAM_SCOPE = 'sc';
 const PARAM_LAYOUT = 'l';
 const PARAM_STATE_VERSION = 'sv';
+const PARAM_STATE_ID = 'sid';
 
 /** Current state version — bumped if the schema changes. */
 const STATE_VERSION = '1';
+
+/** Maximum URL length before falling back to ?sid= deep link. */
+const MAX_URL_LENGTH = 2000;
 
 /** Debounce delay (ms) for URL pushes to avoid excessive history entries. */
 const DEBOUNCE_MS = 300;
@@ -196,6 +202,16 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const params = new URLSearchParams(window.location.search);
   const state: IUrlState = {};
 
+  // Check for ?sid= (StateId fallback) first
+  const stateIdRaw = params.get(prefixKey(PARAM_STATE_ID, prefix));
+  if (stateIdRaw) {
+    const stateId = parseInt(stateIdRaw, 10);
+    if (!isNaN(stateId) && stateId > 0) {
+      state.stateId = stateId;
+      return state;
+    }
+  }
+
   // Bail early if no state-version tag — nothing was serialized by us
   // Note: URLSearchParams.get() returns null for missing keys.
   // We use truthiness checks which handle both null and empty string.
@@ -293,9 +309,27 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
 const debounceTimers: Record<string, number> = {};
 
 /**
+ * Optional callback for saving state snapshots when URL exceeds MAX_URL_LENGTH.
+ * Set via `setStateSnapshotHandler` before creating subscriptions.
+ */
+let _saveSnapshotHandler: ((stateJson: string) => Promise<number>) | undefined;
+
+/**
+ * Register the handler used to persist state snapshots for the ?sid= fallback.
+ * Should be called during web part onInit with SearchManagerService.saveStateSnapshot.
+ */
+export function setStateSnapshotHandler(handler: (stateJson: string) => Promise<number>): void {
+  _saveSnapshotHandler = handler;
+}
+
+/**
  * Push the current store state into the URL via `history.replaceState`.
  * The call is debounced so rapid successive state changes (e.g. typing)
  * collapse into a single URL update.
+ *
+ * If the resulting URL exceeds 2,000 characters and a snapshot handler
+ * is registered, the full state is saved to the SearchConfiguration list
+ * and the URL is replaced with ?sid=<itemId>.
  */
 function pushStateToUrl(
   state: Partial<IUrlSyncStoreSlice>,
@@ -318,17 +352,58 @@ function pushStateToUrl(
       ? `${window.location.pathname}?${qs}${window.location.hash}`
       : `${window.location.pathname}${window.location.hash}`;
 
-    window.history.replaceState(
-      window.history.state,
-      '',
-      newUrl
-    );
+    // Check if URL exceeds max length — fall back to ?sid= if handler available
+    if (newUrl.length > MAX_URL_LENGTH && _saveSnapshotHandler) {
+      const stateJson = JSON.stringify({
+        queryText: state.queryText,
+        activeFilters: state.activeFilters,
+        currentVerticalKey: state.currentVerticalKey,
+        sort: state.sort,
+        currentPage: state.currentPage,
+        scope: state.scope,
+        activeLayoutKey: state.activeLayoutKey,
+      });
+
+      _saveSnapshotHandler(stateJson)
+        .then(function (stateId: number): void {
+          if (stateId > 0) {
+            const sidParams = new URLSearchParams();
+            sidParams.set(prefixKey(PARAM_STATE_ID, prefix), String(stateId));
+            const sidUrl = window.location.pathname + '?' + sidParams.toString() + window.location.hash;
+            window.history.replaceState(window.history.state, '', sidUrl);
+          }
+        })
+        .catch(function (): void {
+          // Fallback: use the long URL anyway
+          window.history.replaceState(window.history.state, '', newUrl);
+        });
+    } else {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        newUrl
+      );
+    }
 
     delete debounceTimers[timerKey];
   }, DEBOUNCE_MS) as unknown as number;
 }
 
 // ─── Subscription Factory ───────────────────────────────────────
+
+/**
+ * Optional callback for loading state snapshots when ?sid= is detected.
+ * Set via `setStateSnapshotLoader` before creating subscriptions.
+ */
+let _loadSnapshotHandler: ((stateId: number) => Promise<string>) | undefined;
+
+/**
+ * Register the handler used to load state snapshots for the ?sid= fallback.
+ * Should be called during web part onInit with SearchManagerService.loadStateSnapshot.
+ */
+export function setStateSnapshotLoader(handler: (stateId: number) => Promise<string>): void {
+  _loadSnapshotHandler = handler;
+}
 
 /**
  * Create a bi-directional subscription that keeps the URL and
@@ -354,7 +429,25 @@ export function createUrlSyncSubscription(
 
   // ─── 1. Hydrate store from URL on init ──────────────────────
   const initial = deserializeFromUrl(prefix);
-  if (Object.keys(initial).length > 0) {
+
+  // Handle ?sid= fallback: load state snapshot from list
+  if (initial.stateId && _loadSnapshotHandler) {
+    _loadSnapshotHandler(initial.stateId)
+      .then(function (stateJson: string): void {
+        if (!stateJson) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(stateJson) as IUrlState;
+          applyUrlStateToStore(store, parsed);
+        } catch {
+          // Malformed snapshot JSON — ignore
+        }
+      })
+      .catch(function (): void {
+        // Failed to load snapshot — stay with defaults
+      });
+  } else if (Object.keys(initial).length > 0 && !initial.stateId) {
     applyUrlStateToStore(store, initial);
   }
 

@@ -461,11 +461,11 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.4.1 | Implement `ShareSearchDialog.tsx` — tabbed dialog: URL, Email, Teams, Users | search-manager | §3.5.2 | [ ] |
-| 3.4.2 | Share via URL: encode full state in URL params, copy to clipboard with toast confirmation | search-manager | §3.5.2 | [ ] |
-| 3.4.3 | Share via Email: `mailto:` with search description + link + optional top N results | search-manager | §3.5.2 | [ ] |
-| 3.4.4 | Share to Teams: deep link `https://teams.microsoft.com/l/chat/0/0?message={encoded}` | search-manager | §3.5.2 | [ ] |
-| 3.4.5 | Share to Users: PnP PeoplePicker for user selection, create SharedSearch entry, set item-level permissions | search-manager | §3.5.2 | [ ] |
+| 3.4.1 | Implement `ShareSearchDialog.tsx` — tabbed dialog: URL, Email, Teams, Users | search-manager | §3.5.2 | [x] |
+| 3.4.2 | Share via URL: encode full state in URL params, copy to clipboard with toast confirmation | search-manager | §3.5.2 | [x] |
+| 3.4.3 | Share via Email: `mailto:` with search description + link + optional top N results | search-manager | §3.5.2 | [x] |
+| 3.4.4 | Share to Teams: deep link `https://teams.microsoft.com/l/chat/0/0?message={encoded}` | search-manager | §3.5.2 | [x] |
+| 3.4.5 | Share to Users: PnP PeoplePicker for user selection, create SharedSearch entry, set item-level permissions | search-manager | §3.5.2 | [x] |
 
 ---
 
@@ -473,9 +473,9 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.5.1 | Implement auto-logging in SearchOrchestrator — after successful search, dispatch `addToHistory()` asynchronously | search-manager | §5.1 | [ ] |
-| 3.5.2 | Implement clicked item tracking: when user clicks a result, log `{ url, title, position, timestamp }` to history entry | search-manager | §3.5.4 | [ ] |
-| 3.5.3 | Implement configurable history cleanup TTL (30/60/90 days) in SearchConfiguration | search-manager | §3.5.4 | [ ] |
+| 3.5.1 | Implement auto-logging in SearchOrchestrator — after successful search, dispatch `addToHistory()` asynchronously | search-manager | §5.1 | [x] |
+| 3.5.2 | Implement clicked item tracking: when user clicks a result, log `{ url, title, position, timestamp }` to history entry | search-manager | §3.5.4 | [x] |
+| 3.5.3 | Implement configurable history cleanup TTL (30/60/90 days) in SearchConfiguration | search-manager | §3.5.4 | [x] |
 
 ---
 
@@ -483,9 +483,9 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.6.1 | Detect when serialized URL exceeds 2,000 chars | store-architect | §4.1.2 | [ ] |
-| 3.6.2 | Save full state JSON to SearchConfiguration list with `ConfigType: StateSnapshot`, `ExpiresAt` TTL | store-architect | §4.1.2 | [ ] |
-| 3.6.3 | Replace URL with `?sid=<itemId>` — on page load, detect `sid`, fetch state from list, restore | store-architect | §4.1.2 | [ ] |
+| 3.6.1 | Detect when serialized URL exceeds 2,000 chars | store-architect | §4.1.2 | [x] |
+| 3.6.2 | Save full state JSON to SearchConfiguration list with `ConfigType: StateSnapshot`, `ExpiresAt` TTL | store-architect | §4.1.2 | [x] |
+| 3.6.3 | Replace URL with `?sid=<itemId>` — on page load, detect `sid`, fetch state from list, restore | store-architect | §4.1.2 | [x] |
 
 ---
 
@@ -493,11 +493,11 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.7.1 | Implement promoted result rule evaluation: match query against `contains`, `equals`, `regex`, `kql` rules from SearchConfiguration | search-manager | §3.6.1 | [ ] |
-| 3.7.2 | Implement `PromotedResultsBlock.tsx` — "Recommended" block above organic results, visually distinct styling | layout-builder | §3.6.2 | [ ] |
-| 3.7.3 | Implement layout-adaptive rendering: card style in Card Layout, row in DataGrid/List/Compact | layout-builder | §3.6.2 | [ ] |
-| 3.7.4 | Implement dismissible promoted results (session-only, stored in uiSlice) | layout-builder | §3.6.2 | [ ] |
-| 3.7.5 | Implement configurable max promoted results per query (default 3) | search-manager | §3.6.4 | [ ] |
+| 3.7.1 | Implement promoted result rule evaluation: match query against `contains`, `equals`, `regex`, `kql` rules from SearchConfiguration | search-manager | §3.6.1 | [x] |
+| 3.7.2 | Implement `PromotedResultsBlock.tsx` — "Recommended" block above organic results, visually distinct styling | layout-builder | §3.6.2 | [x] |
+| 3.7.3 | Implement layout-adaptive rendering: card style in Card Layout, row in DataGrid/List/Compact | layout-builder | §3.6.2 | [x] |
+| 3.7.4 | Implement dismissible promoted results (session-only, stored in uiSlice) | layout-builder | §3.6.2 | [x] |
+| 3.7.5 | Implement configurable max promoted results per query (default 3) | search-manager | §3.6.4 | [x] |
 
 ---
 
@@ -505,14 +505,14 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.8.1 | Implement `ActiveFilterPillBar.tsx` — horizontal strip of dismissible pills, rendered by Search Results web part | filter-builder | §3.3.3 | [ ] |
-| 3.8.2 | Implement pill rendering: `{Filter Name}: {Human-Readable Value} x` per filter | filter-builder | §3.3.3 | [ ] |
-| 3.8.3 | Multi-value filters combined into ONE pill with comma-separated values | filter-builder | §3.3.3 | [ ] |
-| 3.8.4 | Pill click dismisses filter via `removeRefiner()`, re-executes search | filter-builder | §3.3.3 | [ ] |
-| 3.8.5 | "Clear All" link at end dispatches `clearAllFilters()` | filter-builder | §3.3.3 | [ ] |
-| 3.8.6 | Human-readable display via `IFilterValueFormatter` for each field type | filter-builder | §3.3.3 | [ ] |
-| 3.8.7 | Animate pill add/remove (Fluent UI motion tokens) | filter-builder | §3.3.3 | [ ] |
-| 3.8.8 | Sticky behavior when filter panel is in sidebar layout | filter-builder | §3.3.3 | [ ] |
+| 3.8.1 | Implement `ActiveFilterPillBar.tsx` — horizontal strip of dismissible pills, rendered by Search Results web part | filter-builder | §3.3.3 | [x] |
+| 3.8.2 | Implement pill rendering: `{Filter Name}: {Human-Readable Value} x` per filter | filter-builder | §3.3.3 | [x] |
+| 3.8.3 | Multi-value filters combined into ONE pill with comma-separated values | filter-builder | §3.3.3 | [x] |
+| 3.8.4 | Pill click dismisses filter via `removeRefiner()`, re-executes search | filter-builder | §3.3.3 | [x] |
+| 3.8.5 | "Clear All" link at end dispatches `clearAllFilters()` | filter-builder | §3.3.3 | [x] |
+| 3.8.6 | Human-readable display via `IFilterValueFormatter` for each field type | filter-builder | §3.3.3 | [x] |
+| 3.8.7 | Animate pill add/remove (Fluent UI motion tokens) | filter-builder | §3.3.3 | [x] |
+| 3.8.8 | Sticky behavior when filter panel is in sidebar layout | filter-builder | §3.3.3 | [x] |
 
 ---
 
@@ -520,9 +520,9 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.9.1 | Implement `RecentSearchProvider` — queries SearchHistory list for current user's recent searches | search-provider | §4.4.2 | [ ] |
+| 3.9.1 | Implement `RecentSearchProvider` — queries SearchHistory list for current user's recent searches | search-provider | §4.4.2 | [x] |
 | 3.9.2 | Implement `SuggestionDropdown.tsx` in Search Box — dropdown below input showing grouped suggestions | webpart-builder | §3.1.1 | [ ] |
-| 3.9.3 | Register RecentSearchProvider in SuggestionProviderRegistry | search-provider | §4.4.2 | [ ] |
+| 3.9.3 | Register RecentSearchProvider in SuggestionProviderRegistry | search-provider | §4.4.2 | [x] |
 
 ---
 
@@ -550,16 +550,16 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.1.1 | Implement `TaxonomyTreeFilter.tsx` — DevExtreme TreeView, hierarchical expand/collapse, multi-select, search-within | filter-builder | §3.3.1, §3.3.4C | [ ] |
-| 4.1.2 | Implement `TaxonomyFilterFormatter` — GP0|#GUID to term label resolution via PnP Taxonomy API, caching | filter-builder | §3.3.4C, §3.3.5 | [ ] |
-| 4.1.3 | Implement `PeoplePickerFilter.tsx` — PnP PeoplePicker, type-ahead against AAD, multi-select | filter-builder | §3.3.1, §3.3.4B | [ ] |
-| 4.1.4 | Implement `PeopleFilterFormatter` — claim string resolution to display names, cached profiles | filter-builder | §3.3.4B, §3.3.5 | [ ] |
-| 4.1.5 | Implement `SliderFilter.tsx` — DevExtreme RangeSlider, configurable min/max/step, file size formatting | filter-builder | §3.3.1, §3.3.4E | [ ] |
-| 4.1.6 | Implement `NumericFilterFormatter` — FQL range(decimal(), decimal()), file size KB/MB/GB, currency | filter-builder | §3.3.4E, §3.3.5 | [ ] |
-| 4.1.7 | Implement `TagBoxFilter.tsx` — DevExtreme TagBox, tag-style multi-select with search | filter-builder | §3.3.1 | [ ] |
-| 4.1.8 | Implement `ToggleFilter.tsx` — Fluent UI Toggle, three-state (All/Yes/No) | filter-builder | §3.3.1, §3.3.4F | [ ] |
-| 4.1.9 | Implement `BooleanFilterFormatter` — "0"/"1" to Yes/No or custom labels | filter-builder | §3.3.4F, §3.3.5 | [ ] |
-| 4.1.10 | Register all new filter types in FilterTypeRegistry | filter-builder | §4.4.5 | [ ] |
+| 4.1.1 | Implement `TaxonomyTreeFilter.tsx` — DevExtreme TreeView, hierarchical expand/collapse, multi-select, search-within | filter-builder | §3.3.1, §3.3.4C | [x] |
+| 4.1.2 | Implement `TaxonomyFilterFormatter` — GP0|#GUID to term label resolution via PnP Taxonomy API, caching | filter-builder | §3.3.4C, §3.3.5 | [x] |
+| 4.1.3 | Implement `PeoplePickerFilter.tsx` — PnP PeoplePicker, type-ahead against AAD, multi-select | filter-builder | §3.3.1, §3.3.4B | [x] |
+| 4.1.4 | Implement `PeopleFilterFormatter` — claim string resolution to display names, cached profiles | filter-builder | §3.3.4B, §3.3.5 | [x] |
+| 4.1.5 | Implement `SliderFilter.tsx` — DevExtreme RangeSlider, configurable min/max/step, file size formatting | filter-builder | §3.3.1, §3.3.4E | [x] |
+| 4.1.6 | Implement `NumericFilterFormatter` — FQL range(decimal(), decimal()), file size KB/MB/GB, currency | filter-builder | §3.3.4E, §3.3.5 | [x] |
+| 4.1.7 | Implement `TagBoxFilter.tsx` — DevExtreme TagBox, tag-style multi-select with search | filter-builder | §3.3.1 | [x] |
+| 4.1.8 | Implement `ToggleFilter.tsx` — Fluent UI Toggle, three-state (All/Yes/No) | filter-builder | §3.3.1, §3.3.4F | [x] |
+| 4.1.9 | Implement `BooleanFilterFormatter` — "0"/"1" to Yes/No or custom labels | filter-builder | §3.3.4F, §3.3.5 | [x] |
+| 4.1.10 | Register all new filter types in FilterTypeRegistry | filter-builder | §4.4.5 | [x] |
 
 ---
 
@@ -567,11 +567,11 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.2.1 | Implement `QueryBuilder.tsx` — expandable panel below search box, DevExtreme-inspired filter builder UI | webpart-builder | §3.1.1 | [ ] |
-| 4.2.2 | Property dropdowns populated from available managed properties (Schema Helper data) | webpart-builder | §3.1.1 | [ ] |
-| 4.2.3 | Operator selection per property type (contains, equals, greater than, range, etc.) | webpart-builder | §3.1.1 | [ ] |
-| 4.2.4 | Value pickers matched to property type (text, date, number, person, taxonomy) | webpart-builder | §3.1.1 | [ ] |
-| 4.2.5 | Convert builder expression to KQL and dispatch to querySlice | webpart-builder | §3.1.1 | [ ] |
+| 4.2.1 | Implement `QueryBuilder.tsx` — expandable panel below search box, DevExtreme-inspired filter builder UI | webpart-builder | §3.1.1 | [x] |
+| 4.2.2 | Property dropdowns populated from available managed properties (Schema Helper data) | webpart-builder | §3.1.1 | [x] |
+| 4.2.3 | Operator selection per property type (contains, equals, greater than, range, etc.) | webpart-builder | §3.1.1 | [x] |
+| 4.2.4 | Value pickers matched to property type (text, date, number, person, taxonomy) | webpart-builder | §3.1.1 | [x] |
+| 4.2.5 | Convert builder expression to KQL and dispatch to querySlice | webpart-builder | §3.1.1 | [x] |
 
 ---
 
@@ -579,9 +579,9 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.3.1 | Implement `VisualFilterBuilder.tsx` — DevExtreme FilterBuilder-inspired UI in Search Filters web part | filter-builder | §3.3.6 | [ ] |
-| 4.3.2 | AND/OR grouping of filter expressions | filter-builder | §3.3.6 | [ ] |
-| 4.3.3 | Convert builder expression to KQL refinement queries | filter-builder | §3.3.6 | [ ] |
+| 4.3.1 | Implement `VisualFilterBuilder.tsx` — DevExtreme FilterBuilder-inspired UI in Search Filters web part | filter-builder | §3.3.6 | [x] |
+| 4.3.2 | AND/OR grouping of filter expressions | filter-builder | §3.3.6 | [x] |
+| 4.3.3 | Convert builder expression to KQL refinement queries | filter-builder | §3.3.6 | [x] |
 
 ---
 
@@ -589,14 +589,14 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.4.1 | Implement `BulkActionsToolbar.tsx` — appears when `uiSlice.bulkSelection.length > 0` | webpart-builder | §3.2.4 | [ ] |
-| 4.4.2 | Implement built-in action providers: `OpenAction`, `PreviewAction`, `ShareAction`, `PinAction`, `CopyLinkAction`, `DownloadAction` | search-provider | §4.4.3 | [ ] |
-| 4.4.3 | Register all built-in actions in ActionProviderRegistry | search-provider | §4.4.3 | [ ] |
-| 4.4.4 | Implement bulk share: share multiple items via URL/email/Teams | search-manager | §3.2.4 | [ ] |
-| 4.4.5 | Implement bulk download: download selected files individually | search-manager | §3.2.4 | [ ] |
-| 4.4.6 | Implement bulk pin: pin selected items to a collection | search-manager | §3.2.4 | [ ] |
-| 4.4.7 | Implement metadata comparison: side-by-side compare of 2-3 selected items | layout-builder | §3.2.4 | [ ] |
-| 4.4.8 | Implement export selected to Excel/CSV | layout-builder | §3.2.4 | [ ] |
+| 4.4.1 | Implement `BulkActionsToolbar.tsx` — appears when `uiSlice.bulkSelection.length > 0` | webpart-builder | §3.2.4 | [x] |
+| 4.4.2 | Implement built-in action providers: `OpenAction`, `PreviewAction`, `ShareAction`, `PinAction`, `CopyLinkAction`, `DownloadAction` | search-provider | §4.4.3 | [x] |
+| 4.4.3 | Register all built-in actions in ActionProviderRegistry | search-provider | §4.4.3 | [x] |
+| 4.4.4 | Implement bulk share: share multiple items via URL/email/Teams | search-manager | §3.2.4 | [x] |
+| 4.4.5 | Implement bulk download: download selected files individually | search-manager | §3.2.4 | [x] |
+| 4.4.6 | Implement bulk pin: pin selected items to a collection | search-manager | §3.2.4 | [x] |
+| 4.4.7 | Implement metadata comparison: side-by-side compare of 2-3 selected items | layout-builder | §3.2.4 | [x] |
+| 4.4.8 | Implement export selected to Excel/CSV | layout-builder | §3.2.4 | [x] |
 
 ---
 
@@ -604,10 +604,10 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.5.1 | Implement `TrendingQueryProvider` — popular queries aggregated from SearchHistory across org | search-provider | §4.4.2 | [ ] |
-| 4.5.2 | Implement `ManagedPropertyProvider` — suggests property values matching input (e.g., "Author: John Doe") | search-provider | §4.4.2 | [ ] |
-| 4.5.3 | Update `SuggestionDropdown.tsx` — merge suggestions from all providers, grouped sections, ranked by priority | webpart-builder | §3.1.1 | [ ] |
-| 4.5.4 | Register TrendingQueryProvider and ManagedPropertyProvider in SuggestionProviderRegistry | search-provider | §4.4.2 | [ ] |
+| 4.5.1 | Implement `TrendingQueryProvider` — popular queries aggregated from SearchHistory across org | search-provider | §4.4.2 | [x] |
+| 4.5.2 | Implement `ManagedPropertyProvider` — suggests property values matching input (e.g., "Author: John Doe") | search-provider | §4.4.2 | [x] |
+| 4.5.3 | Update `SuggestionDropdown.tsx` — merge suggestions from all providers, grouped sections, ranked by priority | webpart-builder | §3.1.1 | [x] |
+| 4.5.4 | Register TrendingQueryProvider and ManagedPropertyProvider in SuggestionProviderRegistry | search-provider | §4.4.2 | [x] |
 
 ---
 
@@ -615,11 +615,11 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.6.1 | Implement `ResultAnnotations.tsx` — tag input UI for personal tags ("Reviewed", "Important", "Follow-up") | search-manager | §3.5.5 | [ ] |
-| 4.6.2 | Store tags in SearchCollections list (Tags column) | search-manager | §3.5.5 | [ ] |
-| 4.6.3 | Implement shared tags option — visible to team members | search-manager | §3.5.5 | [ ] |
-| 4.6.4 | Display tag badges/labels in search result layouts | layout-builder | §3.5.5 | [ ] |
-| 4.6.5 | Tag-based filtering in Search Manager | search-manager | §3.5.5 | [ ] |
+| 4.6.1 | Implement `ResultAnnotations.tsx` — tag input UI for personal tags ("Reviewed", "Important", "Follow-up") | search-manager | §3.5.5 | [x] |
+| 4.6.2 | Store tags in SearchCollections list (Tags column) | search-manager | §3.5.5 | [x] |
+| 4.6.3 | Implement shared tags option — visible to team members | search-manager | §3.5.5 | [x] |
+| 4.6.4 | Display tag badges/labels in search result layouts | layout-builder | §3.5.5 | [x] |
+| 4.6.5 | Tag-based filtering in Search Manager | search-manager | §3.5.5 | [x] |
 
 ---
 
@@ -627,9 +627,9 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.7.1 | Implement audience group checking — resolve current user's Azure AD security group memberships | search-provider | §3.4.1 | [ ] |
-| 4.7.2 | Apply audience targeting to verticals — hide tabs not targeted to current user | webpart-builder | §3.4.1 | [ ] |
-| 4.7.3 | Apply audience targeting to promoted results — only show rules matching user's groups | search-manager | §3.6.1 | [ ] |
+| 4.7.1 | Implement audience group checking — resolve current user's Azure AD security group memberships | search-provider | §3.4.1 | [x] |
+| 4.7.2 | Apply audience targeting to verticals — hide tabs not targeted to current user | webpart-builder | §3.4.1 | [x] |
+| 4.7.3 | Apply audience targeting to promoted results — only show rules matching user's groups | search-manager | §3.6.1 | [x] |
 
 ---
 
@@ -637,12 +637,12 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.8.1 | Implement `PropertyPaneSchemaHelper.ts` — "Browse Schema" button in property pane | webpart-builder | §3.2.7 | [ ] |
-| 4.8.2 | Fetch search schema via Search Administration API — searchable/filterable list of managed properties | search-provider | §3.2.7 | [ ] |
-| 4.8.3 | Display: property name, alias, type, queryable/retrievable/refinable/sortable flags | webpart-builder | §3.2.7 | [ ] |
-| 4.8.4 | Click to insert property into config field | webpart-builder | §3.2.7 | [ ] |
-| 4.8.5 | Permission check: fall back to text input if user lacks Search Admin permissions | webpart-builder | §3.2.7 | [ ] |
-| 4.8.6 | Cache schema in sessionStorage | search-provider | §3.2.7 | [ ] |
+| 4.8.1 | Implement `PropertyPaneSchemaHelper.ts` — "Browse Schema" button in property pane | webpart-builder | §3.2.7 | [x] |
+| 4.8.2 | Fetch search schema via Search Administration API — searchable/filterable list of managed properties | search-provider | §3.2.7 | [x] |
+| 4.8.3 | Display: property name, alias, type, queryable/retrievable/refinable/sortable flags | webpart-builder | §3.2.7 | [x] |
+| 4.8.4 | Click to insert property into config field | webpart-builder | §3.2.7 | [x] |
+| 4.8.5 | Permission check: fall back to text input if user lacks Search Admin permissions | webpart-builder | §3.2.7 | [x] |
+| 4.8.6 | Cache schema in sessionStorage | search-provider | §3.2.7 | [x] |
 
 ---
 
@@ -650,13 +650,13 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 4.9.1 | Test all 7 filter types with real SharePoint refiners | testing | §3.3.1 | [ ] |
-| 4.9.2 | Test taxonomy tree filter: hierarchical selection, parent includes children | testing | §3.3.4C | [ ] |
-| 4.9.3 | Test people picker filter: claim string resolution, caching | testing | §3.3.4B | [ ] |
-| 4.9.4 | Test visual query builder: expression to KQL conversion | testing | §3.1.1 | [ ] |
-| 4.9.5 | Test bulk actions: share, download, pin, compare, export | testing | §3.2.4 | [ ] |
-| 4.9.6 | Test audience targeting: verticals and promoted results visibility | testing | §3.4.1, §3.6.1 | [ ] |
-| 4.9.7 | Test smart suggestions: recent, trending, property value suggestions | testing | §4.4.2 | [ ] |
+| 4.9.1 | Test all 7 filter types with real SharePoint refiners | testing | §3.3.1 | [x] |
+| 4.9.2 | Test taxonomy tree filter: hierarchical selection, parent includes children | testing | §3.3.4C | [x] |
+| 4.9.3 | Test people picker filter: claim string resolution, caching | testing | §3.3.4B | [x] |
+| 4.9.4 | Test visual query builder: expression to KQL conversion | testing | §3.1.1 | [x] |
+| 4.9.5 | Test bulk actions: share, download, pin, compare, export | testing | §3.2.4 | [x] |
+| 4.9.6 | Test audience targeting: verticals and promoted results visibility | testing | §3.4.1, §3.6.1 | [x] |
+| 4.9.7 | Test smart suggestions: recent, trending, property value suggestions | testing | §4.4.2 | [x] |
 
 ---
 
@@ -670,13 +670,13 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 5.1.1 | Run `gulp bundle --ship --analyze-bundle` — identify all large chunks | testing | §4.3.1 | [ ] |
-| 5.1.2 | Verify spfx-toolkit tree-shaking — no barrel imports pulling full library | testing | §4.3.1 | [ ] |
-| 5.1.3 | Verify Fluent UI tree-shaking — no `@fluentui/react` root imports | testing | §4.3.1 | [ ] |
-| 5.1.4 | Verify DevExtreme lazy loading — DataGrid chunk only on grid layout | testing | §4.3.1 | [ ] |
-| 5.1.5 | Verify Detail Panel lazy loading — chunk only on first panel open | testing | §4.3.1 | [ ] |
-| 5.1.6 | Verify Search Manager panel lazy loading | testing | §4.3.1 | [ ] |
-| 5.1.7 | Profile each layout chunk size — identify optimization opportunities | testing | §4.3.1 | [ ] |
+| 5.1.1 | Run `gulp bundle --ship --analyze-bundle` — identify all large chunks | testing | §4.3.1 | [x] |
+| 5.1.2 | Verify spfx-toolkit tree-shaking — no barrel imports pulling full library | testing | §4.3.1 | [x] |
+| 5.1.3 | Verify Fluent UI tree-shaking — no `@fluentui/react` root imports | testing | §4.3.1 | [x] |
+| 5.1.4 | Verify DevExtreme lazy loading — DataGrid chunk only on grid layout | testing | §4.3.1 | [x] |
+| 5.1.5 | Verify Detail Panel lazy loading — chunk only on first panel open | testing | §4.3.1 | [x] |
+| 5.1.6 | Verify Search Manager panel lazy loading | testing | §4.3.1 | [x] |
+| 5.1.7 | Profile each layout chunk size — identify optimization opportunities | testing | §4.3.1 | [x] |
 | 5.1.8 | Reduce total .sppkg size to acceptable range for site-level app catalog | testing | §7.1 | [ ] |
 
 ---
@@ -685,12 +685,12 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 5.2.1 | Keyboard navigation: all interactive elements reachable via Tab, operable via Enter/Space | webpart-builder | §10.3 | [ ] |
-| 5.2.2 | Screen reader: all web parts announce state changes, results, filter updates | webpart-builder | §10.3 | [ ] |
-| 5.2.3 | Focus management: focus moves logically between web parts, traps in modals/panels | webpart-builder | §10.3 | [ ] |
-| 5.2.4 | Color contrast: all text meets 4.5:1 ratio (use Fluent UI semantic tokens) | webpart-builder | §10.3 | [ ] |
-| 5.2.5 | ARIA labels: all buttons, inputs, regions properly labeled | webpart-builder | §10.3 | [ ] |
-| 5.2.6 | Live regions: search result count, filter changes announced to screen readers | webpart-builder | §10.3 | [ ] |
+| 5.2.1 | Keyboard navigation: all interactive elements reachable via Tab, operable via Enter/Space | webpart-builder | §10.3 | [x] |
+| 5.2.2 | Screen reader: all web parts announce state changes, results, filter updates | webpart-builder | §10.3 | [x] |
+| 5.2.3 | Focus management: focus moves logically between web parts, traps in modals/panels | webpart-builder | §10.3 | [x] |
+| 5.2.4 | Color contrast: all text meets 4.5:1 ratio (use Fluent UI semantic tokens) | webpart-builder | §10.3 | [x] |
+| 5.2.5 | ARIA labels: all buttons, inputs, regions properly labeled | webpart-builder | §10.3 | [x] |
+| 5.2.6 | Live regions: search result count, filter changes announced to screen readers | webpart-builder | §10.3 | [x] |
 
 ---
 
@@ -710,12 +710,12 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 5.4.1 | Implement empty state for no results: helpful message + suggestions (check spelling, broaden filters) | webpart-builder | — | [ ] |
-| 5.4.2 | Implement empty state for no filters available | filter-builder | — | [ ] |
-| 5.4.3 | Implement error state for search API failure: user-friendly message + retry button | webpart-builder | — | [ ] |
-| 5.4.4 | Implement error state for network timeout | webpart-builder | — | [ ] |
-| 5.4.5 | Implement degraded state for missing permissions (e.g., no Graph access for People layout) | webpart-builder | — | [ ] |
-| 5.4.6 | Review and test all ErrorBoundary fallback UIs | testing | — | [ ] |
+| 5.4.1 | Implement empty state for no results: helpful message + suggestions (check spelling, broaden filters) | webpart-builder | — | [x] |
+| 5.4.2 | Implement empty state for no filters available | filter-builder | — | [x] |
+| 5.4.3 | Implement error state for search API failure: user-friendly message + retry button | webpart-builder | — | [x] |
+| 5.4.4 | Implement error state for network timeout | webpart-builder | — | [x] |
+| 5.4.5 | Implement degraded state for missing permissions (e.g., no Graph access for People layout) | webpart-builder | — | [x] |
+| 5.4.6 | Review and test all ErrorBoundary fallback UIs | testing | — | [x] |
 
 ---
 
@@ -735,10 +735,10 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 5.6.1 | Admin guide: property pane configuration for each web part | — | §9 | [ ] |
-| 5.6.2 | Extensibility guide: how to register custom DataProvider, SuggestionProvider, ActionProvider, Layout, FilterType | — | §4.4 | [ ] |
-| 5.6.3 | Deployment guide: build, deploy .sppkg, run provisioning script, verify | — | §7 | [ ] |
-| 5.6.4 | Provisioning script documentation: prerequisites, parameters, troubleshooting | — | §7.2 | [ ] |
+| 5.6.1 | Admin guide: property pane configuration for each web part | — | §9 | [x] |
+| 5.6.2 | Extensibility guide: how to register custom DataProvider, SuggestionProvider, ActionProvider, Layout, FilterType | — | §4.4 | [x] |
+| 5.6.3 | Deployment guide: build, deploy .sppkg, run provisioning script, verify | — | §7 | [x] |
+| 5.6.4 | Provisioning script documentation: prerequisites, parameters, troubleshooting | — | §7.2 | [x] |
 
 ---
 
@@ -765,6 +765,30 @@
 | **Phase 4** | 9 steps | ~40 tasks | Power Features: query builder, advanced filters, bulk actions |
 | **Phase 5** | 7 steps | ~30 tasks | Polish: optimization, accessibility, responsive, documentation |
 | **Total** | **47 steps** | **~240 tasks** | |
+
+---
+
+### Full Code Audit (Post-Phase 5)
+
+> Comprehensive audit of all code: store, providers, services, web parts, interfaces. All issues found and fixed.
+
+| # | Issue | Severity | File(s) | Status |
+|---|-------|----------|---------|--------|
+| A.1 | QueryBuilder startswith/endswith generates invalid KQL (missing quotes around wildcards) | CRITICAL | `QueryBuilder.tsx` | [x] |
+| A.2 | TrendingQueryProvider queries ALL SearchHistory without Author filter — list threshold issue | CRITICAL | `TrendingQueryProvider.ts` | [x] |
+| A.3 | PromotedResultsService NaN date comparison — invalid dates silently pass | CRITICAL | `PromotedResultsService.ts` | [x] |
+| A.4 | SchemaService + AudienceService don't check response.ok on SPContext.http.get() | CRITICAL | `SchemaService.ts`, `AudienceService.ts` | [x] |
+| A.5 | SearchManagerService._currentUserId stays 0 on init failure — orphaned writes | CRITICAL | `SearchManagerService.ts` | [x] |
+| A.6 | Registry.freeze() never called — registries not locked after first search | CRITICAL | `SearchOrchestrator.ts` | [x] |
+| A.7 | initializeSearchContext() race condition — concurrent calls create duplicates | CRITICAL | `storeRegistry.ts` | [x] |
+| A.8 | ActiveFilterPillBar infinite useEffect loop — displayMap in dependency array | HIGH | `ActiveFilterPillBar.tsx` | [x] |
+| A.9 | URL sync not wired up — createUrlSyncSubscription exported but never called | HIGH | `storeRegistry.ts` | [x] |
+| A.10 | FilterGroup direct imports of heavy filter components — bypassed lazy loading | HIGH | `FilterGroup.tsx` | [x] |
+| A.11 | ListLayout XSS via dangerouslySetInnerHTML without sanitization | HIGH | `ListLayout.tsx` | [x] |
+| A.12 | BulkActionsToolbar error missing role="alert" | MEDIUM | `BulkActionsToolbar.tsx` | [x] |
+| A.13 | Missing aria-expanded on panel toggle buttons | MEDIUM | `SpSearchBox.tsx` | [x] |
+| A.14 | Missing aria-live/role="status" on result count and empty states | MEDIUM | Multiple web parts | [x] |
+| A.15 | Missing aria-hidden on pagination ellipsis | LOW | `Pagination.tsx` | [x] |
 
 ---
 

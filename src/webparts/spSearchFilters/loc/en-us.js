@@ -10,6 +10,7 @@ define([], function() {
     "ApplyModeManual": "Manual (apply with button)",
     "OperatorLabel": "Operator between filters",
     "ShowClearAllLabel": "Show Clear All button",
+    "EnableVisualFilterBuilderLabel": "Enable visual filter builder",
     "ToggleOnText": "Yes",
     "ToggleOffText": "No",
     "AppLocalEnvironmentSharePoint": "The app is running on your local environment as SharePoint web part",

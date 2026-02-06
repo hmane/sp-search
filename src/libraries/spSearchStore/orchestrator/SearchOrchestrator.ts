@@ -27,6 +27,7 @@ export class SearchOrchestrator {
   private readonly _debounceMs: number;
   private _historyService: SearchManagerService | undefined;
   private _lastHistoryId: number = 0;
+  private _registriesFrozen: boolean = false;
 
   public constructor(store: StoreApi<ISearchStore>, debounceMs: number = 300) {
     this._store = store;
@@ -139,6 +140,17 @@ export class SearchOrchestrator {
     // Create new AbortController for this search cycle
     this._abortController = new AbortController();
     const signal = this._abortController.signal;
+
+    // Freeze registries on first search — prevents mid-session mutations
+    if (!this._registriesFrozen) {
+      this._registriesFrozen = true;
+      const r = state.registries;
+      r.dataProviders.freeze();
+      r.suggestions.freeze();
+      r.actions.freeze();
+      r.layouts.freeze();
+      r.filterTypes.freeze();
+    }
 
     // Set loading state
     state.setLoading(true);

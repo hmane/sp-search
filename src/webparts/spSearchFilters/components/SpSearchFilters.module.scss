@@ -397,3 +397,261 @@
   font-style: italic;
   padding: 2px 0;
 }
+
+/* ── Toggle filter ─────────────────────────────────────── */
+
+.toggleFilterContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.toggleStateRow {
+  display: flex;
+  gap: 6px;
+}
+
+.toggleStateButton {
+  border: 1px solid "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+  background: "[theme:white, default: #ffffff]";
+  color: "[theme:bodyText, default: #323130]";
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: "[theme:neutralSecondary, default: #605e5c]";
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
+}
+
+.toggleStateButtonActive {
+  composes: toggleStateButton;
+  background-color: "[theme:themePrimary, default: #0078d4]";
+  border-color: "[theme:themePrimary, default: #0078d4]";
+  color: "[theme:white, default: #ffffff]";
+
+  &:hover {
+    background-color: "[theme:themeDarkAlt, default: #106ebe]";
+    border-color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+}
+
+/* ── TagBox filter ──────────────────────────────────────── */
+
+.tagBoxFilterContainer {
+  padding: 4px 0;
+}
+
+/* ── Slider filter ──────────────────────────────────────── */
+
+.sliderFilterContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.sliderLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.sliderMinLabel {
+  text-align: left;
+}
+
+.sliderMaxLabel {
+  text-align: right;
+}
+
+.sliderRangeDisplay {
+  text-align: center;
+  font-size: 12px;
+  color: "[theme:themePrimary, default: #0078d4]";
+  font-weight: 600;
+}
+
+.sliderLoading {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+/* ── Taxonomy tree filter ───────────────────────────────── */
+
+.taxonomyTreeContainer {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 2px;
+  padding: 6px;
+}
+
+.taxonomyTreeLoading {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.taxonomyTreeError {
+  padding: 8px;
+  font-size: 12px;
+  color: "[theme:errorText, default: #a4262c]";
+  background-color: "[theme:errorBackground, default: #fde7e9]";
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+
+/* ── People picker filter ───────────────────────────────── */
+
+.peopleFilterContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.peopleFilterFallback {
+  // Fallback mode when no WebPartContext available
+}
+
+.peopleRefinerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.peopleItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: "[theme:bodyText, default: #323130]";
+  text-align: left;
+  border-radius: 2px;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: -2px;
+  }
+}
+
+.peopleItemActive {
+  composes: peopleItem;
+  background-color: "[theme:themeLighter, default: #deecf9]";
+  color: "[theme:themeDarkAlt, default: #106ebe]";
+  font-weight: 600;
+}
+
+.peopleItemName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Visual Filter Builder ─────────────────────────────── */
+
+.visualFilterBuilderToggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.visualFilterBuilderPanel {
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 4px;
+  background-color: "[theme:white, default: #ffffff]";
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.visualFilterBuilderHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+}
+
+.visualFilterBuilderBody {
+  min-height: 80px;
+}
+
+.visualFilterBuilderLoading {
+  padding: 16px;
+  text-align: center;
+}
+
+.visualFilterBuilderEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  font-size: 13px;
+}
+
+.visualFilterBuilderEmptyIcon {
+  font-size: 32px;
+  color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+}
+
+.visualFilterBuilderPreview {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+}
+
+.visualFilterBuilderPreviewLabel {
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  margin-bottom: 4px;
+}
+
+.visualFilterBuilderPreviewText {
+  font-size: 12px;
+  font-family: monospace;
+  color: "[theme:bodyText, default: #323130]";
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  padding: 6px 8px;
+  border-radius: 2px;
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  word-break: break-all;
+}
+
+.visualFilterBuilderActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

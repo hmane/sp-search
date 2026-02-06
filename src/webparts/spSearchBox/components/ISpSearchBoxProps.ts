@@ -10,6 +10,7 @@ export interface ISpSearchBoxProps {
   enableScopeSelector: boolean;
   searchScopes: ISearchScope[];
   enableSuggestions: boolean;
+  enableQueryBuilder: boolean;
   enableSearchManager: boolean;
   theme: IReadonlyTheme | undefined;
 }

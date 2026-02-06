@@ -9,6 +9,7 @@ declare interface ISpSearchFiltersWebPartStrings {
   ApplyModeManual: string;
   OperatorLabel: string;
   ShowClearAllLabel: string;
+  EnableVisualFilterBuilderLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
   AppLocalEnvironmentSharePoint: string;

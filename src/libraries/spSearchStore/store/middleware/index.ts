@@ -1,5 +1,7 @@
 export {
   serializeToUrl,
   deserializeFromUrl,
-  createUrlSyncSubscription
+  createUrlSyncSubscription,
+  setStateSnapshotHandler,
+  setStateSnapshotLoader
 } from './urlSyncMiddleware';

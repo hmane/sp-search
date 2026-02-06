@@ -11,7 +11,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
-import { spfi, SPFx } from '@pnp/sp';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
@@ -23,6 +23,8 @@ import {
   initializeSearchContext
 } from '@store/store';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
+import { registerBuiltInActions } from './registerBuiltInActions';
+import { PropertyPaneSchemaHelper } from '../../propertyPaneControls/PropertyPaneSchemaHelper';
 
 export interface ISpSearchResultsWebPartProps {
   searchContextId: string;
@@ -62,15 +64,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
+    // Initialize SPContext for PnPjs
+    await SPContext.basic(this.context, 'SPSearchResults');
+
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
     this._orchestrator = getOrchestrator(contextId);
 
-    // Initialize PnPjs with SPFx context
-    const sp = spfi().using(SPFx(this.context));
+    if (this._store) {
+      registerBuiltInActions(this._store.getState().registries.actions);
+    }
 
     // Initialize the search context (history service, orchestrator, etc.)
-    await initializeSearchContext(contextId, sp);
+    await initializeSearchContext(contextId);
 
     // Apply default layout if configured
     if (this.properties.defaultLayout && this._store) {
@@ -128,15 +134,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.SearchContextIdLabel,
                   description: strings.SearchContextIdDescription
                 }),
-                PropertyPaneTextField('queryTemplate', {
+                PropertyPaneSchemaHelper('queryTemplate', {
                   label: strings.QueryTemplateLabel,
-                  description: strings.QueryTemplateDescription
+                  description: strings.QueryTemplateDescription,
+                  value: this.properties.queryTemplate || '',
+                  filterHint: 'queryable',
                 }),
-                PropertyPaneTextField('selectedProperties', {
+                PropertyPaneSchemaHelper('selectedProperties', {
                   label: strings.SelectedPropertiesLabel,
                   description: strings.SelectedPropertiesDescription,
+                  value: this.properties.selectedProperties || '',
                   multiline: true,
-                  rows: 4
+                  rows: 4,
+                  filterHint: 'retrievable',
                 }),
                 PropertyPaneSlider('pageSize', {
                   label: strings.PageSizeLabel,

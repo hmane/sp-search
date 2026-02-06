@@ -17,9 +17,9 @@ import SpSearchBox from './components/SpSearchBox';
 import { ISpSearchBoxProps } from './components/ISpSearchBoxProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore, ISearchScope } from '@interfaces/index';
-import { getStore, initializeSearchContext } from '@store/store';
+import { getStore, initializeSearchContext, getManagerService } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
-import { spfi, SPFx } from '@pnp/sp';
+import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 
 export interface ISpSearchBoxWebPartProps {
   searchContextId: string;
@@ -29,6 +29,7 @@ export interface ISpSearchBoxWebPartProps {
   enableScopeSelector: boolean;
   searchScopes: ISearchScope[];
   enableSuggestions: boolean;
+  enableQueryBuilder: boolean;
   enableSearchManager: boolean;
 }
 
@@ -52,6 +53,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
         enableScopeSelector: !!this.properties.enableScopeSelector,
         searchScopes: this.properties.searchScopes || [],
         enableSuggestions: !!this.properties.enableSuggestions,
+        enableQueryBuilder: !!this.properties.enableQueryBuilder,
         enableSearchManager: !!this.properties.enableSearchManager,
         theme: this._theme,
       }
@@ -68,8 +70,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     const contextId = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
 
-    // Register the SharePoint Search data provider
-    const provider = new SharePointSearchProvider(SPContext.sp);
+    // Register the SharePoint Search data provider (uses SPContext.sp internally)
+    const provider = new SharePointSearchProvider();
     const dataProviders = this._store.getState().registries.dataProviders;
     if (!dataProviders.get(provider.id)) {
       dataProviders.register(provider);
@@ -77,8 +79,15 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
 
     // Initialize the shared search context (orchestrator + manager service)
     // This is idempotent - if already initialized by another web part, it's a no-op
-    const sp = spfi().using(SPFx(this.context));
-    await initializeSearchContext(contextId, sp);
+    await initializeSearchContext(contextId);
+
+    // Register built-in suggestion providers (Recent, Trending, ManagedProperty)
+    const managerService = getManagerService(contextId);
+    if (managerService) {
+      const suggestions = this._store.getState().registries.suggestions;
+      const dataProviders = this._store.getState().registries.dataProviders;
+      registerBuiltInSuggestions(suggestions, managerService, dataProviders);
+    }
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -160,8 +169,11 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                 PropertyPaneToggle('enableSuggestions', {
                   label: strings.EnableSuggestionsFieldLabel,
                 }),
+                PropertyPaneToggle('enableQueryBuilder', {
+                  label: strings.EnableQueryBuilderFieldLabel,
+                }),
                 PropertyPaneToggle('enableSearchManager', {
-                  label: 'Enable saved searches button',
+                  label: strings.EnableSearchManagerFieldLabel,
                 }),
               ]
             }

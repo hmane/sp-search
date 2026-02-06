@@ -6,7 +6,7 @@ import { ISearchContext } from './ISuggestionProvider';
  * on results and in the bulk actions toolbar.
  *
  * Built-in: OpenAction, PreviewAction, ShareAction, PinAction,
- *           CopyLinkAction, DownloadAction
+ *           CopyLinkAction, DownloadAction, CompareAction, ExportCsvAction
  */
 export interface IActionProvider {
   id: string;

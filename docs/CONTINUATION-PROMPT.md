@@ -30,8 +30,27 @@ All 13 steps complete — scaffolding, interfaces, registries, Zustand store, UR
 ### Phase 2: Rich Layouts ✅
 Steps 2.1-2.6 complete — DataGrid Layout (DevExtreme), Card Layout (spfx-toolkit), People Layout, Document Gallery Layout, Result Detail Panel, Layout Switcher, Refiner Stability mode.
 
-### Phase 3: User Features (Partial) ✅
-Steps 3.1-3.3 complete — SearchManagerService (CRUD), item-level permissions, Search Manager web part with Saved/Shared/Collections/History tabs.
+### Phase 3: User Features ✅
+Steps 3.1-3.9 complete — SearchManagerService (CRUD), item-level permissions, Search Manager web part, ShareSearchDialog (4 tabs), history auto-logging + click tracking + cleanup TTL, StateId deep link fallback, Promoted Results / Best Bets, Active Filter Pill Bar, RecentSearchProvider.
+
+### SPContext Refactor ✅
+- All services/providers refactored to use `SPContext.sp` (no direct SPFI injection)
+- All PnP side-effect imports replaced with `spfx-toolkit/lib/utilities/context/pnpImports/*` bundles
+- PnP type imports use `import type` (zero bundle cost)
+- Web parts call `SPContext.basic(this.context, 'Name')` in `onInit()`
+- `SearchManagerService` uses `createSPExtractor`, `BatchBuilder`, `SPContext.logger`
+
+### Step 4.1: Advanced Filter Types ✅
+All 7 filter types implemented and registered:
+- `TaxonomyTreeFilter.tsx` — DevExtreme TreeView, hierarchical taxonomy with GP0|#GUID resolution
+- `PeoplePickerFilter.tsx` — PnP PeoplePicker, claim string resolution
+- `SliderFilter.tsx` — DevExtreme RangeSlider, FQL range(decimal()) tokens, file size formatting
+- `TagBoxFilter.tsx` — DevExtreme TagBox, tag-style multi-select
+- `ToggleFilter.tsx` — Fluent UI Toggle, three-state (All/Yes/No)
+- 6 formatters: Taxonomy, People, Numeric, Boolean, Date, Default
+- `registerBuiltInFilterTypes.ts` — registers all 7 in FilterTypeRegistry
+- `FilterGroup.tsx` updated to route all 7 filter types
+- `SpSearchFiltersWebPart.ts` calls registration in `onInit()`
 
 ---
 
@@ -47,55 +66,9 @@ Steps 3.1-3.3 complete — SearchManagerService (CRUD), item-level permissions, 
 [ ] 2.7.6 Verify DataGrid lazy loading — bundle chunk only loaded when grid layout selected
 ```
 
-### Step 3.4 — Search Sharing (5 tasks)
+### Step 3.9.2 — Suggestion Dropdown (1 remaining task)
 ```
-[ ] 3.4.1 Implement ShareSearchDialog.tsx — tabbed dialog: URL, Email, Teams, Users
-[ ] 3.4.2 Share via URL: encode full state in URL params, copy to clipboard with toast
-[ ] 3.4.3 Share via Email: mailto: with search description + link + optional top N results
-[ ] 3.4.4 Share to Teams: deep link https://teams.microsoft.com/l/chat/0/0?message={encoded}
-[ ] 3.4.5 Share to Users: PnP PeoplePicker, create SharedSearch entry, set item-level permissions
-```
-
-### Step 3.5 — Search History Auto-Logging (3 tasks)
-```
-[ ] 3.5.1 Auto-logging in SearchOrchestrator — after successful search, dispatch addToHistory()
-[ ] 3.5.2 Clicked item tracking: log { url, title, position, timestamp } to history entry
-[ ] 3.5.3 Configurable history cleanup TTL (30/60/90 days) in SearchConfiguration
-```
-
-### Step 3.6 — StateId Deep Link Fallback (3 tasks)
-```
-[ ] 3.6.1 Detect when serialized URL exceeds 2,000 chars
-[ ] 3.6.2 Save full state JSON to SearchConfiguration list with ConfigType: StateSnapshot
-[ ] 3.6.3 Replace URL with ?sid=<itemId> — on page load, fetch state from list, restore
-```
-
-### Step 3.7 — Promoted Results / Best Bets (5 tasks)
-```
-[ ] 3.7.1 Implement promoted result rule evaluation: match query against rules from SearchConfiguration
-[ ] 3.7.2 Implement PromotedResultsBlock.tsx — "Recommended" block above organic results
-[ ] 3.7.3 Implement layout-adaptive rendering: card style in Card Layout, row in DataGrid/List/Compact
-[ ] 3.7.4 Implement dismissible promoted results (session-only, stored in uiSlice)
-[ ] 3.7.5 Implement configurable max promoted results per query (default 3)
-```
-
-### Step 3.8 — Active Filter Pill Bar (8 tasks)
-```
-[ ] 3.8.1 Implement ActiveFilterPillBar.tsx — horizontal strip of dismissible pills
-[ ] 3.8.2 Implement pill rendering: {Filter Name}: {Human-Readable Value} x
-[ ] 3.8.3 Multi-value filters combined into ONE pill with comma-separated values
-[ ] 3.8.4 Pill click dismisses filter via removeRefiner(), re-executes search
-[ ] 3.8.5 "Clear All" link at end dispatches clearAllFilters()
-[ ] 3.8.6 Human-readable display via IFilterValueFormatter for each field type
-[ ] 3.8.7 Animate pill add/remove (Fluent UI motion tokens)
-[ ] 3.8.8 Sticky behavior when filter panel is in sidebar layout
-```
-
-### Step 3.9 — Recent Searches Suggestion Provider (3 tasks)
-```
-[ ] 3.9.1 Implement RecentSearchProvider — queries SearchHistory list for current user
 [ ] 3.9.2 Implement SuggestionDropdown.tsx in Search Box — dropdown showing grouped suggestions
-[ ] 3.9.3 Register RecentSearchProvider in SuggestionProviderRegistry
 ```
 
 ### Step 3.10 — Phase 3 Integration Testing (7 tasks)
@@ -109,8 +82,7 @@ Steps 3.1-3.3 complete — SearchManagerService (CRUD), item-level permissions, 
 [ ] 3.10.7 Test pill bar: display, dismiss, clear all, human-readable formatting
 ```
 
-### Phase 4 — Power Features (9 steps, ~40 tasks)
-- Step 4.1: Advanced Filter Types (TaxonomyTree, PeoplePicker, Slider, TagBox, Toggle)
+### Phase 4 — Power Features (8 remaining steps, ~30 tasks)
 - Step 4.2: Visual Query Builder
 - Step 4.3: Visual Filter Builder
 - Step 4.4: Bulk Actions Toolbar
@@ -139,6 +111,21 @@ Steps 3.1-3.3 complete — SearchManagerService (CRUD), item-level permissions, 
    import { Card } from 'spfx-toolkit/lib/components/Card';
    // NEVER: import { Card } from 'spfx-toolkit';
 
+   // spfx-toolkit — PnP side-effect imports via bundles
+   import 'spfx-toolkit/lib/utilities/context/pnpImports/lists';
+   import 'spfx-toolkit/lib/utilities/context/pnpImports/search';
+   import 'spfx-toolkit/lib/utilities/context/pnpImports/security';
+   // NEVER: import '@pnp/sp/lists' (use toolkit bundles instead)
+
+   // PnP types — ALWAYS type-only imports
+   import type { ISearchQuery } from '@pnp/sp/search';
+   // NEVER: import { ISearchQuery } from '@pnp/sp/search';
+
+   // SPContext — use SPContext.sp instead of injecting SPFI
+   import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+   // Initialize in onInit: await SPContext.basic(this.context, 'WebPartName');
+   // Use anywhere: SPContext.sp.web.lists...
+
    // Fluent UI v8 — ALWAYS tree-shakable imports
    import { Panel } from '@fluentui/react/lib/Panel';
    // NEVER: import { Panel } from '@fluentui/react';
@@ -152,6 +139,10 @@ Steps 3.1-3.3 complete — SearchManagerService (CRUD), item-level permissions, 
    - All inter-webpart communication via Zustand store — no SPFx Dynamic Data
    - AbortController on every search — cancel in-flight requests before new ones
    - Registries freeze after first search execution
+   - Services use `SPContext.sp` (no SPFI constructor injection)
+   - Use `createSPExtractor` for type-safe field extraction from list items
+   - Use `BatchBuilder` for batch SharePoint operations
+   - Use `SPContext.logger` for structured logging
 
 3. **Data Rules**:
    - SearchHistory list WILL exceed 5,000 items — ALWAYS filter by Author FIRST in CAML
@@ -197,7 +188,7 @@ To continue development:
 
 1. Read `CLAUDE.md` for full architecture context
 2. Check `docs/DEVELOPMENT-PLAN.md` for current status
-3. Pick the next incomplete step (suggested: Step 3.4 — Search Sharing)
+3. Pick the next incomplete step (suggested: Step 4.2 — Visual Query Builder)
 4. Use the `.claude/agents/` specialist prompts for domain-specific guidance
 
-**Suggested first task**: Implement `ShareSearchDialog.tsx` (Step 3.4.1) — this unlocks the sharing workflow that ties together URL state, list storage, and item-level permissions.
+**Suggested first task**: Implement `QueryBuilder.tsx` (Step 4.2.1) — expandable panel below search box with DevExtreme-inspired filter builder UI for constructing KQL queries visually.

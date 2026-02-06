@@ -88,7 +88,7 @@ const Pagination: React.FC<IPaginationProps> = (props) => {
       {pageNumbers.map((page: number, index: number) => {
         if (page === -1) {
           return (
-            <span key={'ellipsis-' + String(index)} className={styles.pageEllipsis}>
+            <span key={'ellipsis-' + String(index)} className={styles.pageEllipsis} aria-hidden="true">
               &hellip;
             </span>
           );

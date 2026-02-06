@@ -59,6 +59,24 @@ export interface IFilterConfig {
   showCount: boolean;
   sortBy: SortBy;
   sortDirection: SortDirection;
+  /** Optional: slider range minimum */
+  rangeMin?: number;
+  /** Optional: slider range maximum */
+  rangeMax?: number;
+  /** Optional: slider step */
+  rangeStep?: number;
+  /** Optional: numeric formatting hint for slider values */
+  rangeFormat?: 'number' | 'bytes' | 'currency';
+  /** Optional: currency code for numeric formatting */
+  currency?: string;
+  /** Optional: taxonomy term set ID to drive the tree */
+  termSetId?: string;
+  /** Optional: taxonomy selection includes children */
+  includeChildren?: boolean;
+  /** Optional: boolean true label */
+  trueLabel?: string;
+  /** Optional: boolean false label */
+  falseLabel?: string;
 }
 
 /**

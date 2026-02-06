@@ -139,7 +139,7 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
     <div className={styles.toolbar}>
       <div className={styles.toolbarLeft}>
         {showResultCount && (
-          <span className={styles.resultCount}>{formatResultCount(totalCount)}</span>
+          <span className={styles.resultCount} aria-live="polite" role="status">{formatResultCount(totalCount)}</span>
         )}
         {showSortDropdown && (
           <Dropdown

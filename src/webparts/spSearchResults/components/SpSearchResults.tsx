@@ -4,26 +4,59 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
+import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import type { ISpSearchResultsProps } from './ISpSearchResultsProps';
 import {
   ISearchResult,
   IPromotedResultItem,
-  ISortField
+  ISortField,
+  IActiveFilter,
+  IFilterConfig,
+  ISearchContext,
+  IActionProvider
 } from '@interfaces/index';
 import { getManagerService } from '@store/store';
 import ResultToolbar from './ResultToolbar';
+import BulkActionsToolbar from './BulkActionsToolbar';
+import ActiveFilterPillBar from './ActiveFilterPillBar';
 import ListLayout from './ListLayout';
 import CompactLayout from './CompactLayout';
 import Pagination from './Pagination';
 import styles from './SpSearchResults.module.scss';
 
 // ─── Lazy-loaded layouts and panels ──────────────────────
-const CardLayout = React.lazy(() => import(/* webpackChunkName: 'CardLayout' */ './CardLayout'));
-const PeopleLayout = React.lazy(() => import(/* webpackChunkName: 'PeopleLayout' */ './PeopleLayout'));
-const DataGridLayout = React.lazy(() => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout'));
-const GalleryLayout = React.lazy(() => import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout'));
-const ResultDetailPanel = React.lazy(() => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel'));
-const SpSearchManager = React.lazy(() => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager'));
+// Type assertions needed due to @types/react mismatch between sp-search and spfx-toolkit
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CardLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'CardLayout' */ './CardLayout') as any,
+  { errorMessage: 'Failed to load card layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PeopleLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'PeopleLayout' */ './PeopleLayout') as any,
+  { errorMessage: 'Failed to load people layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const DataGridLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout') as any,
+  { errorMessage: 'Failed to load data grid layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const GalleryLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout') as any,
+  { errorMessage: 'Failed to load gallery layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ResultDetailPanel: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel') as any,
+  { errorMessage: 'Failed to load detail panel' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SpSearchManager: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as any,
+  { errorMessage: 'Failed to load search manager' }
+);
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -45,6 +78,8 @@ function useStoreState(
   bulkSelection: string[];
   previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
   isSearchManagerOpen: boolean;
+  activeFilters: IActiveFilter[];
+  filterConfig: IFilterConfig[];
 } {
   const { store } = props;
 
@@ -61,6 +96,8 @@ function useStoreState(
     bulkSelection: string[];
     previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
     isSearchManagerOpen: boolean;
+    activeFilters: IActiveFilter[];
+    filterConfig: IFilterConfig[];
   } => {
     const state = store.getState();
     return {
@@ -75,7 +112,9 @@ function useStoreState(
       sort: state.sort,
       bulkSelection: state.bulkSelection,
       previewPanel: state.previewPanel,
-      isSearchManagerOpen: state.isSearchManagerOpen
+      isSearchManagerOpen: state.isSearchManagerOpen,
+      activeFilters: state.activeFilters,
+      filterConfig: state.filterConfig
     };
   }, [store]);
 
@@ -98,7 +137,9 @@ function useStoreState(
           prev.sort === next.sort &&
           prev.bulkSelection === next.bulkSelection &&
           prev.previewPanel === next.previewPanel &&
-          prev.isSearchManagerOpen === next.isSearchManagerOpen
+          prev.isSearchManagerOpen === next.isSearchManagerOpen &&
+          prev.activeFilters === next.activeFilters &&
+          prev.filterConfig === next.filterConfig
         ) {
           return prev;
         }
@@ -134,66 +175,72 @@ const LoadingShimmer: React.FC<{ count: number }> = (shimmerProps) => {
 };
 
 /**
- * Suspense fallback shimmer for lazy-loaded layouts.
+ * Renders the promoted results section — highlighted "Recommended" cards above
+ * the main results. Supports session-only dismissal.
  */
-const LayoutFallbackShimmer: React.FC = () => (
-  <div className={styles.shimmerContainer}>
-    <Shimmer
-      shimmerElements={[
-        { type: ShimmerElementType.line, height: 120, width: '100%' }
-      ]}
-      width="100%"
-    />
-    <Shimmer
-      shimmerElements={[
-        { type: ShimmerElementType.line, height: 120, width: '100%' }
-      ]}
-      width="100%"
-      style={{ marginTop: 12 }}
-    />
-    <Shimmer
-      shimmerElements={[
-        { type: ShimmerElementType.line, height: 120, width: '100%' }
-      ]}
-      width="100%"
-      style={{ marginTop: 12 }}
-    />
-  </div>
-);
+const PromotedResultsSection: React.FC<{ items: IPromotedResultItem[] }> = function PromotedResultsSection(sectionProps) {
+  const [dismissedUrls, setDismissedUrls] = React.useState<Set<string>>(new Set());
 
-/**
- * Renders the promoted results section — highlighted cards above the main results.
- */
-const PromotedResultsSection: React.FC<{ items: IPromotedResultItem[] }> = (sectionProps) => {
   if (!sectionProps.items || sectionProps.items.length === 0) {
     // eslint-disable-next-line @rushstack/no-new-null
     return null;
   }
 
+  const visibleItems = sectionProps.items.filter(function (item: IPromotedResultItem): boolean {
+    return !dismissedUrls.has(item.url);
+  });
+
+  if (visibleItems.length === 0) {
+    // eslint-disable-next-line @rushstack/no-new-null
+    return null;
+  }
+
+  function handleDismiss(url: string): void {
+    setDismissedUrls(function (prev: Set<string>): Set<string> {
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  }
+
   return (
-    <div className={styles.promotedResults}>
-      {sectionProps.items.map((item: IPromotedResultItem, index: number) => (
-        <div key={item.url + '-' + String(index)} className={styles.promotedCard}>
-          <div className={styles.promotedIcon}>
-            {item.iconUrl ? (
-              <img src={item.iconUrl} alt="" style={{ width: 20, height: 20 }} />
-            ) : (
-              <Icon iconName="FavoriteStar" />
-            )}
+    <div className={styles.promotedResults} role="region" aria-label="Recommended results">
+      <div className={styles.promotedHeader}>
+        <Icon iconName="FavoriteStar" />
+        <span>Recommended</span>
+      </div>
+      {visibleItems.map(function (item: IPromotedResultItem, index: number): React.ReactElement {
+        return (
+          <div key={item.url + '-' + String(index)} className={styles.promotedCard}>
+            <div className={styles.promotedIcon}>
+              {item.iconUrl ? (
+                <img src={item.iconUrl} alt="" style={{ width: 20, height: 20 }} />
+              ) : (
+                <Icon iconName="FavoriteStar" />
+              )}
+            </div>
+            <div className={styles.promotedContent}>
+              <h3 className={styles.promotedTitle}>
+                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                  {item.title}
+                </a>
+              </h3>
+              {item.description && (
+                <p className={styles.promotedDescription}>{item.description}</p>
+              )}
+            </div>
+            <button
+              className={styles.promotedDismiss}
+              onClick={function (): void { handleDismiss(item.url); }}
+              aria-label={'Dismiss promoted result: ' + item.title}
+              title="Dismiss"
+              type="button"
+            >
+              <Icon iconName="Cancel" />
+            </button>
           </div>
-          <div className={styles.promotedContent}>
-            <div className={styles.promotedBadge}>Promoted</div>
-            <h3 className={styles.promotedTitle}>
-              <a href={item.url} target="_blank" rel="noopener noreferrer">
-                {item.title}
-              </a>
-            </h3>
-            {item.description && (
-              <p className={styles.promotedDescription}>{item.description}</p>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -202,7 +249,7 @@ const PromotedResultsSection: React.FC<{ items: IPromotedResultItem[] }> = (sect
  * Renders the empty state when no results are found.
  */
 const EmptyState: React.FC = () => (
-  <div className={styles.emptyState}>
+  <div className={styles.emptyState} role="status">
     <div className={styles.emptyIcon}>
       <Icon iconName="SearchIssue" />
     </div>
@@ -241,7 +288,9 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     sort,
     bulkSelection,
     previewPanel,
-    isSearchManagerOpen
+    isSearchManagerOpen,
+    activeFilters,
+    filterConfig
   } = useStoreState(props);
 
   // Get the manager service for the Search Manager panel
@@ -285,10 +334,41 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store.getState().setPreviewItem(undefined);
   }, [store]);
 
+  // ─── Filter pill bar handlers ──────────────────────────────
+  const handleRemoveFilter = React.useCallback(function (filterName: string): void {
+    store.getState().removeRefiner(filterName);
+  }, [store]);
+
+  const handleClearAllFilters = React.useCallback(function (): void {
+    store.getState().clearAllFilters();
+  }, [store]);
+
+  const handleClearSelection = React.useCallback(function (): void {
+    store.getState().clearSelection();
+  }, [store]);
+
   // ─── Search Manager panel dismiss ─────────────────────────
   const handleDismissSearchManager = React.useCallback((): void => {
     store.getState().toggleSearchManager();
   }, [store]);
+
+  const selectedItems = React.useMemo((): ISearchResult[] => {
+    if (!bulkSelection || bulkSelection.length === 0) {
+      return [];
+    }
+    const selected = new Set(bulkSelection);
+    return items.filter((item) => selected.has(item.key));
+  }, [bulkSelection, items]);
+
+  const bulkActions = React.useMemo((): IActionProvider[] => {
+    return store.getState().registries.actions.getAll();
+  }, [store]);
+
+  const actionContext = React.useMemo((): ISearchContext => ({
+    searchContextId,
+    siteUrl: SPContext.webAbsoluteUrl || '',
+    scope: store.getState().scope,
+  }), [searchContextId, store]);
 
   // ─── Determine which layout to render ──────────────────────
   const renderLayout = (): React.ReactElement | undefined => {
@@ -306,37 +386,29 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
       case 'card':
         return (
-          <React.Suspense fallback={<LayoutFallbackShimmer />}>
-            <CardLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
-          </React.Suspense>
+          <CardLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
         );
 
       case 'people':
         return (
-          <React.Suspense fallback={<LayoutFallbackShimmer />}>
-            <PeopleLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
-          </React.Suspense>
+          <PeopleLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
         );
 
       case 'datagrid':
         return (
-          <React.Suspense fallback={<LayoutFallbackShimmer />}>
-            <DataGridLayout
-              items={items}
-              enableSelection={enableSelection}
-              selectedKeys={bulkSelection}
-              onToggleSelection={handleToggleSelection}
-              onPreviewItem={handlePreviewItem}
-              onItemClick={handleItemClick}
-            />
-          </React.Suspense>
+          <DataGridLayout
+            items={items}
+            enableSelection={enableSelection}
+            selectedKeys={bulkSelection}
+            onToggleSelection={handleToggleSelection}
+            onPreviewItem={handlePreviewItem}
+            onItemClick={handleItemClick}
+          />
         );
 
       case 'gallery':
         return (
-          <React.Suspense fallback={<LayoutFallbackShimmer />}>
-            <GalleryLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
-          </React.Suspense>
+          <GalleryLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
         );
 
       default:
@@ -358,7 +430,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
       <div className={styles.spSearchResults}>
         {/* Error message bar */}
         {error && (
-          <div className={styles.errorContainer}>
+          <div className={styles.errorContainer} role="alert">
             <MessageBar
               messageBarType={MessageBarType.error}
               isMultiline={false}
@@ -386,6 +458,23 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           />
         )}
 
+        {enableSelection && bulkSelection.length > 0 && (
+          <BulkActionsToolbar
+            selectedItems={selectedItems}
+            actions={bulkActions}
+            context={actionContext}
+            onClearSelection={handleClearSelection}
+          />
+        )}
+
+        {/* Active filter pills */}
+        <ActiveFilterPillBar
+          activeFilters={activeFilters}
+          filterConfig={filterConfig}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
         {/* Active layout */}
         {renderLayout()}
 
@@ -401,13 +490,11 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
         {/* Detail panel — lazy-loaded, only renders when preview panel is open */}
         {previewPanel.isOpen && (
-          <React.Suspense fallback={<div />}>
-            <ResultDetailPanel
-              isOpen={previewPanel.isOpen}
-              item={previewPanel.item}
-              onDismiss={handleDismissPreviewPanel}
-            />
-          </React.Suspense>
+          <ResultDetailPanel
+            isOpen={previewPanel.isOpen}
+            item={previewPanel.item}
+            onDismiss={handleDismissPreviewPanel}
+          />
         )}
 
         {/* Search Manager panel — lazy-loaded, only renders when manager panel is open */}
@@ -420,14 +507,12 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             closeButtonAriaLabel="Close"
             isLightDismiss={true}
           >
-            <React.Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
-              <SpSearchManager
-                store={store}
-                service={managerService}
-                theme={theme}
-                mode="panel"
-              />
-            </React.Suspense>
+            <SpSearchManager
+              store={store}
+              service={managerService}
+              theme={theme}
+              mode="panel"
+            />
           </Panel>
         )}
       </div>
