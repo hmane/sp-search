@@ -297,7 +297,7 @@
 | 1.13.4 | Test URL sync: changing state updates URL, loading URL restores state, back button works | testing | §4.1.2 | [ ] |
 | 1.13.5 | Test multi-instance: two sets of web parts with different `searchContextId` — fully isolated | testing | §4.1 | [ ] |
 | 1.13.6 | Test abort: rapid typing cancels previous requests, no stale results displayed | testing | §4.3.3 | [ ] |
-| 1.13.7 | Verify `gulp bundle --ship` bundle size — spfx-toolkit and Fluent UI are tree-shaken | testing | §4.3.1 | [ ] |
+| 1.13.7 | Verify `gulp bundle --ship` bundle size — spfx-toolkit and Fluent UI are tree-shaken | testing | §4.3.1 | [x] |
 
 **Exit criteria:** Full Phase 1 functionality works in SPFx workbench. No console errors. Bundle size reasonable.
 
@@ -521,7 +521,7 @@
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
 | 3.9.1 | Implement `RecentSearchProvider` — queries SearchHistory list for current user's recent searches | search-provider | §4.4.2 | [x] |
-| 3.9.2 | Implement `SuggestionDropdown.tsx` in Search Box — dropdown below input showing grouped suggestions | webpart-builder | §3.1.1 | [ ] |
+| 3.9.2 | Implement `SuggestionDropdown.tsx` in Search Box — dropdown below input showing grouped suggestions | webpart-builder | §3.1.1 | [x] |
 | 3.9.3 | Register RecentSearchProvider in SuggestionProviderRegistry | search-provider | §4.4.2 | [x] |
 
 ---
@@ -677,7 +677,7 @@
 | 5.1.5 | Verify Detail Panel lazy loading — chunk only on first panel open | testing | §4.3.1 | [x] |
 | 5.1.6 | Verify Search Manager panel lazy loading | testing | §4.3.1 | [x] |
 | 5.1.7 | Profile each layout chunk size — identify optimization opportunities | testing | §4.3.1 | [x] |
-| 5.1.8 | Reduce total .sppkg size to acceptable range for site-level app catalog | testing | §7.1 | [ ] |
+| 5.1.8 | Reduce total .sppkg size to acceptable range for site-level app catalog | testing | §7.1 | [x] |
 
 ---
 
@@ -751,7 +751,7 @@
 | 5.7.3 | Deploy to test site collection, verify real SharePoint search results | testing | §7 | [ ] |
 | 5.7.4 | Verify hidden list provisioning on clean site | testing | §7.2 | [ ] |
 | 5.7.5 | Load test: 100+ results, 20+ filter values, 5+ verticals | testing | §4.3 | [ ] |
-| 5.7.6 | Production build: `gulp bundle --ship && gulp package-solution --ship` — no errors, no warnings | testing | §7.3 | [ ] |
+| 5.7.6 | Production build: `gulp bundle --ship && gulp package-solution --ship` — no errors, no warnings | testing | §7.3 | [x] |
 
 ---
 
