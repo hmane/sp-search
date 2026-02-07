@@ -467,20 +467,37 @@ function Ensure-TermSet {
     Write-Host "  [CREATE] Term set '$Name'" -ForegroundColor Green
     $ts = New-PnPTermSet -Name $Name -TermGroup $GroupName -Lcid 1033
     $script:stats.TermSetsCreated++
+    # Allow term store to propagate before adding terms
+    Start-Sleep -Seconds 2
     return $ts
 }
 
 function Ensure-Term {
     param([string]$Name, [string]$TermSetName, [string]$GroupName, [string]$ParentTermId = $null)
-    $existing = Get-PnPTerm -Identity $Name -TermSet $TermSetName -TermGroup $GroupName -ErrorAction SilentlyContinue
-    if ($existing) { return $existing }
-    if ($ParentTermId) {
-        $term = New-PnPTerm -Name $Name -TermSet $TermSetName -TermGroup $GroupName -ParentTerm $ParentTermId -Lcid 1033
-    } else {
-        $term = New-PnPTerm -Name $Name -TermSet $TermSetName -TermGroup $GroupName -Lcid 1033
+    # Check if the term already exists — wrap in try/catch as term store can be flaky
+    try {
+        $existing = Get-PnPTerm -Identity $Name -TermSet $TermSetName -TermGroup $GroupName -ErrorAction SilentlyContinue
+        if ($existing) { return $existing }
+    } catch {
+        # Term store lookup can fail with "index" errors — fall through to create
     }
-    $script:stats.TermsCreated++
-    return $term
+    try {
+        if ($ParentTermId) {
+            # PnP.PowerShell 3.x: child terms use Add-PnPTermToTerm with -ParentTermId
+            $term = Add-PnPTermToTerm -ParentTermId $ParentTermId -Name $Name -Lcid 1033
+        } else {
+            $term = New-PnPTerm -Name $Name -TermSet $TermSetName -TermGroup $GroupName -Lcid 1033
+        }
+        $script:stats.TermsCreated++
+        return $term
+    } catch {
+        if ($_.Exception.Message -match "already a term with the same") {
+            # Term exists but Get-PnPTerm failed to find it — retry lookup
+            Start-Sleep -Seconds 1
+            return Get-PnPTerm -Identity $Name -TermSet $TermSetName -TermGroup $GroupName -ErrorAction SilentlyContinue
+        }
+        throw
+    }
 }
 
 function Ensure-SiteColumn {
@@ -569,13 +586,29 @@ function Ensure-Library {
 
 function Ensure-List {
     param([string]$Name, [string]$Description, [string[]]$SharedColumns, [array]$ExtraColumns)
+    # Check by title first, then by URL path (handles built-in lists with same title)
     $list = Get-PnPList -Identity $Name -ErrorAction SilentlyContinue
+    if (-not $list) {
+        $list = Get-PnPList -Identity "Lists/$Name" -ErrorAction SilentlyContinue
+    }
     if ($list) {
         Write-Host "  [EXISTS] List '$Name'" -ForegroundColor Yellow
     } else {
         Write-Host "  [CREATE] List '$Name'" -ForegroundColor Green
-        $list = New-PnPList -Title $Name -Template GenericList -EnableVersioning -OnQuickLaunch
-        Set-PnPList -Identity $Name -Description $Description
+        try {
+            $list = New-PnPList -Title $Name -Url "Lists/$Name" -Template GenericList -EnableVersioning -OnQuickLaunch
+            Set-PnPList -Identity "Lists/$Name" -Description $Description
+        } catch {
+            if ($_.Exception.Message -match "already exists") {
+                # Built-in list with this title exists — use a prefixed name
+                $prefixedName = "SPSearch$Name"
+                Write-Host "  [CONFLICT] '$Name' exists — creating as '$prefixedName'" -ForegroundColor Yellow
+                $list = New-PnPList -Title $prefixedName -Url "Lists/$prefixedName" -Template GenericList -EnableVersioning -OnQuickLaunch
+                Set-PnPList -Identity "Lists/$prefixedName" -Description $Description
+            } else {
+                throw
+            }
+        }
         $script:stats.ListsCreated++
     }
     # Add shared site columns
