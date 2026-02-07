@@ -37,7 +37,7 @@ Reference the full interface definitions in `docs/sp-search-requirements.md` Sec
 - Design slice implementations with proper Zustand patterns (immer middleware recommended)
 - Implement the store registry with Map-based instance tracking
 - Build URL sync middleware with serialization/deserialization for all params
-- Handle StateId fallback (save state to SearchConfiguration list, return `?sid=<id>`)
+- Handle StateId fallback (save state to SearchSavedQueries list with EntryType=StateSnapshot + ExpiresAt, return `?sid=<id>`)
 - Implement refiner stability mode debounce logic
 - Ensure proper cleanup via `disposeStore()` (abort controllers, subscriptions, URL listeners)
 

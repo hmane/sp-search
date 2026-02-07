@@ -268,20 +268,20 @@
 
 ### Step 1.12 — Hidden List Provisioning Script
 
-> PowerShell script that creates the 4 hidden lists with proper columns and indexes.
+> PowerShell script that creates the 3 hidden lists with proper columns and indexes.
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
 | 1.12.1 | Create `Provision-SPSearchLists.ps1` — idempotent, checks existence before creating | search-manager | §7.2 | [x] |
-| 1.12.2 | Provision `SearchSavedQueries` list — columns per §3.5.6, Hidden=true, indexes on Title, EntryType, Category, SharedWith, LastUsed | search-manager | §3.5.6 | [x] |
+| 1.12.2 | Provision `SearchSavedQueries` list — columns per §3.5.6, Hidden=true, indexes on Title, EntryType, Category, SharedWith, LastUsed, ExpiresAt | search-manager | §3.5.6 | [x] |
 | 1.12.3 | Provision `SearchHistory` list — columns per §3.5.6, Hidden=true, indexes on Author, SearchTimestamp, QueryHash, Vertical | search-manager | §3.5.6 | [x] |
 | 1.12.4 | Provision `SearchCollections` list — columns per §3.5.6, Hidden=true, indexes on Title, ItemUrl, CollectionName, SharedWith | search-manager | §3.5.6 | [x] |
-| 1.12.5 | Provision `SearchConfiguration` list — columns per §3.5.6, Hidden=true, indexes on Title, ConfigType, IsActive, ExpiresAt | search-manager | §3.5.6 | [x] |
-| 1.12.6 | Set list permissions: SearchHistory = Add + Edit Own, SearchConfiguration = Admin-only write, others = Add Items | search-manager | §8.2 | [x] |
-| 1.12.7 | Seed default SearchConfiguration entries: default scopes, layout mappings | search-manager | §7.2 | [x] |
+| 1.12.5 | Removed `SearchConfiguration` list — config moved to property panes; promoted results use SharePoint Query Rules | search-manager | §3.5.6 | [x] |
+| 1.12.6 | Set list permissions: SearchHistory = Add + Edit Own, others = Add Items | search-manager | §8.2 | [x] |
+| 1.12.7 | Seed default SearchConfiguration entries | search-manager | §7.2 | [x] (Removed) |
 | 1.12.8 | Verify index creation succeeds before marking provisioning complete | search-manager | §3.5.6 | [x] |
 
-**Exit criteria:** Script runs idempotently. All 4 lists created with correct columns, indexes, and permissions. Re-running is safe.
+**Exit criteria:** Script runs idempotently. All 3 lists created with correct columns, indexes, and permissions. Re-running is safe.
 
 ---
 
@@ -425,7 +425,7 @@
 | 3.1.4 | Implement CRUD for SearchCollections list | search-manager | §3.5.3 | [x] |
 | 3.1.5 | Implement CRUD for SearchHistory list — ALL queries filter by `Author eq [Me]` FIRST | search-manager | §3.5.4 | [x] |
 | 3.1.6 | Implement history deduplication via QueryHash (SHA-256 of full query state) | search-manager | §3.5.4 | [x] |
-| 3.1.7 | Implement CRUD for SearchConfiguration list (admin operations) | search-manager | §3.5.6 | [x] |
+| 3.1.7 | Removed SearchConfiguration CRUD — config lives in property panes; no admin list | search-manager | §3.5.6 | [x] |
 | 3.1.8 | Wire `SearchManagerService` into `userSlice` actions: `saveSearch()`, `loadHistory()`, `addToHistory()` | search-manager | §4.1.1 | [x] |
 
 ---
@@ -475,7 +475,7 @@
 |---|------|-------|-------|--------|
 | 3.5.1 | Implement auto-logging in SearchOrchestrator — after successful search, dispatch `addToHistory()` asynchronously | search-manager | §5.1 | [x] |
 | 3.5.2 | Implement clicked item tracking: when user clicks a result, log `{ url, title, position, timestamp }` to history entry | search-manager | §3.5.4 | [x] |
-| 3.5.3 | Implement configurable history cleanup TTL (30/60/90 days) in SearchConfiguration | search-manager | §3.5.4 | [x] |
+| 3.5.3 | Provide manual history cleanup API `cleanupHistory(ttlDays)` | search-manager | §3.5.4 | [x] |
 
 ---
 
@@ -484,7 +484,7 @@
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
 | 3.6.1 | Detect when serialized URL exceeds 2,000 chars | store-architect | §4.1.2 | [x] |
-| 3.6.2 | Save full state JSON to SearchConfiguration list with `ConfigType: StateSnapshot`, `ExpiresAt` TTL | store-architect | §4.1.2 | [x] |
+| 3.6.2 | Save full state JSON to SearchSavedQueries with `EntryType: StateSnapshot`, `ExpiresAt` TTL | store-architect | §4.1.2 | [x] |
 | 3.6.3 | Replace URL with `?sid=<itemId>` — on page load, detect `sid`, fetch state from list, restore | store-architect | §4.1.2 | [x] |
 
 ---
@@ -493,7 +493,7 @@
 
 | # | Task | Agent | Req § | Status |
 |---|------|-------|-------|--------|
-| 3.7.1 | Implement promoted result rule evaluation: match query against `contains`, `equals`, `regex`, `kql` rules from SearchConfiguration | search-manager | §3.6.1 | [x] |
+| 3.7.1 | Map SharePoint SpecialTermResults (Query Rules) into promoted results block | search-manager | §3.6.1 | [x] |
 | 3.7.2 | Implement `PromotedResultsBlock.tsx` — "Recommended" block above organic results, visually distinct styling | layout-builder | §3.6.2 | [x] |
 | 3.7.3 | Implement layout-adaptive rendering: card style in Card Layout, row in DataGrid/List/Compact | layout-builder | §3.6.2 | [x] |
 | 3.7.4 | Implement dismissible promoted results (session-only, stored in uiSlice) | layout-builder | §3.6.2 | [x] |

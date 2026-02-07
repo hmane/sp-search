@@ -67,3 +67,6 @@ serve.json.local
 
 # Bundle analyzer
 temp/stats/
+
+# Provisioning (resolved templates are generated at deploy time)
+provisioning/*.resolved.xml

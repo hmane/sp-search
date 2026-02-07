@@ -5,14 +5,14 @@ import styles from './SpSearchFilters.module.scss';
 import CheckboxFilter from './CheckboxFilter';
 import DateRangeFilter from './DateRangeFilter';
 import ToggleFilter from './ToggleFilter';
-import SliderFilter from './SliderFilter';
 import type {
   IRefiner,
   IActiveFilter,
   IFilterConfig
 } from '@interfaces/index';
 
-// Lazy-load heavy filter components (DevExtreme TagBox, DevExtreme TreeView, PnP PeoplePicker)
+// Lazy-load heavy filter components (DevExtreme RangeSlider, TagBox, TreeView; PnP PeoplePicker)
+const LazySliderFilter = React.lazy(function () { return import('./SliderFilter'); });
 const LazyTagBoxFilter = React.lazy(function () { return import('./TagBoxFilter'); });
 const LazyTaxonomyTreeFilter = React.lazy(function () { return import('./TaxonomyTreeFilter'); });
 const LazyPeoplePickerFilter = React.lazy(function () { return import('./PeoplePickerFilter'); });
@@ -73,7 +73,11 @@ function renderFilterComponent(
         React.createElement(LazyTagBoxFilter, commonProps)
       );
     case 'slider':
-      return React.createElement(SliderFilter, commonProps);
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazySliderFilter, commonProps)
+      );
     case 'taxonomy':
       return React.createElement(
         React.Suspense,

@@ -172,8 +172,8 @@ Lazy-loaded chunks: CardLayout (122 KB), DevExtremeDataGrid (71 KB), TaxonomyTre
    - CollapseSpecification fails SILENTLY on non-sortable properties — validate before sending
    - Taxonomy refiners use GP0|#GUID format — must resolve to labels via PnP Taxonomy API
    - Date refiners MUST use FQL range() — NOT raw KQL date comparisons
-   - SearchConfiguration uses `ConfigValue` column (NOT `ConfigData`)
-   - Promoted results: one rule per list item with matchType/matchValue/promotedItems structure
+   - State snapshots are stored in SearchSavedQueries with `EntryType=StateSnapshot` and `ExpiresAt`
+   - Promoted results come from SharePoint Query Rules (SpecialTermResults)
    - SearchManagerService has isReady guards on ALL write methods, retryable initialize()
 
 4. **Path Aliases** (configured in tsconfig.json):

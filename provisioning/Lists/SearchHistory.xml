@@ -1,0 +1,29 @@
+<pnp:ListInstance xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema"
+                 Title="SearchHistory"
+                 Description="SP Search: User search history (high-volume, auto-pruned)"
+                 TemplateType="100"
+                 Url="Lists/SearchHistory"
+                 Hidden="true"
+                 EnableVersioning="true"
+                 OnQuickLaunch="false">
+
+  <!--
+    CRITICAL: This list WILL exceed 5,000 items.
+    Author MUST be indexed and used as the FIRST CAML predicate in all queries.
+    ReadSecurity=2 and WriteSecurity=2 are set via post-provisioning handler.
+  -->
+
+  <pnp:Fields>
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000001}" Type="Text"     DisplayName="QueryHash"        StaticName="QueryHash"        Name="QueryHash"        Indexed="TRUE" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000002}" Type="Text"     DisplayName="Vertical"         StaticName="Vertical"         Name="Vertical"         Indexed="TRUE" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000003}" Type="Text"     DisplayName="Scope"            StaticName="Scope"            Name="Scope" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000004}" Type="Note"     DisplayName="SearchState"      StaticName="SearchState"      Name="SearchState" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000005}" Type="Number"   DisplayName="ResultCount"      StaticName="ResultCount"      Name="ResultCount" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000006}" Type="Note"     DisplayName="ClickedItems"     StaticName="ClickedItems"     Name="ClickedItems" />
+    <Field ID="{7A1B2C02-0001-4000-8000-000000000007}" Type="DateTime" DisplayName="SearchTimestamp"  StaticName="SearchTimestamp"  Name="SearchTimestamp"  Indexed="TRUE" />
+  </pnp:Fields>
+
+  <pnp:Security>
+    <pnp:BreakRoleInheritance CopyRoleAssignments="false" ClearSubscopes="true" />
+  </pnp:Security>
+</pnp:ListInstance>

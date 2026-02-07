@@ -1,6 +1,6 @@
 /**
- * Promoted result rule — stored in SearchConfiguration list
- * with ConfigType: PromotedResult. Evaluated client-side
+ * Promoted result rule — evaluated client-side when rules
+ * are supplied by an external source (if used).
  * after results load.
  */
 export interface IPromotedResultRule {

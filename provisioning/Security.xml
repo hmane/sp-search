@@ -1,0 +1,11 @@
+<pnp:Security xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema">
+  <pnp:SiteGroups>
+    <pnp:SiteGroup Title="SP Search Admins"
+                   Description="Members can manage SP Search configuration (scopes, verticals, promoted results, layout mappings)."
+                   Owner="{associatedownergroup}"
+                   AllowMembersEditMembership="false"
+                   AllowRequestToJoinLeave="false"
+                   AutoAcceptRequestToJoinLeave="false"
+                   OnlyAllowMembersViewMembership="true" />
+  </pnp:SiteGroups>
+</pnp:Security>

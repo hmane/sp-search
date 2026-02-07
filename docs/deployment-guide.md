@@ -80,7 +80,7 @@ sharepoint/solution/sp-search.sppkg
 
 ## Step 3: Provision Hidden Lists
 
-The 4 hidden lists required by SP Search must be created via PowerShell before using saved searches, history, collections, or promoted results.
+The 3 hidden lists required by SP Search must be created via PowerShell before using saved searches, history, collections, or state snapshots.
 
 ```powershell
 # Connect to the target site
@@ -96,15 +96,13 @@ See [provisioning-guide.md](./provisioning-guide.md) for full parameter document
 
 | List | Purpose |
 |------|---------|
-| **SearchSavedQueries** | Saved and shared search queries |
-| **SearchHistory** | Per-user search history (auto-logged, auto-pruned) |
+| **SearchSavedQueries** | Saved/shared searches and state snapshots |
+| **SearchHistory** | Per-user search history (auto-logged, manual cleanup) |
 | **SearchCollections** | Pinboard collections of search results |
-| **SearchConfiguration** | Admin config: scopes, promoted results, state snapshots |
 
 ### Post-Provisioning Steps
 
-1. **SearchConfiguration admin access**: Add your admin security group as list owners for write access. The script prints a reminder with instructions.
-2. **Verify indexes**: Confirm that SearchHistory has indexes on Author and SearchTimestamp (critical for list view threshold performance).
+1. **Verify indexes**: Confirm that SearchHistory has indexes on Author and SearchTimestamp (critical for list view threshold performance).
 
 ---
 
@@ -245,4 +243,4 @@ The SearchHistory list will exceed 5,000 items on active sites. All queries are 
 
 1. Verify the Author index exists on SearchHistory
 2. Run the provisioning script again (idempotent) to recreate missing indexes
-3. Configure history cleanup TTL in SearchConfiguration (30/60/90 days)
+3. Run `cleanupHistory(ttlDays)` manually if you need to prune SearchHistory (no automatic background cleanup).

@@ -328,7 +328,7 @@ export function setStateSnapshotHandler(handler: (stateJson: string) => Promise<
  * collapse into a single URL update.
  *
  * If the resulting URL exceeds 2,000 characters and a snapshot handler
- * is registered, the full state is saved to the SearchConfiguration list
+ * is registered, the full state is saved to the SearchSavedQueries list
  * and the URL is replaced with ?sid=<itemId>.
  */
 function pushStateToUrl(

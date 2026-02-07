@@ -1,21 +1,22 @@
 <#
 .SYNOPSIS
-    Provisions the four hidden SharePoint lists required by SP Search.
+    Provisions the three hidden SharePoint lists required by SP Search.
 
 .DESCRIPTION
-    Creates SearchSavedQueries, SearchHistory, SearchCollections, and
-    SearchConfiguration hidden lists with proper columns, indexes,
-    and permissions. Idempotent — safe to re-run.
+    Creates SearchSavedQueries, SearchHistory, and SearchCollections
+    hidden lists with proper columns, indexes, and permissions.
+    Idempotent — safe to re-run.
 
 .PARAMETER SiteUrl
     The SharePoint site collection URL where lists will be created.
 
-.PARAMETER AdminGroupName
-    Name of the SP Search Admins security group (for SearchConfiguration write access).
-    Defaults to "SP Search Admins".
+.PARAMETER ClientId
+    Azure AD app registration Client ID for PnP authentication.
+    If omitted, falls back to default PnP interactive login.
+
 
 .EXAMPLE
-    .\Provision-SPSearchLists.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/search"
+    .\Provision-SPSearchLists.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/search" -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 
 [CmdletBinding()]
@@ -24,7 +25,7 @@ param(
     [string]$SiteUrl,
 
     [Parameter(Mandatory = $false)]
-    [string]$AdminGroupName = "SP Search Admins"
+    [string]$ClientId
 )
 
 # Ensure PnP.PowerShell is available
@@ -138,35 +139,41 @@ Write-Host "================================================`n" -ForegroundColor
 
 # Connect to SharePoint
 Write-Host "Connecting to $SiteUrl..." -ForegroundColor White
-Connect-PnPOnline -Url $SiteUrl -Interactive
+if ($ClientId) {
+    Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Interactive
+} else {
+    Connect-PnPOnline -Url $SiteUrl -Interactive
+}
 
 # ─── 1. SearchSavedQueries ────────────────────────────────
-Write-Host "`n[1/4] SearchSavedQueries" -ForegroundColor Magenta
+Write-Host "`n[1/3] SearchSavedQueries" -ForegroundColor Magenta
 
-Ensure-HiddenList -ListName "SearchSavedQueries" -Description "SP Search: Saved and shared search queries"
+Ensure-HiddenList -ListName "SearchSavedQueries" -Description "SP Search: Saved/shared searches and state snapshots"
 
 # Columns
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "QueryText" -FieldType "Note"
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "SearchState" -FieldType "Note"
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "SearchUrl" -FieldType "URL"
-Ensure-Field -ListName "SearchSavedQueries" -FieldName "EntryType" -FieldType "Choice" -Choices @("SavedSearch", "SharedSearch")
+Ensure-Field -ListName "SearchSavedQueries" -FieldName "EntryType" -FieldType "Choice" -Choices @("SavedSearch", "SharedSearch", "StateSnapshot")
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "Category" -FieldType "Text"
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "SharedWith" -FieldType "UserMulti"
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "ResultCount" -FieldType "Number"
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "LastUsed" -FieldType "DateTime"
+Ensure-Field -ListName "SearchSavedQueries" -FieldName "ExpiresAt" -FieldType "DateTime"
 
 # Indexes
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "Title"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "EntryType"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "Category"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "LastUsed"
+Ensure-Index -ListName "SearchSavedQueries" -FieldName "ExpiresAt"
 
 # Permissions: All authenticated users can Add Items
 Write-Host "  [PERM] Setting permissions for SearchSavedQueries..." -ForegroundColor Cyan
 Set-PnPList -Identity "SearchSavedQueries" -BreakRoleInheritance -CopyRoleAssignments
 
 # ─── 2. SearchHistory ─────────────────────────────────────
-Write-Host "`n[2/4] SearchHistory" -ForegroundColor Magenta
+Write-Host "`n[2/3] SearchHistory" -ForegroundColor Magenta
 
 Ensure-HiddenList -ListName "SearchHistory" -Description "SP Search: User search history (high-volume, auto-pruned)"
 
@@ -202,7 +209,7 @@ Set-PnPList -Identity "SearchHistory" -BreakRoleInheritance -ClearSubscopes
 Set-PnPList -Identity "SearchHistory" -ReadSecurity 2 -WriteSecurity 2
 
 # ─── 3. SearchCollections ─────────────────────────────────
-Write-Host "`n[3/4] SearchCollections" -ForegroundColor Magenta
+Write-Host "`n[3/3] SearchCollections" -ForegroundColor Magenta
 
 Ensure-HiddenList -ListName "SearchCollections" -Description "SP Search: User search result collections/pinboards"
 
@@ -223,95 +230,6 @@ Ensure-Index -ListName "SearchCollections" -FieldName "CollectionName"
 Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
 Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
 
-# ─── 4. SearchConfiguration ──────────────────────────────
-Write-Host "`n[4/4] SearchConfiguration" -ForegroundColor Magenta
-
-Ensure-HiddenList -ListName "SearchConfiguration" -Description "SP Search: Admin configuration (scopes, verticals, promoted results, state snapshots)"
-
-# Columns
-Ensure-Field -ListName "SearchConfiguration" -FieldName "ConfigType" -FieldType "Choice" -Choices @("Scope", "VerticalPreset", "LayoutMapping", "ManagedPropertyMap", "PromotedResult", "StateSnapshot")
-Ensure-Field -ListName "SearchConfiguration" -FieldName "ConfigValue" -FieldType "Note"
-Ensure-Field -ListName "SearchConfiguration" -FieldName "IsActive" -FieldType "Boolean"
-Ensure-Field -ListName "SearchConfiguration" -FieldName "SortOrder" -FieldType "Number"
-Ensure-Field -ListName "SearchConfiguration" -FieldName "ExpiresAt" -FieldType "DateTime"
-Ensure-Field -ListName "SearchConfiguration" -FieldName "AudienceGroups" -FieldType "Note"
-
-# Indexes
-Ensure-Index -ListName "SearchConfiguration" -FieldName "Title"
-Ensure-Index -ListName "SearchConfiguration" -FieldName "ConfigType"
-Ensure-Index -ListName "SearchConfiguration" -FieldName "IsActive"
-Ensure-Index -ListName "SearchConfiguration" -FieldName "ExpiresAt"
-
-# Permissions: Admin-only write, users have Read
-Write-Host "  [PERM] Setting permissions for SearchConfiguration (admin-only write)..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchConfiguration" -BreakRoleInheritance -ClearSubscopes
-
-# ─── Seed Default Configuration ──────────────────────────
-Write-Host "`n[SEED] Seeding default configuration entries..." -ForegroundColor Magenta
-
-# Default search scopes
-$defaultScopes = @(
-    @{
-        Title = "All SharePoint"
-        ConfigType = "Scope"
-        ConfigValue = '{"id":"all","label":"All SharePoint"}'
-        IsActive = $true
-        SortOrder = 1
-    },
-    @{
-        Title = "Current Site"
-        ConfigType = "Scope"
-        ConfigValue = '{"id":"currentsite","label":"Current Site","kqlPath":"path:{Site.URL}"}'
-        IsActive = $true
-        SortOrder = 2
-    },
-    @{
-        Title = "Current Hub"
-        ConfigType = "Scope"
-        ConfigValue = '{"id":"hub","label":"Current Hub","kqlPath":"DepartmentId:{Hub}"}'
-        IsActive = $true
-        SortOrder = 3
-    }
-)
-
-foreach ($scope in $defaultScopes) {
-    $existing = Get-PnPListItem -List "SearchConfiguration" -Query "<View><Query><Where><And><Eq><FieldRef Name='Title'/><Value Type='Text'>$($scope.Title)</Value></Eq><Eq><FieldRef Name='ConfigType'/><Value Type='Choice'>Scope</Value></Eq></And></Where></Query></View>" -ErrorAction SilentlyContinue
-    if (-not $existing) {
-        Add-PnPListItem -List "SearchConfiguration" -Values $scope | Out-Null
-        Write-Host "  [SEED] Created scope: $($scope.Title)" -ForegroundColor Green
-    } else {
-        Write-Host "  [SEED] Scope '$($scope.Title)' already exists." -ForegroundColor Yellow
-    }
-}
-
-# Default layout mappings
-$defaultLayouts = @(
-    @{
-        Title = "List Layout"
-        ConfigType = "LayoutMapping"
-        ConfigValue = '{"id":"list","displayName":"List","iconName":"BulletedList","isDefault":true}'
-        IsActive = $true
-        SortOrder = 1
-    },
-    @{
-        Title = "Compact Layout"
-        ConfigType = "LayoutMapping"
-        ConfigValue = '{"id":"compact","displayName":"Compact","iconName":"AlignLeft","isDefault":false}'
-        IsActive = $true
-        SortOrder = 2
-    }
-)
-
-foreach ($layout in $defaultLayouts) {
-    $existing = Get-PnPListItem -List "SearchConfiguration" -Query "<View><Query><Where><And><Eq><FieldRef Name='Title'/><Value Type='Text'>$($layout.Title)</Value></Eq><Eq><FieldRef Name='ConfigType'/><Value Type='Choice'>LayoutMapping</Value></Eq></And></Where></Query></View>" -ErrorAction SilentlyContinue
-    if (-not $existing) {
-        Add-PnPListItem -List "SearchConfiguration" -Values $layout | Out-Null
-        Write-Host "  [SEED] Created layout: $($layout.Title)" -ForegroundColor Green
-    } else {
-        Write-Host "  [SEED] Layout '$($layout.Title)' already exists." -ForegroundColor Yellow
-    }
-}
-
 # ─── Summary ──────────────────────────────────────────────
 Write-Host "`n================================================" -ForegroundColor Cyan
 Write-Host " Provisioning Complete!" -ForegroundColor Green
@@ -320,8 +238,5 @@ Write-Host "`nCreated/verified:"
 Write-Host "  - SearchSavedQueries (saved + shared searches)"
 Write-Host "  - SearchHistory (user history, indexed for >5K items)"
 Write-Host "  - SearchCollections (result pinboards)"
-Write-Host "  - SearchConfiguration (admin config, promoted results)"
-Write-Host "`nNOTE: Remember to add '$AdminGroupName' security group as"
-Write-Host "SearchConfiguration list owners for admin write access." -ForegroundColor Yellow
 
 Disconnect-PnPOnline

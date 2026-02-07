@@ -1,0 +1,74 @@
+<pnp:ClientSidePages xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema">
+
+  <!--
+    SP Search — Main Search Page
+    Layout:
+    ┌──────────────────────────────────────────────────────┐
+    │ Section 1: Full Width — Search Box                   │
+    ├──────────────────────────────────────────────────────┤
+    │ Section 2: Full Width — Verticals                    │
+    ├────────────────────────────┬─────────────────────────┤
+    │ Section 3 Left (66%)       │ Section 3 Right (33%)   │
+    │ Search Results             │ Search Filters          │
+    └────────────────────────────┴─────────────────────────┘
+  -->
+
+  <pnp:ClientSidePage PromoteAsNewsArticle="false"
+                      PromoteAsTemplate="false"
+                      Overwrite="true"
+                      Layout="Article"
+                      EnableComments="false"
+                      Title="Search"
+                      PageName="Search.aspx"
+                      Publish="true">
+
+    <pnp:Header Type="None" LayoutType="NoImage" ShowTopicHeader="false" ShowPublishDate="false" />
+
+    <pnp:Sections>
+
+      <!-- ═══ Section 1: Full Width — Search Box ═══ -->
+      <pnp:Section Order="1" Type="OneColumn">
+        <pnp:Controls>
+          <pnp:CanvasControl WebPartType="Custom"
+                             ControlId="13a82dbe-2c57-4e20-bfe8-ec4de5776191"
+                             Order="1"
+                             Column="1"
+            JsonControlData="{&quot;id&quot;:&quot;13a82dbe-2c57-4e20-bfe8-ec4de5776191&quot;,&quot;instanceId&quot;:&quot;a1000001-sp00-srch-b0x0-000000000001&quot;,&quot;title&quot;:&quot;SP Search Box&quot;,&quot;description&quot;:&quot;Enterprise search input with suggestions and scope selector&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;placeholder&quot;:&quot;Search SharePoint...&quot;,&quot;debounceMs&quot;:300,&quot;searchBehavior&quot;:&quot;both&quot;,&quot;enableScopeSelector&quot;:true,&quot;enableSuggestions&quot;:true,&quot;enableSearchManager&quot;:false,&quot;enableQueryBuilder&quot;:false},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
+        </pnp:Controls>
+      </pnp:Section>
+
+      <!-- ═══ Section 2: Full Width — Verticals ═══ -->
+      <pnp:Section Order="2" Type="OneColumn">
+        <pnp:Controls>
+          <pnp:CanvasControl WebPartType="Custom"
+                             ControlId="d0481c49-49f9-4219-90fe-be8338051f58"
+                             Order="1"
+                             Column="1"
+            JsonControlData="{&quot;id&quot;:&quot;d0481c49-49f9-4219-90fe-be8338051f58&quot;,&quot;instanceId&quot;:&quot;a1000002-sp00-srch-vert-000000000002&quot;,&quot;title&quot;:&quot;SP Search Verticals&quot;,&quot;description&quot;:&quot;Tab navigation for search verticals&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;verticals&quot;:&quot;[{\&quot;key\&quot;:\&quot;all\&quot;,\&quot;label\&quot;:\&quot;All\&quot;,\&quot;iconName\&quot;:\&quot;Search\&quot;,\&quot;sortOrder\&quot;:1},{\&quot;key\&quot;:\&quot;documents\&quot;,\&quot;label\&quot;:\&quot;Documents\&quot;,\&quot;iconName\&quot;:\&quot;Page\&quot;,\&quot;queryTemplate\&quot;:\&quot;{searchTerms} contentclass:STS_ListItem_DocumentLibrary\&quot;,\&quot;sortOrder\&quot;:2},{\&quot;key\&quot;:\&quot;pages\&quot;,\&quot;label\&quot;:\&quot;Pages\&quot;,\&quot;iconName\&quot;:\&quot;FileHTML\&quot;,\&quot;queryTemplate\&quot;:\&quot;{searchTerms} (contentclass:STS_ListItem_WebPageLibrary OR contentclass:STS_Site)\&quot;,\&quot;sortOrder\&quot;:3},{\&quot;key\&quot;:\&quot;people\&quot;,\&quot;label\&quot;:\&quot;People\&quot;,\&quot;iconName\&quot;:\&quot;People\&quot;,\&quot;queryTemplate\&quot;:\&quot;{searchTerms}\&quot;,\&quot;resultSourceId\&quot;:\&quot;b09a7990-05ea-4af9-81ef-edfab16c4e31\&quot;,\&quot;sortOrder\&quot;:4},{\&quot;key\&quot;:\&quot;sites\&quot;,\&quot;label\&quot;:\&quot;Sites\&quot;,\&quot;iconName\&quot;:\&quot;Globe\&quot;,\&quot;queryTemplate\&quot;:\&quot;{searchTerms} contentclass:STS_Site\&quot;,\&quot;sortOrder\&quot;:5}]&quot;,&quot;showCounts&quot;:true,&quot;hideEmptyVerticals&quot;:false,&quot;tabStyle&quot;:&quot;underline&quot;},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
+        </pnp:Controls>
+      </pnp:Section>
+
+      <!-- ═══ Section 3: Two Column Left (66% / 33%) — Results | Filters ═══ -->
+      <pnp:Section Order="3" Type="TwoColumnLeft">
+        <pnp:Controls>
+
+          <!-- Left column (66%): Search Results -->
+          <pnp:CanvasControl WebPartType="Custom"
+                             ControlId="1836671c-a710-45b4-9a83-55c65344a3d5"
+                             Order="1"
+                             Column="1"
+            JsonControlData="{&quot;id&quot;:&quot;1836671c-a710-45b4-9a83-55c65344a3d5&quot;,&quot;instanceId&quot;:&quot;a1000003-sp00-srch-res0-000000000003&quot;,&quot;title&quot;:&quot;SP Search Results&quot;,&quot;description&quot;:&quot;Search results with multiple layouts&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;pageSize&quot;:25,&quot;defaultLayout&quot;:&quot;list&quot;,&quot;showResultCount&quot;:true,&quot;showSortDropdown&quot;:true,&quot;enableSelection&quot;:true},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
+
+          <!-- Right column (33%): Search Filters -->
+          <pnp:CanvasControl WebPartType="Custom"
+                             ControlId="2eb68250-879f-45a8-af9b-9fc3e97b2050"
+                             Order="1"
+                             Column="2"
+            JsonControlData="{&quot;id&quot;:&quot;2eb68250-879f-45a8-af9b-9fc3e97b2050&quot;,&quot;instanceId&quot;:&quot;a1000004-sp00-srch-flt0-000000000004&quot;,&quot;title&quot;:&quot;SP Search Filters&quot;,&quot;description&quot;:&quot;Refinement filters for search results&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;applyMode&quot;:&quot;instant&quot;,&quot;operatorBetweenFilters&quot;:&quot;AND&quot;,&quot;showClearAll&quot;:true,&quot;enableVisualFilterBuilder&quot;:false},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
+
+        </pnp:Controls>
+      </pnp:Section>
+
+    </pnp:Sections>
+  </pnp:ClientSidePage>
+</pnp:ClientSidePages>

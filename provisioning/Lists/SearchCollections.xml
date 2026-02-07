@@ -1,0 +1,23 @@
+<pnp:ListInstance xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema"
+                 Title="SearchCollections"
+                 Description="SP Search: User search result collections/pinboards"
+                 TemplateType="100"
+                 Url="Lists/SearchCollections"
+                 Hidden="true"
+                 EnableVersioning="true"
+                 OnQuickLaunch="false">
+
+  <pnp:Fields>
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000001}" Type="URL"       DisplayName="ItemUrl"        StaticName="ItemUrl"        Name="ItemUrl" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000002}" Type="Text"      DisplayName="ItemTitle"      StaticName="ItemTitle"      Name="ItemTitle" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000003}" Type="Note"      DisplayName="ItemMetadata"   StaticName="ItemMetadata"   Name="ItemMetadata" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000004}" Type="Text"      DisplayName="CollectionName" StaticName="CollectionName" Name="CollectionName" Indexed="TRUE" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000005}" Type="Note"      DisplayName="Tags"           StaticName="Tags"           Name="Tags" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000006}" Type="UserMulti" DisplayName="SharedWith"      StaticName="SharedWith"      Name="SharedWith"      Mult="TRUE" UserSelectionMode="PeopleOnly" />
+    <Field ID="{7A1B2C03-0001-4000-8000-000000000007}" Type="Number"    DisplayName="SortOrder"      StaticName="SortOrder"      Name="SortOrder" />
+  </pnp:Fields>
+
+  <pnp:Security>
+    <pnp:BreakRoleInheritance CopyRoleAssignments="true" ClearSubscopes="false" />
+  </pnp:Security>
+</pnp:ListInstance>

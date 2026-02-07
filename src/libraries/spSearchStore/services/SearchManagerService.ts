@@ -15,7 +15,6 @@ import {
 const SAVED_QUERIES_LIST = 'SearchSavedQueries';
 const HISTORY_LIST = 'SearchHistory';
 const COLLECTIONS_LIST = 'SearchCollections';
-const CONFIG_LIST = 'SearchConfiguration';
 
 /**
  * Compute SHA-256 hash of the full search state for deduplication.
@@ -323,15 +322,21 @@ export class SearchManagerService {
         }
       }
 
+      // Exclude state snapshots from saved search lists
+      const filteredItems = allItems.filter(function (item): boolean {
+        const entryType = (item.EntryType as string | undefined) || '';
+        return entryType !== 'StateSnapshot';
+      });
+
       // Sort by LastUsed descending
-      allItems.sort((a, b) => {
+      filteredItems.sort((a, b) => {
         const dateA = new Date((a.LastUsed as string) || (a.Created as string) || '');
         const dateB = new Date((b.LastUsed as string) || (b.Created as string) || '');
         return dateB.getTime() - dateA.getTime();
       });
 
-      SPContext.logger.info('SearchManagerService: Loaded saved searches', { count: allItems.length });
-      return allItems.map(mapToSavedSearch);
+      SPContext.logger.info('SearchManagerService: Loaded saved searches', { count: filteredItems.length });
+      return filteredItems.map(mapToSavedSearch);
     } catch (error) {
       SPContext.logger.error('SearchManagerService: Failed to load saved searches', error);
       return [];
@@ -1055,15 +1060,29 @@ export class SearchManagerService {
   // ─── State Snapshots (StateId Fallback) ─────────────────────
 
   /**
-   * Save a full state snapshot to SearchConfiguration list.
+   * Save a full state snapshot to SearchSavedQueries list.
+   * Stored as EntryType = StateSnapshot, SearchState = JSON.
    * @returns The list item ID to use as ?sid= parameter
    */
   public async saveStateSnapshot(stateJson: string): Promise<number> {
-    const result = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
+    if (!this.isReady) {
+      throw new Error('SearchManagerService is not ready — current user could not be resolved');
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const result = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
       .items.add({
         Title: 'StateSnapshot-' + new Date().getTime(),
-        ConfigType: 'StateSnapshot',
-        ConfigValue: stateJson,
+        EntryType: 'StateSnapshot',
+        SearchState: stateJson,
+        SearchUrl: '',
+        QueryText: '',
+        Category: '',
+        ResultCount: 0,
+        LastUsed: new Date().toISOString(),
+        ExpiresAt: expiresAt.toISOString(),
       });
 
     const addedItem = (result as { data?: Record<string, unknown> }).data || result;
@@ -1075,73 +1094,26 @@ export class SearchManagerService {
    */
   public async loadStateSnapshot(stateId: number): Promise<string> {
     try {
-      const item = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
+      const item = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
         .items.getById(stateId)
-        .select('ConfigValue')();
+        .select('SearchState', 'EntryType', 'ExpiresAt')();
 
-      return ((item as Record<string, unknown>).ConfigValue as string) || '';
-    } catch {
-      return '';
-    }
-  }
+      const entryType = (item as Record<string, unknown>).EntryType as string | undefined;
+      if (entryType !== 'StateSnapshot') {
+        return '';
+      }
 
-  /**
-   * Load promoted result rules from SearchConfiguration list.
-   */
-  public async loadPromotedResultRules(): Promise<Array<{
-    id: number;
-    matchType: string;
-    matchValue: string;
-    promotedItems: Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>;
-    audienceGroups: string[];
-    startDate: string | undefined;
-    endDate: string | undefined;
-    verticalScope: string[] | undefined;
-    isActive: boolean;
-  }>> {
-    try {
-      const items = await SPContext.sp.web.lists.getByTitle(CONFIG_LIST)
-        .items
-        .filter("ConfigType eq 'PromotedResult'")
-        .select('Id', 'Title', 'ConfigValue')
-        .top(100)();
-
-      const rules: Array<{
-        id: number;
-        matchType: string;
-        matchValue: string;
-        promotedItems: Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>;
-        audienceGroups: string[];
-        startDate: string | undefined;
-        endDate: string | undefined;
-        verticalScope: string[] | undefined;
-        isActive: boolean;
-      }> = [];
-
-      for (let i = 0; i < items.length; i++) {
-        const ext = createSPExtractor(items[i] as Record<string, unknown>);
-        try {
-          const config = JSON.parse(ext.string('ConfigValue', '{}')) as Record<string, unknown>;
-          rules.push({
-            id: ext.number('Id', 0),
-            matchType: (config.matchType as string) || 'contains',
-            matchValue: (config.matchValue as string) || '',
-            promotedItems: (config.promotedItems as Array<{ url: string; title: string; description?: string; imageUrl?: string; position: number }>) || [],
-            audienceGroups: (config.audienceGroups as string[]) || [],
-            startDate: config.startDate as string | undefined,
-            endDate: config.endDate as string | undefined,
-            verticalScope: config.verticalScope as string[] | undefined,
-            isActive: config.isActive !== false,
-          });
-        } catch {
-          // Skip malformed config entries
+      const expiresAtRaw = (item as Record<string, unknown>).ExpiresAt as string | undefined;
+      if (expiresAtRaw) {
+        const expiresAt = new Date(expiresAtRaw);
+        if (!isNaN(expiresAt.getTime()) && new Date() > expiresAt) {
+          return '';
         }
       }
 
-      return rules;
-    } catch (error) {
-      SPContext.logger.error('SearchManagerService: Failed to load promoted result rules', error);
-      return [];
+      return ((item as Record<string, unknown>).SearchState as string) || '';
+    } catch {
+      return '';
     }
   }
 

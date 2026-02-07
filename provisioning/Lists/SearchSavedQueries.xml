@@ -1,0 +1,31 @@
+<pnp:ListInstance xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema"
+                 Title="SearchSavedQueries"
+                 Description="SP Search: Saved and shared search queries"
+                 TemplateType="100"
+                 Url="Lists/SearchSavedQueries"
+                 Hidden="true"
+                 EnableVersioning="true"
+                 OnQuickLaunch="false">
+
+  <pnp:Fields>
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000001}" Type="Note"      DisplayName="QueryText"    StaticName="QueryText"    Name="QueryText" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000002}" Type="Note"      DisplayName="SearchState"  StaticName="SearchState"  Name="SearchState" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000003}" Type="URL"       DisplayName="SearchUrl"    StaticName="SearchUrl"    Name="SearchUrl" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000004}" Type="Choice"    DisplayName="EntryType"    StaticName="EntryType"    Name="EntryType"    Indexed="TRUE">
+      <CHOICES>
+        <CHOICE>SavedSearch</CHOICE>
+        <CHOICE>SharedSearch</CHOICE>
+        <CHOICE>StateSnapshot</CHOICE>
+      </CHOICES>
+    </Field>
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000005}" Type="Text"      DisplayName="Category"     StaticName="Category"     Name="Category"     Indexed="TRUE" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000006}" Type="UserMulti" DisplayName="SharedWith"    StaticName="SharedWith"    Name="SharedWith"    Mult="TRUE" UserSelectionMode="PeopleOnly" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000007}" Type="Number"    DisplayName="ResultCount"  StaticName="ResultCount"  Name="ResultCount" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000008}" Type="DateTime"  DisplayName="LastUsed"     StaticName="LastUsed"     Name="LastUsed"     Indexed="TRUE" />
+    <Field ID="{7A1B2C01-0001-4000-8000-000000000009}" Type="DateTime"  DisplayName="ExpiresAt"    StaticName="ExpiresAt"    Name="ExpiresAt"    Indexed="TRUE" />
+  </pnp:Fields>
+
+  <pnp:Security>
+    <pnp:BreakRoleInheritance CopyRoleAssignments="true" ClearSubscopes="false" />
+  </pnp:Security>
+</pnp:ListInstance>

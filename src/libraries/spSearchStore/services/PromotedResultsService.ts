@@ -7,7 +7,7 @@ import { isInAudience } from './AudienceService';
 
 /**
  * PromotedResultsService — evaluates promoted result rules against the current query
- * and returns matching promoted items. Rules are loaded from SearchConfiguration list.
+ * and returns matching promoted items. Rules are provided by the caller.
  *
  * Evaluation:
  * 1. Filter out inactive rules
@@ -86,7 +86,7 @@ function isWithinDateRange(
 /**
  * Evaluate all promoted result rules against the current query.
  *
- * @param rules - Loaded rules from SearchConfiguration
+ * @param rules - Promoted result rules to evaluate
  * @param queryText - Current search query
  * @param currentVertical - Current vertical key
  * @param maxResults - Max promoted results to return (default 3)

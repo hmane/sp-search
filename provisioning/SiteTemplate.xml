@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema"
+                  xmlns:xi="http://www.w3.org/2001/XInclude">
+
+  <pnp:Preferences Generator="PnP-ProvisioningEngine" />
+
+  <pnp:Templates ID="CONTAINER-SP-SEARCH">
+    <pnp:ProvisioningTemplate ID="SPSearchTemplate" Version="1" DisplayName="SP Search Site Configuration">
+
+      <!-- Security: SP Search Admins group -->
+      <xi:include href="Security.xml" />
+
+      <!-- Hidden lists: saved queries, history, collections -->
+      <pnp:Lists>
+        <xi:include href="Lists/SearchSavedQueries.xml" />
+        <xi:include href="Lists/SearchHistory.xml" />
+        <xi:include href="Lists/SearchCollections.xml" />
+      </pnp:Lists>
+
+      <!-- Search page with all SP Search web parts -->
+      <xi:include href="ClientSidePages.xml" />
+
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>

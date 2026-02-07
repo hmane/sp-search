@@ -31,7 +31,7 @@ The query input. Dispatches search text and scope to the shared store.
 
 - Set `debounceMs` to **500–800** on high-traffic sites to reduce API load.
 - `enableSuggestions` requires the SearchHistory list to be provisioned.
-- `enableSearchManager` requires all 4 hidden lists to be provisioned.
+- `enableSearchManager` requires all 3 hidden lists to be provisioned.
 - `enableQueryBuilder` populates property dropdowns from the Search Administration API — users need at least Search Admin or Site Collection Admin permissions for the schema browser.
 
 ---
@@ -194,7 +194,7 @@ Saved searches, shared searches, collections/pinboards, and search history.
 
 ### Requirements
 
-- All 4 hidden lists must be provisioned (SearchSavedQueries, SearchHistory, SearchCollections, SearchConfiguration).
+- All 3 hidden lists must be provisioned (SearchSavedQueries, SearchHistory, SearchCollections).
 - The `mode: "panel"` option requires `enableSearchManager: true` on the Search Box web part.
 - History cleanup is available via the `cleanupHistory(ttlDays)` API — there is no automatic background cleanup.
 
@@ -213,52 +213,12 @@ To run two independent search experiences on the same page:
 
 ## Promoted Results / Best Bets
 
-Promoted results are configured in the **SearchConfiguration** list (requires admin write access).
+Promoted results are managed through **SharePoint Query Rules** (same approach as PnP Modern Search v4). The web parts do not read promoted results from a custom list.
 
-Each promoted result is a **single list item** with one match rule and one or more promoted items:
+Recommended approach:
+1. Go to **Site Settings → Search → Query Rules** (or the Search Service Application in classic admin).
+2. Create a rule with your preferred conditions (contains, equals, etc.).
+3. Add promoted results for the rule, including title and URL.
+4. Use the Query Rule activation window and audience settings for scheduling/targeting.
 
-1. Create a new item with `ConfigType = "PromotedResult"`
-2. Set `ConfigValue` to JSON:
-
-```json
-{
-  "matchType": "contains",
-  "matchValue": "handbook",
-  "promotedItems": [
-    {
-      "url": "https://contoso.sharepoint.com/handbook",
-      "title": "Company Handbook",
-      "description": "Official company policies and procedures",
-      "imageUrl": "https://contoso.sharepoint.com/handbook/cover.png",
-      "position": 1
-    }
-  ],
-  "audienceGroups": ["all-employees-group-guid"],
-  "startDate": "2026-01-01T00:00:00Z",
-  "endDate": "2026-12-31T23:59:59Z",
-  "verticalScope": ["all", "documents"],
-  "isActive": true
-}
-```
-
-3. Set `IsActive = Yes` and optionally set `ExpiresAt` for time-limited promotions.
-
-### Promoted Result Fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `matchType` | Yes | Rule type: `contains`, `equals`, `regex`, or `kql`. |
-| `matchValue` | Yes | The value to match against the user's query text. |
-| `promotedItems` | Yes | Array of items to promote when the rule matches. |
-| `promotedItems[].url` | Yes | URL of the promoted result. |
-| `promotedItems[].title` | Yes | Display title. |
-| `promotedItems[].description` | No | Description text. |
-| `promotedItems[].imageUrl` | No | Thumbnail image URL. |
-| `promotedItems[].position` | Yes | Display order (ascending). |
-| `audienceGroups` | No | Azure AD security group GUIDs. Empty = visible to all. |
-| `startDate` | No | ISO date — rule active from this date. |
-| `endDate` | No | ISO date — rule expires after this date. |
-| `verticalScope` | No | Array of vertical keys this rule applies to. Empty = all verticals. |
-| `isActive` | No | Set `false` to disable without deleting. |
-
-To match multiple keywords, create separate list items — one rule per item.
+The search provider maps SharePoint promoted results (SpecialTermResults) to the UI as `title`, `url`, `description`, `imageUrl`, and `position` when those fields are present.

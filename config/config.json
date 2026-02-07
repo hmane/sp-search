@@ -59,6 +59,7 @@
     "SpSearchFiltersWebPartStrings": "lib/webparts/spSearchFilters/loc/{locale}.js",
     "SpSearchVerticalsWebPartStrings": "lib/webparts/spSearchVerticals/loc/{locale}.js",
     "SpSearchManagerWebPartStrings": "lib/webparts/spSearchManager/loc/{locale}.js",
-    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js",
+    "PropertyControlStrings": "node_modules/@pnp/spfx-property-controls/lib/loc/{locale}.js"
   }
 }

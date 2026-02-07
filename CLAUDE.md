@@ -60,6 +60,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 | devextreme-react | 22.2.x | React wrappers for DevExtreme |
 | Fluent UI v8 | 8.106.x | Panel, CommandBar, Persona, Shimmer, Icons, Theme |
 | @pnp/spfx-controls-react | 3.x | PeoplePicker, TaxonomyPicker |
+| @pnp/spfx-property-controls | 3.x | PropertyFieldCollectionData, PropertyFieldNumber, PropertyFieldToggleWithCallout, PropertyFieldColorPicker, PropertyPanePropertyEditor |
 
 ### State & Utilities
 
@@ -126,7 +127,7 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 2. **No innerHTML** — Always render via React (XSS prevention)
 3. **JSON validated against interfaces** before storage
 4. **No data leaves the SharePoint tenant** — All processing client-side
-5. **SearchConfiguration list is admin-only write** — Regular users Read only
+5. **Promoted results use SharePoint Query Rules** — No custom admin config list
 
 ---
 

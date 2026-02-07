@@ -10,7 +10,7 @@ Implement the Search Manager web part and its supporting services: saved searche
 
 - **Web part location:** `src/webparts/searchManager/`
 - **Service location:** `src/library/sp-search-store/services/SearchManagerService.ts`
-- **Hidden lists:** SearchSavedQueries, SearchCollections, SearchHistory, SearchConfiguration
+- **Hidden lists:** SearchSavedQueries, SearchCollections, SearchHistory
 - **spfx-toolkit utilities:** BatchBuilder, createPermissionHelper, createSPExtractor
 
 ## Search Manager Modes
@@ -23,8 +23,8 @@ Both modes use the same React component and Zustand `userSlice` state.
 
 ## Hidden SharePoint Lists
 
-### SearchSavedQueries (Saved + Shared searches only)
-Columns: Title, QueryText, SearchState (JSON), SearchUrl, EntryType (SavedSearch|SharedSearch), Category, SharedWith (Person multi), ResultCount, LastUsed
+### SearchSavedQueries (Saved + Shared searches + State snapshots)
+Columns: Title, QueryText, SearchState (JSON), SearchUrl, EntryType (SavedSearch|SharedSearch|StateSnapshot), Category, SharedWith (Person multi), ResultCount, LastUsed, ExpiresAt (for StateSnapshot TTL)
 
 ### SearchHistory (Dedicated list — high volume)
 Columns: Title, QueryHash (SHA-256, indexed), Vertical (indexed), Scope, ResultCount, ClickedItems (JSON), SearchTimestamp (indexed), Author (MUST be indexed)
@@ -37,9 +37,6 @@ Columns: Title, QueryHash (SHA-256, indexed), Vertical (indexed), Scope, ResultC
 
 ### SearchCollections
 Columns: Title, ItemUrl (indexed), ItemTitle, ItemMetadata (JSON), CollectionName (indexed), Tags (JSON), SharedWith (Person multi), SortOrder
-
-### SearchConfiguration
-Columns: Title (indexed), ConfigType (Scope|VerticalPreset|LayoutMapping|ManagedPropertyMap|PromotedResult|StateSnapshot), ConfigData (JSON), IsActive (indexed), SortOrder, ExpiresAt, AudienceGroups (JSON)
 
 ## Item-Level Permissions (Security)
 
@@ -86,11 +83,8 @@ Columns: Title (indexed), ConfigType (Scope|VerticalPreset|LayoutMapping|Managed
 - Auto-cleanup per retention policy
 
 ### Promoted Results / Best Bets
-- Rules stored as ConfigType: PromotedResult in SearchConfiguration
-- Match types: contains, equals, regex, kql
-- Audience targeting via Azure AD security groups
-- Schedule: start/end dates
-- Vertical scope: restrict to specific verticals
+- Managed via SharePoint Query Rules (same approach as PnP Modern Search v4)
+- Search provider maps SpecialTermResults to promoted result UI
 - "Recommended" block above organic results
 
 ## spfx-toolkit Usage
