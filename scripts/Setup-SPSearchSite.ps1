@@ -39,12 +39,13 @@ param(
 $ErrorActionPreference = "Stop"
 Import-Module PnP.PowerShell -ErrorAction Stop
 
-# Web Part Component IDs (from manifest files)
-$WP_SEARCH_BOX       = "13a82dbe-2c57-4e20-bfe8-ec4de5776191"
-$WP_SEARCH_RESULTS   = "1836671c-a710-45b4-9a83-55c65344a3d5"
-$WP_SEARCH_FILTERS   = "2eb68250-879f-45a8-af9b-9fc3e97b2050"
-$WP_SEARCH_VERTICALS = "d0481c49-49f9-4219-90fe-be8338051f58"
-$WP_SEARCH_MANAGER   = "46308c1c-af6b-43c5-98b7-2d39082498cb"
+# Web Part Component Names (as registered in the web part catalog)
+# PnP Add-PnPPageWebPart -Component matches by Name, not GUID
+$WP_SEARCH_BOX       = "SP Search Box"
+$WP_SEARCH_RESULTS   = "SP Search Results"
+$WP_SEARCH_FILTERS   = "SPSearchFilters"
+$WP_SEARCH_VERTICALS = "SPSearchVerticals"
+$WP_SEARCH_MANAGER   = "SPSearchManager"
 
 Write-Host ""
 Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
