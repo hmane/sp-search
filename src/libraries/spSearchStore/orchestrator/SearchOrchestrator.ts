@@ -55,6 +55,7 @@ export class SearchOrchestrator {
   public start(): void {
     // Track which state fields trigger a new search
     let prevQueryText = this._store.getState().queryText;
+    let prevQueryTemplate = this._store.getState().queryTemplate;
     let prevScope = this._store.getState().scope;
     let prevFilters = this._store.getState().activeFilters;
     let prevVertical = this._store.getState().currentVerticalKey;
@@ -63,6 +64,7 @@ export class SearchOrchestrator {
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
+      const queryTemplateChanged = state.queryTemplate !== prevQueryTemplate;
       const scopeChanged = state.scope !== prevScope;
       const filtersChanged = state.activeFilters !== prevFilters;
       const verticalChanged = state.currentVerticalKey !== prevVertical;
@@ -70,13 +72,14 @@ export class SearchOrchestrator {
       const sortChanged = state.sort !== prevSort;
 
       prevQueryText = state.queryText;
+      prevQueryTemplate = state.queryTemplate;
       prevScope = state.scope;
       prevFilters = state.activeFilters;
       prevVertical = state.currentVerticalKey;
       prevPage = state.currentPage;
       prevSort = state.sort;
 
-      if (queryChanged || scopeChanged || filtersChanged || verticalChanged || sortChanged) {
+      if (queryChanged || queryTemplateChanged || scopeChanged || filtersChanged || verticalChanged || sortChanged) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
         this._debouncedSearch();
       } else if (pageChanged) {

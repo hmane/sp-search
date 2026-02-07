@@ -51,6 +51,7 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
         currentPage: 1,
         pageSize: 25,
         sort: undefined,
+        sortableProperties: [],
         promotedResults: [],
         isLoading: false,
         error: undefined,

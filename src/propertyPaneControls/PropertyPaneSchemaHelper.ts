@@ -24,6 +24,8 @@ export interface IPropertyPaneSchemaHelperProps {
   rows?: number;
   /** Pre-selects a Pivot tab matching this flag in the schema browser */
   filterHint?: SchemaFilterHint;
+  /** When true, text changes are buffered locally and only applied on Enter or Apply button click */
+  applyOnEnter?: boolean;
 }
 
 /**
@@ -78,6 +80,7 @@ export function PropertyPaneSchemaHelper(
             multiline: context.multiline,
             rows: context.rows,
             filterHint: context.filterHint,
+            applyOnEnter: context.applyOnEnter,
             onChange: handleChange,
           }),
           domElement

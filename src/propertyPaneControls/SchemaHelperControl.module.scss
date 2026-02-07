@@ -150,6 +150,19 @@
   overflow-y: auto;
 }
 
+.applyRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dirtyIndicator {
+  font-size: 12px;
+  color: $ms-color-sharedOrange10;
+  font-style: italic;
+}
+
 .unauthorizedMessage {
   margin-top: 4px;
 }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { TextField } from '@fluentui/react/lib/TextField';
-import { IconButton } from '@fluentui/react/lib/Button';
+import { IconButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
@@ -27,6 +27,8 @@ export interface ISchemaHelperControlProps {
   rows?: number;
   /** Pre-selects a Pivot tab matching this flag */
   filterHint?: SchemaFilterHint;
+  /** When true, text changes are buffered locally and only applied on Enter or Apply button click */
+  applyOnEnter?: boolean;
   onChange: (newValue: string) => void;
 }
 
@@ -52,7 +54,7 @@ const PIVOT_MAP: Record<string, keyof IManagedProperty | undefined> = {
 const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function SchemaHelperControl(
   props: ISchemaHelperControlProps
 ): React.ReactElement {
-  const { label, description, value, multiline, rows, filterHint, onChange } = props;
+  const { label, description, value, multiline, rows, filterHint, applyOnEnter, onChange } = props;
 
   // State
   const [isPanelOpen, setIsPanelOpen] = React.useState<boolean>(false);
@@ -60,6 +62,14 @@ const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function Schema
   const [schemaResult, setSchemaResult] = React.useState<ISchemaResult | undefined>(undefined);
   const [searchFilter, setSearchFilter] = React.useState<string>('');
   const [activeTab, setActiveTab] = React.useState<string>(filterHint || 'all');
+  // Local buffer for applyOnEnter mode
+  const [localValue, setLocalValue] = React.useState<string>(value);
+  const isDirty = applyOnEnter && localValue !== value;
+
+  // Sync external value changes into local buffer
+  React.useEffect(function (): void {
+    setLocalValue(value);
+  }, [value]);
 
   // ─── Handlers ───────────────────────────────────────────
 
@@ -67,7 +77,22 @@ const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function Schema
     _event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>,
     newValue?: string
   ): void {
-    onChange(newValue !== undefined ? newValue : '');
+    if (applyOnEnter) {
+      setLocalValue(newValue !== undefined ? newValue : '');
+    } else {
+      onChange(newValue !== undefined ? newValue : '');
+    }
+  }
+
+  function handleApplyClick(): void {
+    onChange(localValue);
+  }
+
+  function handleTextFieldKeyDown(event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+    if (applyOnEnter && event.key === 'Enter' && !multiline) {
+      event.preventDefault();
+      onChange(localValue);
+    }
   }
 
   function handleBrowseClick(): void {
@@ -185,8 +210,9 @@ const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function Schema
           <TextField
             label={label}
             description={description}
-            value={value}
+            value={applyOnEnter ? localValue : value}
             onChange={handleTextFieldChange}
+            onKeyDown={applyOnEnter ? handleTextFieldKeyDown : undefined}
             multiline={multiline}
             rows={rows}
           />
@@ -207,6 +233,20 @@ const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function Schema
           />
         </TooltipHost>
       </div>
+
+      {applyOnEnter && (
+        <div className={styles.applyRow}>
+          <PrimaryButton
+            text="Apply"
+            onClick={handleApplyClick}
+            disabled={!isDirty}
+            styles={{ root: { minWidth: 80, marginTop: 4 } }}
+          />
+          {isDirty && (
+            <span className={styles.dirtyIndicator}>Unsaved changes</span>
+          )}
+        </div>
+      )}
 
       {isUnauthorized && (
         <MessageBar

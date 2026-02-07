@@ -23,6 +23,7 @@ export {
   IQuerySlice,
   IFilterSlice,
   IResultSlice,
+  ISortableProperty,
   IVerticalSlice,
   IUISlice,
   IUserSlice,

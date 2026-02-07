@@ -11,6 +11,7 @@ import {
   ISearchResult,
   IPromotedResultItem,
   ISortField,
+  ISortableProperty,
   IActiveFilter,
   IFilterConfig,
   ISearchContext,
@@ -75,6 +76,7 @@ function useStoreState(
   activeLayoutKey: string;
   promotedResults: IPromotedResultItem[];
   sort: ISortField | undefined;
+  sortableProperties: ISortableProperty[];
   bulkSelection: string[];
   previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
   isSearchManagerOpen: boolean;
@@ -93,6 +95,7 @@ function useStoreState(
     activeLayoutKey: string;
     promotedResults: IPromotedResultItem[];
     sort: ISortField | undefined;
+    sortableProperties: ISortableProperty[];
     bulkSelection: string[];
     previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
     isSearchManagerOpen: boolean;
@@ -110,6 +113,7 @@ function useStoreState(
       activeLayoutKey: state.activeLayoutKey,
       promotedResults: state.promotedResults,
       sort: state.sort,
+      sortableProperties: state.sortableProperties,
       bulkSelection: state.bulkSelection,
       previewPanel: state.previewPanel,
       isSearchManagerOpen: state.isSearchManagerOpen,
@@ -135,6 +139,7 @@ function useStoreState(
           prev.activeLayoutKey === next.activeLayoutKey &&
           prev.promotedResults === next.promotedResults &&
           prev.sort === next.sort &&
+          prev.sortableProperties === next.sortableProperties &&
           prev.bulkSelection === next.bulkSelection &&
           prev.previewPanel === next.previewPanel &&
           prev.isSearchManagerOpen === next.isSearchManagerOpen &&
@@ -286,6 +291,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     activeLayoutKey,
     promotedResults,
     sort,
+    sortableProperties,
     bulkSelection,
     previewPanel,
     isSearchManagerOpen,
@@ -451,6 +457,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             totalCount={totalCount}
             activeLayoutKey={activeLayoutKey}
             sort={sort}
+            sortableProperties={sortableProperties}
             showResultCount={showResultCount}
             showSortDropdown={showSortDropdown}
             onLayoutChange={handleLayoutChange}

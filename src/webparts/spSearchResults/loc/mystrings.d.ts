@@ -14,6 +14,14 @@ declare interface ISpSearchResultsWebPartStrings {
   CompactLayoutText: string;
   ShowResultCountLabel: string;
   ShowSortDropdownLabel: string;
+  SortFieldLabel: string;
+  SortPanelHeader: string;
+  SortManageBtn: string;
+  SortPropertyColumn: string;
+  SortLabelColumn: string;
+  SortDirectionColumn: string;
+  SortAscending: string;
+  SortDescending: string;
   EnableSelectionLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;

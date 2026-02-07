@@ -13,6 +13,8 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
+import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
 import { ISpSearchResultsProps } from './components/ISpSearchResultsProps';
@@ -31,10 +33,18 @@ export interface ISpSearchResultsWebPartProps {
   queryTemplate: string;
   selectedProperties: string;
   pageSize: number;
+  sortablePropertiesCollection: ISortCollectionItem[];
   defaultLayout: string;
   showResultCount: boolean;
   showSortDropdown: boolean;
   enableSelection: boolean;
+}
+
+interface ISortCollectionItem {
+  uniqueId: string;
+  property: string;
+  label: string;
+  direction: string;
 }
 
 export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSearchResultsWebPartProps> {
@@ -93,6 +103,40 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         this._store.setState({ pageSize: this.properties.pageSize });
       }
     }
+
+    // Sync query template to the store
+    this._syncQueryTemplateToStore();
+
+    // Sync sortable properties to the store
+    this._syncSortablePropertiesToStore();
+  }
+
+  private _syncQueryTemplateToStore(): void {
+    if (!this._store) {
+      return;
+    }
+    const template: string = this.properties.queryTemplate || '{searchTerms}';
+    const state: ISearchStore = this._store.getState();
+    if (state.queryTemplate !== template) {
+      this._store.setState({ queryTemplate: template });
+    }
+  }
+
+  private _syncSortablePropertiesToStore(): void {
+    if (!this._store) {
+      return;
+    }
+
+    const sortableProperties = (this.properties.sortablePropertiesCollection || []).map((item: ISortCollectionItem) => ({
+      property: item.property,
+      label: item.label,
+      direction: item.direction || 'Ascending'
+    }));
+
+    const state: ISearchStore = this._store.getState();
+    if (JSON.stringify(state.sortableProperties) !== JSON.stringify(sortableProperties)) {
+      this._store.setState({ sortableProperties });
+    }
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -119,6 +163,34 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     return Version.parse('1.0');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any): void {
+    super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
+
+    if (propertyPath === 'searchContextId') {
+      const contextId: string = this.properties.searchContextId || 'default';
+      this._store = getStore(contextId);
+      this._orchestrator = getOrchestrator(contextId);
+    }
+
+    if (propertyPath === 'queryTemplate' || propertyPath === 'searchContextId') {
+      this._syncQueryTemplateToStore();
+    }
+
+    if (propertyPath === 'sortablePropertiesCollection' || propertyPath === 'searchContextId') {
+      this._syncSortablePropertiesToStore();
+    }
+
+    if (propertyPath === 'pageSize' && this._store) {
+      this._store.setState({ pageSize: this.properties.pageSize });
+    }
+
+    if (propertyPath === 'defaultLayout' && this._store) {
+      const state: ISearchStore = this._store.getState();
+      state.setLayout(this.properties.defaultLayout);
+    }
+  }
+
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
@@ -139,6 +211,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   description: strings.QueryTemplateDescription,
                   value: this.properties.queryTemplate || '',
                   filterHint: 'queryable',
+                  applyOnEnter: true,
                 }),
                 PropertyPaneSchemaHelper('selectedProperties', {
                   label: strings.SelectedPropertiesLabel,
@@ -152,7 +225,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.PageSizeLabel,
                   min: 5,
                   max: 100,
-                  value: 25,
+                  value: this.properties.pageSize || 25,
                   step: 5,
                   showValue: true
                 })
@@ -177,6 +250,40 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.ShowSortDropdownLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
+                }),
+                PropertyFieldCollectionData('sortablePropertiesCollection', {
+                  key: 'sortablePropertiesCollection',
+                  label: strings.SortFieldLabel,
+                  panelHeader: strings.SortPanelHeader,
+                  manageBtnLabel: strings.SortManageBtn,
+                  value: this.properties.sortablePropertiesCollection,
+                  enableSorting: true,
+                  fields: [
+                    {
+                      id: 'property',
+                      title: strings.SortPropertyColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: true,
+                      placeholder: 'LastModifiedTime'
+                    },
+                    {
+                      id: 'label',
+                      title: strings.SortLabelColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: true,
+                      placeholder: 'Date Modified'
+                    },
+                    {
+                      id: 'direction',
+                      title: strings.SortDirectionColumn,
+                      type: CustomCollectionFieldType.dropdown,
+                      required: true,
+                      options: [
+                        { key: 'Ascending', text: strings.SortAscending },
+                        { key: 'Descending', text: strings.SortDescending }
+                      ]
+                    }
+                  ]
                 }),
                 PropertyPaneToggle('enableSelection', {
                   label: strings.EnableSelectionLabel,

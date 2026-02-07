@@ -44,12 +44,20 @@ export interface IPromotedResultItem {
   iconUrl?: string;
 }
 
+export interface ISortableProperty {
+  property: string;
+  label: string;
+  direction: string;
+}
+
 export interface IResultSlice {
   items: ISearchResult[];
   totalCount: number;
   currentPage: number;
   pageSize: number;
   sort: ISortField | undefined;
+  /** Admin-configured sort options for the sort dropdown */
+  sortableProperties: ISortableProperty[];
   promotedResults: IPromotedResultItem[];
   isLoading: boolean;
   error: string | undefined;

@@ -11,6 +11,8 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { type StoreApi } from 'zustand/vanilla';
 
+import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+
 import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
 import { type ISpSearchVerticalsProps } from './components/ISpSearchVerticalsProps';
@@ -19,10 +21,21 @@ import { getStore } from '@store/store';
 
 export interface ISpSearchVerticalsWebPartProps {
   searchContextId: string;
-  verticals: string; // JSON-serialized IVerticalDefinition[]
+  verticals: string; // Legacy: JSON-serialized IVerticalDefinition[]
+  verticalsCollection: IVerticalCollectionItem[]; // Collection data from property pane
   showCounts: boolean;
   hideEmptyVerticals: boolean;
   tabStyle: 'tabs' | 'pills' | 'underline';
+}
+
+interface IVerticalCollectionItem {
+  uniqueId: string;
+  key: string;
+  label: string;
+  iconName: string;
+  queryTemplate: string;
+  resultSourceId: string;
+  sortOrder: number;
 }
 
 export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpSearchVerticalsWebPartProps> {
@@ -53,10 +66,33 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
 
-    // Parse verticals JSON and set in store
+    // Migrate legacy JSON to collection data if needed
+    if (this.properties.verticals && (!this.properties.verticalsCollection || this.properties.verticalsCollection.length === 0)) {
+      this._migrateJsonToCollection();
+    }
+
     this._syncVerticalsToStore();
 
     return Promise.resolve();
+  }
+
+  private _migrateJsonToCollection(): void {
+    try {
+      const parsed: IVerticalDefinition[] = JSON.parse(this.properties.verticals);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        this.properties.verticalsCollection = parsed.map((v: IVerticalDefinition, idx: number) => ({
+          uniqueId: `v-${idx}`,
+          key: v.key,
+          label: v.label,
+          iconName: v.iconName || '',
+          queryTemplate: v.queryTemplate || '',
+          resultSourceId: v.resultSourceId || '',
+          sortOrder: v.sortOrder ?? idx + 1
+        }));
+      }
+    } catch {
+      // Invalid JSON, ignore
+    }
   }
 
   private _syncVerticalsToStore(): void {
@@ -65,26 +101,34 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     }
 
     let parsed: IVerticalDefinition[] = [];
-    try {
-      const raw: string = this.properties.verticals;
-      if (raw) {
-        parsed = JSON.parse(raw) as IVerticalDefinition[];
+
+    // Prefer collection data; fall back to legacy JSON
+    if (this.properties.verticalsCollection && this.properties.verticalsCollection.length > 0) {
+      // Use array index as sortOrder — PropertyFieldCollectionData drag-and-drop
+      // reorders the array, so array position is the canonical order
+      parsed = this.properties.verticalsCollection.map((item: IVerticalCollectionItem, idx: number) => ({
+        key: item.key,
+        label: item.label,
+        iconName: item.iconName || undefined,
+        queryTemplate: item.queryTemplate || undefined,
+        resultSourceId: item.resultSourceId || undefined,
+        sortOrder: idx + 1
+      }));
+    } else if (this.properties.verticals) {
+      try {
+        parsed = JSON.parse(this.properties.verticals) as IVerticalDefinition[];
+        // Legacy JSON: sort by explicit sortOrder
+        parsed.sort(function (a: IVerticalDefinition, b: IVerticalDefinition): number {
+          return a.sortOrder - b.sortOrder;
+        });
+      } catch {
+        parsed = [];
       }
-    } catch {
-      // Invalid JSON; fall back to empty array
-      parsed = [];
     }
 
-    // Sort by sortOrder before storing
-    parsed.sort(function (a: IVerticalDefinition, b: IVerticalDefinition): number {
-      return a.sortOrder - b.sortOrder;
-    });
-
     const state: ISearchStore = this._store.getState();
-    // Only update if verticals actually changed
     if (JSON.stringify(state.verticals) !== JSON.stringify(parsed)) {
       this._store.setState({ verticals: parsed });
-      // If no vertical is selected yet and we have verticals, select the first one
       if (parsed.length > 0 && !state.currentVerticalKey) {
         state.setVertical(parsed[0].key);
       }
@@ -106,7 +150,6 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any): void {
     super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
-    // Re-sync verticals when the property pane changes
     if (this._store) {
       const contextId: string = this.properties.searchContextId || 'default';
       this._store = getStore(contextId);
@@ -129,11 +172,57 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                   label: strings.SearchContextIdFieldLabel,
                   description: strings.SearchContextIdFieldDescription
                 }),
-                PropertyPaneTextField('verticals', {
+                PropertyFieldCollectionData('verticalsCollection', {
+                  key: 'verticalsCollection',
                   label: strings.VerticalsFieldLabel,
-                  description: strings.VerticalsFieldDescription,
-                  multiline: true,
-                  rows: 10
+                  panelHeader: strings.VerticalsPanelHeader,
+                  manageBtnLabel: strings.VerticalsManageBtn,
+                  value: this.properties.verticalsCollection,
+                  enableSorting: true,
+                  fields: [
+                    {
+                      id: 'key',
+                      title: strings.VerticalKeyColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: true,
+                      placeholder: 'documents'
+                    },
+                    {
+                      id: 'label',
+                      title: strings.VerticalLabelColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: true,
+                      placeholder: 'Documents'
+                    },
+                    {
+                      id: 'iconName',
+                      title: strings.VerticalIconColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'Document'
+                    },
+                    {
+                      id: 'queryTemplate',
+                      title: strings.VerticalQueryColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: '{searchTerms} IsDocument:1'
+                    },
+                    {
+                      id: 'resultSourceId',
+                      title: strings.VerticalSourceColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'GUID'
+                    },
+                    {
+                      id: 'sortOrder',
+                      title: strings.VerticalSortColumn,
+                      type: CustomCollectionFieldType.number,
+                      required: true,
+                      defaultValue: 1
+                    }
+                  ]
                 }),
                 PropertyPaneToggle('showCounts', {
                   label: strings.ShowCountsFieldLabel

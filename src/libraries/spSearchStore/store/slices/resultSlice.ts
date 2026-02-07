@@ -7,6 +7,7 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   currentPage: 1,
   pageSize: 25,
   sort: undefined,
+  sortableProperties: [],
   promotedResults: [],
   isLoading: false,
   error: undefined,

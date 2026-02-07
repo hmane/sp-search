@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { ISortField } from '@interfaces/index';
+import { ISortField, ISortableProperty } from '@interfaces/index';
 import styles from './SpSearchResults.module.scss';
 
 export interface IResultToolbarProps {
   totalCount: number;
   activeLayoutKey: string;
   sort: ISortField | undefined;
+  sortableProperties: ISortableProperty[];
   showResultCount: boolean;
   showSortDropdown: boolean;
   onLayoutChange: (key: string) => void;
@@ -16,48 +17,58 @@ export interface IResultToolbarProps {
 
 /** Sort preset key for "Relevance" (no explicit sort) */
 const SORT_RELEVANCE: string = 'relevance';
-const SORT_DATE_NEWEST: string = 'date-newest';
-const SORT_DATE_OLDEST: string = 'date-oldest';
-const SORT_AUTHOR_AZ: string = 'author-az';
 
-const sortOptions: IDropdownOption[] = [
-  { key: SORT_RELEVANCE, text: 'Relevance' },
-  { key: SORT_DATE_NEWEST, text: 'Date (newest)' },
-  { key: SORT_DATE_OLDEST, text: 'Date (oldest)' },
-  { key: SORT_AUTHOR_AZ, text: 'Author A\u2013Z' }
-];
+/**
+ * Builds dropdown options from admin-configured sortable properties.
+ * Always includes "Relevance" as the first option.
+ * Falls back to default presets if no sortable properties are configured.
+ */
+function buildSortOptions(sortableProperties: ISortableProperty[]): IDropdownOption[] {
+  const options: IDropdownOption[] = [
+    { key: SORT_RELEVANCE, text: 'Relevance' }
+  ];
+
+  if (sortableProperties.length > 0) {
+    sortableProperties.forEach(function (sp: ISortableProperty): void {
+      options.push({
+        key: sp.property + ':' + sp.direction,
+        text: sp.label
+      });
+    });
+  } else {
+    // Fallback: default presets when no admin-configured sort fields
+    options.push(
+      { key: 'LastModifiedTime:Descending', text: 'Date (newest)' },
+      { key: 'LastModifiedTime:Ascending', text: 'Date (oldest)' },
+      { key: 'DisplayAuthor:Ascending', text: 'Author A\u2013Z' }
+    );
+  }
+
+  return options;
+}
 
 /**
  * Determines the currently selected sort dropdown key from the store's ISortField.
  */
 function getSortKey(sort: ISortField | undefined): string {
-  if (!sort) {
+  if (!sort || sort.property === 'Rank') {
     return SORT_RELEVANCE;
   }
-  if (sort.property === 'Write' || sort.property === 'LastModifiedTime') {
-    return sort.direction === 'Descending' ? SORT_DATE_NEWEST : SORT_DATE_OLDEST;
-  }
-  if (sort.property === 'Author' || sort.property === 'DisplayAuthor') {
-    return SORT_AUTHOR_AZ;
-  }
-  return SORT_RELEVANCE;
+  return sort.property + ':' + sort.direction;
 }
 
 /**
- * Maps a dropdown key to a sort field for the store.
+ * Maps a dropdown key back to a sort field for the store.
  */
 function mapSortKey(key: string): ISortField {
-  switch (key) {
-    case SORT_DATE_NEWEST:
-      return { property: 'LastModifiedTime', direction: 'Descending' };
-    case SORT_DATE_OLDEST:
-      return { property: 'LastModifiedTime', direction: 'Ascending' };
-    case SORT_AUTHOR_AZ:
-      return { property: 'DisplayAuthor', direction: 'Ascending' };
-    default:
-      // Relevance — represented as an ascending rank sort
-      return { property: 'Rank', direction: 'Ascending' };
+  if (key === SORT_RELEVANCE) {
+    return { property: 'Rank', direction: 'Ascending' };
   }
+  const parts: string[] = key.split(':');
+  return {
+    property: parts[0],
+    direction: (parts[1] as 'Ascending' | 'Descending') || 'Ascending'
+  };
 }
 
 /**
@@ -96,11 +107,19 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
     totalCount,
     activeLayoutKey,
     sort,
+    sortableProperties,
     showResultCount,
     showSortDropdown,
     onLayoutChange,
     onSortChange
   } = props;
+
+  const sortOptions: IDropdownOption[] = React.useMemo(
+    function (): IDropdownOption[] {
+      return buildSortOptions(sortableProperties);
+    },
+    [sortableProperties]
+  );
 
   const handleSortChange = React.useCallback(
     (_event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void => {

@@ -99,6 +99,7 @@ SP Search draws architecture patterns and search logic from PnP Modern Search v4
 | devextreme-react | 22.2.x | React wrappers for DevExtreme components |
 | Fluent UI v8 | 8.106.x | Panel, CommandBar, Persona, Shimmer, Icons, Theme |
 | @pnp/spfx-controls-react | 3.x | PeoplePicker, TaxonomyPicker, FilePicker |
+| @pnp/spfx-property-controls | 3.x | PropertyFieldCollectionData for verticals, filters, sort configuration in property panes |
 
 
 ## 2.3 State Management & Utilities
@@ -470,24 +471,20 @@ When one or more results are selected, a contextual toolbar appears above the re
 
 ### 3.2.5 Property Pane Configuration
 
+All property pane fields follow the PnP Modern Search v4 pattern — configuration is stored entirely in web part property bags (no configuration list). Complex multi-value configurations use `PropertyFieldCollectionData` from `@pnp/spfx-property-controls` with drag-and-drop reordering. The `queryTemplate` field uses a non-reactive "Apply on Enter" pattern to prevent mid-typing re-execution.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| dataProviderId | string | "sharepoint" | Data provider to use: "sharepoint" (PnPjs) or "graph" (MS Graph). Overridden per-vertical if set. |
-| queryTemplate | string | {searchTerms} | KQL query template |
-| resultSourceId | string | (empty) | Result source GUID (SharePoint provider only) |
-| selectedProperties | string[] | Default set | Managed properties to retrieve |
-| enabledLayouts | LayoutType[] | All layouts | Which layouts are available |
-| defaultLayout | LayoutType | "list" | Initial layout on load |
-| pageSize | number | 25 | Results per page |
-| enableDetailPanel | boolean | true | Enable result detail panel |
-| enableBulkActions | boolean | true | Enable multi-select and bulk ops |
-| enableExport | boolean | true | Enable export to Excel/CSV |
-| sortableProperties | string[] | [] | Properties that allow sorting |
-| defaultSort | ISortConfig | Relevance | Default sort property and direction |
-| showResultCount | boolean | true | Display total result count |
+| searchContextId | string | "default" | Shared store identifier. Must match across all connected web parts. |
+| queryTemplate | string | {searchTerms} | KQL query template. Uses Schema Helper with Apply-on-Enter (non-reactive). |
+| selectedProperties | string (CSV) | Default set | Comma-separated managed properties to retrieve. Uses Schema Helper with multiline. |
+| pageSize | number (slider) | 25 | Results per page (5–100). |
+| defaultLayout | choice | "list" | Initial layout: list or compact. |
+| showResultCount | boolean | true | Display total result count above results. |
+| showSortDropdown | boolean | true | Show sort dropdown in result toolbar. |
+| sortablePropertiesCollection | CollectionData | [] | Admin-configured sort options: managed property, display label, and default direction. Uses `PropertyFieldCollectionData` with drag-and-drop reordering. |
+| enableSelection | boolean | false | Enable checkbox selection on results for bulk actions. |
 | collapseSpecification | string | (empty) | SharePoint CollapseSpecification value for result grouping (see 3.2.6) |
-| enableSchemaHelper | boolean | true | Show Managed Property Picker helper in property pane (admin only, see 3.2.7) |
 
 ### 3.2.6 Result Collapsing (Thread Folding)
 
@@ -718,18 +715,16 @@ For power users, the Search Filters web part offers an advanced visual filter bu
 
 ### 3.3.7 Property Pane Configuration
 
+Filter definitions are configured using `PropertyFieldCollectionData` from `@pnp/spfx-property-controls`. Each row defines one filter group with its managed property, display name, filter type, operator, and display settings. The collection supports drag-and-drop reordering to control the display order of filter groups.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| filters | IFilterConfig[] | [] | Array of filter definitions |
-| filterLayout | enum | "vertical" | "vertical" \| "horizontal" \| "panel" |
-| applyMode | enum | "instant" | "instant" \| "manual" |
-| operatorBetweenFilters | enum | "AND" | "AND" \| "OR" |
-| showCounts | boolean | true | Show result counts per filter value |
-| initialDisplayCount | number | 5 | Filter values shown before Show More |
-| enableFilterBuilder | boolean | false | Enable advanced visual filter builder |
-| showActiveFilterPills | boolean | true | Show active filter pill bar above results |
-| pillBarPosition | enum | "above-results" | "above-results" \| "below-toolbar" \| "sticky-top" |
+| searchContextId | string | "default" | Shared store identifier. Must match the Search Results web part. |
+| filtersCollection | CollectionData | [] | Array of filter definitions configured via PropertyFieldCollectionData. Columns: managed property, display name, filter type (dropdown: checkbox/daterange/slider/people/taxonomy/tagbox/toggle), operator (AND/OR), max values, show count, default expanded, sort by (count/alphabetical). |
+| applyMode | choice | "instant" | "instant" (apply on each selection) or "manual" (apply with button). |
+| operatorBetweenFilters | choice | "AND" | Logic combining multiple filter selections: AND or OR. |
+| showClearAll | boolean | true | Show "Clear All" button to reset all filter selections. |
+| enableVisualFilterBuilder | boolean | false | Enable advanced visual filter builder (DevExtreme FilterBuilder). |
 
 
 ## 3.4 Search Verticals Web Part
@@ -750,13 +745,15 @@ The Search Verticals web part provides tab-based navigation to scope search resu
 ### 3.4.2 Property Pane Configuration
 
 
+Vertical definitions are configured using `PropertyFieldCollectionData` from `@pnp/spfx-property-controls`. Each row defines one vertical tab with its key, label, icon, query template, result source, and sort order. The collection supports drag-and-drop reordering. Legacy JSON configuration is auto-migrated to the collection format on first load.
+
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| verticals | IVerticalDefinition[] | [] | Array of vertical definitions (each includes optional dataProviderId, filterConfig[], audienceGroups[]) |
-| showCounts | boolean | true | Show result count badges on tabs |
-| hideEmptyVerticals | boolean | false | Hide tabs with zero results |
-| defaultVerticalKey | string | "all" | Default selected vertical |
-| tabStyle | enum | "tabs" | "tabs" \| "pills" \| "underline" |
+| searchContextId | string | "default" | Shared store identifier. Must match the other search web parts. |
+| verticalsCollection | CollectionData | [] | Array of vertical definitions configured via PropertyFieldCollectionData. Columns: key (unique ID), label (display text), icon (Fluent UI icon name), query template (KQL override), result source ID (GUID), sort order (numeric). |
+| showCounts | boolean | false | Show result count badges on tabs. |
+| hideEmptyVerticals | boolean | false | Hide or dim tabs with zero results. |
+| tabStyle | choice | "tabs" | Visual style: tabs, pills, or underline. |
 
 
 **PnP Reference:** Study PnP Verticals web part at https://microsoft-search.github.io/pnp-modern-search/usage/search-verticals/ for vertical tab config, per-vertical query template overrides, result source targeting, badge count queries (parallel RowLimit=0 queries), and audience targeting via Azure AD groups. Source: search-parts/src/webparts/searchVerticals/. SP Search uses Zustand store instead of SPFx dynamic data, but reuse the vertical selection pattern and count query approach.
@@ -838,11 +835,12 @@ All Search Manager data is stored in hidden SharePoint lists provisioned during 
 | QueryText | Multiple lines | No | The search query text |
 | SearchState | Multiple lines | No | JSON: filters, vertical, sort, scope |
 | SearchUrl | Hyperlink | No | Full shareable URL with query params |
-| EntryType | Choice | Yes | SavedSearch \| SharedSearch |
+| EntryType | Choice | Yes | SavedSearch \| SharedSearch \| StateSnapshot |
 | Category | Single line text | Yes | Folder/category for organization |
 | SharedWith | Person (multi) | Yes | Users this search is shared with |
 | ResultCount | Number | No | Result count at time of save |
 | LastUsed | Date/Time | Yes | Last time this search was executed |
+| ExpiresAt | Date/Time | Yes | Expiration time for StateSnapshot entries |
 
 
 **SearchHistory List** (Dedicated list with aggressive retention)
@@ -861,7 +859,7 @@ All Search Manager data is stored in hidden SharePoint lists provisioned during 
 | Author (Created By) | Person | **Yes** | Built-in column — **MUST be indexed at provisioning**. Primary filter for all queries. |
 
 **SearchHistory Retention Policy:**
-- Configurable TTL: 30 / 60 / 90 days (default 90), set in SearchConfiguration
+- Manual cleanup via `cleanupHistory(ttlDays)` (no automatic background cleanup)
 - Cleanup via scheduled PnP PowerShell script or Azure Function: `DELETE WHERE SearchTimestamp < (Today - TTL)`
 - Minimal columns keep item size small for high-volume writes
 - User isolation: list permissions set to Add Items + Edit Own Items only (no Read All)
@@ -884,56 +882,26 @@ All Search Manager data is stored in hidden SharePoint lists provisioned during 
 | SortOrder | Number | No | Item order within collection |
 
 
-**SearchConfiguration List**
-
-
-
-| Column | Type | Indexed | Description |
-| --- | --- | --- | --- |
-| Title | Single line text | Yes | Configuration key name |
-| ConfigType | Choice | Yes | Scope \| VerticalPreset \| LayoutMapping \| ManagedPropertyMap \| PromotedResult \| StateSnapshot |
-| ConfigData | Multiple lines | No | JSON payload for the configuration |
-| IsActive | Yes/No | Yes | Whether this config is currently active |
-| SortOrder | Number | No | Display order for scopes/verticals |
-| ExpiresAt | Date/Time | Yes | TTL for StateSnapshot entries (used by sid= deep links). Null = no expiry. |
-| AudienceGroups | Multiple lines | No | JSON array of Azure AD security group IDs for audience targeting (PromotedResult entries) |
-
-
 ## 3.6 Promoted Results / Best Bets
 
-Promoted Results transform SP Search from "just a query box" to a **curated, intent-aware search experience**. Admins define rules that surface specific documents or URLs above organic results when queries match defined patterns. This is the feature that makes stakeholders and execs say "this is better than what we had."
+Promoted Results are handled by **SharePoint Query Rules** and returned as **SpecialTermResults** in the search response. SP Search does not store or evaluate promoted rules in a custom list. This aligns with PnP Modern Search v4 and keeps server-side ranking logic in SharePoint where it belongs.
 
-**Design Decision — Client-Side Injection vs. Server-Side Query Rules:** SP Search implements promoted results as a **client-side visual injection** (evaluated in the Zustand store after results load) rather than using SharePoint's server-side Query Rules. This is a deliberate architectural choice: server-side Query Rules affect ranking scores of *all* results and are unpredictable to debug, while client-side injection is deterministic — promoted items appear in a distinct "Recommended" block at position #0, and organic results remain untouched. The tradeoff is that we cannot "boost" a result to position #3 in the organic list, but for enterprise UX, a predictable dedicated block is cleaner than invisible ranking manipulation.
+### 3.6.1 Source of Promoted Results
 
-### 3.6.1 Promoted Result Rules
-
-Rules are stored as `ConfigType: PromotedResult` entries in the SearchConfiguration list (admin-only write). Each rule defines:
-
-- **Match Condition:** How the rule triggers:
-  - `contains` — query contains keyword(s)
-  - `equals` — exact query match
-  - `regex` — regular expression pattern
-  - `kql` — KQL predicate match (for structured queries)
-- **Promoted Items:** Array of URLs/documents to promote, each with:
-  - `url` — target document or page URL
-  - `title` — display title override (optional, falls back to search result title)
-  - `description` — custom description (optional)
-  - `imageUrl` — custom thumbnail (optional)
-  - `position` — rank order within promoted results block
-- **Audience Targeting:** Optional Azure AD security group IDs (same pattern as vertical audience targeting). When set, only users in those groups see the promoted result.
-- **Schedule:** Optional start/end dates for time-limited promotions (e.g., "Open Enrollment" rules active only during enrollment period).
-- **Vertical Scope:** Optional — restrict the promoted result to specific verticals only.
+- **Rule definition:** Managed in SharePoint Search Query Rules (site or Search Service Application).
+- **Match conditions:** Configured in Query Rules (contains, equals, etc.).
+- **Schedule and targeting:** Configured in Query Rules where available.
+- **Client behavior:** The provider maps SpecialTermResults into `IPromotedResultItem` for display.
 
 ### 3.6.2 UI Rendering
 
 - **"Recommended" Block:** Displayed above organic search results in every layout. Visually distinct (subtle background, "Recommended" badge) so users understand these are curated.
 - **Layout-Adaptive:** The recommended block adapts to the active layout — card style in Card Layout, row style in DataGrid/List/Compact, etc.
-- **Dismissible:** Users can dismiss promoted results for the session (stored in uiSlice, not persisted).
 - **Maximum Display:** Configurable max promoted results per query (default 3) to avoid overwhelming organic results.
 
 ### 3.6.3 Admin Configuration
 
-Promoted result rules are managed through the SearchConfiguration list. In Phase 5+, an admin UI (either a dedicated admin page or a section within the Search Manager property pane) provides a CRUD interface for rules without requiring direct list access.
+Admins configure promoted results through **SharePoint Query Rules**. No list-based CRUD interface is required.
 
 ### 3.6.4 Property Pane Configuration
 
@@ -980,7 +948,7 @@ A Zustand middleware layer handles bi-directional synchronization between the st
 The URL sync middleware supports two modes to handle varying state complexity:
 
 1. **Short URL Mode (default):** Current state serialized into compact query parameters. Used when total URL length stays under 2,000 characters.
-2. **StateId Mode (automatic fallback):** When URL would exceed the limit (complex filter builder expressions, taxonomy paths, multiple refiners), the middleware automatically saves the full state JSON to a hidden list item (SearchConfiguration) and replaces the URL with `?sid=<itemId>`. On page load, `sid` is detected and the state is restored from the list. This also enables expiring links (TTL column) and auditable sharing.
+2. **StateId Mode (automatic fallback):** When URL would exceed the limit (complex filter builder expressions, taxonomy paths, multiple refiners), the middleware automatically saves the full state JSON to a hidden list item in **SearchSavedQueries** with `EntryType=StateSnapshot` and replaces the URL with `?sid=<itemId>`. On page load, `sid` is detected and the state is restored from the list. This also enables expiring links via `ExpiresAt`.
 
 **State Schema Versioning:** All serialized state includes `sv=1` (state version). This allows safe URL migration between releases — older URLs are handled by version-specific deserializers.
 
@@ -1210,7 +1178,7 @@ The following describes the end-to-end data flow when a user performs a search:
 - **Any in-flight search AbortController is aborted** before the new cycle begins.
 - Search Results web part (subscribed to querySlice, filterSlice, verticalSlice) detects state change.
 - Search Results constructs KQL query: merge query template + query text + active filters + vertical scope + sort. **Token resolution and query construction are computed once** and shared across results + count queries (request coalescing).
-- **Promoted Results rules are evaluated** against the query. Matching promoted items are fetched from SearchConfiguration.
+- **Promoted Results** are returned by SharePoint (SpecialTermResults from Query Rules) and mapped into the promoted results block.
 - PnPjs sp.search() is called with constructed query, selected properties, paging parameters, and **AbortController signal**.
 - Results and refiners are dispatched to resultSlice and filterSlice respectively. If refiner stability mode is on, **displayRefiners update after debounce window**.
 - In parallel, vertical count queries are dispatched for each vertical tab (using rowLimit=0, selectProperties=[], **sharing the same AbortController**).
@@ -1298,12 +1266,11 @@ The solution is deployed as a single .sppkg file containing all five web parts a
 
 Hidden lists are provisioned via PnP PowerShell script executed as a post-deployment step in the CI/CD pipeline.
 - Script: Provision-SPSearchLists.ps1
-- Creates four hidden lists: SearchSavedQueries, SearchCollections, SearchHistory, SearchConfiguration
+- Creates three hidden lists: SearchSavedQueries, SearchCollections, SearchHistory
 - Sets list property: Hidden = true
 - **Per-list permission model (see Section 8.2 for details):**
   - SearchSavedQueries & SearchCollections: All authenticated users have Add Items. Item-level permissions enforced — author gets full control, shared recipients get Read.
   - SearchHistory: All authenticated users have Add Items + Edit Own Items. No cross-user visibility.
-  - SearchConfiguration: Site Collection Admins only (or dedicated SP Search Admins security group). Regular users have Read access.
 - Creates required columns, content types, and indexed columns
 - Seeds default configuration entries (search scopes, default layout mappings, promoted result rules)
 - Idempotent: safe to run multiple times (checks existence before creating)
@@ -1335,12 +1302,7 @@ Search results are security-trimmed by SharePoint (users only see results they h
 **SearchHistory — User Isolation:**
 - All authenticated users have Add Items + Edit Own Items (no Read All).
 - CAML queries filter by `Author eq [Me]` as a convenience layer, but the underlying list permissions prevent cross-user enumeration even via REST.
-- Retention policy: items older than configurable TTL (default 90 days) are cleaned up by a scheduled PnP PowerShell script or Azure Function.
-
-**SearchConfiguration — Admin-Only Write:**
-- Regular users have Read access only (needed to load scopes, vertical presets, promoted results).
-- Write access restricted to Site Collection Admins or a dedicated "SP Search Admins" security group.
-- This prevents users from modifying search scopes, promoted results, or layout mappings.
+- Retention policy: items older than a chosen TTL can be cleaned up via `cleanupHistory(ttlDays)` or a scheduled PnP PowerShell script/Azure Function.
 
 **General:**
 - No data leaves the SharePoint tenant. All processing is client-side within the browser.
@@ -1366,7 +1328,7 @@ Search results are security-trimmed by SharePoint (users only see results they h
 - Search Results web part with List Layout and Compact Layout (registered via LayoutRegistry)
 - Search Filters web part with Checkbox and Date Range filter types (registered via FilterTypeRegistry)
 - Search Verticals web part with tab navigation and badge counts
-- Hidden list provisioning PowerShell script (4 lists: SearchSavedQueries, SearchCollections, SearchHistory, SearchConfiguration) with **item-level permission scaffolding**
+- Hidden list provisioning PowerShell script (3 lists: SearchSavedQueries, SearchCollections, SearchHistory) with **item-level permission scaffolding**
 - PnPjs search service layer with query construction, **AbortController integration**, and **request coalescing** (shared token resolution + query construction)
 - SearchHistory list with aggressive retention policy
 
@@ -1392,7 +1354,7 @@ Search results are security-trimmed by SharePoint (users only see results they h
 - Recent searches in Search Box suggestions (RecentSearchProvider)
 - **Item-level permission enforcement:** `breakRoleInheritance()` + `addRoleAssignment()` on save/share operations
 - **StateId deep link fallback:** automatic `?sid=` mode when URL exceeds limit
-- **Promoted Results / Best Bets:** admin-defined rules with "Recommended" block above results
+- **Promoted Results / Best Bets:** SharePoint Query Rules drive the "Recommended" block above results
 
 ## Phase 4: Power Features
 
@@ -1511,12 +1473,19 @@ export interface IRefinerValue {
 ### IResultSlice
 
 ```typescript
+export interface ISortableProperty {
+  property: string;
+  label: string;
+  direction: string;
+}
+
 export interface IResultSlice {
   items: ISearchResult[];
   totalCount: number;
   currentPage: number;
   pageSize: number;
   sort: ISortField | null;
+  sortableProperties: ISortableProperty[];  // Admin-configured sort options
   promotedResults: IPromotedResult[];
   isLoading: boolean;
   error: string | null;
@@ -1845,6 +1814,7 @@ export interface Registry<T extends { id: string }> {
 | 1.2 | Feb 5, 2026 | Hemant Mane | Added: ISearchDataProvider abstraction (SharePoint + Graph providers), result collapsing/thread folding, Schema Helper property pane control, List View Threshold mitigation, per-vertical data provider override, IRegistryContainer, full typed store interfaces with actions |
 | 1.3 | Feb 5, 2026 | Hemant Mane | Refinements: CollapseSpecification silent failure validation, CAML clause ordering for threshold safety, implementation file structure for sp-search-store |
 | 1.4 | Feb 5, 2026 | Hemant Mane | Major UX additions: Active Filter Pill Bar (§3.3.3), Special Field Handling guide for 7 field types (§3.3.4), IFilterValueFormatter interface (§3.3.5), enhanced Result Detail Panel with WOPI preview, metadata formatting, version history UI (§3.2.3), DataGrid type-aware cell renderers for 12 property types (§3.2.2), DataGrid column filtering and sorting behavior, List Layout result card anatomy, ICellRendererConfig and caching interfaces |
+| 1.5 | Feb 5, 2026 | Hemant Mane | Property pane upgrade: Added @pnp/spfx-property-controls to tech stack. Replaced JSON textarea configs with PropertyFieldCollectionData for verticals (§3.4.2), filters (§3.3.7), and sort fields (§3.2.5). Added Schema Helper apply-on-enter mode for query template field. Removed SearchConfiguration list — all config stored in web part property bags (PnP Modern Search v4 pattern). |
 
 
 ## 10.5 Reference URLs for Development
