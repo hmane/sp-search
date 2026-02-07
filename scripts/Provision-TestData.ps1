@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Creates 10 document libraries, 10 custom lists, term sets, site columns,
-    and uploads 1,200+ documents with varied metadata for comprehensive search testing.
+    and uploads 3,000+ documents with varied metadata for comprehensive search testing.
 
 .PARAMETER SiteUrl
     Target SharePoint site URL (e.g. https://pixelboy.sharepoint.com/sites/SPSearch)
@@ -17,10 +17,10 @@
     If empty, the connected user is used for all items.
 
 .PARAMETER DocumentsPerLibrary
-    Number of documents to create per library (default: 120, total ~1,200)
+    Number of documents to create per library (default: 300, total ~3,000)
 
 .PARAMETER ItemsPerList
-    Number of items to create per list (default: 60, total ~600)
+    Number of items to create per list (default: 100, total ~1,000)
 
 .PARAMETER TermGroupName
     Name of the term group in the Term Store (default: "SP Search Test Data")
@@ -62,12 +62,12 @@ param(
     [string[]]$Users = @(),
 
     [Parameter(Mandatory = $false)]
-    [ValidateRange(10, 500)]
-    [int]$DocumentsPerLibrary = 120,
+    [ValidateRange(10, 1000)]
+    [int]$DocumentsPerLibrary = 300,
 
     [Parameter(Mandatory = $false)]
-    [ValidateRange(10, 200)]
-    [int]$ItemsPerList = 60,
+    [ValidateRange(10, 500)]
+    [int]$ItemsPerList = 100,
 
     [Parameter(Mandatory = $false)]
     [string]$TermGroupName = "SP Search Test Data",
@@ -208,15 +208,28 @@ $script:ListDefs = @(
 
 # ─── Content Themes ──────────────────────────────────────────────────────────
 
+# Combinatorial name components — mixed across themes for thousands of unique titles
+$script:ProjectNames = @(
+    "Atlas", "Beacon", "Catalyst", "Delta", "Eclipse", "Falcon", "Genesis", "Horizon",
+    "Ignite", "Jupiter", "Keystone", "Lighthouse", "Meridian", "Nexus", "Olympus", "Pinnacle",
+    "Quantum", "Radiance", "Summit", "Titan", "Unity", "Vanguard", "Wavelength", "Xenon",
+    "Zenith", "Aurora", "Blaze", "Compass", "Dynamo", "Ember", "Frontier", "Glacier"
+)
+$script:YearQuarters = @("2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4", "2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4", "2026-Q1")
+$script:VersionSuffixes = @("v1.0", "v1.1", "v1.2", "v2.0", "v2.1", "v3.0", "Draft", "Final", "Rev-A", "Rev-B")
+$script:TeamPrefixes = @("", "Global", "Regional", "Corporate", "Internal", "External", "Executive", "Field", "Central", "Cross-Functional")
+
 $script:ThemeData = @{
     "Finance" = @{
         Keywords = @("budget", "revenue", "quarterly", "forecast", "fiscal", "audit", "ROI", "capital", "expense", "profit")
         Phrase = "annual budget report"
-        Titles = @(
-            "Q{0} Revenue Analysis Report", "Annual Budget Proposal {0}", "Fiscal Year {0} Audit Summary",
-            "Capital Expenditure Review {0}", "Quarterly Forecast Update Q{0}", "Expense Report Summary {0}",
-            "ROI Analysis for Project {0}", "Profit Margin Assessment {0}", "Financial Planning Guide {0}",
-            "Budget Variance Report Q{0}", "Revenue Projection Model {0}", "Cost Optimization Plan {0}"
+        DocTypes = @(
+            "Revenue Analysis", "Budget Proposal", "Audit Summary", "Capital Expenditure Review",
+            "Forecast Update", "Expense Report", "ROI Analysis", "Profit Margin Assessment",
+            "Financial Planning Guide", "Budget Variance Report", "Revenue Projection",
+            "Cost Optimization Plan", "Cash Flow Statement", "Tax Strategy Summary",
+            "Investment Portfolio Review", "Accounts Receivable Aging", "Depreciation Schedule",
+            "Payroll Summary", "Vendor Payment Report", "Treasury Management Plan"
         )
         Paragraphs = @(
             "This annual budget report provides a comprehensive overview of the fiscal year financial performance. Revenue targets were analyzed across all business units to identify growth opportunities and areas requiring cost optimization.",
@@ -229,11 +242,14 @@ $script:ThemeData = @{
     "HR" = @{
         Keywords = @("employee", "onboarding", "benefits", "performance", "handbook", "training", "diversity", "recruitment", "compensation", "retention")
         Phrase = "employee performance review"
-        Titles = @(
-            "Employee Handbook {0} Edition", "Performance Review Guidelines {0}", "Benefits Enrollment Guide {0}",
-            "Onboarding Checklist for {0}", "Training Program Catalog {0}", "Diversity and Inclusion Report {0}",
-            "Recruitment Strategy {0}", "Compensation Benchmarking {0}", "Retention Analysis Report {0}",
-            "Employee Satisfaction Survey {0}", "Talent Development Plan {0}", "Workforce Planning Guide {0}"
+        DocTypes = @(
+            "Employee Handbook", "Performance Review Guidelines", "Benefits Enrollment Guide",
+            "Onboarding Checklist", "Training Program Catalog", "Diversity and Inclusion Report",
+            "Recruitment Strategy", "Compensation Benchmarking", "Retention Analysis",
+            "Employee Satisfaction Survey", "Talent Development Plan", "Workforce Planning Guide",
+            "Exit Interview Summary", "Leave Policy Update", "Wellness Program Overview",
+            "Code of Conduct Manual", "Harassment Prevention Training", "Remote Work Policy",
+            "Succession Planning Framework", "Employee Recognition Program"
         )
         Paragraphs = @(
             "This employee performance review guide establishes the framework for evaluating team member contributions. The onboarding process has been redesigned to improve new hire retention rates.",
@@ -246,11 +262,14 @@ $script:ThemeData = @{
     "Marketing" = @{
         Keywords = @("campaign", "brand", "digital", "SEO", "content", "social media", "analytics", "engagement", "conversion", "audience")
         Phrase = "digital marketing strategy"
-        Titles = @(
-            "Digital Marketing Strategy {0}", "Brand Guidelines Update {0}", "SEO Performance Report Q{0}",
-            "Social Media Campaign Plan {0}", "Content Calendar {0}", "Analytics Dashboard Review {0}",
-            "Audience Engagement Report {0}", "Conversion Optimization Study {0}", "Campaign ROI Analysis {0}",
-            "Brand Awareness Survey {0}", "Marketing Automation Setup {0}", "Influencer Partnership Guide {0}"
+        DocTypes = @(
+            "Digital Marketing Strategy", "Brand Guidelines", "SEO Performance Report",
+            "Social Media Campaign Plan", "Content Calendar", "Analytics Dashboard Review",
+            "Audience Engagement Report", "Conversion Optimization Study", "Campaign ROI Analysis",
+            "Brand Awareness Survey", "Marketing Automation Setup", "Influencer Partnership Guide",
+            "Email Marketing Playbook", "Competitive Analysis", "Product Launch Plan",
+            "Event Marketing Brief", "Press Release Template", "Customer Journey Map",
+            "A/B Testing Results", "Market Segmentation Study"
         )
         Paragraphs = @(
             "Our digital marketing strategy focuses on integrated campaigns across social media channels and search engines. Brand consistency is maintained through updated guidelines and approved content templates.",
@@ -263,11 +282,14 @@ $script:ThemeData = @{
     "Engineering" = @{
         Keywords = @("architecture", "API", "deployment", "sprint", "microservices", "pipeline", "testing", "scalability", "infrastructure", "code review")
         Phrase = "system architecture design"
-        Titles = @(
-            "System Architecture Design v{0}", "API Reference Guide {0}", "Deployment Pipeline Setup {0}",
-            "Sprint Retrospective Report {0}", "Microservices Migration Plan {0}", "Testing Strategy Document {0}",
-            "Scalability Assessment {0}", "Infrastructure Review {0}", "Code Review Standards {0}",
-            "DevOps Practices Guide {0}", "Performance Optimization Plan {0}", "Security Architecture Review {0}"
+        DocTypes = @(
+            "System Architecture Design", "API Reference Guide", "Deployment Pipeline Setup",
+            "Sprint Retrospective", "Microservices Migration Plan", "Testing Strategy",
+            "Scalability Assessment", "Infrastructure Review", "Code Review Standards",
+            "DevOps Practices Guide", "Performance Optimization Plan", "Security Architecture Review",
+            "Database Schema Design", "Load Testing Results", "Incident Postmortem",
+            "Release Notes", "Technical Debt Assessment", "CI-CD Configuration Guide",
+            "Container Orchestration Runbook", "Feature Flag Strategy"
         )
         Paragraphs = @(
             "This system architecture design document outlines the microservices-based approach for the next platform iteration. API contracts are defined using OpenAPI specifications with automated testing pipelines.",
@@ -280,11 +302,14 @@ $script:ThemeData = @{
     "Legal" = @{
         Keywords = @("contract", "compliance", "NDA", "intellectual property", "regulation", "liability", "arbitration", "amendment", "jurisdiction", "indemnity")
         Phrase = "non-disclosure agreement"
-        Titles = @(
-            "Standard NDA Template v{0}", "Compliance Audit Report {0}", "Contract Amendment {0}",
-            "Intellectual Property Policy {0}", "Regulatory Compliance Guide {0}", "Liability Assessment {0}",
-            "Arbitration Procedures {0}", "Data Privacy Framework {0}", "Vendor Agreement Template {0}",
-            "Employment Contract Standards {0}", "Jurisdiction Analysis {0}", "Indemnity Clause Review {0}"
+        DocTypes = @(
+            "NDA Template", "Compliance Audit Report", "Contract Amendment",
+            "Intellectual Property Policy", "Regulatory Compliance Guide", "Liability Assessment",
+            "Arbitration Procedures", "Data Privacy Framework", "Vendor Agreement Template",
+            "Employment Contract Standards", "Jurisdiction Analysis", "Indemnity Clause Review",
+            "Terms of Service Update", "GDPR Compliance Checklist", "Litigation Hold Notice",
+            "Board Resolution Template", "Corporate Bylaws Amendment", "Power of Attorney Form",
+            "Non-Compete Agreement", "Consent Decree Summary"
         )
         Paragraphs = @(
             "This non-disclosure agreement template has been updated to reflect current regulatory requirements. All contract amendments must be reviewed by legal counsel before execution.",
@@ -297,11 +322,14 @@ $script:ThemeData = @{
     "Operations" = @{
         Keywords = @("supply chain", "logistics", "inventory", "procurement", "warehouse", "vendor", "SLA", "manufacturing", "quality control", "distribution")
         Phrase = "supply chain optimization"
-        Titles = @(
-            "Supply Chain Optimization Plan {0}", "Warehouse Operations Manual {0}", "Vendor SLA Template {0}",
-            "Inventory Management Guide {0}", "Procurement Process Review {0}", "Logistics Performance Report {0}",
-            "Quality Control Standards {0}", "Distribution Network Analysis {0}", "Manufacturing Efficiency {0}",
-            "Facility Management Plan {0}", "SLA Compliance Report {0}", "Vendor Performance Scorecard {0}"
+        DocTypes = @(
+            "Supply Chain Optimization Plan", "Warehouse Operations Manual", "Vendor SLA Template",
+            "Inventory Management Guide", "Procurement Process Review", "Logistics Performance Report",
+            "Quality Control Standards", "Distribution Network Analysis", "Manufacturing Efficiency",
+            "Facility Management Plan", "SLA Compliance Report", "Vendor Performance Scorecard",
+            "Safety Inspection Checklist", "Equipment Maintenance Log", "Shift Scheduling Template",
+            "Capacity Planning Model", "Return Merchandise Process", "Freight Cost Analysis",
+            "Receiving Dock Procedures", "Cycle Count Report"
         )
         Paragraphs = @(
             "This supply chain optimization plan addresses key bottlenecks in procurement and distribution processes. Warehouse operations have been restructured to improve inventory turnover and reduce carrying costs.",
@@ -314,11 +342,14 @@ $script:ThemeData = @{
     "Sales" = @{
         Keywords = @("pipeline", "prospect", "commission", "territory", "CRM", "demo", "proposal", "deal", "quota", "account")
         Phrase = "sales pipeline review"
-        Titles = @(
-            "Sales Pipeline Review Q{0}", "Territory Analysis Report {0}", "CRM Integration Guide {0}",
-            "Enterprise Proposal Template {0}", "Commission Structure {0}", "Account Management Plan {0}",
-            "Demo Preparation Checklist {0}", "Quota Achievement Report {0}", "Deal Stage Analysis {0}",
-            "Prospect Qualification Guide {0}", "Sales Training Manual {0}", "Customer Retention Strategy {0}"
+        DocTypes = @(
+            "Sales Pipeline Review", "Territory Analysis Report", "CRM Integration Guide",
+            "Enterprise Proposal Template", "Commission Structure", "Account Management Plan",
+            "Demo Preparation Checklist", "Quota Achievement Report", "Deal Stage Analysis",
+            "Prospect Qualification Guide", "Sales Training Manual", "Customer Retention Strategy",
+            "Win-Loss Analysis", "Pricing Strategy Overview", "Channel Partner Playbook",
+            "Renewal Forecast Report", "Upsell Opportunity Map", "Customer Onboarding Guide",
+            "Sales Enablement Toolkit", "Competitive Battlecard"
         )
         Paragraphs = @(
             "The sales pipeline review reveals strong deal flow in the enterprise segment. Territory assignments have been optimized based on account potential and representative capacity.",
@@ -331,11 +362,14 @@ $script:ThemeData = @{
     "Projects" = @{
         Keywords = @("milestone", "deliverable", "stakeholder", "risk register", "Gantt", "sprint", "backlog", "scope", "resource allocation", "timeline")
         Phrase = "project status report"
-        Titles = @(
-            "Project Status Report {0}", "Resource Allocation Plan {0}", "Sprint Planning Guide {0}",
-            "Risk Assessment Matrix {0}", "Stakeholder Communication Plan {0}", "Project Charter v{0}",
-            "Milestone Tracking Report {0}", "Deliverable Acceptance Criteria {0}", "Scope Change Request {0}",
-            "Timeline Review Document {0}", "Backlog Prioritization Guide {0}", "Lessons Learned Report {0}"
+        DocTypes = @(
+            "Project Status Report", "Resource Allocation Plan", "Sprint Planning Guide",
+            "Risk Assessment Matrix", "Stakeholder Communication Plan", "Project Charter",
+            "Milestone Tracking Report", "Deliverable Acceptance Criteria", "Scope Change Request",
+            "Timeline Review Document", "Backlog Prioritization Guide", "Lessons Learned Report",
+            "Project Kickoff Deck", "Change Management Plan", "RACI Matrix",
+            "Requirements Specification", "Go-Live Readiness Checklist", "Post-Implementation Review",
+            "Vendor Selection Matrix", "Budget vs Actuals Summary"
         )
         Paragraphs = @(
             "This project status report summarizes progress against key milestones and deliverables. The risk register has been updated to reflect newly identified risks and mitigation strategies.",
@@ -865,19 +899,67 @@ function New-PlaceholderPngBytes {
 }
 
 function Get-ThematicContent {
-    param([string]$ThemeName, [int]$Variation, [string]$LibraryContext)
+    param([string]$ThemeName, [int]$Variation, [string]$LibraryContext, [int]$GlobalIndex)
     $theme = $script:ThemeData[$ThemeName]
     if (-not $theme) { $theme = $script:ThemeData["Projects"] }
 
-    $titleTemplates = $theme.Titles
+    $docTypes = $theme.DocTypes
     $paragraphs = $theme.Paragraphs
     $keywords = $theme.Keywords
     $phrase = $theme.Phrase
 
-    # Select title template using variation
-    $titleIdx = $Variation % $titleTemplates.Count
-    $titleParam = if ($Variation % 4 -eq 0) { "2025" } elseif ($Variation % 4 -eq 1) { "2026" } elseif ($Variation % 4 -eq 2) { ($Variation % 4 + 1).ToString() } else { "v$($Variation % 5 + 1)" }
-    $title = $titleTemplates[$titleIdx] -f $titleParam
+    # Combinatorial title: DocType + Project/Quarter/Version + optional Team prefix
+    # 20 doc types x 32 projects x 9 quarters x 10 versions x 10 teams = 576,000 unique combos
+    $docTypeIdx = $Variation % $docTypes.Count
+    $docType = $docTypes[$docTypeIdx]
+
+    # Pick naming pattern based on global index for maximum variety
+    $pattern = $GlobalIndex % 6
+    switch ($pattern) {
+        0 {
+            # "Revenue Analysis - Atlas 2025-Q2"
+            $proj = $script:ProjectNames[$GlobalIndex % $script:ProjectNames.Count]
+            $qtr = $script:YearQuarters[($Variation * 3 + $GlobalIndex) % $script:YearQuarters.Count]
+            $title = "$docType - $proj $qtr"
+        }
+        1 {
+            # "Global Budget Proposal v2.0"
+            $team = $script:TeamPrefixes[($GlobalIndex * 7) % $script:TeamPrefixes.Count]
+            $ver = $script:VersionSuffixes[($Variation * 3) % $script:VersionSuffixes.Count]
+            $title = if ($team) { "$team $docType $ver" } else { "$docType $ver" }
+        }
+        2 {
+            # "Meridian - Sprint Retrospective 2025-Q3"
+            $proj = $script:ProjectNames[($GlobalIndex * 3 + 7) % $script:ProjectNames.Count]
+            $qtr = $script:YearQuarters[($GlobalIndex * 2) % $script:YearQuarters.Count]
+            $title = "$proj - $docType $qtr"
+        }
+        3 {
+            # "Audit Summary for Engineering v1.2"
+            $dept = $script:DeptNames[($GlobalIndex * 5) % $script:DeptNames.Count]
+            $ver = $script:VersionSuffixes[($GlobalIndex * 2 + $Variation) % $script:VersionSuffixes.Count]
+            $title = "$docType for $dept $ver"
+        }
+        4 {
+            # "2025-Q1 Executive ROI Analysis - Beacon"
+            $qtr = $script:YearQuarters[($Variation + $GlobalIndex) % $script:YearQuarters.Count]
+            $team = $script:TeamPrefixes[($GlobalIndex * 11) % $script:TeamPrefixes.Count]
+            $proj = $script:ProjectNames[($GlobalIndex * 5 + 13) % $script:ProjectNames.Count]
+            $title = if ($team) { "$qtr $team $docType - $proj" } else { "$qtr $docType - $proj" }
+        }
+        default {
+            # "Regional Cost Optimization Plan - Horizon 2024-Q4 Rev-A"
+            $team = $script:TeamPrefixes[($GlobalIndex * 13) % $script:TeamPrefixes.Count]
+            $proj = $script:ProjectNames[($GlobalIndex * 7 + 3) % $script:ProjectNames.Count]
+            $qtr = $script:YearQuarters[($GlobalIndex * 4) % $script:YearQuarters.Count]
+            $ver = $script:VersionSuffixes[($Variation * 7 + $GlobalIndex) % $script:VersionSuffixes.Count]
+            $title = if ($team) { "$team $docType - $proj $qtr $ver" } else { "$docType - $proj $qtr $ver" }
+        }
+    }
+
+    # Append sequential doc ID to guarantee uniqueness even if combinatorics collide
+    $docId = $GlobalIndex.ToString("D4")
+    $title = "$title ($docId)"
 
     # Build body from 2-3 paragraphs + embedded phrase
     $paraCount = 2 + ($Variation % 2)
@@ -1122,7 +1204,7 @@ try {
                 try {
                     # Select theme
                     $themeName = $themes[$i % $themes.Count]
-                    $content = Get-ThematicContent -ThemeName $themeName -Variation $i -LibraryContext $libName
+                    $content = Get-ThematicContent -ThemeName $themeName -Variation $i -LibraryContext $libName -GlobalIndex $globalDocIdx
 
                     # Select file type
                     $ext = Get-FileExtension -Index ($globalDocIdx + $i)
@@ -1210,11 +1292,34 @@ try {
         $totalItems = $ItemsPerList * $script:ListDefs.Count
         $globalItemIdx = 0
 
-        # Name pools for list items
-        $firstNames = @("James","Mary","John","Patricia","Robert","Jennifer","Michael","Linda","David","Elizabeth","William","Susan","Sarah","Thomas","Jessica","Daniel","Karen","Matthew","Nancy","Andrew")
-        $lastNames = @("Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez","Anderson","Taylor","Thomas","Hernandez","Moore","Martin","Jackson","Thompson","White","Harris")
-        $cities = @("New York","Los Angeles","Chicago","Houston","Phoenix","San Antonio","Dallas","San Jose","Austin","Jacksonville","London","Berlin","Paris","Tokyo","Sydney","Mumbai","Toronto","Sao Paulo","Buenos Aires","Bogota")
-        $jobTitles = @("Software Engineer","Product Manager","Data Analyst","UX Designer","Project Manager","Business Analyst","QA Engineer","DevOps Engineer","Technical Writer","Marketing Manager","Sales Rep","HR Specialist","Finance Analyst","Operations Manager","Legal Counsel")
+        # Name pools for list items — large enough for 100+ items without collision
+        $firstNames = @(
+            "James","Mary","John","Patricia","Robert","Jennifer","Michael","Linda","David","Elizabeth",
+            "William","Susan","Sarah","Thomas","Jessica","Daniel","Karen","Matthew","Nancy","Andrew",
+            "Emily","Joseph","Ashley","Charles","Amanda","Christopher","Melissa","Brian","Stephanie","Anthony",
+            "Nicole","Mark","Laura","Steven","Heather","Kevin","Rebecca","Jason","Samantha","Timothy",
+            "Rachel","Jeffrey","Megan","Ryan","Katherine","Nicholas","Olivia","Benjamin","Sophia","Alexander"
+        )
+        $lastNames = @(
+            "Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez",
+            "Anderson","Taylor","Thomas","Hernandez","Moore","Martin","Jackson","Thompson","White","Harris",
+            "Clark","Lewis","Robinson","Walker","Young","Allen","King","Wright","Scott","Green",
+            "Baker","Adams","Nelson","Hill","Ramirez","Campbell","Mitchell","Roberts","Carter","Phillips",
+            "Evans","Turner","Torres","Parker","Collins","Edwards","Stewart","Flores","Morris","Murphy"
+        )
+        $cities = @(
+            "New York","Los Angeles","Chicago","Houston","Phoenix","San Antonio","Dallas","San Jose","Austin",
+            "Jacksonville","London","Berlin","Paris","Tokyo","Sydney","Mumbai","Toronto","Sao Paulo",
+            "Buenos Aires","Bogota","Seattle","Denver","Boston","Atlanta","Miami","Portland","Dublin",
+            "Amsterdam","Singapore","Hong Kong","Melbourne","Cape Town","Stockholm","Barcelona","Zurich"
+        )
+        $jobTitles = @(
+            "Software Engineer","Product Manager","Data Analyst","UX Designer","Project Manager",
+            "Business Analyst","QA Engineer","DevOps Engineer","Technical Writer","Marketing Manager",
+            "Sales Rep","HR Specialist","Finance Analyst","Operations Manager","Legal Counsel",
+            "Solutions Architect","Scrum Master","Security Engineer","Data Scientist","Cloud Engineer",
+            "VP of Engineering","Director of Sales","Chief of Staff","Program Manager","Customer Success Manager"
+        )
 
         foreach ($listDef in $script:ListDefs) {
             $listName = $listDef.Name
@@ -1233,7 +1338,9 @@ try {
 
                     switch ($listName) {
                         "Projects" {
-                            $values["Title"] = "Project $($firstNames[$i % $firstNames.Count]) $($i + 1)"
+                            $proj = $script:ProjectNames[$i % $script:ProjectNames.Count]
+                            $dept = $script:DeptNames[($i * 3) % $script:DeptNames.Count]
+                            $values["Title"] = "Project $proj - $dept Initiative $($globalItemIdx)"
                             $values["SPSStatus"] = Get-WeightedChoice -Items $script:StatusChoices -CumulativeWeights $script:StatusWeights
                             $values["SPSPriority"] = Get-WeightedChoice -Items $script:PriorityChoices -CumulativeWeights $script:PriorityWeights
                             $values["SPSRegion"] = Get-WeightedChoice -Items $script:RegionChoices -CumulativeWeights $script:RegionWeights
@@ -1244,8 +1351,9 @@ try {
                             $values["PercentComplete"] = Get-Random -Minimum 0 -Maximum 101
                         }
                         "Contacts" {
+                            # Combine first/last using different offsets so names don't repeat at same cadence
                             $fn = $firstNames[$i % $firstNames.Count]
-                            $ln = $lastNames[$i % $lastNames.Count]
+                            $ln = $lastNames[($i * 3 + 7) % $lastNames.Count]
                             $values["Title"] = "$fn $ln"
                             $values["Email"] = "$($fn.ToLower()).$($ln.ToLower())@contoso.com"
                             $values["Phone"] = "+1-555-$(Get-Random -Minimum 1000 -Maximum 9999)"
@@ -1254,7 +1362,11 @@ try {
                             $values["SPSIsActive"] = ((Get-Random -Minimum 0 -Maximum 10) -lt 8)
                         }
                         "Tasks" {
-                            $values["Title"] = "Task: $($jobTitles[$i % $jobTitles.Count]) Item $($i + 1)"
+                            $taskVerbs = @("Implement","Review","Update","Configure","Test","Deploy","Document","Optimize","Migrate","Audit","Fix","Refactor","Design","Evaluate","Approve")
+                            $taskObjects = @("user authentication","search filters","dashboard layout","API endpoints","data pipeline","report template","email notifications","permission model","backup strategy","cache layer","CI/CD workflow","database schema","logging framework","SSO integration","mobile responsiveness")
+                            $verb = $taskVerbs[$i % $taskVerbs.Count]
+                            $obj = $taskObjects[($i * 7 + 3) % $taskObjects.Count]
+                            $values["Title"] = "$verb $obj (#$globalItemIdx)"
                             $values["SPSStatus"] = Get-WeightedChoice -Items $script:StatusChoices -CumulativeWeights $script:StatusWeights
                             $values["SPSPriority"] = Get-WeightedChoice -Items $script:PriorityChoices -CumulativeWeights $script:PriorityWeights
                             $assignee = Get-RandomUser; if ($assignee) { $values["Assignee"] = $assignee }
@@ -1262,17 +1374,23 @@ try {
                             $values["EstimatedHours"] = Get-Random -Minimum 1 -Maximum 80
                         }
                         "Events" {
-                            $eventTypes = @("Team Meeting", "Sprint Review", "Quarterly Planning", "Training Session", "Product Demo", "Town Hall", "Workshop", "Hackathon")
-                            $values["Title"] = "$($eventTypes[$i % $eventTypes.Count]) - $($cities[$i % $cities.Count])"
+                            $eventTypes = @("Team Meeting","Sprint Review","Quarterly Planning","Training Session","Product Demo","Town Hall","Workshop","Hackathon","Lunch and Learn","All-Hands Meeting","Strategy Session","Onboarding Day","Customer Advisory Board","Release Party","Retrospective")
+                            $eventType = $eventTypes[$i % $eventTypes.Count]
+                            $city = $cities[($i * 3 + 5) % $cities.Count]
+                            $dept = $script:DeptNames[($i * 2) % $script:DeptNames.Count]
+                            $values["Title"] = "$dept $eventType - $city"
                             $values["EventDate"] = (Get-Date).AddDays((Get-Random -Minimum -60 -Maximum 120))
                             $values["EventEndDate"] = (Get-Date).AddDays((Get-Random -Minimum -59 -Maximum 121))
-                            $values["Location"] = $cities[$i % $cities.Count]
+                            $values["Location"] = $city
                             $organizer = Get-RandomUser; if ($organizer) { $values["Organizer"] = $organizer }
                             $values["EventCategory"] = @("Meeting","Conference","Training","Social","Webinar")[$i % 5]
                         }
                         "Inventory" {
-                            $itemNames = @("Laptop","Monitor","Keyboard","Mouse","Headset","Desk","Chair","Webcam","Docking Station","Printer","Scanner","Tablet","Phone","Projector","Whiteboard")
-                            $values["Title"] = "$($itemNames[$i % $itemNames.Count]) - Unit $($i + 1)"
+                            $itemNames = @("Laptop","Monitor","Keyboard","Mouse","Headset","Desk","Chair","Webcam","Docking Station","Printer","Scanner","Tablet","Phone","Projector","Whiteboard","UPS Battery","Cable Kit","Surge Protector","Standing Desk Converter","Ergonomic Footrest")
+                            $brands = @("Dell","HP","Lenovo","Apple","Microsoft","Logitech","Samsung","LG","ASUS","Cisco","Sony","Poly","Jabra","Steelcase","Herman Miller")
+                            $item = $itemNames[$i % $itemNames.Count]
+                            $brand = $brands[($i * 3) % $brands.Count]
+                            $values["Title"] = "$brand $item - Asset $($globalItemIdx.ToString('D4'))"
                             $values["Quantity"] = Get-Random -Minimum 1 -Maximum 500
                             $values["UnitPrice"] = [Math]::Round((Get-Random -Minimum 10.0 -Maximum 2500.0), 2)
                             $values["ItemCategory"] = @("Hardware","Software","Furniture","Supplies","Equipment")[$i % 5]
@@ -1280,48 +1398,73 @@ try {
                             $values["SPSIsActive"] = ((Get-Random -Minimum 0 -Maximum 10) -lt 8)
                         }
                         "Announcements" {
-                            $announcementTopics = @("Company Update", "New Policy", "System Maintenance", "Team Achievement", "Holiday Schedule", "Office Relocation", "Benefits Change", "Training Opportunity")
-                            $values["Title"] = "$($announcementTopics[$i % $announcementTopics.Count]) - $((Get-Date).AddDays(-$i).ToString('MMM yyyy'))"
-                            $values["Body"] = "This announcement provides important information regarding $($announcementTopics[$i % $announcementTopics.Count].ToLower()). Please review the details and reach out to your manager with any questions."
+                            $announcementTopics = @("Company Update","New Policy","System Maintenance","Team Achievement","Holiday Schedule","Office Relocation","Benefits Change","Training Opportunity","Leadership Change","Product Launch","Security Alert","Budget Approval","Hiring Freeze Lifted","Sustainability Initiative","Award Recognition")
+                            $topic = $announcementTopics[$i % $announcementTopics.Count]
+                            $dept = $script:DeptNames[($i * 5) % $script:DeptNames.Count]
+                            $dateStr = (Get-Date).AddDays(-($i * 3)).ToString('MMM dd yyyy')
+                            $values["Title"] = "$topic - $dept ($dateStr)"
+                            $values["Body"] = "This announcement provides important information regarding $($topic.ToLower()) for the $dept department. Please review the details and reach out to your manager with any questions."
                             $values["AnnouncementCategory"] = @("Company","Team","IT","HR","Facilities")[$i % 5]
                             $values["PublishDate"] = (Get-Date).AddDays(-(Get-Random -Minimum 0 -Maximum 180))
                             $values["ExpiryDate"] = (Get-Date).AddDays((Get-Random -Minimum 30 -Maximum 365))
                             $values["SPSPriority"] = Get-WeightedChoice -Items $script:PriorityChoices -CumulativeWeights $script:PriorityWeights
                         }
                         "Issues" {
-                            $issueTypes = @("Login failure", "Data sync error", "Performance degradation", "UI rendering bug", "API timeout", "Permission denied", "Import failure", "Search not working", "Report generation error", "Notification delivery failure")
-                            $values["Title"] = "$($issueTypes[$i % $issueTypes.Count]) #$($i + 1000)"
+                            $issueTypes = @("Login failure","Data sync error","Performance degradation","UI rendering bug","API timeout","Permission denied","Import failure","Search not working","Report generation error","Notification delivery failure","SSL certificate expired","Memory leak detected","Disk space warning","Service unavailable","Configuration drift")
+                            $components = @("Portal","Search","Analytics","Auth","API Gateway","Email Service","File Storage","Database","CDN","Load Balancer")
+                            $issue = $issueTypes[$i % $issueTypes.Count]
+                            $component = $components[($i * 3) % $components.Count]
+                            $values["Title"] = "[$component] $issue #$($globalItemIdx + 1000)"
                             $values["Severity"] = @("Critical","Major","Minor","Trivial")[$i % 4]
                             $values["SPSStatus"] = Get-WeightedChoice -Items $script:StatusChoices -CumulativeWeights $script:StatusWeights
                             $assignee = Get-RandomUser; if ($assignee) { $values["Assignee"] = $assignee }
                             $values["ReportedDate"] = (Get-Date).AddDays(-(Get-Random -Minimum 1 -Maximum 90))
-                            if ($i % 3 -eq 0) { $values["Resolution"] = "Issue resolved by applying the recommended configuration change and restarting the affected service." }
+                            if ($i % 3 -eq 0) { $values["Resolution"] = "Issue resolved by applying the recommended configuration change and restarting the affected $component service." }
                         }
                         "FAQ" {
-                            $questions = @("How do I reset my password?", "Where can I find the company handbook?", "How do I submit an expense report?", "What is the VPN setup process?", "How do I request time off?", "Where are the meeting room booking instructions?", "How do I access the training portal?", "What are the IT support hours?", "How do I update my contact information?", "Where can I find the org chart?")
+                            $questions = @(
+                                "How do I reset my password?","Where can I find the company handbook?","How do I submit an expense report?",
+                                "What is the VPN setup process?","How do I request time off?","Where are the meeting room booking instructions?",
+                                "How do I access the training portal?","What are the IT support hours?","How do I update my contact information?",
+                                "Where can I find the org chart?","How do I set up multi-factor authentication?","What is the guest Wi-Fi password?",
+                                "How do I request new hardware?","Where do I find the brand guidelines?","How do I configure email on my phone?",
+                                "What is the data classification policy?","How do I report a security incident?","Where are archived documents stored?",
+                                "How do I join the company chat platform?","What are the office parking rules?"
+                            )
                             $qIdx = $i % $questions.Count
-                            $values["Title"] = "FAQ #$($i + 1)"
+                            $category = @("General","Technical","HR","Finance","IT")[$i % 5]
+                            $values["Title"] = "$category FAQ: $($questions[$qIdx].Substring(0, [Math]::Min(50, $questions[$qIdx].Length)))"
                             $values["Question"] = $questions[$qIdx]
-                            $values["Answer"] = "Please follow the steps outlined in our internal knowledge base. For additional assistance, contact the relevant department via the help desk portal."
-                            $values["FAQCategory"] = @("General","Technical","HR","Finance","IT")[$i % 5]
+                            $values["Answer"] = "Please follow the steps outlined in our internal knowledge base for the $category department. For additional assistance, contact the relevant team via the help desk portal."
+                            $values["FAQCategory"] = $category
                             $values["HelpfulCount"] = Get-Random -Minimum 0 -Maximum 500
                         }
                         "Policies" {
-                            $policyNames = @("Data Protection Policy", "Remote Work Policy", "Acceptable Use Policy", "Travel Expense Policy", "Code of Conduct", "Information Security Policy", "Social Media Policy", "Procurement Policy", "Health and Safety Policy", "Environmental Policy")
-                            $values["Title"] = "$($policyNames[$i % $policyNames.Count]) v$([Math]::Ceiling(($i + 1) / $policyNames.Count))"
-                            $values["PolicyNumber"] = "POL-$(($i + 1).ToString('D4'))"
+                            $policyNames = @("Data Protection Policy","Remote Work Policy","Acceptable Use Policy","Travel Expense Policy","Code of Conduct","Information Security Policy","Social Media Policy","Procurement Policy","Health and Safety Policy","Environmental Policy","Anti-Bribery Policy","Whistleblower Protection Policy","Bring Your Own Device Policy","Records Retention Policy","Conflict of Interest Policy")
+                            $dept = $script:DeptNames[($i * 2) % $script:DeptNames.Count]
+                            $policyName = $policyNames[$i % $policyNames.Count]
+                            $ver = [Math]::Ceiling(($i + 1) / $policyNames.Count)
+                            $values["Title"] = "$dept - $policyName v$ver"
+                            $values["PolicyNumber"] = "POL-$($dept.Substring(0,3).ToUpper())-$(($i + 1).ToString('D3'))"
                             $values["PolicyVersion"] = "$([Math]::Floor($i / 10 + 1)).$(($i % 10))"
                             $values["SPSReviewDate"] = (Get-Date).AddDays((Get-Random -Minimum 30 -Maximum 365))
                             $owner = Get-RandomUser; if ($owner) { $values["SPSOwner"] = $owner }
                             $values["SPSIsPublished"] = ((Get-Random -Minimum 0 -Maximum 10) -lt 6)
                         }
                         "Glossary" {
-                            $terms = @("API", "SLA", "KPI", "ROI", "CAPEX", "OPEX", "MVP", "OKR", "CI/CD", "GDPR", "Microservices", "Agile", "Scrum", "DevOps", "Blockchain", "Machine Learning", "Cloud Native", "Zero Trust", "Kubernetes", "Terraform")
+                            $terms = @(
+                                "API","SLA","KPI","ROI","CAPEX","OPEX","MVP","OKR","CI/CD","GDPR",
+                                "Microservices","Agile","Scrum","DevOps","Blockchain","Machine Learning",
+                                "Cloud Native","Zero Trust","Kubernetes","Terraform","GraphQL","OAuth",
+                                "Webhook","Middleware","Latency","Throughput","Idempotent","Eventual Consistency",
+                                "Sharding","Containerization","Observability","Service Mesh","Feature Flag","Dark Launch",
+                                "Canary Deployment","Blue-Green Deployment","Circuit Breaker","Rate Limiting","CORS","JWT"
+                            )
                             $tIdx = $i % $terms.Count
                             $values["Title"] = $terms[$tIdx]
-                            $values["Definition"] = "A commonly used term in enterprise technology and business contexts. $($terms[$tIdx]) refers to a specific concept, methodology, or technology framework."
+                            $values["Definition"] = "A commonly used term in enterprise technology and business contexts. $($terms[$tIdx]) refers to a specific concept, methodology, or technology framework used across modern organizations."
                             $values["GlossaryCategory"] = @("Technical","Business","Legal","Finance","HR")[$i % 5]
-                            $values["RelatedTerms"] = "$($terms[($tIdx + 1) % $terms.Count]), $($terms[($tIdx + 2) % $terms.Count])"
+                            $values["RelatedTerms"] = "$($terms[($tIdx + 1) % $terms.Count]), $($terms[($tIdx + 2) % $terms.Count]), $($terms[($tIdx + 3) % $terms.Count])"
                             $values["SPSIsActive"] = ((Get-Random -Minimum 0 -Maximum 10) -lt 9)
                         }
                     }
