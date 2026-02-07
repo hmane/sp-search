@@ -86,8 +86,38 @@ try {
         } else { throw }
     }
 
-    # Upload via REST API (bypasses PnP 200s timeout)
+    # Wait for site-level app catalog to provision (can take 30-90 seconds)
     $token = Get-PnPAccessToken -ResourceTypeName SharePoint -ErrorAction Stop
+    $catalogCheckUrl = "$SiteUrl/_api/web/sitecollectionappcatalog"
+    $maxWait = 120
+    $waited = 0
+    $catalogReady = $false
+
+    Write-Host "  Waiting for App Catalog to be ready..." -ForegroundColor Yellow -NoNewline
+    while ($waited -lt $maxWait) {
+        try {
+            $checkClient = [System.Net.Http.HttpClient]::new()
+            $checkClient.DefaultRequestHeaders.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $token)
+            $checkClient.DefaultRequestHeaders.Accept.Add([System.Net.Http.Headers.MediaTypeWithQualityHeaderValue]::new("application/json"))
+            $checkResp = $checkClient.GetAsync($catalogCheckUrl).GetAwaiter().GetResult()
+            $checkClient.Dispose()
+            if ($checkResp.IsSuccessStatusCode) {
+                $catalogReady = $true
+                break
+            }
+        } catch { }
+        Start-Sleep -Seconds 5
+        $waited += 5
+        Write-Host "." -NoNewline
+    }
+    Write-Host ""
+
+    if (-not $catalogReady) {
+        throw "App Catalog not ready after $maxWait seconds. Please try again in a few minutes."
+    }
+    Write-Host "  App Catalog ready" -ForegroundColor Green
+
+    # Upload via REST API (bypasses PnP 200s timeout)
     $fileName = [System.IO.Path]::GetFileName($PackagePath)
     $uploadUrl = "$SiteUrl/_api/web/sitecollectionappcatalog/Add(overwrite=true, url='$fileName')"
 
