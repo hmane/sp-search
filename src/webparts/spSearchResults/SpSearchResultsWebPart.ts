@@ -127,7 +127,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       return;
     }
 
-    const sortableProperties = (this.properties.sortablePropertiesCollection || []).map((item: ISortCollectionItem) => ({
+    // Handle both array (from property pane) and JSON string (from PnP PowerShell provisioning)
+    let raw = this.properties.sortablePropertiesCollection;
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch { raw = []; }
+    }
+
+    const sortableProperties = (raw || []).map((item: ISortCollectionItem) => ({
       property: item.property,
       label: item.label,
       direction: item.direction || 'Ascending'

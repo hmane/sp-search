@@ -79,7 +79,13 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       return;
     }
 
-    if (!this.properties.filtersCollection || this.properties.filtersCollection.length === 0) {
+    // Handle both array (from property pane) and JSON string (from PnP PowerShell provisioning)
+    let rawFilters = this.properties.filtersCollection;
+    if (typeof rawFilters === 'string') {
+      try { rawFilters = JSON.parse(rawFilters as unknown as string); } catch { rawFilters = []; }
+    }
+
+    if (!rawFilters || rawFilters.length === 0) {
       const state: ISearchStore = this._store.getState();
       if (state.filterConfig.length > 0) {
         this._store.setState({ filterConfig: [], activeFilters: [] });
@@ -87,7 +93,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       return;
     }
 
-    const filterConfig: IFilterConfig[] = this.properties.filtersCollection.map((item: IFilterCollectionItem) => ({
+    const filterConfig: IFilterConfig[] = rawFilters.map((item: IFilterCollectionItem) => ({
       id: item.uniqueId,
       managedProperty: item.managedProperty,
       displayName: item.displayName,
