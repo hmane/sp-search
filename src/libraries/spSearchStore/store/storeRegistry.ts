@@ -138,6 +138,11 @@ async function _doInitializeContext(
     .catch(function noop(): void { /* swallow — empty groups = fail-closed */ });
 
   context.isInitialized = true;
+
+  // Trigger initial search — the orchestrator only reacts to state changes,
+  // so on first page load (no URL params) we need to kick off the first search.
+  // Uses queryText || '*' internally to match all items.
+  context.orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
 }
 
 /**
