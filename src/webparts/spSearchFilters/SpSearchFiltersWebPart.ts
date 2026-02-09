@@ -9,6 +9,7 @@ import {
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
+import { SPComponentLoader } from '@microsoft/sp-loader';
 import type { StoreApi } from 'zustand/vanilla';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
@@ -17,9 +18,10 @@ import * as strings from 'SpSearchFiltersWebPartStrings';
 import SpSearchFilters from './components/SpSearchFilters';
 import type { ISpSearchFiltersProps } from './components/ISpSearchFiltersProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
-import { getStore } from '@store/store';
+import { getStore, initializeSearchContext } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
+import { SharePointSearchProvider } from '@providers/index';
 
 export interface ISpSearchFiltersWebPartProps {
   searchContextId: string;
@@ -40,6 +42,8 @@ interface IFilterCollectionItem {
   defaultExpanded: boolean;
   showCount: boolean;
   sortBy: string;
+  sortDirection: string;
+  multiValues: boolean;
 }
 
 export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSearchFiltersWebPartProps> {
@@ -62,16 +66,37 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
-    await SPContext.basic(this.context, 'SPSearchFilters');
-    const contextId: string = this.properties.searchContextId || 'default';
-    this._store = getStore(contextId);
+    // Load DevExtreme CSS for TagBox, Slider, etc.
+    SPComponentLoader.loadCss('https://cdn3.devexpress.com/jslib/22.2.3/css/dx.common.css');
+    SPComponentLoader.loadCss('https://cdn3.devexpress.com/jslib/22.2.3/css/dx.light.css');
 
-    // Register all built-in filter types (checkbox, daterange, toggle, tagbox, slider, taxonomy, people)
-    const filterTypes = this._store.getState().registries.filterTypes;
-    registerBuiltInFilterTypes(filterTypes);
+    try {
+      await SPContext.basic(this.context, 'SPSearchFilters');
+      const contextId: string = this.properties.searchContextId || 'default';
+      this._store = getStore(contextId);
 
-    // Sync filter configuration to the store
-    this._syncFilterConfigToStore();
+      // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
+      const provider = new SharePointSearchProvider();
+      const dataProviders = this._store.getState().registries.dataProviders;
+      if (!dataProviders.get(provider.id)) {
+        dataProviders.register(provider);
+      }
+
+      // Register all built-in filter types (checkbox, daterange, toggle, tagbox, slider, taxonomy, people)
+      const filterTypes = this._store.getState().registries.filterTypes;
+      registerBuiltInFilterTypes(filterTypes);
+
+      // Sync filter configuration to the store BEFORE initializing context,
+      // so the first search (triggered by initializeSearchContext) includes refiner properties
+      this._syncFilterConfigToStore();
+
+      // Initialize the shared search context (ensures library bundle's SPContext is ready)
+      // Idempotent — if already initialized by another web part, this is a no-op
+      await initializeSearchContext(contextId, this.context);
+    } catch (err) {
+      console.error('[SPSearchFilters] onInit failed:', err);
+      throw err;
+    }
   }
 
   private _syncFilterConfigToStore(): void {
@@ -103,7 +128,8 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       defaultExpanded: item.defaultExpanded !== false,
       showCount: item.showCount !== false,
       sortBy: (item.sortBy || 'count') as IFilterConfig['sortBy'],
-      sortDirection: 'desc' as const
+      sortDirection: (item.sortDirection || 'desc') as IFilterConfig['sortDirection'],
+      multiValues: item.multiValues !== false
     }));
 
     const state: ISearchStore = this._store.getState();
@@ -241,6 +267,23 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                         { key: 'count', text: strings.FilterSortByCount },
                         { key: 'alphabetical', text: strings.FilterSortByName }
                       ]
+                    },
+                    {
+                      id: 'sortDirection',
+                      title: strings.FilterSortDirectionColumn,
+                      type: CustomCollectionFieldType.dropdown,
+                      required: false,
+                      options: [
+                        { key: 'desc', text: strings.FilterSortDescending },
+                        { key: 'asc', text: strings.FilterSortAscending }
+                      ]
+                    },
+                    {
+                      id: 'multiValues',
+                      title: strings.FilterMultiValuesColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: true
                     }
                   ]
                 }),

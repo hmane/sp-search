@@ -22,7 +22,12 @@
     "description": { "default": "Refinement filters with DevExtreme controls and visual filter builder" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "SPSearchFilters"
+      "searchContextId": "default",
+      "applyMode": "instant",
+      "operatorBetweenFilters": "AND",
+      "showClearAll": true,
+      "enableVisualFilterBuilder": false,
+      "filtersCollection": []
     }
   }]
 }

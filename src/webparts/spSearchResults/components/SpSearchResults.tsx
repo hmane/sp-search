@@ -5,7 +5,6 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
 import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
-import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import type { ISpSearchResultsProps } from './ISpSearchResultsProps';
 import {
   ISearchResult,
@@ -13,13 +12,10 @@ import {
   ISortField,
   ISortableProperty,
   IActiveFilter,
-  IFilterConfig,
-  ISearchContext,
-  IActionProvider
+  IFilterConfig
 } from '@interfaces/index';
 import { getManagerService } from '@store/store';
 import ResultToolbar from './ResultToolbar';
-import BulkActionsToolbar from './BulkActionsToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
 import ListLayout from './ListLayout';
 import CompactLayout from './CompactLayout';
@@ -77,13 +73,33 @@ function useStoreState(
   promotedResults: IPromotedResultItem[];
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
-  bulkSelection: string[];
   previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
   isSearchManagerOpen: boolean;
   activeFilters: IActiveFilter[];
   filterConfig: IFilterConfig[];
+  showPaging: boolean;
+  pageRange: number;
 } {
   const { store } = props;
+
+  const emptyState = React.useMemo(() => ({
+    items: [] as ISearchResult[],
+    totalCount: 0,
+    currentPage: 1,
+    pageSize: 25,
+    isLoading: false,
+    error: undefined as string | undefined,
+    activeLayoutKey: 'list',
+    promotedResults: [] as IPromotedResultItem[],
+    sort: undefined as ISortField | undefined,
+    sortableProperties: [] as ISortableProperty[],
+    previewPanel: { isOpen: false, item: undefined as ISearchResult | undefined },
+    isSearchManagerOpen: false,
+    activeFilters: [] as IActiveFilter[],
+    filterConfig: [] as IFilterConfig[],
+    showPaging: true,
+    pageRange: 5
+  }), []);
 
   const getSnapshot = React.useCallback((): {
     items: ISearchResult[];
@@ -96,12 +112,16 @@ function useStoreState(
     promotedResults: IPromotedResultItem[];
     sort: ISortField | undefined;
     sortableProperties: ISortableProperty[];
-    bulkSelection: string[];
     previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
     isSearchManagerOpen: boolean;
     activeFilters: IActiveFilter[];
     filterConfig: IFilterConfig[];
+    showPaging: boolean;
+    pageRange: number;
   } => {
+    if (!store) {
+      return emptyState;
+    }
     const state = store.getState();
     return {
       items: state.items,
@@ -114,17 +134,21 @@ function useStoreState(
       promotedResults: state.promotedResults,
       sort: state.sort,
       sortableProperties: state.sortableProperties,
-      bulkSelection: state.bulkSelection,
       previewPanel: state.previewPanel,
       isSearchManagerOpen: state.isSearchManagerOpen,
       activeFilters: state.activeFilters,
-      filterConfig: state.filterConfig
+      filterConfig: state.filterConfig,
+      showPaging: state.showPaging,
+      pageRange: state.pageRange
     };
-  }, [store]);
+  }, [store, emptyState]);
 
   const [storeState, setStoreState] = React.useState(getSnapshot);
 
   React.useEffect((): (() => void) => {
+    if (!store) {
+      return (): void => { /* noop */ };
+    }
     const unsubscribe = store.subscribe((): void => {
       const next = getSnapshot();
       setStoreState((prev) => {
@@ -140,11 +164,12 @@ function useStoreState(
           prev.promotedResults === next.promotedResults &&
           prev.sort === next.sort &&
           prev.sortableProperties === next.sortableProperties &&
-          prev.bulkSelection === next.bulkSelection &&
           prev.previewPanel === next.previewPanel &&
           prev.isSearchManagerOpen === next.isSearchManagerOpen &&
           prev.activeFilters === next.activeFilters &&
-          prev.filterConfig === next.filterConfig
+          prev.filterConfig === next.filterConfig &&
+          prev.showPaging === next.showPaging &&
+          prev.pageRange === next.pageRange
         ) {
           return prev;
         }
@@ -277,8 +302,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     searchContextId,
     theme,
     showResultCount,
-    showSortDropdown,
-    enableSelection
+    showSortDropdown
   } = props;
 
   const {
@@ -292,11 +316,12 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     promotedResults,
     sort,
     sortableProperties,
-    bulkSelection,
     previewPanel,
     isSearchManagerOpen,
     activeFilters,
-    filterConfig
+    filterConfig,
+    showPaging,
+    pageRange
   } = useStoreState(props);
 
   // Get the manager service for the Search Manager panel
@@ -311,12 +336,14 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store.getState().setSort(newSort);
   }, [store]);
 
+  const resultsContainerRef = React.useRef<HTMLDivElement>(null);
+
   const handlePageChange = React.useCallback((page: number): void => {
     store.getState().setPage(page);
-  }, [store]);
-
-  const handleToggleSelection = React.useCallback((key: string, multiSelect: boolean): void => {
-    store.getState().toggleSelection(key, multiSelect);
+    // Scroll to top of results container for better UX
+    if (resultsContainerRef.current) {
+      resultsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }, [store]);
 
   // ─── Error dismissal ───────────────────────────────────────
@@ -349,32 +376,10 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store.getState().clearAllFilters();
   }, [store]);
 
-  const handleClearSelection = React.useCallback(function (): void {
-    store.getState().clearSelection();
-  }, [store]);
-
   // ─── Search Manager panel dismiss ─────────────────────────
   const handleDismissSearchManager = React.useCallback((): void => {
     store.getState().toggleSearchManager();
   }, [store]);
-
-  const selectedItems = React.useMemo((): ISearchResult[] => {
-    if (!bulkSelection || bulkSelection.length === 0) {
-      return [];
-    }
-    const selected = new Set(bulkSelection);
-    return items.filter((item) => selected.has(item.key));
-  }, [bulkSelection, items]);
-
-  const bulkActions = React.useMemo((): IActionProvider[] => {
-    return store.getState().registries.actions.getAll();
-  }, [store]);
-
-  const actionContext = React.useMemo((): ISearchContext => ({
-    searchContextId,
-    siteUrl: SPContext.webAbsoluteUrl || '',
-    scope: store.getState().scope,
-  }), [searchContextId, store]);
 
   // ─── Determine which layout to render ──────────────────────
   const renderLayout = (): React.ReactElement | undefined => {
@@ -404,9 +409,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         return (
           <DataGridLayout
             items={items}
-            enableSelection={enableSelection}
-            selectedKeys={bulkSelection}
-            onToggleSelection={handleToggleSelection}
             onPreviewItem={handlePreviewItem}
             onItemClick={handleItemClick}
           />
@@ -422,9 +424,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         return (
           <ListLayout
             items={items}
-            enableSelection={enableSelection}
-            selectedKeys={bulkSelection}
-            onToggleSelection={handleToggleSelection}
             onItemClick={handleItemClick}
           />
         );
@@ -433,7 +432,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   return (
     <ErrorBoundary enableRetry={true} maxRetries={3}>
-      <div className={styles.spSearchResults}>
+      <div ref={resultsContainerRef} className={styles.spSearchResults}>
         {/* Error message bar */}
         {error && (
           <div className={styles.errorContainer} role="alert">
@@ -465,15 +464,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           />
         )}
 
-        {enableSelection && bulkSelection.length > 0 && (
-          <BulkActionsToolbar
-            selectedItems={selectedItems}
-            actions={bulkActions}
-            context={actionContext}
-            onClearSelection={handleClearSelection}
-          />
-        )}
-
         {/* Active filter pills */}
         <ActiveFilterPillBar
           activeFilters={activeFilters}
@@ -491,6 +481,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             currentPage={currentPage}
             totalCount={totalCount}
             pageSize={pageSize}
+            showPaging={showPaging}
+            pageRange={pageRange}
             onPageChange={handlePageChange}
           />
         )}

@@ -61,6 +61,7 @@ export class SearchOrchestrator {
     let prevVertical = this._store.getState().currentVerticalKey;
     let prevPage = this._store.getState().currentPage;
     let prevSort = this._store.getState().sort;
+    let prevFilterConfig = this._store.getState().filterConfig;
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
@@ -70,6 +71,7 @@ export class SearchOrchestrator {
       const verticalChanged = state.currentVerticalKey !== prevVertical;
       const pageChanged = state.currentPage !== prevPage;
       const sortChanged = state.sort !== prevSort;
+      const filterConfigChanged = state.filterConfig !== prevFilterConfig;
 
       prevQueryText = state.queryText;
       prevQueryTemplate = state.queryTemplate;
@@ -78,8 +80,9 @@ export class SearchOrchestrator {
       prevVertical = state.currentVerticalKey;
       prevPage = state.currentPage;
       prevSort = state.sort;
+      prevFilterConfig = state.filterConfig;
 
-      if (queryChanged || queryTemplateChanged || scopeChanged || filtersChanged || verticalChanged || sortChanged) {
+      if (queryChanged || queryTemplateChanged || scopeChanged || filtersChanged || verticalChanged || sortChanged || filterConfigChanged) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
         this._debouncedSearch();
       } else if (pageChanged) {
@@ -144,12 +147,14 @@ export class SearchOrchestrator {
     this._abortController = new AbortController();
     const signal = this._abortController.signal;
 
-    // Freeze registries on first search — prevents mid-session mutations
+    // Freeze registries on first search — prevents mid-session mutations.
+    // Note: suggestions registry is NOT frozen because suggestion providers
+    // register after initializeSearchContext (they need managerService),
+    // which triggers the first search before SearchBox can register them.
     if (!this._registriesFrozen) {
       this._registriesFrozen = true;
       const r = state.registries;
       r.dataProviders.freeze();
-      r.suggestions.freeze();
       r.actions.freeze();
       r.layouts.freeze();
       r.filterTypes.freeze();
@@ -172,7 +177,17 @@ export class SearchOrchestrator {
       }
 
       // Dispatch results to store
-      state.setResults(response.items, response.totalCount);
+      // SharePoint TotalRows is an ESTIMATE — it can overcount when
+      // TrimDuplicates, CollapseSpecification, or security trimming reduce
+      // actual results. If a page returns 0 items but we're past page 1,
+      // cap totalCount to prevent navigating to empty pages.
+      let adjustedTotal = response.totalCount;
+      if (response.items.length === 0 && state.currentPage > 1) {
+        adjustedTotal = (state.currentPage - 1) * state.pageSize;
+        // Reset to the last valid page
+        state.setPage(state.currentPage - 1);
+      }
+      state.setResults(response.items, adjustedTotal);
 
       // Update refiners if provider supports them
       if (provider.supportsRefiners && response.refiners.length > 0) {
@@ -223,10 +238,13 @@ export class SearchOrchestrator {
       sort: state.sort,
       page: state.currentPage,
       pageSize: state.pageSize,
-      selectedProperties: this._getDefaultSelectedProperties(),
+      selectedProperties: this._mergeSelectedProperties(state.selectedProperties),
       refiners: this._getRefinerProperties(state.filterConfig),
-      resultSourceId: activeVertical?.resultSourceId,
-      trimDuplicates: true,
+      resultSourceId: activeVertical?.resultSourceId || state.resultSourceId || undefined,
+      trimDuplicates: state.trimDuplicates,
+      enableQueryRules: state.enableQueryRules,
+      collapseSpecification: state.collapseSpecification || undefined,
+      refinementFilters: state.refinementFilters || undefined,
     };
   }
 
@@ -305,7 +323,31 @@ export class SearchOrchestrator {
       'PictureThumbnailURL', 'ParentLink', 'ViewsLifeTime',
       'Size', 'NormSiteID', 'NormListID', 'NormUniqueID',
       'DocId', 'IsDocument', 'UniqueId',
+      'ListId', 'ListItemID',
     ];
+  }
+
+  /**
+   * Merge admin-configured selected properties with the default set.
+   * Custom properties are appended; duplicates are deduplicated.
+   */
+  private _mergeSelectedProperties(customProperties: string): string[] {
+    const defaults = this._getDefaultSelectedProperties();
+    if (!customProperties) {
+      return defaults;
+    }
+    const custom = customProperties.split(',').map((p) => p.trim()).filter(Boolean);
+    if (custom.length === 0) {
+      return defaults;
+    }
+    const seen = new Set(defaults);
+    for (const prop of custom) {
+      if (!seen.has(prop)) {
+        defaults.push(prop);
+        seen.add(prop);
+      }
+    }
+    return defaults;
   }
 
   /**

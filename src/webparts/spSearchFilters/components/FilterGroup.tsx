@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Card, Header, Content } from 'spfx-toolkit/lib/components/Card/components';
+import { Card, Header, Content } from 'spfx-toolkit/lib/components/Card';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import styles from './SpSearchFilters.module.scss';
 import CheckboxFilter from './CheckboxFilter';

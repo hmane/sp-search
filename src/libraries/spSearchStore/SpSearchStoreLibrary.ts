@@ -1,9 +1,9 @@
-import { StoreApi } from 'zustand/vanilla';
-import { ISearchStore } from '@interfaces/index';
+import type { StoreApi } from 'zustand/vanilla';
+import type { ISearchStore } from '@interfaces/index';
 import { getStore, disposeStore, hasStore } from '@store/store';
 
 // Re-export everything consumers need
-export { ISearchStore } from '@interfaces/index';
+export type { ISearchStore } from '@interfaces/index';
 export { getStore, disposeStore, hasStore } from '@store/store';
 
 /**
