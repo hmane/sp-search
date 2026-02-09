@@ -315,14 +315,17 @@ try {
     # Add web parts
     Write-Host "  Adding Search Box..." -ForegroundColor Yellow
     Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_BOX -Section 1 -Column 1 -WebPartProperties @{
-        searchContextId     = $SearchContextId
-        placeholder         = "Search SharePoint..."
-        debounceMs          = 300
-        searchBehavior      = "both"
-        enableScopeSelector = $true
-        enableSuggestions   = $true
-        enableSearchManager = $false
-        enableQueryBuilder  = $false
+        searchContextId          = $SearchContextId
+        placeholder              = "Search SharePoint..."
+        debounceMs               = 300
+        searchBehavior           = "both"
+        enableScopeSelector      = $true
+        enableSuggestions        = $true
+        enableSearchManager      = $false
+        enableQueryBuilder       = $false
+        searchInNewPage          = $false
+        newPageUrl               = ""
+        queryInputTransformation = "{searchTerms}"
     } -ErrorAction Stop | Out-Null
     Write-Host "  [OK] Search Box" -ForegroundColor Green
 
@@ -337,15 +340,31 @@ try {
     Write-Host "  [OK] Verticals (All, Documents, Pages, People, Sites)" -ForegroundColor Green
 
     Write-Host "  Adding Search Results..." -ForegroundColor Yellow
+    # Selected properties collection — empty means orchestrator defaults are used
+    $defaultSelectedProperties = "[]"
+
+    # Refinement filters collection — empty by default
+    $defaultRefinementFilters = "[]"
+
     Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_RESULTS -Section 3 -Column 1 -WebPartProperties @{
-        searchContextId              = $SearchContextId
-        queryTemplate                = "{searchTerms}"
-        pageSize                     = 25
-        defaultLayout                = "list"
-        showResultCount              = $true
-        showSortDropdown             = $true
-        enableSelection              = $true
-        sortablePropertiesCollection = $defaultSortableProperties
+        searchContextId                = $SearchContextId
+        queryTemplate                  = "{searchTerms}"
+        selectedProperties             = ""
+        selectedPropertiesCollection   = $defaultSelectedProperties
+        resultSourceId                 = ""
+        refinementFilters              = ""
+        refinementFiltersCollection    = $defaultRefinementFilters
+        collapseSpecification          = ""
+        enableQueryRules               = $true
+        trimDuplicates                 = $true
+        pageSize                       = 25
+        showPaging                     = $true
+        pageRange                      = 5
+        defaultLayout                  = "list"
+        showResultCount                = $true
+        showSortDropdown               = $true
+        enableSelection                = $true
+        sortablePropertiesCollection   = $defaultSortableProperties
     } -ErrorAction Stop | Out-Null
     Write-Host "  [OK] Search Results (List layout, 25/page, 4 sort options)" -ForegroundColor Green
 
@@ -362,8 +381,14 @@ try {
 
     Write-Host "  Adding Search Manager..." -ForegroundColor Yellow
     Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_MANAGER -Section 4 -Column 1 -WebPartProperties @{
-        searchContextId = $SearchContextId
-        mode            = "standalone"
+        searchContextId      = $SearchContextId
+        mode                 = "standalone"
+        enableSavedSearches  = $true
+        enableSharedSearches = $true
+        enableCollections    = $true
+        enableHistory        = $true
+        enableAnnotations    = $false
+        maxHistoryItems      = 50
     } -ErrorAction Stop | Out-Null
     Write-Host "  [OK] Search Manager (standalone)" -ForegroundColor Green
 

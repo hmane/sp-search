@@ -41,6 +41,7 @@ function getFilterConfig(filterName: string, filterConfig: IFilterConfig[]): IFi
     showCount: true,
     sortBy: 'count',
     sortDirection: 'desc',
+    multiValues: true,
   };
 }
 

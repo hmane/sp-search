@@ -24,12 +24,14 @@
     "properties": {
       "searchContextId": "default",
       "queryTemplate": "{searchTerms}",
-      "selectedProperties": "Title,Path,HitHighlightedSummary,Author,LastModifiedTime,Created,FileType,SPSiteURL,SiteName,FileExtension,SecondaryFileExtension,ContentTypeId,UniqueId,NormSiteID,NormWebID,NormListID,NormUniqueID,ServerRedirectedURL,ServerRedirectedEmbedURL,ServerRedirectedPreviewURL,PictureThumbnailURL",
+      "selectedProperties": "",
+      "selectedPropertiesCollection": [],
+      "refinementFilters": "",
+      "refinementFiltersCollection": [],
       "pageSize": 25,
       "defaultLayout": "list",
       "showResultCount": true,
-      "showSortDropdown": true,
-      "enableSelection": false
+      "showSortDropdown": true
     }
   }]
 }

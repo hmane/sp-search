@@ -130,6 +130,7 @@ const SliderFilter: React.FC<ISliderFilterProps> = (props: ISliderFilterProps): 
     showCount: false,
     sortBy: 'count',
     sortDirection: 'desc',
+    multiValues: false,
   };
   if (!formatConfig.rangeFormat && filterName.toLowerCase().indexOf('size') >= 0) {
     formatConfig.rangeFormat = 'bytes';

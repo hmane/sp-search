@@ -77,29 +77,18 @@ function mapSortKey(key: string): ISortField {
  */
 function formatResultCount(count: number): string {
   if (count === 0) {
-    return 'No results';
+    return 'No results found';
   }
   if (count === 1) {
     return '1 result';
   }
-  // Manual thousands formatting for ES5 target compatibility
-  const parts: string[] = [];
-  let remaining: number = count;
-  while (remaining > 0) {
-    const chunk: number = remaining % 1000;
-    remaining = Math.floor(remaining / 1000);
-    if (remaining > 0) {
-      // Zero-pad to 3 digits
-      let chunkStr: string = String(chunk);
-      while (chunkStr.length < 3) {
-        chunkStr = '0' + chunkStr;
-      }
-      parts.unshift(chunkStr);
-    } else {
-      parts.unshift(String(chunk));
-    }
+  // Format with locale-aware thousands separators
+  const formatted: string = count.toLocaleString();
+  // Use approximate wording for large counts (SharePoint TotalRows is an estimate)
+  if (count >= 100) {
+    return '\u2248 ' + formatted + ' results';
   }
-  return 'About ' + parts.join(',') + ' results';
+  return formatted + ' results';
 }
 
 const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {

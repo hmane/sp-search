@@ -31,6 +31,9 @@ export interface ISpSearchBoxWebPartProps {
   enableSuggestions: boolean;
   enableQueryBuilder: boolean;
   enableSearchManager: boolean;
+  searchInNewPage: boolean;
+  newPageUrl: string;
+  queryInputTransformation: string;
 }
 
 export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchBoxWebPartProps> {
@@ -55,6 +58,9 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
         enableSuggestions: !!this.properties.enableSuggestions,
         enableQueryBuilder: !!this.properties.enableQueryBuilder,
         enableSearchManager: !!this.properties.enableSearchManager,
+        searchInNewPage: !!this.properties.searchInNewPage,
+        newPageUrl: this.properties.newPageUrl || '',
+        queryInputTransformation: this.properties.queryInputTransformation || '{searchTerms}',
         theme: this._theme,
       }
     );
@@ -79,7 +85,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
 
     // Initialize the shared search context (orchestrator + manager service)
     // This is idempotent - if already initialized by another web part, it's a no-op
-    await initializeSearchContext(contextId);
+    await initializeSearchContext(contextId, this.context);
 
     // Register built-in suggestion providers (Recent, Trending, ManagedProperty)
     const managerService = getManagerService(contextId);
@@ -132,18 +138,24 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
+        // ─── Page 1: Search Box Settings ──────────────────
         {
           header: {
-            description: strings.PropertyPaneDescription
+            description: strings.SearchBoxPageHeader
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: strings.ConnectionGroupName,
               groupFields: [
                 PropertyPaneTextField('searchContextId', {
                   label: strings.SearchContextIdFieldLabel,
                   description: strings.SearchContextIdFieldDescription,
-                }),
+                })
+              ]
+            },
+            {
+              groupName: strings.InputGroupName,
+              groupFields: [
                 PropertyPaneTextField('placeholder', {
                   label: strings.PlaceholderFieldLabel,
                 }),
@@ -162,19 +174,65 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                     { key: 'onButton', text: strings.SearchBehaviorOnButton },
                     { key: 'both', text: strings.SearchBehaviorBoth },
                   ]
+                })
+              ]
+            },
+            {
+              groupName: strings.QueryGroupName,
+              groupFields: [
+                PropertyPaneTextField('queryInputTransformation', {
+                  label: strings.QueryInputTransformationLabel,
+                  description: strings.QueryInputTransformationDescription
+                })
+              ]
+            },
+            {
+              groupName: strings.NavigationGroupName,
+              groupFields: [
+                PropertyPaneToggle('searchInNewPage', {
+                  label: strings.SearchInNewPageLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
+                ...(this.properties.searchInNewPage ? [
+                  PropertyPaneTextField('newPageUrl', {
+                    label: strings.NewPageUrlLabel,
+                    description: strings.NewPageUrlDescription
+                  })
+                ] : [])
+              ]
+            }
+          ]
+        },
+        // ─── Page 2: Features ─────────────────────────────
+        {
+          header: {
+            description: strings.FeaturesPageHeader
+          },
+          groups: [
+            {
+              groupName: strings.FeaturesGroupName,
+              groupFields: [
                 PropertyPaneToggle('enableScopeSelector', {
                   label: strings.EnableScopeSelectorFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
                 PropertyPaneToggle('enableSuggestions', {
                   label: strings.EnableSuggestionsFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
                 PropertyPaneToggle('enableQueryBuilder', {
                   label: strings.EnableQueryBuilderFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
                 PropertyPaneToggle('enableSearchManager', {
                   label: strings.EnableSearchManagerFieldLabel,
-                }),
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                })
               ]
             }
           ]

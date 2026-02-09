@@ -25,6 +25,9 @@ export interface ISearchQuery {
   /** SharePoint-specific: result source GUID (ignored by Graph provider) */
   resultSourceId?: string;
   trimDuplicates?: boolean;
+  enableQueryRules?: boolean;
+  /** Persistent FQL refinement filters (admin-configured, always applied) */
+  refinementFilters?: string;
 }
 
 // ─── Normalized Query Output ─────────────────────────────────

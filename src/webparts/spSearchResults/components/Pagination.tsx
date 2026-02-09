@@ -6,6 +6,8 @@ export interface IPaginationProps {
   currentPage: number;
   totalCount: number;
   pageSize: number;
+  showPaging: boolean;
+  pageRange: number;
   onPageChange: (page: number) => void;
 }
 
@@ -13,8 +15,10 @@ export interface IPaginationProps {
  * Builds an array of page numbers to display, with ellipsis markers.
  * Uses -1 as a sentinel value for ellipsis positions.
  */
-function buildPageNumbers(currentPage: number, totalPages: number): number[] {
-  if (totalPages <= 7) {
+function buildPageNumbers(currentPage: number, totalPages: number, pageRange: number): number[] {
+  const maxButtons = Math.max(3, pageRange);
+
+  if (totalPages <= maxButtons) {
     const pages: number[] = [];
     for (let i: number = 1; i <= totalPages; i++) {
       pages.push(i);
@@ -23,23 +27,23 @@ function buildPageNumbers(currentPage: number, totalPages: number): number[] {
   }
 
   const pages: number[] = [];
+  const sideCount: number = Math.floor((maxButtons - 3) / 2); // pages on each side of current (excluding first, last, current)
 
   // Always show first page
   pages.push(1);
 
-  if (currentPage > 4) {
+  const rangeStart: number = Math.max(2, currentPage - sideCount);
+  const rangeEnd: number = Math.min(totalPages - 1, currentPage + sideCount);
+
+  if (rangeStart > 2) {
     pages.push(-1); // ellipsis
   }
 
-  // Pages around current
-  const start: number = Math.max(2, currentPage - 1);
-  const end: number = Math.min(totalPages - 1, currentPage + 1);
-
-  for (let i: number = start; i <= end; i++) {
+  for (let i: number = rangeStart; i <= rangeEnd; i++) {
     pages.push(i);
   }
 
-  if (currentPage < totalPages - 3) {
+  if (rangeEnd < totalPages - 1) {
     pages.push(-1); // ellipsis
   }
 
@@ -52,15 +56,15 @@ function buildPageNumbers(currentPage: number, totalPages: number): number[] {
 }
 
 const Pagination: React.FC<IPaginationProps> = (props) => {
-  const { currentPage, totalCount, pageSize, onPageChange } = props;
+  const { currentPage, totalCount, pageSize, showPaging, pageRange, onPageChange } = props;
   const totalPages: number = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  if (totalPages <= 1) {
+  if (!showPaging || totalPages <= 1) {
     // eslint-disable-next-line @rushstack/no-new-null
     return null;
   }
 
-  const pageNumbers: number[] = buildPageNumbers(currentPage, totalPages);
+  const pageNumbers: number[] = buildPageNumbers(currentPage, totalPages, pageRange);
 
   const handlePrevious = React.useCallback((): void => {
     if (currentPage > 1) {

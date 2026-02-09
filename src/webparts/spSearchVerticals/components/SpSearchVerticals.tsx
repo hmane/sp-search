@@ -170,6 +170,9 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
         isActive={typedItem.isActive}
         showCounts={showCounts}
         isDimmed={typedItem.isDimmed}
+        isLink={!!typedItem.vertical.isLink}
+        linkUrl={typedItem.vertical.linkUrl}
+        openBehavior={typedItem.vertical.openBehavior}
         onClick={handleTabClick}
       />
     );
@@ -237,6 +240,9 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
               isActive={v.key === currentVerticalKey}
               showCounts={showCounts}
               isDimmed={isEmpty}
+              isLink={!!v.isLink}
+              linkUrl={v.linkUrl}
+              openBehavior={v.openBehavior}
               onClick={handleTabClick}
             />
           );

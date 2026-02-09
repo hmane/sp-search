@@ -12,5 +12,8 @@ export interface ISpSearchBoxProps {
   enableSuggestions: boolean;
   enableQueryBuilder: boolean;
   enableSearchManager: boolean;
+  searchInNewPage: boolean;
+  newPageUrl: string;
+  queryInputTransformation: string;
   theme: IReadonlyTheme | undefined;
 }

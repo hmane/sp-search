@@ -59,6 +59,8 @@ export interface IFilterConfig {
   showCount: boolean;
   sortBy: SortBy;
   sortDirection: SortDirection;
+  /** Whether the user can select multiple values (default: true) */
+  multiValues: boolean;
   /** Optional: slider range minimum */
   rangeMin?: number;
   /** Optional: slider range maximum */

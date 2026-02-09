@@ -27,6 +27,8 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     enableSuggestions,
     enableQueryBuilder,
     enableSearchManager,
+    searchInNewPage,
+    newPageUrl,
     theme,
   } = props;
 
@@ -104,8 +106,17 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = undefined;
     }
-    store.getState().setQueryText(text);
     setShowSuggestions(false);
+
+    // Navigate to another page if configured
+    if (searchInNewPage && newPageUrl) {
+      const separator = newPageUrl.indexOf('?') >= 0 ? '&' : '?';
+      const targetUrl = newPageUrl + separator + 'q=' + encodeURIComponent(text);
+      window.location.href = targetUrl;
+      return;
+    }
+
+    store.getState().setQueryText(text);
   }
 
   /**

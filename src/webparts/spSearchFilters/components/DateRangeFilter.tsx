@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { DateBox } from 'devextreme-react/date-box';
 import styles from './SpSearchFilters.module.scss';
 import type {
   IRefinerValue,
@@ -189,40 +190,6 @@ function formatDateForDisplay(date: Date): string {
 }
 
 /**
- * Formats a Date as YYYY-MM-DD for use in native HTML date inputs.
- * Uses local date components.
- */
-function toInputDateString(date: Date): string {
-  const y: string = String(date.getFullYear());
-  const monthNum: number = date.getMonth() + 1;
-  const dayNum: number = date.getDate();
-  const m: string = monthNum < 10 ? '0' + String(monthNum) : String(monthNum);
-  const d: string = dayNum < 10 ? '0' + String(dayNum) : String(dayNum);
-  return y + '-' + m + '-' + d;
-}
-
-/**
- * Parses a YYYY-MM-DD input string into a Date (local time).
- * Returns undefined for invalid values.
- */
-function parseInputDateString(value: string): Date | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const parts: string[] = value.split('-');
-  if (parts.length !== 3) {
-    return undefined;
-  }
-  const year: number = parseInt(parts[0], 10);
-  const month: number = parseInt(parts[1], 10) - 1;
-  const day: number = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) {
-    return undefined;
-  }
-  return new Date(year, month, day);
-}
-
-/**
  * DateRangeFilter renders preset date range buttons and a custom date picker.
  * It emits FQL range() tokens via onToggleRefiner for SharePoint Search refinement.
  */
@@ -256,11 +223,11 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [customFrom, setCustomFrom] = React.useState<string>(
-    initialCustomRange ? toInputDateString(initialCustomRange.from) : ''
+  const [customFrom, setCustomFrom] = React.useState<Date | undefined>(
+    initialCustomRange ? initialCustomRange.from : undefined
   );
-  const [customTo, setCustomTo] = React.useState<string>(
-    initialCustomRange ? toInputDateString(initialCustomRange.to) : ''
+  const [customTo, setCustomTo] = React.useState<Date | undefined>(
+    initialCustomRange ? initialCustomRange.to : undefined
   );
   const [showCustomInputs, setShowCustomInputs] = React.useState<boolean>(activePreset === 'custom');
 
@@ -287,7 +254,7 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
       setShowCustomInputs(true);
       // If we already have custom dates, apply them
       if (customFrom && customTo) {
-        applyCustomRange(customFrom, customTo);
+        applyCustomRangeDates(customFrom, customTo);
       }
       return;
     }
@@ -308,17 +275,9 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
   }
 
   /**
-   * Builds and dispatches a custom date range from the from/to input values.
+   * Builds and dispatches a custom date range from Date objects.
    */
-  function applyCustomRange(fromValue: string, toValue: string): void {
-    const fromDate: Date | undefined = parseInputDateString(fromValue);
-    const toDate: Date | undefined = parseInputDateString(toValue);
-
-    if (!fromDate || !toDate) {
-      return;
-    }
-
-    // Ensure from <= to
+  function applyCustomRangeDates(fromDate: Date, toDate: Date): void {
     if (fromDate.getTime() > toDate.getTime()) {
       return;
     }
@@ -329,19 +288,21 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
     dispatchDateFilter(fqlToken);
   }
 
-  function handleFromChange(ev: React.ChangeEvent<HTMLInputElement>): void {
-    const value: string = ev.target.value;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function handleFromChanged(e: any): void {
+    const value: Date | undefined = e.value || undefined;
     setCustomFrom(value);
     if (value && customTo) {
-      applyCustomRange(value, customTo);
+      applyCustomRangeDates(value, customTo);
     }
   }
 
-  function handleToChange(ev: React.ChangeEvent<HTMLInputElement>): void {
-    const value: string = ev.target.value;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function handleToChanged(e: any): void {
+    const value: Date | undefined = e.value || undefined;
     setCustomTo(value);
     if (customFrom && value) {
-      applyCustomRange(customFrom, value);
+      applyCustomRangeDates(customFrom, value);
     }
   }
 
@@ -354,7 +315,7 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
     if (!parsed) {
       return '';
     }
-    return 'Custom: ' + formatDateForDisplay(parsed.from) + ' - ' + formatDateForDisplay(parsed.to);
+    return 'Custom: ' + formatDateForDisplay(parsed.from) + ' \u2013 ' + formatDateForDisplay(parsed.to);
   }
 
   return (
@@ -381,35 +342,32 @@ const DateRangeFilter: React.FC<IDateRangeFilterProps> = (props: IDateRangeFilte
         })}
       </div>
 
-      {/* Custom date range picker */}
+      {/* Custom date range picker — DevExtreme DateBox pair */}
       {showCustomInputs && (
         <div className={styles.customRange}>
           <div className={styles.dateInputGroup}>
-            <label className={styles.dateInputLabel} htmlFor={filterName + '-from'}>
-              From
-            </label>
-            <input
-              id={filterName + '-from'}
-              type="date"
-              className={styles.dateInput}
+            <DateBox
               value={customFrom}
-              onChange={handleFromChange}
-              aria-label="Start date"
-              max={customTo || undefined}
+              onValueChanged={handleFromChanged}
+              type="date"
+              displayFormat="MMM d, yyyy"
+              showClearButton={true}
+              max={customTo}
+              placeholder="Start date"
+              width="100%"
             />
           </div>
+          <span className={styles.dateRangeSeparator}>{'\u2013'}</span>
           <div className={styles.dateInputGroup}>
-            <label className={styles.dateInputLabel} htmlFor={filterName + '-to'}>
-              To
-            </label>
-            <input
-              id={filterName + '-to'}
-              type="date"
-              className={styles.dateInput}
+            <DateBox
               value={customTo}
-              onChange={handleToChange}
-              aria-label="End date"
-              min={customFrom || undefined}
+              onValueChanged={handleToChanged}
+              type="date"
+              displayFormat="MMM d, yyyy"
+              showClearButton={true}
+              min={customFrom}
+              placeholder="End date"
+              width="100%"
             />
           </div>
         </div>

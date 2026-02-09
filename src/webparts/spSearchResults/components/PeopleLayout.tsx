@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
+import { PersonaCoin, PersonaSize } from '@fluentui/react/lib/Persona';
 import { ISearchResult } from '@interfaces/index';
+import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
 export interface IPeopleLayoutProps {
@@ -81,13 +82,29 @@ function getDisplayName(item: ISearchResult): string {
 }
 
 /**
+ * Strips SharePoint claim string prefixes (e.g. "i:0#.f|membership|user@domain.com")
+ * to extract the raw email address.
+ */
+function extractEmail(raw: string): string {
+  if (!raw) {
+    return '';
+  }
+  // Claim format: i:0#.f|membership|user@domain.com
+  const pipeIdx: number = raw.lastIndexOf('|');
+  if (pipeIdx >= 0) {
+    return raw.substring(pipeIdx + 1);
+  }
+  return raw;
+}
+
+/**
  * Gets the person's email — prefers author.email, fallback to properties.
  */
 function getEmail(item: ISearchResult): string {
   if (item.author && item.author.email) {
-    return item.author.email;
+    return extractEmail(item.author.email);
   }
-  return (
+  return extractEmail(
     getProperty(item, 'WorkEmail') ||
     getProperty(item, 'SPS-SipAddress') ||
     ''
@@ -118,12 +135,6 @@ const PersonaCard: React.FC<{
     }
   }, [item, onPreviewItem]);
 
-  const handleLinkClick = React.useCallback((): void => {
-    if (onItemClick) {
-      onItemClick(item, position);
-    }
-  }, [item, position, onItemClick]);
-
   const handleKeyDown = React.useCallback(
     (ev: React.KeyboardEvent<HTMLDivElement>): void => {
       if (ev.key === 'Enter' || ev.key === ' ') {
@@ -145,59 +156,52 @@ const PersonaCard: React.FC<{
       onKeyDown={handleKeyDown}
     >
       <div className={styles.personaHeader}>
-        <UserPersona
-          userIdentifier={email}
-          displayName={displayName}
-          email={email}
-          size={72}
-          displayMode="avatarAndName"
-          showLivePersona={true}
-          showSecondaryText={true}
+        <PersonaCoin
+          text={displayName}
+          size={PersonaSize.size56}
+          imageUrl={email ? '/_layouts/15/userphoto.aspx?size=L&accountname=' + encodeURIComponent(email) : undefined}
         />
-      </div>
-      <div className={styles.personaDetails}>
-        {/* Name as link to profile */}
-        <h3 className={styles.personaName}>
-          <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={handleLinkClick}>
-            {displayName}
-          </a>
-        </h3>
-
-        {/* Job title */}
-        {jobTitle && (
-          <p className={styles.personaJobTitle}>{jobTitle}</p>
-        )}
-
-        {/* Department */}
-        {department && (
-          <p className={styles.personaDepartment}>{department}</p>
-        )}
-
-        {/* Contact information */}
-        <div className={styles.personaContactInfo}>
-          {email && (
-            <div className={styles.personaContactItem}>
-              <Icon iconName="Mail" style={{ fontSize: 13 }} />
-              <a href={'mailto:' + email} className={styles.personaContactLink}>
-                {email}
-              </a>
-            </div>
+        <div className={styles.personaDetails}>
+          <h3 className={styles.personaName}>
+            <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick} disabled>
+              {(handleClick): React.ReactNode => (
+                <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={handleClick}>
+                  {displayName}
+                </a>
+              )}
+            </DocumentTitleHoverCard>
+          </h3>
+          {jobTitle && (
+            <p className={styles.personaJobTitle}>{jobTitle}</p>
           )}
-          {workPhone && (
-            <div className={styles.personaContactItem}>
-              <Icon iconName="Phone" style={{ fontSize: 13 }} />
-              <a href={'tel:' + workPhone} className={styles.personaContactLink}>
-                {workPhone}
-              </a>
-            </div>
-          )}
-          {location && (
-            <div className={styles.personaContactItem}>
-              <Icon iconName="POI" style={{ fontSize: 13 }} />
-              <span>{location}</span>
-            </div>
+          {department && (
+            <p className={styles.personaDepartment}>{department}</p>
           )}
         </div>
+      </div>
+      <div className={styles.personaContactInfo}>
+        {email && (
+          <div className={styles.personaContactItem}>
+            <Icon iconName="Mail" style={{ fontSize: 13 }} />
+            <a href={'mailto:' + email} className={styles.personaContactLink}>
+              {email}
+            </a>
+          </div>
+        )}
+        {workPhone && (
+          <div className={styles.personaContactItem}>
+            <Icon iconName="Phone" style={{ fontSize: 13 }} />
+            <a href={'tel:' + workPhone} className={styles.personaContactLink}>
+              {workPhone}
+            </a>
+          </div>
+        )}
+        {location && (
+          <div className={styles.personaContactItem}>
+            <Icon iconName="POI" style={{ fontSize: 13 }} />
+            <span>{location}</span>
+          </div>
+        )}
       </div>
     </div>
   );

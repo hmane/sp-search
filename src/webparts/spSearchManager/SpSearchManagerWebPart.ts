@@ -4,7 +4,9 @@ import { Version } from '@microsoft/sp-core-library';
 import {
   type IPropertyPaneConfiguration,
   PropertyPaneTextField,
-  PropertyPaneChoiceGroup
+  PropertyPaneChoiceGroup,
+  PropertyPaneToggle,
+  PropertyPaneSlider
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -15,12 +17,19 @@ import SpSearchManager from './components/SpSearchManager';
 import { ISpSearchManagerProps } from './components/ISpSearchManagerProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore } from '@interfaces/index';
-import { getStore } from '@store/store';
+import { getStore, initializeSearchContext } from '@store/store';
+import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 
 export interface ISpSearchManagerWebPartProps {
   searchContextId: string;
   mode: 'standalone' | 'panel';
+  enableSavedSearches: boolean;
+  enableSharedSearches: boolean;
+  enableCollections: boolean;
+  enableHistory: boolean;
+  enableAnnotations: boolean;
+  maxHistoryItems: number;
 }
 
 export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSearchManagerWebPartProps> {
@@ -41,7 +50,13 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
         service: this._service,
         theme: this._theme,
         mode: this.properties.mode || 'standalone',
-        context: this.context
+        context: this.context,
+        enableSavedSearches: this.properties.enableSavedSearches !== false,
+        enableSharedSearches: this.properties.enableSharedSearches !== false,
+        enableCollections: this.properties.enableCollections !== false,
+        enableHistory: this.properties.enableHistory !== false,
+        enableAnnotations: !!this.properties.enableAnnotations,
+        maxHistoryItems: this.properties.maxHistoryItems || 50
       }
     );
 
@@ -55,6 +70,17 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     // Get or create the shared Zustand store
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+
+    // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
+    const provider = new SharePointSearchProvider();
+    const dataProviders = this._store.getState().registries.dataProviders;
+    if (!dataProviders.get(provider.id)) {
+      dataProviders.register(provider);
+    }
+
+    // Initialize the shared search context (ensures library bundle's SPContext is ready)
+    // Idempotent — if already initialized by another web part, this is a no-op
+    await initializeSearchContext(contextId, this.context);
 
     // Create and initialize the SearchManagerService (uses SPContext.sp internally)
     this._service = new SearchManagerService();
@@ -105,18 +131,56 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: strings.ConnectionGroupName,
               groupFields: [
                 PropertyPaneTextField('searchContextId', {
-                  label: 'Search Context ID',
-                  description: 'Enter the same ID as the other search web parts on this page to share state. Leave blank for the default context.'
+                  label: strings.SearchContextIdLabel,
+                  description: strings.SearchContextIdDescription
                 }),
                 PropertyPaneChoiceGroup('mode', {
-                  label: 'Display Mode',
+                  label: strings.DisplayModeLabel,
                   options: [
-                    { key: 'standalone', text: 'Standalone (full web part)' },
-                    { key: 'panel', text: 'Panel (side panel overlay)' }
+                    { key: 'standalone', text: strings.ModeStandalone },
+                    { key: 'panel', text: strings.ModePanel }
                   ]
+                })
+              ]
+            },
+            {
+              groupName: strings.FeaturesGroupName,
+              groupFields: [
+                PropertyPaneToggle('enableSavedSearches', {
+                  label: strings.EnableSavedSearchesLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableSharedSearches', {
+                  label: strings.EnableSharedSearchesLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableCollections', {
+                  label: strings.EnableCollectionsLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableHistory', {
+                  label: strings.EnableHistoryLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableAnnotations', {
+                  label: strings.EnableAnnotationsLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneSlider('maxHistoryItems', {
+                  label: strings.MaxHistoryItemsLabel,
+                  min: 10,
+                  max: 200,
+                  step: 10,
+                  showValue: true,
+                  value: this.properties.maxHistoryItems || 50
                 })
               ]
             }

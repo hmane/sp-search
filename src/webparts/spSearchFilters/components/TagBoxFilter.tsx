@@ -32,8 +32,10 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   const { filterName, values, config, activeFilters, onToggleRefiner } = props;
 
   const showCount: boolean = config ? config.showCount : true;
+  const configSortBy: SortBy = config ? config.sortBy : 'count';
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
-  const sortBy: SortBy = config ? config.sortBy : 'count';
+
+  const [sortBy, setSortBy] = React.useState<SortBy>(configSortBy);
 
   const sortedValues: IRefinerValue[] = React.useMemo(function (): IRefinerValue[] {
     const sorted: IRefinerValue[] = values.slice();
@@ -65,18 +67,20 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     return selected;
   }, [activeFilters, filterName]);
 
-  const [currentSelection, setCurrentSelection] = React.useState<string[]>(selectedValues);
-
-  React.useEffect(() => {
-    setCurrentSelection(selectedValues);
-  }, [selectedValues]);
+  // Guard against re-entrant onValueChanged calls from programmatic value updates
+  const isUpdatingRef = React.useRef<boolean>(false);
 
   function handleValueChanged(e: { value?: string[] }): void {
-    const nextValues: string[] = Array.isArray(e.value) ? e.value : [];
-    const prevValues = currentSelection;
+    if (isUpdatingRef.current) {
+      return;
+    }
+    isUpdatingRef.current = true;
 
+    const nextValues: string[] = Array.isArray(e.value) ? e.value : [];
+
+    // Toggle added values
     for (let i = 0; i < nextValues.length; i++) {
-      if (prevValues.indexOf(nextValues[i]) < 0) {
+      if (selectedValues.indexOf(nextValues[i]) < 0) {
         onToggleRefiner({
           filterName,
           value: nextValues[i],
@@ -85,33 +89,65 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
       }
     }
 
-    for (let i = 0; i < prevValues.length; i++) {
-      if (nextValues.indexOf(prevValues[i]) < 0) {
+    // Toggle removed values
+    for (let i = 0; i < selectedValues.length; i++) {
+      if (nextValues.indexOf(selectedValues[i]) < 0) {
         onToggleRefiner({
           filterName,
-          value: prevValues[i],
+          value: selectedValues[i],
           operator,
         });
       }
     }
 
-    setCurrentSelection(nextValues);
+    // Release guard on next tick so React can re-render with store values
+    setTimeout(function (): void { isUpdatingRef.current = false; }, 0);
+  }
+
+  function handleSortByCount(): void {
+    setSortBy('count');
+  }
+
+  function handleSortAlphabetical(): void {
+    setSortBy('alphabetical');
   }
 
   return (
     <div className={styles.tagBoxFilterContainer}>
+      <div className={styles.sortControls}>
+        <button
+          type="button"
+          className={sortBy === 'count' ? styles.sortButtonActive : styles.sortButton}
+          onClick={handleSortByCount}
+          aria-label="Sort by count"
+          aria-pressed={sortBy === 'count'}
+        >
+          By count
+        </button>
+        <button
+          type="button"
+          className={sortBy === 'alphabetical' ? styles.sortButtonActive : styles.sortButton}
+          onClick={handleSortAlphabetical}
+          aria-label="Sort alphabetically"
+          aria-pressed={sortBy === 'alphabetical'}
+        >
+          A-Z
+        </button>
+      </div>
       <TagBox
         dataSource={items}
         valueExpr="value"
         displayExpr="displayName"
         showSelectionControls={true}
+        showDropDownButton={true}
         searchEnabled={true}
         multiline={true}
         hideSelectedItems={false}
-        value={currentSelection}
+        value={selectedValues}
         onValueChanged={handleValueChanged}
-        placeholder="Select values"
-        height={120}
+        placeholder="Select values..."
+        maxDisplayedTags={5}
+        showMultiTagOnly={false}
       />
     </div>
   );

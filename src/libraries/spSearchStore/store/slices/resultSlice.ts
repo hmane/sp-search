@@ -11,6 +11,14 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   promotedResults: [],
   isLoading: false,
   error: undefined,
+  resultSourceId: '',
+  enableQueryRules: true,
+  trimDuplicates: true,
+  refinementFilters: '',
+  collapseSpecification: '',
+  showPaging: true,
+  pageRange: 5,
+  selectedProperties: '',
 
   setResults: (items: ISearchResult[], total: number): void => {
     set({ items, totalCount: total, isLoading: false, error: undefined });

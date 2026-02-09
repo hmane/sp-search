@@ -10,7 +10,6 @@ export interface ISpSearchResultsProps {
   theme: IReadonlyTheme | undefined;
   showResultCount: boolean;
   showSortDropdown: boolean;
-  enableSelection: boolean;
   defaultLayout: string;
   pageSize: number;
 }

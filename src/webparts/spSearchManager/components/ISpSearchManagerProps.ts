@@ -11,4 +11,10 @@ export interface ISpSearchManagerProps {
   mode: 'standalone' | 'panel';
   /** Optional — when omitted, SPContext.context.context is used as fallback */
   context?: WebPartContext;
+  enableSavedSearches: boolean;
+  enableSharedSearches: boolean;
+  enableCollections: boolean;
+  enableHistory: boolean;
+  enableAnnotations: boolean;
+  maxHistoryItems: number;
 }

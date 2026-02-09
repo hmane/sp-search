@@ -2,6 +2,11 @@ define([], function() {
   return {
     "PropertyPaneDescription": "Configure search verticals to provide tab-based content scoping with badge counts and audience targeting.",
     "BasicGroupName": "Vertical Settings",
+    "ConnectionGroupName": "Connection",
+    "VerticalsGroupName": "Verticals",
+    "DisplayGroupName": "Display",
+    "VerticalsPageHeader": "Configure search verticals, link tabs, and audience targeting.",
+    "DisplayPageHeader": "Configure vertical display and tab style.",
     "SearchContextIdFieldLabel": "Search Context ID",
     "SearchContextIdFieldDescription": "Unique identifier to connect this web part with other search web parts on the page.",
     "VerticalsFieldLabel": "Verticals",
@@ -12,12 +17,21 @@ define([], function() {
     "VerticalIconColumn": "Icon",
     "VerticalQueryColumn": "Query template",
     "VerticalSourceColumn": "Result Source ID",
-    "VerticalSortColumn": "Sort order",
+    "VerticalIsLinkColumn": "Is link",
+    "VerticalLinkUrlColumn": "Link URL",
+    "VerticalOpenBehaviorColumn": "Open behavior",
+    "OpenBehaviorCurrentTab": "Current tab",
+    "OpenBehaviorNewTab": "New tab",
+    "VerticalAudienceColumn": "Audience",
+    "VerticalAudiencePlaceholder": "Entra ID group IDs (comma-separated)",
+    "DefaultVerticalLabel": "Default vertical",
     "ShowCountsFieldLabel": "Show result counts",
     "HideEmptyVerticalsFieldLabel": "Hide empty verticals",
     "TabStyleFieldLabel": "Tab style",
     "TabStyleTabs": "Tabs",
     "TabStylePills": "Pills",
-    "TabStyleUnderline": "Underline"
+    "TabStyleUnderline": "Underline",
+    "ToggleOnText": "On",
+    "ToggleOffText": "Off"
   }
 });

@@ -5,7 +5,8 @@ import {
   type IPropertyPaneConfiguration,
   PropertyPaneTextField,
   PropertyPaneToggle,
-  PropertyPaneChoiceGroup
+  PropertyPaneChoiceGroup,
+  PropertyPaneDropdown
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -17,12 +18,15 @@ import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
 import { type ISpSearchVerticalsProps } from './components/ISpSearchVerticalsProps';
 import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
-import { getStore } from '@store/store';
+import { getStore, initializeSearchContext } from '@store/store';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { SharePointSearchProvider } from '@providers/index';
 
 export interface ISpSearchVerticalsWebPartProps {
   searchContextId: string;
   verticals: string; // Legacy: JSON-serialized IVerticalDefinition[]
   verticalsCollection: IVerticalCollectionItem[]; // Collection data from property pane
+  defaultVertical: string;
   showCounts: boolean;
   hideEmptyVerticals: boolean;
   tabStyle: 'tabs' | 'pills' | 'underline';
@@ -36,6 +40,10 @@ interface IVerticalCollectionItem {
   queryTemplate: string;
   resultSourceId: string;
   sortOrder: number;
+  isLink: boolean;
+  linkUrl: string;
+  openBehavior: string;
+  audience: string;
 }
 
 export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpSearchVerticalsWebPartProps> {
@@ -62,9 +70,19 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     ReactDom.render(element, this.domElement);
   }
 
-  protected onInit(): Promise<void> {
+  protected async onInit(): Promise<void> {
+    // Initialize SPContext for PnPjs
+    await SPContext.basic(this.context, 'SPSearchVerticals');
+
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+
+    // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
+    const provider = new SharePointSearchProvider();
+    const dataProviders = this._store.getState().registries.dataProviders;
+    if (!dataProviders.get(provider.id)) {
+      dataProviders.register(provider);
+    }
 
     // Migrate legacy JSON to collection data if needed
     if (this.properties.verticals && (!this.properties.verticalsCollection || this.properties.verticalsCollection.length === 0)) {
@@ -73,7 +91,9 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
 
     this._syncVerticalsToStore();
 
-    return Promise.resolve();
+    // Initialize the shared search context (ensures library bundle's SPContext is ready)
+    // Idempotent — if already initialized by another web part, this is a no-op
+    await initializeSearchContext(contextId, this.context);
   }
 
   private _migrateJsonToCollection(): void {
@@ -87,7 +107,11 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
           iconName: v.iconName || '',
           queryTemplate: v.queryTemplate || '',
           resultSourceId: v.resultSourceId || '',
-          sortOrder: v.sortOrder ?? idx + 1
+          sortOrder: v.sortOrder ?? idx + 1,
+          isLink: !!v.isLink,
+          linkUrl: v.linkUrl || '',
+          openBehavior: v.openBehavior || 'currentTab',
+          audience: v.audienceGroups ? v.audienceGroups.join(',') : ''
         }));
       }
     } catch {
@@ -112,6 +136,10 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
         iconName: item.iconName || undefined,
         queryTemplate: item.queryTemplate || undefined,
         resultSourceId: item.resultSourceId || undefined,
+        isLink: !!item.isLink,
+        linkUrl: item.linkUrl || undefined,
+        openBehavior: (item.openBehavior as 'currentTab' | 'newTab') || undefined,
+        audienceGroups: item.audience ? item.audience.split(',').map((s: string) => s.trim()).filter(Boolean) : undefined,
         sortOrder: idx + 1
       }));
     } else if (this.properties.verticals) {
@@ -130,7 +158,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     if (JSON.stringify(state.verticals) !== JSON.stringify(parsed)) {
       this._store.setState({ verticals: parsed });
       if (parsed.length > 0 && !state.currentVerticalKey) {
-        state.setVertical(parsed[0].key);
+        const defaultKey = this.properties.defaultVertical || parsed[0].key;
+        state.setVertical(defaultKey);
       }
     }
   }
@@ -158,20 +187,31 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
+    // Build dropdown options from configured verticals
+    const verticalOptions = (this.properties.verticalsCollection || [])
+      .filter((v: IVerticalCollectionItem) => !v.isLink)
+      .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
+
     return {
       pages: [
+        // ─── Page 1: Verticals Configuration ────────────
         {
           header: {
-            description: strings.PropertyPaneDescription
+            description: strings.VerticalsPageHeader
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: strings.ConnectionGroupName,
               groupFields: [
                 PropertyPaneTextField('searchContextId', {
                   label: strings.SearchContextIdFieldLabel,
                   description: strings.SearchContextIdFieldDescription
-                }),
+                })
+              ]
+            },
+            {
+              groupName: strings.VerticalsGroupName,
+              groupFields: [
                 PropertyFieldCollectionData('verticalsCollection', {
                   key: 'verticalsCollection',
                   label: strings.VerticalsFieldLabel,
@@ -216,19 +256,66 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                       placeholder: 'GUID'
                     },
                     {
-                      id: 'sortOrder',
-                      title: strings.VerticalSortColumn,
-                      type: CustomCollectionFieldType.number,
-                      required: true,
-                      defaultValue: 1
+                      id: 'isLink',
+                      title: strings.VerticalIsLinkColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: false
+                    },
+                    {
+                      id: 'linkUrl',
+                      title: strings.VerticalLinkUrlColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'https://...'
+                    },
+                    {
+                      id: 'openBehavior',
+                      title: strings.VerticalOpenBehaviorColumn,
+                      type: CustomCollectionFieldType.dropdown,
+                      required: false,
+                      options: [
+                        { key: 'currentTab', text: strings.OpenBehaviorCurrentTab },
+                        { key: 'newTab', text: strings.OpenBehaviorNewTab }
+                      ]
+                    },
+                    {
+                      id: 'audience',
+                      title: strings.VerticalAudienceColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: strings.VerticalAudiencePlaceholder
                     }
                   ]
                 }),
+                ...(verticalOptions.length > 0 ? [
+                  PropertyPaneDropdown('defaultVertical', {
+                    label: strings.DefaultVerticalLabel,
+                    options: verticalOptions
+                  })
+                ] : [])
+              ]
+            }
+          ]
+        },
+        // ─── Page 2: Display ────────────────────────────
+        {
+          header: {
+            description: strings.DisplayPageHeader
+          },
+          groups: [
+            {
+              groupName: strings.DisplayGroupName,
+              groupFields: [
                 PropertyPaneToggle('showCounts', {
-                  label: strings.ShowCountsFieldLabel
+                  label: strings.ShowCountsFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
                 PropertyPaneToggle('hideEmptyVerticals', {
-                  label: strings.HideEmptyVerticalsFieldLabel
+                  label: strings.HideEmptyVerticalsFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 }),
                 PropertyPaneChoiceGroup('tabStyle', {
                   label: strings.TabStyleFieldLabel,

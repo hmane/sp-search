@@ -1,9 +1,9 @@
 // Core data types
-export { ISearchResult, IPersonaInfo, ISortField } from './ISearchResult';
-export { ISearchScope, ISuggestion } from './ISearchScope';
+export type { ISearchResult, IPersonaInfo, ISortField } from './ISearchResult';
+export type { ISearchScope, ISuggestion } from './ISearchScope';
 
 // Filter & refiner types
-export {
+export type {
   IActiveFilter,
   IRefiner,
   IRefinerValue,
@@ -16,10 +16,10 @@ export {
 } from './IFilterTypes';
 
 // Vertical definition
-export { IVerticalDefinition } from './IVerticalDefinition';
+export type { IVerticalDefinition } from './IVerticalDefinition';
 
 // Store slices
-export {
+export type {
   IQuerySlice,
   IFilterSlice,
   IResultSlice,
@@ -36,7 +36,7 @@ export {
 } from './IStoreSlices';
 
 // Data provider
-export {
+export type {
   ISearchDataProvider,
   ISearchQuery,
   ISearchResponse,
@@ -44,20 +44,20 @@ export {
 } from './ISearchDataProvider';
 
 // Suggestion provider
-export { ISuggestionProvider, ISearchContext } from './ISuggestionProvider';
+export type { ISuggestionProvider, ISearchContext } from './ISuggestionProvider';
 
 // Action provider
-export { IActionProvider } from './IActionProvider';
+export type { IActionProvider } from './IActionProvider';
 
 // Layout & filter extensibility
-export { ILayoutDefinition } from './ILayoutDefinition';
-export { IFilterTypeDefinition } from './IFilterTypeDefinition';
+export type { ILayoutDefinition } from './ILayoutDefinition';
+export type { IFilterTypeDefinition } from './IFilterTypeDefinition';
 
 // Promoted results
-export { IPromotedResultRule, IPromotedResultDisplay } from './IPromotedResult';
+export type { IPromotedResultRule, IPromotedResultDisplay } from './IPromotedResult';
 
 // Registry
-export { IRegistry, IRegistryContainer } from './IRegistry';
+export type { IRegistry, IRegistryContainer } from './IRegistry';
 
 // Root store
-export { ISearchStore } from './ISearchStore';
+export type { ISearchStore } from './ISearchStore';

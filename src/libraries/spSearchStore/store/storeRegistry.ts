@@ -9,6 +9,7 @@ import {
   setStateSnapshotHandler,
   setStateSnapshotLoader
 } from './middleware';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
 /**
  * Context instance that holds the store, orchestrator, and services.
@@ -22,16 +23,32 @@ interface ISearchContext {
 }
 
 /**
- * Global store registry — maps searchContextId to context instances.
- * Web parts sharing the same searchContextId share the same store.
+ * Window-backed global singletons for the store registry.
+ *
+ * SPFx bundles each web part as a separate webpack entry. Webpack aliases
+ * (e.g. @store/*) cause this module to be duplicated into every web part
+ * bundle, each with its own module-scoped variables. By storing the Maps
+ * on `window`, ALL web part bundles share the same context instances.
  */
-const contextMap: Map<string, ISearchContext> = new Map();
+const CONTEXT_MAP_KEY = '__sp_search_context_map__';
+const INIT_PROMISES_KEY = '__sp_search_init_promises__';
 
-/**
- * In-flight initialization promises — prevents race conditions when
- * multiple web parts call initializeSearchContext concurrently.
- */
-const initPromises: Map<string, Promise<void>> = new Map();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _win = window as any;
+
+function getContextMap(): Map<string, ISearchContext> {
+  if (!_win[CONTEXT_MAP_KEY]) {
+    _win[CONTEXT_MAP_KEY] = new Map();
+  }
+  return _win[CONTEXT_MAP_KEY];
+}
+
+function getInitPromises(): Map<string, Promise<void>> {
+  if (!_win[INIT_PROMISES_KEY]) {
+    _win[INIT_PROMISES_KEY] = new Map();
+  }
+  return _win[INIT_PROMISES_KEY];
+}
 
 /**
  * Get or create a store for the given search context ID.
@@ -53,7 +70,7 @@ export function getOrchestrator(searchContextId: string): SearchOrchestrator {
  * Returns undefined if initializeSearchContext has not been called.
  */
 export function getManagerService(searchContextId: string): SearchManagerService | undefined {
-  const context = contextMap.get(searchContextId);
+  const context = getContextMap().get(searchContextId);
   return context?.managerService;
 }
 
@@ -68,31 +85,50 @@ export function getManagerService(searchContextId: string): SearchManagerService
  * multiple web parts sharing the same context call this concurrently.
  *
  * @param searchContextId - The shared context ID
+ * @param spfxContext - SPFx web part context (needed to initialize SPContext in the library bundle)
  */
 export async function initializeSearchContext(
-  searchContextId: string
+  searchContextId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  spfxContext?: any
 ): Promise<void> {
   const context = getOrCreateContext(searchContextId);
 
+  // Initialize SPContext in the library's own webpack bundle.
+  // Each web part bundle has its own copy of SPContext (due to webpack entry-point
+  // duplication). The library's providers/services import SPContext from the library
+  // bundle, which is a SEPARATE instance from the web part bundles. Without this
+  // call, the library's SPContext stays uninitialized and throws at runtime.
+  // SPContext.basic() is idempotent — second call returns existing context.
+  if (spfxContext && !SPContext.isReady()) {
+    await SPContext.basic(spfxContext, 'SpSearchStore');
+  }
+
   // Skip if already initialized
   if (context.isInitialized) {
+    console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") SKIPPED (already initialized)');
     return;
   }
 
+  const promises = getInitPromises();
+
   // If initialization is already in-flight, await the existing promise
-  const existing = initPromises.get(searchContextId);
+  const existing = promises.get(searchContextId);
   if (existing) {
+    console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") AWAITING in-flight promise');
     return existing;
   }
 
+  console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") STARTING initialization');
+
   // Create and start the initialization promise
   const promise = _doInitializeContext(searchContextId, context);
-  initPromises.set(searchContextId, promise);
+  promises.set(searchContextId, promise);
 
   try {
     await promise;
   } finally {
-    initPromises.delete(searchContextId);
+    promises.delete(searchContextId);
   }
 }
 
@@ -149,8 +185,10 @@ async function _doInitializeContext(
  * Get or create a context for the given search context ID.
  */
 function getOrCreateContext(searchContextId: string): ISearchContext {
-  let context = contextMap.get(searchContextId);
+  const map = getContextMap();
+  let context = map.get(searchContextId);
   if (!context) {
+    console.log('[SP Search] v1.0.5 — Creating NEW context for "' + searchContextId + '" (map size: ' + map.size + ')');
     const registries = createRegistryContainer();
     const store = createSearchStore(registries);
     const orchestrator = new SearchOrchestrator(store);
@@ -161,7 +199,9 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
       urlSyncUnsubscribe: undefined,
       isInitialized: false,
     };
-    contextMap.set(searchContextId, context);
+    map.set(searchContextId, context);
+  } else {
+    console.log('[SP Search] v1.0.5 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
   }
   return context;
 }
@@ -171,7 +211,8 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
  * Call this when all web parts using this context are unmounted.
  */
 export function disposeStore(searchContextId: string): void {
-  const context = contextMap.get(searchContextId);
+  const map = getContextMap();
+  const context = map.get(searchContextId);
   if (context) {
     // Tear down URL sync subscription (removes popstate listener + debounce timers)
     if (context.urlSyncUnsubscribe) {
@@ -180,7 +221,7 @@ export function disposeStore(searchContextId: string): void {
     }
     context.orchestrator.stop();
     context.store.getState().dispose();
-    contextMap.delete(searchContextId);
+    map.delete(searchContextId);
   }
 }
 
@@ -188,5 +229,5 @@ export function disposeStore(searchContextId: string): void {
  * Check if a store exists for the given search context ID.
  */
 export function hasStore(searchContextId: string): boolean {
-  return contextMap.has(searchContextId);
+  return getContextMap().has(searchContextId);
 }

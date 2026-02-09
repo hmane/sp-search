@@ -18,5 +18,11 @@ export interface IVerticalDefinition {
   filterConfig?: IFilterConfig[];
   /** Azure AD security group IDs for audience targeting */
   audienceGroups?: string[];
+  /** If true, clicking the tab navigates to linkUrl instead of filtering */
+  isLink?: boolean;
+  /** URL to navigate to when isLink is true */
+  linkUrl?: string;
+  /** How to open the link: current tab or new tab */
+  openBehavior?: 'currentTab' | 'newTab';
   sortOrder: number;
 }

@@ -24,6 +24,10 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterSortByColumn: string;
   FilterSortByCount: string;
   FilterSortByName: string;
+  FilterSortDirectionColumn: string;
+  FilterSortDescending: string;
+  FilterSortAscending: string;
+  FilterMultiValuesColumn: string;
   ApplyModeLabel: string;
   ApplyModeInstant: string;
   ApplyModeManual: string;

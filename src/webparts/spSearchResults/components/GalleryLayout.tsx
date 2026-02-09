@@ -2,7 +2,10 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { IContextualMenuProps, IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
+import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import { ISearchResult } from '@interfaces/index';
+import { formatFileSize } from './documentTitleUtils';
+import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
 export interface IGalleryLayoutProps {
@@ -12,43 +15,11 @@ export interface IGalleryLayoutProps {
 }
 
 /**
- * Maps a file extension to a Fluent UI icon name.
- */
-function getFileTypeIcon(fileType: string): string {
-  const ft: string = (fileType || '').toLowerCase();
-  switch (ft) {
-    case 'jpg': case 'jpeg': case 'png': case 'gif': case 'bmp': case 'svg': case 'webp': return 'FileImage';
-    case 'mp4': case 'avi': case 'mov': case 'wmv': case 'webm': return 'Video';
-    case 'pdf': return 'PDF';
-    case 'docx': case 'doc': return 'WordDocument';
-    case 'xlsx': case 'xls': return 'ExcelDocument';
-    case 'pptx': case 'ppt': return 'PowerPointDocument';
-    default: return 'Page';
-  }
-}
-
-/**
  * Determines if a file type is an image.
  */
 function isImageType(fileType: string): boolean {
   const ft: string = (fileType || '').toLowerCase();
   return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].indexOf(ft) >= 0;
-}
-
-/**
- * Formats a file size in bytes into a human-readable string.
- */
-function formatFileSize(bytes: number): string {
-  if (!bytes || bytes <= 0) {
-    return '';
-  }
-  if (bytes < 1024) {
-    return bytes + ' B';
-  }
-  if (bytes < 1048576) {
-    return Math.round(bytes / 1024) + ' KB';
-  }
-  return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
 /**
@@ -147,7 +118,7 @@ const GalleryItem: React.FC<{
           />
         ) : (
           <div className={styles.galleryThumbnailFallback}>
-            <Icon iconName={getFileTypeIcon(item.fileType)} style={{ fontSize: 48 }} />
+            <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.large} />
           </div>
         )}
         {/* Hover overlay */}
@@ -159,19 +130,21 @@ const GalleryItem: React.FC<{
       {/* Info bar */}
       <div className={styles.galleryInfo}>
         <div className={styles.galleryTitle} title={item.title}>
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e: React.MouseEvent): void => {
-              e.stopPropagation();
-              if (onItemClick) {
-                onItemClick(item, position);
-              }
-            }}
-          >
-            {item.title}
-          </a>
+          <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick}>
+            {(handleClick): React.ReactNode => (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e: React.MouseEvent): void => {
+                  e.stopPropagation();
+                  handleClick(e);
+                }}
+              >
+                {item.title}
+              </a>
+            )}
+          </DocumentTitleHoverCard>
         </div>
         <div className={styles.galleryMeta}>
           {item.fileType && (

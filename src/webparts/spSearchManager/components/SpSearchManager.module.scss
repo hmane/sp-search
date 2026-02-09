@@ -13,14 +13,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
+  padding: 14px 0;
   margin-bottom: 4px;
   border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
 }
 
 .headerTitle {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 28px;
   color: "[theme:bodyText, default: #323130]";
   margin: 0;
@@ -95,12 +95,14 @@
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
   position: relative;
 
   &:hover {
     background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
     .itemActions {
       opacity: 1;
@@ -110,16 +112,17 @@
 
 .savedSearchIcon {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 12px;
   font-size: 16px;
   color: "[theme:themePrimary, default: #0078d4]";
-  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border-radius: 4px;
+  background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+  background-color: var(--themeLighterAlt, #eff6fc);
+  border-radius: 8px;
 }
 
 .savedSearchBody {
@@ -159,12 +162,13 @@
 
 .categoryBadge {
   display: inline-block;
-  padding: 1px 8px;
+  padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
   border-radius: 10px;
-  background-color: "[theme:neutralLight, default: #edebe9]";
-  color: "[theme:bodySubtext, default: #605e5c]";
+  background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+  background-color: var(--themeLighterAlt, #eff6fc);
+  color: "[theme:themeDarkAlt, default: #106ebe]";
   white-space: nowrap;
 }
 
@@ -528,12 +532,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background-color: "[theme:successBackground, default: #dff6dd]";
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 13px;
   color: "[theme:bodyText, default: #323130]";
   margin-bottom: 8px;
+  animation: successFadeIn 200ms ease;
+}
+
+@keyframes successFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .successIcon {

@@ -2,6 +2,13 @@ define([], function() {
   return {
     "PropertyPaneDescription": "Configure the search box behavior, suggestions, and scope selector.",
     "BasicGroupName": "Search Box Settings",
+    "ConnectionGroupName": "Connection",
+    "InputGroupName": "Input",
+    "QueryGroupName": "Query",
+    "NavigationGroupName": "Navigation",
+    "FeaturesGroupName": "Features",
+    "SearchBoxPageHeader": "Configure search box input, query, and navigation settings.",
+    "FeaturesPageHeader": "Enable or disable search box features.",
     "SearchContextIdFieldLabel": "Search Context ID",
     "SearchContextIdFieldDescription": "Web parts with the same context ID share search state. Leave blank for 'default'.",
     "PlaceholderFieldLabel": "Placeholder text",
@@ -10,9 +17,16 @@ define([], function() {
     "SearchBehaviorOnEnter": "On Enter key",
     "SearchBehaviorOnButton": "On button click",
     "SearchBehaviorBoth": "Both Enter key and button",
+    "QueryInputTransformationLabel": "Query transformation",
+    "QueryInputTransformationDescription": "Template applied to the user input before executing the search. Use {searchTerms} as the placeholder.",
+    "SearchInNewPageLabel": "Redirect to another page on search",
+    "NewPageUrlLabel": "Target page URL",
+    "NewPageUrlDescription": "URL of the page to navigate to (e.g., /sites/search/SitePages/Results.aspx). The query will be appended as ?q=...",
     "EnableScopeSelectorFieldLabel": "Enable scope selector",
     "EnableSuggestionsFieldLabel": "Enable search suggestions",
     "EnableQueryBuilderFieldLabel": "Enable visual query builder",
-    "EnableSearchManagerFieldLabel": "Enable saved searches button"
+    "EnableSearchManagerFieldLabel": "Enable saved searches button",
+    "ToggleOnText": "On",
+    "ToggleOffText": "Off"
   }
 });

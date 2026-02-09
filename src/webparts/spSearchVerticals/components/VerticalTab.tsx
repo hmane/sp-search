@@ -10,6 +10,9 @@ export interface IVerticalTabProps {
   isActive: boolean;
   showCounts: boolean;
   isDimmed: boolean;
+  isLink: boolean;
+  linkUrl: string | undefined;
+  openBehavior: 'currentTab' | 'newTab' | undefined;
   onClick: (key: string) => void;
 }
 
@@ -22,6 +25,9 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
     isActive,
     showCounts,
     isDimmed,
+    isLink,
+    linkUrl,
+    openBehavior,
     onClick
   } = props;
 
@@ -50,6 +56,36 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
 
   const hasCount: boolean = showCounts && count !== undefined;
 
+  const tabContent = (
+    <React.Fragment>
+      {iconName && (
+        <span className={styles.tabIcon}>
+          <Icon iconName={iconName} />
+        </span>
+      )}
+      <span className={styles.tabLabel}>{label}</span>
+      {hasCount && (
+        <span className={styles.countBadge}>{String(count)}</span>
+      )}
+    </React.Fragment>
+  );
+
+  // Render as <a> for link tabs
+  if (isLink && linkUrl) {
+    return (
+      <a
+        className={classNames.join(' ')}
+        href={linkUrl}
+        target={openBehavior === 'newTab' ? '_blank' : '_self'}
+        rel={openBehavior === 'newTab' ? 'noopener noreferrer' : undefined}
+        aria-label={label}
+        data-vertical-key={verticalKey}
+      >
+        {tabContent}
+      </a>
+    );
+  }
+
   return (
     <button
       className={classNames.join(' ')}
@@ -61,15 +97,7 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
       onKeyDown={handleKeyDown}
       data-vertical-key={verticalKey}
     >
-      {iconName && (
-        <span className={styles.tabIcon}>
-          <Icon iconName={iconName} />
-        </span>
-      )}
-      <span className={styles.tabLabel}>{label}</span>
-      {hasCount && (
-        <span className={styles.countBadge}>{String(count)}</span>
-      )}
+      {tabContent}
     </button>
   );
 };

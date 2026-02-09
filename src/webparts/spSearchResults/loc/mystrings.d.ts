@@ -1,17 +1,50 @@
 declare interface ISpSearchResultsWebPartStrings {
   PropertyPaneDescription: string;
   DataGroupName: string;
-  DisplayGroupName: string;
+  QuerySettingsGroupName: string;
+  PaginationGroupName: string;
+  LayoutGroupName: string;
+  SortGroupName: string;
+  GeneralGroupName: string;
+  AboutGroupName: string;
   SearchContextIdLabel: string;
   SearchContextIdDescription: string;
   QueryTemplateLabel: string;
   QueryTemplateDescription: string;
+  ResultSourceIdLabel: string;
+  ResultSourceIdDescription: string;
   SelectedPropertiesLabel: string;
   SelectedPropertiesDescription: string;
+  SelectedPropertiesPanelHeader: string;
+  SelectedPropertiesManageBtn: string;
+  SelectedPropertyColumn: string;
+  SelectedPropertyAliasColumn: string;
+  RefinementFiltersLabel: string;
+  RefinementFiltersDescription: string;
+  RefinementFiltersPanelHeader: string;
+  RefinementFiltersManageBtn: string;
+  RefinementFilterPropertyColumn: string;
+  RefinementFilterOperatorColumn: string;
+  RefinementFilterValueColumn: string;
+  FqlOperatorEquals: string;
+  FqlOperatorContains: string;
+  FqlOperatorRange: string;
+  FqlOperatorBeginsWith: string;
+  CollapseSpecificationLabel: string;
+  CollapseSpecificationDescription: string;
+  EnableQueryRulesLabel: string;
+  TrimDuplicatesLabel: string;
   PageSizeLabel: string;
+  ShowPagingLabel: string;
+  PageRangeLabel: string;
+  PageRangeDescription: string;
   DefaultLayoutLabel: string;
   ListLayoutText: string;
   CompactLayoutText: string;
+  GridLayoutText: string;
+  CardLayoutText: string;
+  PeopleLayoutText: string;
+  GalleryLayoutText: string;
   ShowResultCountLabel: string;
   ShowSortDropdownLabel: string;
   SortFieldLabel: string;
@@ -25,6 +58,9 @@ declare interface ISpSearchResultsWebPartStrings {
   EnableSelectionLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
+  DataSourcePageHeader: string;
+  DisplayPageHeader: string;
+  AboutPageHeader: string;
 }
 
 declare module 'SpSearchResultsWebPartStrings' {

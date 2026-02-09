@@ -49,9 +49,12 @@ function useStoreState<T>(
     // Set initial state
     setState(selector(store.getState()));
 
-    // Subscribe to changes
+    // Subscribe to changes — only update if selector returns a new reference
     const unsubscribe: () => void = store.subscribe(function (newState: ISearchStore): void {
-      setState(selector(newState));
+      const nextValue: T = selector(newState);
+      setState(function (prev: T | undefined): T | undefined {
+        return prev === nextValue ? prev : nextValue;
+      });
     });
 
     return unsubscribe;

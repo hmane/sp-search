@@ -38,7 +38,7 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       SelectProperties: query.selectedProperties,
       TrimDuplicates: query.trimDuplicates !== undefined ? query.trimDuplicates : true,
       ClientType: 'SPSearch',
-      EnableQueryRules: true,
+      EnableQueryRules: query.enableQueryRules !== undefined ? query.enableQueryRules : true,
     };
 
     // Add refiners
@@ -46,8 +46,17 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       searchRequest.Refiners = query.refiners.join(',');
     }
 
-    // Add refinement filters (active filter values)
+    // Build refinement filters from active user filters
     const refinementFilters = this._buildRefinementFilters(query.filters);
+
+    // Merge persistent admin-configured refinement filters
+    if (query.refinementFilters) {
+      const persistent = query.refinementFilters.split(',').map(function (f: string): string { return f.trim(); }).filter(Boolean);
+      for (let i = 0; i < persistent.length; i++) {
+        refinementFilters.push(persistent[i]);
+      }
+    }
+
     if (refinementFilters.length > 0) {
       searchRequest.RefinementFilters = refinementFilters;
     }
@@ -73,6 +82,11 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     // Check abort before making the API call
     if (signal.aborted) {
       throw new DOMException('Aborted', 'AbortError');
+    }
+
+    // Guard: ensure SPContext is initialized (may not be ready if library bundle loaded first)
+    if (!SPContext.isReady()) {
+      throw new Error('SPContext not initialized — search provider waiting for web part initialization');
     }
 
     // Execute search

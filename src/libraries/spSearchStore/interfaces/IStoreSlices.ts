@@ -61,6 +61,17 @@ export interface IResultSlice {
   promotedResults: IPromotedResultItem[];
   isLoading: boolean;
   error: string | undefined;
+  /** Search configuration — synced from web part property pane */
+  resultSourceId: string;
+  enableQueryRules: boolean;
+  trimDuplicates: boolean;
+  /** Persistent FQL refinement filters (always applied, separate from user filters) */
+  refinementFilters: string;
+  collapseSpecification: string;
+  showPaging: boolean;
+  pageRange: number;
+  /** Additional managed properties to retrieve (merged with defaults) */
+  selectedProperties: string;
   // Actions
   setResults: (items: ISearchResult[], total: number) => void;
   setPage: (page: number) => void;

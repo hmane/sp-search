@@ -1,59 +1,15 @@
 import * as React from 'react';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const DxDataGrid: any = React.lazy(() => import('devextreme-react/data-grid') as any);
 import { ISearchResult } from '@interfaces/index';
+import { formatShortDate, formatFileSize } from './documentTitleUtils';
+import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridLayoutProps {
   items: ISearchResult[];
-  enableSelection: boolean;
-  selectedKeys: string[];
-  onToggleSelection: (key: string, multiSelect: boolean) => void;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
-}
-
-// ─── Lazy-loaded DevExtreme DataGrid ─────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DataGrid: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'DevExtremeDataGrid' */ 'devextreme-react/data-grid') as any,
-  { errorMessage: 'Failed to load data grid' }
-);
-
-/**
- * Formats an ISO date string into a short locale-friendly format.
- */
-function formatDate(isoDate: string): string {
-  if (!isoDate) {
-    return '';
-  }
-  try {
-    const d: Date = new Date(isoDate);
-    if (isNaN(d.getTime())) {
-      return '';
-    }
-    const month: number = d.getMonth() + 1;
-    const day: number = d.getDate();
-    const year: number = d.getFullYear();
-    return month + '/' + day + '/' + year;
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Formats a file size in bytes into a human-readable string.
- */
-function formatFileSize(bytes: number): string {
-  if (!bytes || bytes <= 0) {
-    return '';
-  }
-  if (bytes < 1024) {
-    return bytes + ' B';
-  }
-  if (bytes < 1048576) {
-    return Math.round(bytes / 1024) + ' KB';
-  }
-  return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
 /**
@@ -74,7 +30,7 @@ function transformForGrid(items: ISearchResult[]): Array<{
     title: item.title,
     url: item.url,
     author: item.author?.displayText || '',
-    modified: formatDate(item.modified),
+    modified: formatShortDate(item.modified),
     fileType: (item.fileType || '').toUpperCase(),
     fileSize: formatFileSize(item.fileSize),
     siteName: item.siteName || ''
@@ -88,7 +44,7 @@ function transformForGrid(items: ISearchResult[]): Array<{
  * DevExtreme DataGrid is lazy-loaded to minimize initial bundle size.
  */
 const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
-  const { items, enableSelection, selectedKeys, onToggleSelection, onPreviewItem, onItemClick } = props;
+  const { items, onPreviewItem, onItemClick } = props;
 
   const gridData = React.useMemo(() => transformForGrid(items), [items]);
 
@@ -111,66 +67,66 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
     }
   }, [items, onItemClick, onPreviewItem]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSelectionChanged = React.useCallback((e: any): void => {
-    if (!enableSelection || !e.selectedRowKeys || e.selectedRowKeys.length === 0) {
-      return;
-    }
-    // For now, handle single selections; multi-select can be added later
-    const selectedKey = String(e.selectedRowKeys[0]);
-    if (selectedKey) {
-      onToggleSelection(selectedKey, false);
-    }
-  }, [enableSelection, onToggleSelection]);
-
-  // Custom cell render for title column with link
+  // Custom cell render for title column with hover card + link
   const titleCellRender = React.useCallback((cellData: { value: string; data: { key: string; url: string }; rowIndex?: number }): React.ReactElement => {
-    const handleLinkClick = (e: React.MouseEvent): void => {
-      e.stopPropagation(); // Prevent row click from also firing
+    const matchingItem = items.find((item: ISearchResult) => item.key === cellData.data.key);
+    const position = (cellData.rowIndex !== undefined ? cellData.rowIndex : 0) + 1;
 
-      // Log the click for analytics parity with other layouts
-      if (onItemClick) {
-        const matchingItem = items.find((item: ISearchResult) => item.key === cellData.data.key);
-        if (matchingItem) {
-          const position = (cellData.rowIndex !== undefined ? cellData.rowIndex : 0) + 1;
-          onItemClick(matchingItem, position);
-        }
-      }
-    };
+    if (!matchingItem) {
+      return (
+        <a href={cellData.data.url} target="_blank" rel="noopener noreferrer" className={styles.gridTitleLink}>
+          {cellData.value}
+        </a>
+      );
+    }
 
     return (
-      <a
-        href={cellData.data.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={styles.gridTitleLink}
-        onClick={handleLinkClick}
-      >
-        {cellData.value}
-      </a>
+      <DocumentTitleHoverCard item={matchingItem} position={position} onItemClick={onItemClick} hostDisplay="block">
+        {(handleClick): React.ReactNode => (
+          <a
+            href={cellData.data.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.gridTitleLink}
+            onClick={(e: React.MouseEvent): void => {
+              e.stopPropagation();
+              handleClick(e);
+            }}
+          >
+            {cellData.value}
+          </a>
+        )}
+      </DocumentTitleHoverCard>
     );
   }, [items, onItemClick]);
 
+  const columns = React.useMemo(() => [
+    { dataField: 'title', caption: 'Name', cellRender: titleCellRender },
+    { dataField: 'author', caption: 'Author', width: 160 },
+    { dataField: 'modified', caption: 'Modified', width: 110 },
+    { dataField: 'fileType', caption: 'Type', width: 70 },
+    { dataField: 'fileSize', caption: 'Size', width: 80 },
+    { dataField: 'siteName', caption: 'Site', width: 150 }
+  ], [titleCellRender]);
+
   return (
     <div className={styles.dataGridContainer}>
-      <DataGrid
-        dataSource={gridData}
-        keyExpr="key"
-        showBorders={true}
-        columnAutoWidth={true}
-        rowAlternationEnabled={true}
-        hoverStateEnabled={true}
-        onRowClick={handleRowClick}
-        onSelectionChanged={handleSelectionChanged}
-        selection={enableSelection ? { mode: 'multiple', showCheckBoxesMode: 'always' } : undefined}
-        selectedRowKeys={enableSelection ? selectedKeys : undefined}
-        height="auto"
-      >
-        {/* Title column with custom render */}
-        <div data-options="dxTemplate" data-name="titleTemplate">
-          {titleCellRender}
-        </div>
-      </DataGrid>
+      <React.Suspense fallback={<div className={styles.dataGridLoading}>Loading data grid...</div>}>
+        <DxDataGrid
+          dataSource={gridData}
+          keyExpr="key"
+          columns={columns}
+          showBorders={false}
+          showColumnLines={false}
+          showRowLines={true}
+          columnAutoWidth={false}
+          rowAlternationEnabled={true}
+          hoverStateEnabled={true}
+          onRowClick={handleRowClick}
+          height="auto"
+          wordWrapEnabled={false}
+        />
+      </React.Suspense>
     </div>
   );
 };
