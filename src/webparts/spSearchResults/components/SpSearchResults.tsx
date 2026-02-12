@@ -77,6 +77,7 @@ function useStoreState(
   isSearchManagerOpen: boolean;
   activeFilters: IActiveFilter[];
   filterConfig: IFilterConfig[];
+  querySuggestion: string | undefined;
   showPaging: boolean;
   pageRange: number;
 } {
@@ -97,6 +98,7 @@ function useStoreState(
     isSearchManagerOpen: false,
     activeFilters: [] as IActiveFilter[],
     filterConfig: [] as IFilterConfig[],
+    querySuggestion: undefined as string | undefined,
     showPaging: true,
     pageRange: 5
   }), []);
@@ -116,6 +118,7 @@ function useStoreState(
     isSearchManagerOpen: boolean;
     activeFilters: IActiveFilter[];
     filterConfig: IFilterConfig[];
+    querySuggestion: string | undefined;
     showPaging: boolean;
     pageRange: number;
   } => {
@@ -138,6 +141,7 @@ function useStoreState(
       isSearchManagerOpen: state.isSearchManagerOpen,
       activeFilters: state.activeFilters,
       filterConfig: state.filterConfig,
+      querySuggestion: state.querySuggestion,
       showPaging: state.showPaging,
       pageRange: state.pageRange
     };
@@ -168,6 +172,7 @@ function useStoreState(
           prev.isSearchManagerOpen === next.isSearchManagerOpen &&
           prev.activeFilters === next.activeFilters &&
           prev.filterConfig === next.filterConfig &&
+          prev.querySuggestion === next.querySuggestion &&
           prev.showPaging === next.showPaging &&
           prev.pageRange === next.pageRange
         ) {
@@ -320,6 +325,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     isSearchManagerOpen,
     activeFilters,
     filterConfig,
+    querySuggestion,
     showPaging,
     pageRange
   } = useStoreState(props);
@@ -376,6 +382,20 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store.getState().clearAllFilters();
   }, [store]);
 
+  // ─── Reset handler — navigate to base page without params ─
+  const handleReset = React.useCallback(function (): void {
+    const url = new URL(window.location.href);
+    url.search = '';
+    window.location.href = url.toString();
+  }, []);
+
+  // ─── "Did you mean" handler ────────────────────────────────
+  const handleQuerySuggestionClick = React.useCallback(function (): void {
+    if (querySuggestion) {
+      store.getState().setQueryText(querySuggestion);
+    }
+  }, [store, querySuggestion]);
+
   // ─── Search Manager panel dismiss ─────────────────────────
   const handleDismissSearchManager = React.useCallback((): void => {
     store.getState().toggleSearchManager();
@@ -405,7 +425,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           <PeopleLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
         );
 
-      case 'datagrid':
+      case 'grid':
         return (
           <DataGridLayout
             items={items}
@@ -447,6 +467,21 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           </div>
         )}
 
+        {/* "Did you mean" suggestion */}
+        {querySuggestion && !isLoading && (
+          <div className={styles.querySuggestion} role="status">
+            <Icon iconName="Lightbulb" className={styles.querySuggestionIcon} />
+            <span>Did you mean: </span>
+            <button
+              className={styles.querySuggestionLink}
+              onClick={handleQuerySuggestionClick}
+              type="button"
+            >
+              {querySuggestion}
+            </button>
+          </div>
+        )}
+
         {/* Promoted results */}
         <PromotedResultsSection items={promotedResults} />
 
@@ -470,6 +505,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           filterConfig={filterConfig}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
+          onReset={handleReset}
         />
 
         {/* Active layout */}

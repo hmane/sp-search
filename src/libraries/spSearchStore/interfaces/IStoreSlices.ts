@@ -59,6 +59,8 @@ export interface IResultSlice {
   /** Admin-configured sort options for the sort dropdown */
   sortableProperties: ISortableProperty[];
   promotedResults: IPromotedResultItem[];
+  /** "Did you mean..." suggestion from the search API (QueryModification / SpellingSuggestion) */
+  querySuggestion: string | undefined;
   isLoading: boolean;
   error: string | undefined;
   /** Search configuration — synced from web part property pane */
@@ -77,6 +79,7 @@ export interface IResultSlice {
   setPage: (page: number) => void;
   setSort: (sort: ISortField) => void;
   setPromotedResults: (results: IPromotedResultItem[]) => void;
+  setQuerySuggestion: (suggestion: string | undefined) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | undefined) => void;
 }

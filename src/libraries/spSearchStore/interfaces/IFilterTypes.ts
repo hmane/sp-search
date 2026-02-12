@@ -5,8 +5,10 @@
 export interface IActiveFilter {
   /** Managed property name, e.g. "RefinableString00" */
   filterName: string;
-  /** Raw refinement token value */
+  /** Raw refinement token value (used for query) */
   value: string;
+  /** Human-readable display text (from IRefinerValue.name) */
+  displayValue?: string;
   operator: 'AND' | 'OR';
 }
 

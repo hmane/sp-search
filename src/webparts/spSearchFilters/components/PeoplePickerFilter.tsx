@@ -52,10 +52,13 @@ const PeoplePickerFilter: React.FC<IPeoplePickerFilterProps> = (props: IPeoplePi
 
   function handleChange(items: any[]): void {
     const nextClaims: string[] = [];
+    const claimDisplayMap = new Map<string, string>();
     for (let i = 0; i < items.length; i++) {
       const claim = extractClaimFromItem(items[i]);
       if (claim) {
         nextClaims.push(claim);
+        const displayName = items[i].text || items[i].secondaryText || extractEmailFromClaim(claim);
+        claimDisplayMap.set(claim, displayName);
       }
     }
 
@@ -64,6 +67,7 @@ const PeoplePickerFilter: React.FC<IPeoplePickerFilterProps> = (props: IPeoplePi
         onToggleRefiner({
           filterName,
           value: nextClaims[i],
+          displayValue: claimDisplayMap.get(nextClaims[i]) || undefined,
           operator,
         });
       }

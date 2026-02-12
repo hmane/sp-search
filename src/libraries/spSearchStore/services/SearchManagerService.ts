@@ -1,5 +1,6 @@
 import 'spfx-toolkit/lib/utilities/context/pnpImports/lists';
 import 'spfx-toolkit/lib/utilities/context/pnpImports/security';
+import { CacheNever } from '@pnp/queryable';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { createSPExtractor } from 'spfx-toolkit/lib/utilities/listItemHelper';
 import { BatchBuilder } from 'spfx-toolkit/lib/utilities/batchBuilder';
@@ -277,31 +278,59 @@ export class SearchManagerService {
    * Load all saved searches for the current user (owned + shared with me).
    */
   public async loadSavedSearches(): Promise<ISavedSearch[]> {
+    if (!this.isReady) {
+      console.warn('[SP Search] loadSavedSearches skipped — service not ready (userId=' + this._currentUserId + ')');
+      return [];
+    }
+
     try {
-      const selectFields = [
+      // Select fields: start with core fields + Author expand.
+      // SharedWith expand is attempted separately to prevent failures
+      // (e.g., UserMulti field not indexed, misconfigured, or empty)
+      // from blocking the entire query.
+      const coreSelectFields = [
         'Id', 'Title', 'QueryText', 'SearchState', 'SearchUrl',
         'EntryType', 'Category', 'ResultCount', 'LastUsed', 'Created',
-        'Author/Id', 'Author/Title', 'Author/EMail',
-        'SharedWith/Id', 'SharedWith/Title', 'SharedWith/EMail'
+        'Author/Id', 'Author/Title', 'Author/EMail'
       ].join(',');
 
-      // Query 1: Items owned by current user
-      const ownedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
-        .items
-        .select(selectFields)
-        .expand('Author', 'SharedWith')
-        .filter(`Author/Id eq ${this._currentUserId}`)
-        .orderBy('LastUsed', false)
-        .top(200)();
+      const fullSelectFields = coreSelectFields + ',SharedWith/Id,SharedWith/Title,SharedWith/EMail';
 
-      // Query 2: Items shared with current user
+      // Query 1: Items owned by current user
+      // Try with SharedWith expand first; fall back without if it fails
+      // CacheNever() bypasses any PnPjs caching behavior to ensure fresh data
+      let ownedItems: Array<Record<string, unknown>>;
+      try {
+        ownedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+          .items
+          .using(CacheNever())
+          .select(fullSelectFields)
+          .expand('Author', 'SharedWith')
+          .filter('Author/Id eq ' + this._currentUserId)
+          .orderBy('LastUsed', false)
+          .top(200)() as Array<Record<string, unknown>>;
+      } catch {
+        // SharedWith expand failed — retry without it
+        console.warn('[SP Search] loadSavedSearches: SharedWith expand failed on owned query, retrying without');
+        ownedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+          .items
+          .using(CacheNever())
+          .select(coreSelectFields)
+          .expand('Author')
+          .filter('Author/Id eq ' + this._currentUserId)
+          .orderBy('LastUsed', false)
+          .top(200)() as Array<Record<string, unknown>>;
+      }
+
+      // Query 2: Items shared with current user (non-fatal)
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
         sharedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
           .items
-          .select(selectFields)
+          .using(CacheNever())
+          .select(fullSelectFields)
           .expand('Author', 'SharedWith')
-          .filter(`SharedWith/Id eq ${this._currentUserId}`)
+          .filter('SharedWith/Id eq ' + this._currentUserId)
           .orderBy('LastUsed', false)
           .top(100)() as Array<Record<string, unknown>>;
       } catch {
@@ -309,7 +338,7 @@ export class SearchManagerService {
       }
 
       // Merge and deduplicate by Id
-      const allItems = ownedItems as Array<Record<string, unknown>>;
+      const allItems = ownedItems;
       const seenIds = new Set<number>();
       for (let i = 0; i < allItems.length; i++) {
         seenIds.add(allItems[i].Id as number);
@@ -335,10 +364,10 @@ export class SearchManagerService {
         return dateB.getTime() - dateA.getTime();
       });
 
-      SPContext.logger.info('SearchManagerService: Loaded saved searches', { count: filteredItems.length });
+      console.log('[SP Search] loadSavedSearches: loaded ' + filteredItems.length + ' items');
       return filteredItems.map(mapToSavedSearch);
     } catch (error) {
-      SPContext.logger.error('SearchManagerService: Failed to load saved searches', error);
+      console.error('[SP Search] loadSavedSearches FAILED:', error);
       return [];
     }
   }
@@ -418,15 +447,22 @@ export class SearchManagerService {
 
   /**
    * Delete a saved search.
+   * Uses recycle() (send to recycle bin) instead of delete() for more
+   * reliable behavior in PnPjs v3 — avoids X-HTTP-Method header issues.
    */
   public async deleteSavedSearch(id: number): Promise<void> {
     if (!this.isReady) {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
     }
-    await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
-      .items.getById(id).delete();
+    if (id <= 0) {
+      throw new Error('Invalid item ID: ' + id);
+    }
 
-    SPContext.logger.info('SearchManagerService: Deleted saved search', { id });
+    console.log('[SP Search] deleteSavedSearch: recycling item id=' + id + ' from list=' + SAVED_QUERIES_LIST);
+    await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+      .items.getById(id).recycle();
+
+    console.log('[SP Search] deleteSavedSearch: item id=' + id + ' recycled successfully');
   }
 
   // ─── Search History ────────────────────────────────────────
@@ -438,6 +474,11 @@ export class SearchManagerService {
    * list view threshold issues on lists exceeding 5,000 items.
    */
   public async loadHistory(maxItems: number = 50): Promise<ISearchHistoryEntry[]> {
+    if (!this.isReady) {
+      console.warn('[SP Search] loadHistory skipped — service not ready (userId=' + this._currentUserId + ')');
+      return [];
+    }
+
     try {
       const camlQuery = `
         <View>
@@ -471,9 +512,10 @@ export class SearchManagerService {
       const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
+      console.log('[SP Search] loadHistory: loaded ' + (items as Array<unknown>).length + ' items');
       return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
     } catch (error) {
-      SPContext.logger.error('SearchManagerService: Failed to load history', error);
+      console.error('[SP Search] loadHistory FAILED:', error);
       return [];
     }
   }
@@ -541,14 +583,14 @@ export class SearchManagerService {
             Scope: scope,
             SearchState: searchState,
             ResultCount: resultCount,
-            ClickedItems: '[]',
             SearchTimestamp: new Date().toISOString(),
           });
         const addedItem = (result as { data?: Record<string, unknown> }).data || result;
         return (addedItem as Record<string, unknown>).Id as number || 0;
       }
-    } catch {
-      // Non-critical — swallow history logging errors
+    } catch (error) {
+      // Non-critical — log but don't throw history errors
+      console.warn('SearchManagerService.logSearch failed:', error);
       return 0;
     }
   }
@@ -597,8 +639,9 @@ export class SearchManagerService {
         .items.getById(historyId).update({
           ClickedItems: JSON.stringify(existing),
         });
-    } catch {
-      // Non-critical — swallow errors
+    } catch (error) {
+      // Non-critical — ClickedItems field may not exist yet
+      console.warn('SearchManagerService.logClickedItem failed:', error);
     }
   }
 
@@ -666,29 +709,53 @@ export class SearchManagerService {
    * Load all collections for the current user (owned + shared with me).
    */
   public async loadCollections(): Promise<ISearchCollection[]> {
+    if (!this.isReady) {
+      console.warn('[SP Search] loadCollections skipped — service not ready (userId=' + this._currentUserId + ')');
+      return [];
+    }
+
     try {
-      const selectFields = [
+      const coreSelectFields = [
         'Id', 'Title', 'ItemUrl', 'ItemTitle', 'ItemMetadata',
         'CollectionName', 'Tags', 'SortOrder', 'Created',
-        'Author/Id', 'Author/Title', 'Author/EMail',
-        'SharedWith/Id', 'SharedWith/Title', 'SharedWith/EMail'
+        'Author/Id', 'Author/Title', 'Author/EMail'
       ].join(',');
 
-      const ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-        .items
-        .select(selectFields)
-        .expand('Author', 'SharedWith')
-        .filter(`Author/Id eq ${this._currentUserId}`)
-        .orderBy('CollectionName', true)
-        .top(500)();
+      const fullSelectFields = coreSelectFields + ',SharedWith/Id,SharedWith/Title,SharedWith/EMail';
 
+      // Query 1: Items owned by current user
+      // Try with SharedWith expand first; fall back without if it fails
+      let ownedItems: Array<Record<string, unknown>>;
+      try {
+        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+          .items
+          .using(CacheNever())
+          .select(fullSelectFields)
+          .expand('Author', 'SharedWith')
+          .filter('Author/Id eq ' + this._currentUserId)
+          .orderBy('CollectionName', true)
+          .top(500)() as Array<Record<string, unknown>>;
+      } catch {
+        console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
+        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+          .items
+          .using(CacheNever())
+          .select(coreSelectFields)
+          .expand('Author')
+          .filter('Author/Id eq ' + this._currentUserId)
+          .orderBy('CollectionName', true)
+          .top(500)() as Array<Record<string, unknown>>;
+      }
+
+      // Query 2: Items shared with current user (non-fatal)
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
         sharedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
           .items
-          .select(selectFields)
+          .using(CacheNever())
+          .select(fullSelectFields)
           .expand('Author', 'SharedWith')
-          .filter(`SharedWith/Id eq ${this._currentUserId}`)
+          .filter('SharedWith/Id eq ' + this._currentUserId)
           .orderBy('CollectionName', true)
           .top(200)() as Array<Record<string, unknown>>;
       } catch {
@@ -696,7 +763,7 @@ export class SearchManagerService {
       }
 
       // Merge and deduplicate by Id
-      const allItems = ownedItems as Array<Record<string, unknown>>;
+      const allItems = ownedItems;
       const seenIds = new Set<number>();
       for (let i = 0; i < allItems.length; i++) {
         seenIds.add(allItems[i].Id as number);
@@ -709,10 +776,10 @@ export class SearchManagerService {
         }
       }
 
-      SPContext.logger.info('SearchManagerService: Loaded collections', { count: allItems.length });
+      console.log('[SP Search] loadCollections: loaded ' + allItems.length + ' items');
       return mapToCollection(allItems);
     } catch (error) {
-      SPContext.logger.error('SearchManagerService: Failed to load collections', error);
+      console.error('[SP Search] loadCollections FAILED:', error);
       return [];
     }
   }
@@ -835,7 +902,7 @@ export class SearchManagerService {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
     }
     await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-      .items.getById(itemId).delete();
+      .items.getById(itemId).recycle();
   }
 
   /**

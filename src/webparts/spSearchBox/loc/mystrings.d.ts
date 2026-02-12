@@ -24,6 +24,7 @@ declare interface ISpSearchBoxWebPartStrings {
   EnableScopeSelectorFieldLabel: string;
   EnableSuggestionsFieldLabel: string;
   EnableQueryBuilderFieldLabel: string;
+  EnableKqlModeFieldLabel: string;
   EnableSearchManagerFieldLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;

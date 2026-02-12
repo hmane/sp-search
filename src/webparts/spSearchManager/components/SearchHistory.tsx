@@ -17,6 +17,7 @@ export interface ISearchHistoryProps {
   service: SearchManagerService;
   history: ISearchHistoryEntry[];
   onDataChanged: () => void;
+  onSearchLoaded?: () => void;
 }
 
 /**
@@ -56,7 +57,7 @@ function formatRelativeTimestamp(date: Date): string {
  * Click to re-execute the search. Includes a "Clear history" button.
  */
 const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
-  const { store, service, history, onDataChanged } = props;
+  const { store, service, history, onDataChanged, onSearchLoaded } = props;
 
   // ─── Local state ──────────────────────────────────────────
   const [showClearDialog, setShowClearDialog] = React.useState<boolean>(false);
@@ -65,65 +66,63 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
   // ─── Handlers ─────────────────────────────────────────────
 
   function handleReExecuteSearch(entry: ISearchHistoryEntry): void {
-    const storeState = store.getState();
-
-    // Try to restore full search state from JSON
+    // Set ALL state atomically via store.setState() so the orchestrator
+    // sees a single change notification and fires ONE search with
+    // complete state (including filters).
     try {
       const savedState: {
         queryText?: string;
-        activeFilters?: Array<{ filterName: string; value: string; operator: 'AND' | 'OR' }>;
+        activeFilters?: Array<{ filterName: string; value: string; displayValue?: string; operator: 'AND' | 'OR' }>;
         currentVerticalKey?: string;
         sort?: { property: string; direction: 'Ascending' | 'Descending' };
         scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
         activeLayoutKey?: string;
       } = JSON.parse(entry.searchState || '{}');
 
-      // Clear existing filters first to avoid stale state
-      storeState.clearAllFilters();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: Record<string, any> = {
+        queryText: savedState.queryText || entry.queryText,
+        activeFilters: savedState.activeFilters || [],
+        currentPage: 1,
+      };
 
-      // Restore query text
-      storeState.setQueryText(savedState.queryText || entry.queryText);
-
-      // Restore filters
-      if (savedState.activeFilters && savedState.activeFilters.length > 0) {
-        for (let i = 0; i < savedState.activeFilters.length; i++) {
-          storeState.setRefiner(savedState.activeFilters[i]);
-        }
-      }
-
-      // Restore vertical
       if (savedState.currentVerticalKey) {
-        storeState.setVertical(savedState.currentVerticalKey);
+        update.currentVerticalKey = savedState.currentVerticalKey;
       } else if (entry.vertical) {
-        storeState.setVertical(entry.vertical);
+        update.currentVerticalKey = entry.vertical;
       }
-
-      // Restore sort
       if (savedState.sort) {
-        storeState.setSort(savedState.sort);
+        update.sort = savedState.sort;
       }
-
-      // Restore scope
       if (savedState.scope) {
-        storeState.setScope(savedState.scope);
+        update.scope = savedState.scope;
       } else if (entry.scope) {
-        storeState.setScope({ id: entry.scope, label: entry.scope });
+        update.scope = { id: entry.scope, label: entry.scope };
       }
-
-      // Restore layout
       if (savedState.activeLayoutKey) {
-        storeState.setLayout(savedState.activeLayoutKey);
+        update.activeLayoutKey = savedState.activeLayoutKey;
       }
+      store.setState(update);
     } catch {
-      // Fallback: just set query text
-      storeState.setQueryText(entry.queryText);
-
+      // Fallback: just set query text atomically
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: Record<string, any> = {
+        queryText: entry.queryText,
+        activeFilters: [],
+        currentPage: 1,
+      };
       if (entry.vertical) {
-        storeState.setVertical(entry.vertical);
+        update.currentVerticalKey = entry.vertical;
       }
       if (entry.scope) {
-        storeState.setScope({ id: entry.scope, label: entry.scope });
+        update.scope = { id: entry.scope, label: entry.scope };
       }
+      store.setState(update);
+    }
+
+    // Notify parent (e.g., close panel in panel mode)
+    if (onSearchLoaded) {
+      onSearchLoaded();
     }
   }
 

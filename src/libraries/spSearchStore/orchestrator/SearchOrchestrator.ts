@@ -27,7 +27,6 @@ export class SearchOrchestrator {
   private readonly _debounceMs: number;
   private _historyService: SearchManagerService | undefined;
   private _lastHistoryId: number = 0;
-  private _registriesFrozen: boolean = false;
 
   public constructor(store: StoreApi<ISearchStore>, debounceMs: number = 300) {
     this._store = store;
@@ -61,7 +60,10 @@ export class SearchOrchestrator {
     let prevVertical = this._store.getState().currentVerticalKey;
     let prevPage = this._store.getState().currentPage;
     let prevSort = this._store.getState().sort;
-    let prevFilterConfig = this._store.getState().filterConfig;
+    // Use JSON for filterConfig comparison — React components can re-set the
+    // same filterConfig array (new reference, same content) on mount, which
+    // triggers a false-positive change detection and aborts in-flight searches.
+    let prevFilterConfigJson = JSON.stringify(this._store.getState().filterConfig);
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
@@ -71,7 +73,8 @@ export class SearchOrchestrator {
       const verticalChanged = state.currentVerticalKey !== prevVertical;
       const pageChanged = state.currentPage !== prevPage;
       const sortChanged = state.sort !== prevSort;
-      const filterConfigChanged = state.filterConfig !== prevFilterConfig;
+      const currentFilterConfigJson = JSON.stringify(state.filterConfig);
+      const filterConfigChanged = currentFilterConfigJson !== prevFilterConfigJson;
 
       prevQueryText = state.queryText;
       prevQueryTemplate = state.queryTemplate;
@@ -80,7 +83,7 @@ export class SearchOrchestrator {
       prevVertical = state.currentVerticalKey;
       prevPage = state.currentPage;
       prevSort = state.sort;
-      prevFilterConfig = state.filterConfig;
+      prevFilterConfigJson = currentFilterConfigJson;
 
       if (queryChanged || queryTemplateChanged || scopeChanged || filtersChanged || verticalChanged || sortChanged || filterConfigChanged) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
@@ -110,6 +113,25 @@ export class SearchOrchestrator {
     await this._executeSearch();
   }
 
+  /**
+   * Freeze all registries to prevent mid-session mutations.
+   * Call this from the Results web part after ALL providers, actions,
+   * layouts, and filter types have been registered. This must NOT be
+   * called automatically from _executeSearch because web parts load
+   * asynchronously and the first search can fire before all web parts
+   * have finished registering their providers.
+   *
+   * Note: suggestions registry is NOT frozen because suggestion
+   * providers register after initializeSearchContext.
+   */
+  public freezeRegistries(): void {
+    const r = this._store.getState().registries;
+    r.dataProviders.freeze();
+    r.actions.freeze();
+    r.layouts.freeze();
+    r.filterTypes.freeze();
+  }
+
   private _debouncedSearch(): void {
     if (this._debounceTimer !== undefined) {
       clearTimeout(this._debounceTimer);
@@ -131,6 +153,55 @@ export class SearchOrchestrator {
     }
   }
 
+  /**
+   * Execute a provider search with automatic QuotaExceededError retry.
+   * PnPjs caching middleware may throw when storage is full during its
+   * cache-write step, even though the API returned valid data. This
+   * aggressively cleans both localStorage and sessionStorage then retries once.
+   */
+  private async _executeProviderWithRetry(
+    provider: ISearchDataProvider,
+    query: ISearchQuery,
+    signal: AbortSignal
+  ): Promise<ISearchResponse> {
+    try {
+      return await provider.execute(query, signal);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        this._cleanupStorage();
+        // Retry once — space should now be available
+        return provider.execute(query, signal);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Aggressively clean both localStorage and sessionStorage to free space.
+   * Removes: SPFx numeric hash keys, PnP cache entries (pnp-*).
+   */
+  private _cleanupStorage(): void {
+    try {
+      this._cleanupStorageInstance(localStorage);
+    } catch { /* swallow */ }
+    try {
+      this._cleanupStorageInstance(sessionStorage);
+    } catch { /* swallow */ }
+  }
+
+  private _cleanupStorageInstance(storage: Storage): void {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && (/^-?\d+$/.test(key) || key.indexOf('pnp-') === 0)) {
+        keysToRemove.push(key);
+      }
+    }
+    for (let i = 0; i < keysToRemove.length; i++) {
+      storage.removeItem(keysToRemove[i]);
+    }
+  }
+
   private async _executeSearch(): Promise<void> {
     // Cancel any previous in-flight request
     this._cancelPending();
@@ -139,26 +210,15 @@ export class SearchOrchestrator {
     const provider = this._getProvider(state);
 
     if (!provider) {
-      state.setError('No search data provider registered');
+      // No provider yet — this is normal when the Filters or Verticals web part
+      // initializes before the Results web part registers the data provider.
+      // Skip silently; the Results web part will trigger a search after registering.
       return;
     }
 
     // Create new AbortController for this search cycle
     this._abortController = new AbortController();
     const signal = this._abortController.signal;
-
-    // Freeze registries on first search — prevents mid-session mutations.
-    // Note: suggestions registry is NOT frozen because suggestion providers
-    // register after initializeSearchContext (they need managerService),
-    // which triggers the first search before SearchBox can register them.
-    if (!this._registriesFrozen) {
-      this._registriesFrozen = true;
-      const r = state.registries;
-      r.dataProviders.freeze();
-      r.actions.freeze();
-      r.layouts.freeze();
-      r.filterTypes.freeze();
-    }
 
     // Set loading state
     state.setLoading(true);
@@ -168,8 +228,38 @@ export class SearchOrchestrator {
       // Build the search query
       const query = this._buildQuery(state);
 
-      // Execute search
-      const response: ISearchResponse = await provider.execute(query, signal);
+      // Detect first search after URL restore with active filters.
+      // displayRefiners is empty on page load, so the merge in filterSlice has
+      // nothing to merge with. Fire a parallel lightweight search WITHOUT filters
+      // to get the full refiner set — this populates the base before the filtered
+      // refiners merge in.
+      const needBaseRefiners = provider.supportsRefiners
+        && state.activeFilters.length > 0
+        && state.displayRefiners.length === 0
+        && query.refiners.length > 0;
+
+      // Execute main search + optional base refiner query in parallel.
+      // Wrapped with QuotaExceededError retry — PnPjs may throw when
+      // localStorage is full during its caching step.
+      const mainPromise: Promise<ISearchResponse> = this._executeProviderWithRetry(provider, query, signal);
+      const basePromise: Promise<ISearchResponse | undefined> = needBaseRefiners
+        ? this._executeProviderWithRetry(provider, {
+            queryText: query.queryText,
+            queryTemplate: query.queryTemplate,
+            scope: query.scope,
+            filters: [],             // No filters — get full refiner set
+            sort: undefined,
+            page: 1,
+            pageSize: 1,             // Minimal results — we only need refiners
+            selectedProperties: ['Title'],
+            refiners: query.refiners,
+            resultSourceId: query.resultSourceId,
+            trimDuplicates: true,
+            refinementFilters: query.refinementFilters,
+          }, signal).catch(function (): undefined { return undefined; })
+        : Promise.resolve(undefined);
+
+      const [response, baseResponse] = await Promise.all([mainPromise, basePromise]);
 
       // Check if aborted during execution
       if (signal.aborted) {
@@ -190,14 +280,30 @@ export class SearchOrchestrator {
       state.setResults(response.items, adjustedTotal);
 
       // Update refiners if provider supports them
-      if (provider.supportsRefiners && response.refiners.length > 0) {
-        state.setAvailableRefiners(response.refiners);
+      if (provider.supportsRefiners) {
+        if (baseResponse && baseResponse.refiners.length > 0) {
+          // Set base (unfiltered) refiners first — populates displayRefiners
+          state.setAvailableRefiners(baseResponse.refiners);
+          // Now merge filtered refiners in — updates counts for matching values,
+          // keeps all other values visible with count 0
+          if (response.refiners.length > 0) {
+            state.setAvailableRefiners(response.refiners);
+          }
+        } else if (response.refiners.length > 0) {
+          state.setAvailableRefiners(response.refiners);
+        }
       }
 
       // Update promoted results
       if (response.promotedResults.length > 0) {
         state.setPromotedResults(response.promotedResults);
       }
+
+      // Update "Did you mean" suggestion from search API
+      state.setQuerySuggestion(response.querySuggestion || undefined);
+
+      // All synchronous result processing is done — clear loading state
+      state.setLoading(false);
 
       // Fetch vertical counts in parallel
       this._fetchVerticalCounts(provider, state, signal);
@@ -212,6 +318,13 @@ export class SearchOrchestrator {
       }
 
       if (signal.aborted) {
+        return;
+      }
+
+      // Swallow storage quota errors — these come from SPFx framework
+      // serializing web part properties to localStorage, not from search.
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        state.setLoading(false);
         return;
       }
 
@@ -286,7 +399,7 @@ export class SearchOrchestrator {
           trimDuplicates: true,
         };
 
-        const response = await provider.execute(countQuery, signal);
+        const response = await this._executeProviderWithRetry(provider, countQuery, signal);
         return { key: vertical.key, count: response.totalCount };
       } catch {
         return { key: vertical.key, count: 0 };

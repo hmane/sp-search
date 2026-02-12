@@ -3,18 +3,25 @@ import styles from './SpSearchBox.module.scss';
 import type { ISpSearchBoxProps } from './ISpSearchBoxProps';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
+import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
-import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty } from '@interfaces/index';
+import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
+import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
+import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
+import { getCompletionContext, getCompletions } from '../kql';
 import QueryBuilder from './QueryBuilder';
 import SuggestionDropdown from './SuggestionDropdown';
+import KqlInput from './KqlInput';
+import KqlCompletionDropdown from './KqlCompletionDropdown';
 
 /**
  * SpSearchBox -- functional component for the search box web part.
  * Subscribes to the shared Zustand vanilla store and renders
  * a Fluent UI SearchBox with optional scope selector and suggestions.
+ * Supports KQL mode with context-aware auto-completion.
  */
 const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const {
@@ -26,6 +33,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     searchScopes,
     enableSuggestions,
     enableQueryBuilder,
+    enableKqlMode,
     enableSearchManager,
     searchInNewPage,
     newPageUrl,
@@ -38,6 +46,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [activeScope, setActiveScope] = React.useState<ISearchScope>(store.getState().scope);
   const [isSearching, setIsSearching] = React.useState<boolean>(store.getState().isSearching);
   const [isSearchManagerOpen, setIsSearchManagerOpen] = React.useState<boolean>(store.getState().isSearchManagerOpen);
+  const [displayRefiners, setDisplayRefiners] = React.useState<IRefiner[]>(store.getState().displayRefiners);
 
   // ─── Local UI state ─────────────────────────────────────────────
   const [inputValue, setInputValue] = React.useState<string>(queryText);
@@ -47,6 +56,14 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [schemaProperties, setSchemaProperties] = React.useState<IManagedProperty[]>([]);
   const [schemaLoading, setSchemaLoading] = React.useState<boolean>(false);
   const [schemaError, setSchemaError] = React.useState<string | undefined>(undefined);
+
+  // ─── KQL mode state ─────────────────────────────────────────────
+  const { value: isKqlMode, setValue: setIsKqlMode } = useLocalStorage<boolean>('sp-search-kql-mode', false);
+  const [kqlCompletions, setKqlCompletions] = React.useState<IKqlCompletion[]>([]);
+  const [kqlContext, setKqlContext] = React.useState<IKqlCompletionContext | undefined>(undefined);
+  const [showKqlCompletions, setShowKqlCompletions] = React.useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_kqlValidation, setKqlValidation] = React.useState<IKqlValidation>({ isValid: true, severity: 'valid', message: '' });
 
   // ─── Refs ───────────────────────────────────────────────────────
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -60,6 +77,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       setActiveScope(state.scope);
       setIsSearching(state.isSearching);
       setIsSearchManagerOpen(state.isSearchManagerOpen);
+      setDisplayRefiners(state.displayRefiners);
     });
 
     return function cleanup(): void {
@@ -72,11 +90,19 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     setInputValue(queryText);
   }, [queryText]);
 
-  // ─── Click outside to close suggestions ─────────────────────────
+  // Load schema when KQL mode is first activated
+  React.useEffect(() => {
+    if (isKqlMode && enableKqlMode) {
+      loadSchema();
+    }
+  }, [isKqlMode, enableKqlMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Click outside to close suggestions/completions ─────────────
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent): void {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setShowKqlCompletions(false);
       }
     }
 
@@ -107,6 +133,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       debounceTimerRef.current = undefined;
     }
     setShowSuggestions(false);
+    setShowKqlCompletions(false);
 
     // Navigate to another page if configured
     if (searchInNewPage && newPageUrl) {
@@ -212,20 +239,18 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
   /**
    * Handle search submission (Enter key).
+   * Enter always triggers search regardless of searchBehavior setting —
+   * searchBehavior only controls whether the explicit search button is shown.
    */
   function handleSearch(newValue: string): void {
-    if (searchBehavior === 'onEnter' || searchBehavior === 'both') {
-      executeSearch(newValue);
-    }
+    executeSearch(newValue);
   }
 
   /**
    * Handle search button click.
    */
   function handleSearchButtonClick(): void {
-    if (searchBehavior === 'onButton' || searchBehavior === 'both') {
-      executeSearch(inputValue);
-    }
+    executeSearch(inputValue);
   }
 
   /**
@@ -234,6 +259,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   function handleClear(): void {
     setInputValue('');
     setShowSuggestions(false);
+    setShowKqlCompletions(false);
     // Clear debounce timer
     if (debounceTimerRef.current !== undefined) {
       clearTimeout(debounceTimerRef.current);
@@ -283,7 +309,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
    */
   function handleFocus(): void {
     setIsFocused(true);
-    if (enableSuggestions && !isQueryBuilderOpen && suggestions.length > 0 && inputValue.length >= 2) {
+    if (!isKqlMode && enableSuggestions && !isQueryBuilderOpen && suggestions.length > 0 && inputValue.length >= 2) {
       setShowSuggestions(true);
     }
   }
@@ -307,6 +333,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     setIsQueryBuilderOpen(next);
     if (next) {
       setShowSuggestions(false);
+      setShowKqlCompletions(false);
       loadSchema();
     }
   }
@@ -323,30 +350,174 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     const provider = providers.find((p) => typeof p.getSchema === 'function') || providers[0];
 
     if (!provider || typeof provider.getSchema !== 'function') {
-      const fallback = state.filterConfig.map((config) => ({
-        name: config.managedProperty,
-        type: 'Text',
-        alias: config.displayName,
-        queryable: true,
-        retrievable: false,
-        refinable: false,
-        sortable: false,
-      } as IManagedProperty));
-      setSchemaProperties(fallback);
+      setSchemaProperties(buildFallbackSchema(state));
       setSchemaLoading(false);
       return;
     }
 
     provider.getSchema()
       .then((props) => {
-        setSchemaProperties(props || []);
+        if (props && props.length > 0) {
+          setSchemaProperties(props);
+        } else {
+          // Schema API returned empty (e.g. 403 unauthorized) — use fallback
+          setSchemaProperties(buildFallbackSchema(state));
+        }
         setSchemaLoading(false);
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : 'Failed to load managed properties';
         setSchemaError(message);
+        // Still provide fallback properties so the query builder is usable
+        setSchemaProperties(buildFallbackSchema(state));
         setSchemaLoading(false);
       });
+  }
+
+  /**
+   * Build a fallback schema from well-known managed properties
+   * and any properties referenced in filterConfig.
+   * Used when the Schema Admin API is inaccessible.
+   */
+  function buildFallbackSchema(state: { filterConfig: { managedProperty: string; displayName: string }[] }): IManagedProperty[] {
+    const seen = new Set<string>();
+    const props: IManagedProperty[] = [];
+
+    // Well-known SharePoint managed properties
+    const wellKnown: Array<{ name: string; type: string; alias?: string }> = [
+      { name: 'Title', type: 'Text' },
+      { name: 'Author', type: 'Text' },
+      { name: 'AuthorOWSUSER', type: 'Text', alias: 'Author (login)' },
+      { name: 'FileType', type: 'Text' },
+      { name: 'FileExtension', type: 'Text' },
+      { name: 'Filename', type: 'Text' },
+      { name: 'Path', type: 'Text' },
+      { name: 'ParentLink', type: 'Text' },
+      { name: 'SiteTitle', type: 'Text' },
+      { name: 'SPSiteURL', type: 'Text' },
+      { name: 'Created', type: 'DateTime' },
+      { name: 'LastModifiedTime', type: 'DateTime' },
+      { name: 'Size', type: 'Integer' },
+      { name: 'ViewsLifeTime', type: 'Integer' },
+      { name: 'IsDocument', type: 'YesNo' },
+      { name: 'IsContainer', type: 'YesNo' },
+      { name: 'contentclass', type: 'Text' },
+      { name: 'HitHighlightedSummary', type: 'Text' },
+      { name: 'ModifiedBy', type: 'Text' },
+      { name: 'EditorOWSUSER', type: 'Text', alias: 'Modified By (login)' },
+      { name: 'Department', type: 'Text' },
+      { name: 'JobTitle', type: 'Text' },
+      { name: 'WorkEmail', type: 'Text' },
+      { name: 'AccountName', type: 'Text' },
+    ];
+
+    for (let i = 0; i < wellKnown.length; i++) {
+      const wk = wellKnown[i];
+      if (!seen.has(wk.name)) {
+        seen.add(wk.name);
+        props.push({
+          name: wk.name,
+          type: wk.type,
+          alias: wk.alias,
+          queryable: true,
+          retrievable: true,
+          refinable: false,
+          sortable: wk.type === 'DateTime' || wk.type === 'Integer',
+        });
+      }
+    }
+
+    // Add any filterConfig properties not already covered
+    if (state.filterConfig) {
+      for (let i = 0; i < state.filterConfig.length; i++) {
+        const config = state.filterConfig[i];
+        if (!seen.has(config.managedProperty)) {
+          seen.add(config.managedProperty);
+          props.push({
+            name: config.managedProperty,
+            type: 'Text',
+            alias: config.displayName,
+            queryable: true,
+            retrievable: false,
+            refinable: true,
+            sortable: false,
+          });
+        }
+      }
+    }
+
+    props.sort(function (a, b): number { return a.name.localeCompare(b.name); });
+    return props;
+  }
+
+  // ─── KQL mode handlers ─────────────────────────────────────────
+
+  function handleKqlInputChange(newValue: string, _cursor: number): void {
+    setInputValue(newValue);
+  }
+
+  function handleKqlSearch(text: string): void {
+    executeSearch(text);
+  }
+
+  function handleKqlClear(): void {
+    handleClear();
+  }
+
+  function handleKqlCompletionsChange(completions: IKqlCompletion[], context: IKqlCompletionContext | undefined): void {
+    setKqlCompletions(completions);
+    setKqlContext(context);
+    setShowKqlCompletions(completions.length > 0);
+  }
+
+  function handleKqlValidationChange(validation: IKqlValidation): void {
+    setKqlValidation(validation);
+  }
+
+  function handleKqlForceOpen(): void {
+    setShowKqlCompletions(true);
+  }
+
+  function handleKqlCompletionSelect(completion: IKqlCompletion): void {
+    if (!kqlContext) {
+      return;
+    }
+
+    // Insert the completion at the context's token range
+    const before: string = inputValue.substring(0, kqlContext.tokenStart);
+    const after: string = inputValue.substring(kqlContext.tokenEnd);
+    const newValue: string = before + completion.insertText + after;
+
+    setInputValue(newValue);
+    setShowKqlCompletions(false);
+
+    // If a property was selected (ends with ':'), keep completions open for value suggestions
+    if (completion.completionType === 'property' && completion.insertText.endsWith(':')) {
+      // Trigger re-computation immediately after state update
+      setTimeout((): void => {
+        const cursor: number = before.length + completion.insertText.length;
+        const ctx = getCompletionContext(newValue, cursor);
+        const newCompletions = getCompletions(ctx, schemaProperties, displayRefiners);
+        setKqlCompletions(newCompletions);
+        setKqlContext(ctx);
+        if (newCompletions.length > 0) {
+          setShowKqlCompletions(true);
+        }
+      }, 50);
+    }
+  }
+
+  function handleKqlDismiss(): void {
+    setShowKqlCompletions(false);
+  }
+
+  function handleModeSwitch(kql: boolean): void {
+    setIsKqlMode(kql);
+    setShowSuggestions(false);
+    setShowKqlCompletions(false);
+    if (kql) {
+      loadSchema();
+    }
   }
 
   // ─── Build scope dropdown options ───────────────────────────────
@@ -379,6 +550,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   // ─── Determine if search button should be shown ────────────────
   const showSearchButton = searchBehavior === 'onButton' || searchBehavior === 'both';
 
+  // ─── Active KQL mode ──────────────────────────────────────────
+  const isKqlActive: boolean = enableKqlMode && isKqlMode;
+
   // ─── Render ─────────────────────────────────────────────────────
   let content = (
     <div className={styles.searchBoxOuter} ref={containerRef}>
@@ -394,19 +568,69 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               />
             </div>
           )}
-          <div className={styles.searchInput}>
-            <SearchBox
-              placeholder={placeholder || 'Search...'}
+
+          {/* KQL / Regular mode toggle */}
+          {enableKqlMode && (
+            <div className={styles.kqlModeToggle} role="radiogroup" aria-label="Query input mode">
+              <button
+                className={!isKqlMode ? styles.kqlModeButton + ' ' + styles.kqlModeButtonActive : styles.kqlModeButton}
+                onClick={(): void => handleModeSwitch(false)}
+                title="Regular search"
+                aria-label="Regular search mode"
+                aria-checked={!isKqlMode}
+                role="radio"
+                type="button"
+              >
+                <Icon iconName="Search" />
+                <span>Search</span>
+              </button>
+              <button
+                className={isKqlMode ? styles.kqlModeButton + ' ' + styles.kqlModeButtonActive : styles.kqlModeButton}
+                onClick={(): void => handleModeSwitch(true)}
+                title="KQL mode — type queries like Author:John AND FileType:docx"
+                aria-label="KQL query mode"
+                aria-checked={isKqlMode}
+                role="radio"
+                type="button"
+              >
+                <Icon iconName="Code" />
+                <span>KQL</span>
+              </button>
+            </div>
+          )}
+
+          {/* Input area — conditional on mode */}
+          {isKqlActive ? (
+            <KqlInput
               value={inputValue}
-              onChange={handleInputChange}
-              onSearch={handleSearch}
-              onClear={handleClear}
+              onChange={handleKqlInputChange}
+              onSearch={handleKqlSearch}
+              onClear={handleKqlClear}
+              onCompletionsChange={handleKqlCompletionsChange}
+              onValidationChange={handleKqlValidationChange}
               onFocus={handleFocus}
               onBlur={handleBlur}
-              disableAnimation={false}
-              underlined={false}
+              onForceOpenCompletions={handleKqlForceOpen}
+              schema={schemaProperties}
+              refiners={displayRefiners}
+              disabled={isSearching}
             />
-          </div>
+          ) : (
+            <div className={styles.searchInput}>
+              <SearchBox
+                placeholder={placeholder || 'Search...'}
+                value={inputValue}
+                onChange={handleInputChange}
+                onSearch={handleSearch}
+                onClear={handleClear}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                disableAnimation={false}
+                underlined={false}
+              />
+            </div>
+          )}
+
           {showSearchButton && (
             <div className={styles.searchButton}>
               <IconButton
@@ -445,12 +669,22 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
         </div>
       </div>
 
-      {/* Suggestions dropdown */}
-      {enableSuggestions && showSuggestions && suggestions.length > 0 && (
+      {/* Regular mode: Suggestions dropdown */}
+      {!isKqlActive && enableSuggestions && showSuggestions && suggestions.length > 0 && (
         <SuggestionDropdown
           suggestions={suggestions}
           onSelect={handleSuggestionClick}
           onDismiss={function (): void { setShowSuggestions(false); }}
+        />
+      )}
+
+      {/* KQL mode: Completion dropdown */}
+      {isKqlActive && showKqlCompletions && (
+        <KqlCompletionDropdown
+          completions={kqlCompletions}
+          context={kqlContext}
+          onSelect={handleKqlCompletionSelect}
+          onDismiss={handleKqlDismiss}
         />
       )}
 

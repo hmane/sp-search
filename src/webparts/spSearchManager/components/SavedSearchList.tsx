@@ -5,6 +5,7 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import {
   ISavedSearch,
   ISearchStore,
@@ -19,6 +20,7 @@ export interface ISavedSearchListProps {
   savedSearches: ISavedSearch[];
   onDataChanged: () => void;
   onShare: (search: ISavedSearch) => void;
+  onSearchLoaded?: () => void;
 }
 
 /**
@@ -65,12 +67,45 @@ function groupByCategory(searches: ISavedSearch[]): Record<string, ISavedSearch[
 }
 
 /**
+ * Parse the searchState JSON and extract a compact filter summary string.
+ * Returns undefined if no filters are saved.
+ */
+function getFilterSummary(search: ISavedSearch): string | undefined {
+  try {
+    const state: { activeFilters?: IActiveFilter[] } = JSON.parse(search.searchState);
+    if (!state.activeFilters || state.activeFilters.length === 0) {
+      return undefined;
+    }
+    // Group by filterName, collect displayValues
+    const grouped: Record<string, string[]> = {};
+    for (let i = 0; i < state.activeFilters.length; i++) {
+      const f: IActiveFilter = state.activeFilters[i];
+      const name: string = f.filterName;
+      const display: string = f.displayValue || f.value;
+      if (!grouped[name]) {
+        grouped[name] = [];
+      }
+      grouped[name].push(display);
+    }
+    // Build "FileType: docx, png | Author: John" format
+    const parts: string[] = [];
+    const keys = Object.keys(grouped);
+    for (let i = 0; i < keys.length; i++) {
+      parts.push(keys[i] + ': ' + grouped[keys[i]].join(', '));
+    }
+    return parts.join(' | ');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * SavedSearchList -- displays saved searches grouped by category with
  * collapsible sections. Supports click-to-load, inline rename, delete
  * confirmation, and share action.
  */
 const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
-  const { store, service, savedSearches, onDataChanged, onShare } = props;
+  const { store, service, savedSearches, onDataChanged, onShare, onSearchLoaded } = props;
 
   // ─── Local state ──────────────────────────────────────────
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
@@ -78,6 +113,7 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
   const [renameValue, setRenameValue] = React.useState<string>('');
   const [deleteTarget, setDeleteTarget] = React.useState<ISavedSearch | undefined>(undefined);
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
+  const [deleteError, setDeleteError] = React.useState<string | undefined>(undefined);
   const [isRenaming, setIsRenaming] = React.useState<boolean>(false);
 
   // ─── Initialize expanded categories ──────────────────────
@@ -127,41 +163,48 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
         activeLayoutKey?: string;
       } = JSON.parse(search.searchState);
 
-      const storeState = store.getState();
-
-      // ALWAYS clear existing filters first to avoid stale filter state
-      storeState.clearAllFilters();
-
+      // Set ALL state atomically via store.setState() so the orchestrator
+      // sees a single change notification and fires ONE search with
+      // complete state. Calling individual methods (clearAllFilters,
+      // setQueryText, setRefiner) would trigger multiple orchestrator
+      // reactions, causing a search WITHOUT filters before filters are set.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: Record<string, any> = {
+        activeFilters: state.activeFilters || [],
+        currentPage: 1,
+      };
       if (state.queryText !== undefined) {
-        storeState.setQueryText(state.queryText);
-      }
-      // Restore filters only if the saved search has them
-      if (state.activeFilters !== undefined && state.activeFilters.length > 0) {
-        for (let i = 0; i < state.activeFilters.length; i++) {
-          storeState.setRefiner(state.activeFilters[i]);
-        }
+        update.queryText = state.queryText;
       }
       if (state.currentVerticalKey !== undefined) {
-        storeState.setVertical(state.currentVerticalKey);
+        update.currentVerticalKey = state.currentVerticalKey;
       }
       if (state.sort !== undefined) {
-        storeState.setSort(state.sort);
+        update.sort = state.sort;
       }
       if (state.scope !== undefined) {
-        storeState.setScope(state.scope);
+        update.scope = state.scope;
       }
       if (state.activeLayoutKey !== undefined) {
-        storeState.setLayout(state.activeLayoutKey);
+        update.activeLayoutKey = state.activeLayoutKey;
       }
+      store.setState(update);
     } catch {
       // If searchState JSON is invalid, fall back to just setting query text
-      const storeState = store.getState();
-      storeState.clearAllFilters();
-      storeState.setQueryText(search.queryText);
+      store.setState({
+        queryText: search.queryText,
+        activeFilters: [],
+        currentPage: 1,
+      });
     }
 
     // Update lastUsed in the background
     service.updateSavedSearch(search.id, {}).catch(function noop(): void { /* swallow */ });
+
+    // Notify parent (e.g., close panel in panel mode)
+    if (onSearchLoaded) {
+      onSearchLoaded();
+    }
   }
 
   function handleStartRename(search: ISavedSearch, event: React.MouseEvent): void {
@@ -215,19 +258,31 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
       return;
     }
     setIsDeleting(true);
-    service.deleteSavedSearch(deleteTarget.id)
+    setDeleteError(undefined);
+    const deletedId = deleteTarget.id;
+    service.deleteSavedSearch(deletedId)
       .then(function (): void {
+        // Optimistically remove from store immediately — don't wait for reload
+        // (PnPjs caching may serve stale GET responses on immediate re-query)
+        const current = store.getState().savedSearches;
+        store.setState({
+          savedSearches: current.filter(function (s: ISavedSearch): boolean { return s.id !== deletedId; })
+        });
         setDeleteTarget(undefined);
         setIsDeleting(false);
         onDataChanged();
       })
-      .catch(function (): void {
+      .catch(function (err: unknown): void {
         setIsDeleting(false);
+        const message = err instanceof Error ? err.message : 'Failed to delete saved search';
+        setDeleteError(message);
+        console.error('[SP Search] deleteSavedSearch failed:', err);
       });
   }
 
   function handleDeleteCancel(): void {
     setDeleteTarget(undefined);
+    setDeleteError(undefined);
   }
 
   function handleShareClick(search: ISavedSearch, event: React.MouseEvent): void {
@@ -333,6 +388,12 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
                         <div className={styles.savedSearchBody}>
                           <p className={styles.savedSearchTitle}>{search.title}</p>
                           <p className={styles.savedSearchQuery}>{search.queryText}</p>
+                          {getFilterSummary(search) && (
+                            <p className={styles.savedSearchFilters}>
+                              <Icon iconName="Filter" className={styles.filterSummaryIcon} />
+                              {getFilterSummary(search)}
+                            </p>
+                          )}
                           <div className={styles.savedSearchMeta}>
                             {search.category && (
                               <span className={styles.categoryBadge}>{search.category}</span>
@@ -396,6 +457,11 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
         }}
         modalProps={{ isBlocking: true }}
       >
+        {deleteError && (
+          <MessageBar messageBarType={MessageBarType.error} isMultiline={false}>
+            {deleteError}
+          </MessageBar>
+        )}
         <DialogFooter>
           <PrimaryButton
             onClick={handleDeleteConfirm}

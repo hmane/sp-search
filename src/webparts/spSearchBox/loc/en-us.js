@@ -25,6 +25,7 @@ define([], function() {
     "EnableScopeSelectorFieldLabel": "Enable scope selector",
     "EnableSuggestionsFieldLabel": "Enable search suggestions",
     "EnableQueryBuilderFieldLabel": "Enable visual query builder",
+    "EnableKqlModeFieldLabel": "Enable KQL mode toggle",
     "EnableSearchManagerFieldLabel": "Enable saved searches button",
     "ToggleOnText": "On",
     "ToggleOffText": "Off"

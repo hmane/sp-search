@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Checkbox } from '@fluentui/react/lib/Checkbox';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import styles from './SpSearchFilters.module.scss';
 import type {
   IRefinerValue,
@@ -43,6 +44,12 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
   const showCount: boolean = config ? config.showCount : true;
   const configSortBy: SortBy = config ? config.sortBy : 'count';
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
+
+  // Show file type icons when the filter is for file type/extension properties
+  const isFileTypeFilter: boolean = React.useMemo(function (): boolean {
+    const prop: string = (config ? config.managedProperty : filterName).toLowerCase();
+    return prop === 'filetype' || prop === 'fileextension' || prop === 'refinablestring00';
+  }, [config, filterName]);
 
   const [searchText, setSearchText] = React.useState<string>('');
   const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
@@ -94,10 +101,11 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
 
   const hasMore: boolean = sortedValues.length > DEFAULT_VISIBLE;
 
-  function handleCheckboxChange(value: IRefinerValue): void {
+  function handleCheckboxChange(refValue: IRefinerValue): void {
     const filter: IActiveFilter = {
       filterName: filterName,
-      value: value.value,
+      value: refValue.value,
+      displayValue: refValue.name || undefined,
       operator: operator
     };
     onToggleRefiner(filter);
@@ -165,14 +173,28 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
       <ul className={styles.checkboxList} role="group" aria-label={config ? config.displayName : filterName}>
         {visibleValues.map(function (refinerValue: IRefinerValue): React.ReactElement {
           const checked: boolean = isValueSelected(refinerValue.value);
+          const labelText: string = refinerValue.name || refinerValue.value;
           return (
             <li key={refinerValue.value} className={styles.checkboxItem}>
               <Checkbox
                 className={styles.checkboxLabel}
-                label={refinerValue.name || refinerValue.value}
                 checked={checked}
                 onChange={function (): void { handleCheckboxChange(refinerValue); }}
-                ariaLabel={refinerValue.name || refinerValue.value}
+                ariaLabel={labelText}
+                onRenderLabel={function (): React.ReactElement {
+                  return (
+                    <span className={styles.checkboxLabelContent}>
+                      {isFileTypeFilter && (
+                        <FileTypeIcon
+                          type={IconType.font}
+                          path={'file.' + (refinerValue.name || refinerValue.value)}
+                          size={ImageSize.small}
+                        />
+                      )}
+                      <span>{labelText}</span>
+                    </span>
+                  );
+                }}
               />
               {showCount && (
                 <span className={styles.refinerCount}>({refinerValue.count})</span>

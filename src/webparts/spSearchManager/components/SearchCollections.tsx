@@ -30,7 +30,7 @@ export interface ISearchCollectionsProps {
  * editing per-item tags, and filtering collections by tag.
  */
 const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
-  const { service, collections, onDataChanged } = props;
+  const { store, service, collections, onDataChanged } = props;
 
   // ─── Local state ──────────────────────────────────────────
   const [expandedCollections, setExpandedCollections] = React.useState<Record<string, boolean>>({});
@@ -144,14 +144,21 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
     }
 
     setIsDeleting(true);
-    service.deleteCollection(deleteTarget.collectionName)
+    const deletedName = deleteTarget.collectionName;
+    service.deleteCollection(deletedName)
       .then(function (): void {
+        // Optimistically remove from store immediately
+        const current = store.getState().collections;
+        store.setState({
+          collections: current.filter(function (c: ISearchCollection): boolean { return c.collectionName !== deletedName; })
+        });
         setDeleteTarget(undefined);
         setIsDeleting(false);
         onDataChanged();
       })
-      .catch(function (): void {
+      .catch(function (err: unknown): void {
         setIsDeleting(false);
+        console.error('[SP Search] deleteCollection failed:', err);
       });
   }
 

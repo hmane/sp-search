@@ -1,13 +1,16 @@
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
+import { Modal } from '@fluentui/react/lib/Modal';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
+import { DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
-import FormContainer from 'spfx-toolkit/lib/components/spForm/FormContainer/FormContainer';
-import FormItem from 'spfx-toolkit/lib/components/spForm/FormItem/FormItem';
-import FormLabel from 'spfx-toolkit/lib/components/spForm/FormLabel/FormLabel';
-import FormValue from 'spfx-toolkit/lib/components/spForm/FormValue/FormValue';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
+import { UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
+import { LazyVersionHistory as _LazyVersionHistory } from 'spfx-toolkit/lib/components/lazy';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const VersionHistory: any = _LazyVersionHistory;
 import { ISearchResult } from '@interfaces/index';
+import { formatRelativeDate, formatDateTime, formatFileSize, buildFormUrl } from './documentTitleUtils';
 import styles from './SpSearchResults.module.scss';
 
 export interface IResultDetailPanelProps {
@@ -41,61 +44,6 @@ function getFileTypeIcon(fileType: string): string {
 }
 
 /**
- * Formats a file size in bytes into a human-readable string.
- */
-function formatFileSize(bytes: number): string {
-  if (!bytes || bytes <= 0) {
-    return 'Unknown';
-  }
-  if (bytes < 1024) {
-    return bytes + ' B';
-  }
-  if (bytes < 1048576) {
-    return Math.round(bytes / 1024) + ' KB';
-  }
-  if (bytes < 1073741824) {
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  }
-  return (bytes / 1073741824).toFixed(2) + ' GB';
-}
-
-/**
- * Formats an ISO date string into a readable format.
- */
-function formatDate(isoDate: string): string {
-  if (!isoDate) {
-    return '';
-  }
-  try {
-    const d: Date = new Date(isoDate);
-    if (isNaN(d.getTime())) {
-      return '';
-    }
-    const month: number = d.getMonth() + 1;
-    const day: number = d.getDate();
-    const year: number = d.getFullYear();
-    const hours: number = d.getHours();
-    const minutes: number = d.getMinutes();
-    const minuteStr: string = minutes < 10 ? '0' + minutes : String(minutes);
-    const ampm: string = hours >= 12 ? 'PM' : 'AM';
-    const hour12: number = hours % 12 || 12;
-    return month + '/' + day + '/' + year + ' ' + hour12 + ':' + minuteStr + ' ' + ampm;
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Returns the file type display text (uppercase extension).
- */
-function formatFileType(fileType: string): string {
-  if (!fileType) {
-    return 'Unknown';
-  }
-  return fileType.toUpperCase();
-}
-
-/**
  * Determines whether this file type supports WOPI preview.
  */
 function supportsWopiPreview(fileType: string): boolean {
@@ -110,7 +58,6 @@ function supportsWopiPreview(fileType: string): boolean {
 
 /**
  * Builds the WOPI preview URL for SharePoint documents.
- * Uses the _layouts/15/WopiFrame.aspx endpoint with interactivepreview action.
  */
 function buildPreviewUrl(item: ISearchResult): string {
   const siteUrl: string = item.siteUrl || '';
@@ -142,24 +89,19 @@ const PanelShimmer: React.FC = () => (
     />
     <Shimmer
       shimmerElements={[
+        { type: ShimmerElementType.circle, height: 40 },
+        { type: ShimmerElementType.gap, width: 12 },
         { type: ShimmerElementType.line, height: 16, width: '40%' }
       ]}
       width="100%"
-      style={{ marginTop: 16 }}
+      style={{ marginTop: 20 }}
     />
     <Shimmer
       shimmerElements={[
-        { type: ShimmerElementType.line, height: 16, width: '70%' }
+        { type: ShimmerElementType.line, height: 14, width: '50%' }
       ]}
       width="100%"
-      style={{ marginTop: 8 }}
-    />
-    <Shimmer
-      shimmerElements={[
-        { type: ShimmerElementType.line, height: 16, width: '50%' }
-      ]}
-      width="100%"
-      style={{ marginTop: 8 }}
+      style={{ marginTop: 12 }}
     />
   </div>
 );
@@ -167,19 +109,20 @@ const PanelShimmer: React.FC = () => (
 /**
  * ResultDetailPanel — a slide-out panel that shows the full details of a
  * selected search result, including document preview, metadata, and actions.
- *
- * This component is intended to be lazy-loaded:
- * ```typescript
- * const ResultDetailPanel = React.lazy(() => import('./ResultDetailPanel'));
- * ```
  */
 const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
   const { isOpen, item, onDismiss } = props;
   const [isPreviewLoaded, setIsPreviewLoaded] = React.useState<boolean>(false);
+  const [linkCopied, setLinkCopied] = React.useState<boolean>(false);
+  const [formModalUrl, setFormModalUrl] = React.useState<string | undefined>(undefined);
+  const [formModalTitle, setFormModalTitle] = React.useState<string>('');
+  const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
 
-  // Reset preview loaded state when item changes
   React.useEffect((): void => {
     setIsPreviewLoaded(false);
+    setLinkCopied(false);
+    setFormModalUrl(undefined);
+    setVersionHistoryItem(undefined);
   }, [item]);
 
   const handleIframeLoad = React.useCallback((): void => {
@@ -195,7 +138,6 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
 
   const handleDownload = React.useCallback((): void => {
     if (item) {
-      // Construct the download URL — append ?download=1 for SharePoint documents
       const downloadUrl: string = item.url.indexOf('?') >= 0
         ? item.url + '&download=1'
         : item.url + '?download=1';
@@ -205,8 +147,11 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
 
   const handleCopyLink = React.useCallback((): void => {
     if (item && navigator.clipboard) {
-      navigator.clipboard.writeText(item.url).catch((): void => {
-        // Silently fail if clipboard API not available
+      navigator.clipboard.writeText(item.url).then(function (): void {
+        setLinkCopied(true);
+        setTimeout(function (): void { setLinkCopied(false); }, 2000);
+      }).catch((): void => {
+        // Silently fail
       });
     }
   }, [item]);
@@ -245,6 +190,12 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
 
   const canPreview: boolean = supportsWopiPreview(item.fileType);
   const previewUrl: string = canPreview ? buildPreviewUrl(item) : '';
+  const hasAuthorEmail: boolean = !!(item.author && item.author.email);
+  const fileSizeStr: string = formatFileSize(item.fileSize);
+  const viewUrl: string | undefined = buildFormUrl(item, 4);
+  const editUrl: string | undefined = buildFormUrl(item, 6);
+  const hasVersionHistory: boolean = !!(item.properties.ListId && item.properties.ListItemID);
+  const hasFormLinks: boolean = !!(viewUrl || editUrl || hasVersionHistory);
 
   return (
     <Panel
@@ -262,17 +213,40 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
             <span className={styles.detailPanelFileIcon}>
               <Icon iconName={getFileTypeIcon(item.fileType)} />
             </span>
-            <h2 className={styles.detailPanelTitle}>{item.title}</h2>
+            <div className={styles.detailPanelTitleGroup}>
+              <h2 className={styles.detailPanelTitle}>{item.title}</h2>
+              {item.fileType && (
+                <span className={styles.detailPanelFileTypeBadge}>
+                  {item.fileType.toUpperCase()}
+                </span>
+              )}
+            </div>
           </div>
-          <div className={styles.detailPanelFileTypeBadge}>
-            {formatFileType(item.fileType)}
+
+          {/* Quick action bar */}
+          <div className={styles.detailPanelActionBar}>
+            <DefaultButton
+              text="Open"
+              iconProps={{ iconName: 'OpenInNewTab' }}
+              onClick={handleOpenInBrowser}
+              className={styles.detailPanelActionPrimary}
+            />
+            <IconButton
+              iconProps={{ iconName: 'Download' }}
+              title="Download"
+              ariaLabel="Download"
+              onClick={handleDownload}
+              className={styles.detailPanelActionIcon}
+            />
+            <TooltipHost content={linkCopied ? 'Copied!' : 'Copy link'}>
+              <IconButton
+                iconProps={{ iconName: linkCopied ? 'CheckMark' : 'Link' }}
+                ariaLabel="Copy link"
+                onClick={handleCopyLink}
+                className={linkCopied ? styles.detailPanelActionIconSuccess : styles.detailPanelActionIcon}
+              />
+            </TooltipHost>
           </div>
-          <PrimaryButton
-            className={styles.detailPanelOpenButton}
-            text="Open"
-            iconProps={{ iconName: 'OpenInNewTab' }}
-            onClick={handleOpenInBrowser}
-          />
         </div>
 
         {/* ─── Preview Section ──────────────────────────── */}
@@ -312,96 +286,220 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
           </div>
         )}
 
-        {/* ─── Metadata Section ─────────────────────────── */}
-        <div className={styles.metadataSection}>
-          <h3 className={styles.metadataSectionTitle}>Details</h3>
-          <FormContainer labelWidth="120px">
-            <FormItem>
-              <FormLabel>Author</FormLabel>
-              <FormValue>
-                <span>
-                  {item.author && item.author.displayText
-                    ? item.author.displayText
-                    : 'Unknown'}
-                </span>
-              </FormValue>
-            </FormItem>
+        {/* ─── Author & Dates Section ─────────────────── */}
+        <div className={styles.detailPanelAuthorSection}>
+          {hasAuthorEmail ? (
+            <UserPersona
+              userIdentifier={item.author.email}
+              displayName={item.author.displayText}
+              size={40}
+              displayMode="avatarAndName"
+              showSecondaryText={true}
+              showLivePersona={false}
+            />
+          ) : (
+            <div className={styles.detailPanelAuthorFallback}>
+              <Icon iconName="Contact" className={styles.detailPanelAuthorFallbackIcon} />
+              <span>{item.author?.displayText || 'Unknown'}</span>
+            </div>
+          )}
 
-            <FormItem>
-              <FormLabel>Modified</FormLabel>
-              <FormValue>
-                <span>{formatDate(item.modified)}</span>
-              </FormValue>
-            </FormItem>
-
-            <FormItem>
-              <FormLabel>Created</FormLabel>
-              <FormValue>
-                <span>{formatDate(item.created)}</span>
-              </FormValue>
-            </FormItem>
-
-            <FormItem>
-              <FormLabel>File Type</FormLabel>
-              <FormValue>
-                <span className={styles.metadataFileType}>
-                  <Icon
-                    iconName={getFileTypeIcon(item.fileType)}
-                    style={{ fontSize: 14, marginRight: 6 }}
-                  />
-                  {formatFileType(item.fileType)}
-                </span>
-              </FormValue>
-            </FormItem>
-
-            <FormItem>
-              <FormLabel>File Size</FormLabel>
-              <FormValue>
-                <span>{formatFileSize(item.fileSize)}</span>
-              </FormValue>
-            </FormItem>
-
-            <FormItem>
-              <FormLabel>Site</FormLabel>
-              <FormValue>
-                <span>
-                  {item.siteName ? (
-                    <a
-                      href={item.siteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.metadataSiteLink}
-                    >
-                      {item.siteName}
-                    </a>
-                  ) : (
-                    'Unknown'
-                  )}
-                </span>
-              </FormValue>
-            </FormItem>
-          </FormContainer>
+          <div className={styles.detailPanelDates}>
+            {item.modified && (
+              <div className={styles.detailPanelDateRow}>
+                <Icon iconName="Edit" className={styles.detailPanelDateIcon} />
+                <span className={styles.detailPanelDateLabel}>Modified</span>
+                <TooltipHost content={formatDateTime(item.modified)}>
+                  <span className={styles.detailPanelDateValue}>
+                    {formatRelativeDate(item.modified)}
+                  </span>
+                </TooltipHost>
+              </div>
+            )}
+            {item.created && (
+              <div className={styles.detailPanelDateRow}>
+                <Icon iconName="Calendar" className={styles.detailPanelDateIcon} />
+                <span className={styles.detailPanelDateLabel}>Created</span>
+                <TooltipHost content={formatDateTime(item.created)}>
+                  <span className={styles.detailPanelDateValue}>
+                    {formatRelativeDate(item.created)}
+                  </span>
+                </TooltipHost>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* ─── Action Buttons ───────────────────────────── */}
-        <div className={styles.detailPanelActions}>
-          <DefaultButton
-            text="Open in browser"
-            iconProps={{ iconName: 'OpenInNewTab' }}
-            onClick={handleOpenInBrowser}
-          />
-          <DefaultButton
-            text="Download"
-            iconProps={{ iconName: 'Download' }}
-            onClick={handleDownload}
-          />
-          <DefaultButton
-            text="Copy link"
-            iconProps={{ iconName: 'Link' }}
-            onClick={handleCopyLink}
-          />
+        {/* ─── Properties Section ─────────────────────── */}
+        <div className={styles.detailPanelPropsSection}>
+          <h3 className={styles.detailPanelPropsTitle}>Properties</h3>
+          <div className={styles.detailPanelPropsList}>
+            <div className={styles.detailPanelPropRow}>
+              <Icon iconName={getFileTypeIcon(item.fileType)} className={styles.detailPanelPropIcon} />
+              <span className={styles.detailPanelPropLabel}>Type</span>
+              <span className={styles.detailPanelPropValue}>
+                {item.fileType ? item.fileType.toUpperCase() : '\u2014'}
+              </span>
+            </div>
+            <div className={styles.detailPanelPropRow}>
+              <Icon iconName="HardDrive" className={styles.detailPanelPropIcon} />
+              <span className={styles.detailPanelPropLabel}>Size</span>
+              <span className={styles.detailPanelPropValue}>
+                {fileSizeStr || '\u2014'}
+              </span>
+            </div>
+            {item.siteName && (
+              <div className={styles.detailPanelPropRow}>
+                <Icon iconName="Globe" className={styles.detailPanelPropIcon} />
+                <span className={styles.detailPanelPropLabel}>Site</span>
+                <a
+                  href={item.siteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.metadataSiteLink}
+                >
+                  {item.siteName}
+                </a>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ─── View / Edit / History Links ────────────── */}
+        {hasFormLinks && (
+          <div className={styles.detailPanelFormLinks}>
+            {viewUrl && (
+              <a
+                href={viewUrl}
+                className={styles.detailPanelFormLink}
+                onClick={(e: React.MouseEvent): void => {
+                  e.preventDefault();
+                  setFormModalUrl(viewUrl);
+                  setFormModalTitle('View: ' + item.title);
+                }}
+              >
+                <Icon iconName="View" className={styles.detailPanelFormLinkIcon} />
+                View item
+              </a>
+            )}
+            {editUrl && (
+              <a
+                href={editUrl}
+                className={styles.detailPanelFormLink}
+                onClick={(e: React.MouseEvent): void => {
+                  e.preventDefault();
+                  setFormModalUrl(editUrl);
+                  setFormModalTitle('Edit: ' + item.title);
+                }}
+              >
+                <Icon iconName="Edit" className={styles.detailPanelFormLinkIcon} />
+                Edit item
+              </a>
+            )}
+            {hasVersionHistory && (
+              <button
+                type="button"
+                className={styles.detailPanelFormLink}
+                onClick={(): void => { setVersionHistoryItem(item); }}
+              >
+                <Icon iconName="History" className={styles.detailPanelFormLinkIcon} />
+                View history
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* View/Edit form modal */}
+      {formModalUrl && (
+        <Modal
+          isOpen={true}
+          onDismiss={(): void => { setFormModalUrl(undefined); }}
+          isBlocking={false}
+          styles={{
+            main: {
+              width: '90vw',
+              maxWidth: '800px',
+              height: '85vh',
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            },
+            scrollableContent: {
+              display: 'flex',
+              flexDirection: 'column' as const,
+              flex: 1,
+              overflow: 'hidden',
+            },
+          }}
+        >
+          <div className={styles.previewModalHeader}>
+            <span className={styles.previewModalTitle}>{formModalTitle}</span>
+            <IconButton
+              iconProps={{ iconName: 'Cancel' }}
+              ariaLabel="Close"
+              onClick={(): void => { setFormModalUrl(undefined); }}
+            />
+          </div>
+          <div className={styles.previewModalFrame}>
+            <iframe
+              src={formModalUrl + '&IsDlg=1'}
+              title={formModalTitle}
+            />
+          </div>
+          <div className={styles.previewModalFooter}>
+            {viewUrl && (
+              <button
+                type="button"
+                className={styles.previewModalFooterLink}
+                onClick={(): void => {
+                  setFormModalUrl(viewUrl);
+                  setFormModalTitle('View: ' + item.title);
+                }}
+              >
+                <Icon iconName="View" />
+                <span>View</span>
+              </button>
+            )}
+            {editUrl && (
+              <button
+                type="button"
+                className={styles.previewModalFooterLink}
+                onClick={(): void => {
+                  setFormModalUrl(editUrl);
+                  setFormModalTitle('Edit: ' + item.title);
+                }}
+              >
+                <Icon iconName="Edit" />
+                <span>Edit</span>
+              </button>
+            )}
+            {hasVersionHistory && (
+              <button
+                type="button"
+                className={styles.previewModalFooterLink}
+                onClick={(): void => {
+                  setFormModalUrl(undefined);
+                  setVersionHistoryItem(item);
+                }}
+              >
+                <Icon iconName="History" />
+                <span>Version history</span>
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Version history (lazy-loaded) */}
+      {versionHistoryItem && versionHistoryItem.properties.ListId && versionHistoryItem.properties.ListItemID && (
+        <VersionHistory
+          listId={versionHistoryItem.properties.ListId as string}
+          itemId={Number(versionHistoryItem.properties.ListItemID)}
+          onClose={(): void => { setVersionHistoryItem(undefined); }}
+          allowCopyLink={true}
+        />
+      )}
     </Panel>
   );
 };

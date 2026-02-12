@@ -95,6 +95,23 @@ const SliderFilter: React.FC<ISliderFilterProps> = (props: ISliderFilterProps): 
     setCurrentRange([initialStart, initialEnd]);
   }, [initialStart, initialEnd]);
 
+  const formatConfig: IFilterConfig = config || {
+    id: filterName,
+    displayName: filterName,
+    managedProperty: filterName,
+    filterType: 'slider',
+    operator: 'AND',
+    maxValues: 1,
+    defaultExpanded: true,
+    showCount: false,
+    sortBy: 'count',
+    sortDirection: 'desc',
+    multiValues: false,
+  };
+  if (!formatConfig.rangeFormat && filterName.toLowerCase().indexOf('size') >= 0) {
+    formatConfig.rangeFormat = 'bytes';
+  }
+
   function handleValueChanged(e: { value?: number[] }): void {
     if (!Array.isArray(e.value) || e.value.length < 2) {
       return;
@@ -112,28 +129,13 @@ const SliderFilter: React.FC<ISliderFilterProps> = (props: ISliderFilterProps): 
 
     // Build and dispatch FQL range token
     const fqlToken: string = 'range(decimal(' + nextRange[0] + '), decimal(' + nextRange[1] + '))';
+    const displayLabel: string = formatNumericValue(nextRange[0], formatConfig) + ' \u2013 ' + formatNumericValue(nextRange[1], formatConfig);
     onToggleRefiner({
       filterName: filterName,
       value: fqlToken,
+      displayValue: displayLabel,
       operator: 'AND'
     });
-  }
-
-  const formatConfig: IFilterConfig = config || {
-    id: filterName,
-    displayName: filterName,
-    managedProperty: filterName,
-    filterType: 'slider',
-    operator: 'AND',
-    maxValues: 1,
-    defaultExpanded: true,
-    showCount: false,
-    sortBy: 'count',
-    sortDirection: 'desc',
-    multiValues: false,
-  };
-  if (!formatConfig.rangeFormat && filterName.toLowerCase().indexOf('size') >= 0) {
-    formatConfig.rangeFormat = 'bytes';
   }
 
   return (

@@ -7,7 +7,8 @@ import {
   PropertyPaneSlider,
   PropertyPaneChoiceGroup,
   PropertyPaneToggle,
-  PropertyPaneLabel
+  PropertyPaneLabel,
+  PropertyPaneDropdown
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -49,6 +50,8 @@ export interface ISpSearchResultsWebPartProps {
   defaultLayout: string;
   showResultCount: boolean;
   showSortDropdown: boolean;
+  searchScope: string;
+  searchScopePath: string;
 }
 
 interface ISortCollectionItem {
@@ -121,10 +124,15 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       }
 
       registerBuiltInActions(this._store.getState().registries.actions);
-    }
 
-    // Initialize the search context (history service, orchestrator, etc.)
-    await initializeSearchContext(contextId, this.context);
+      // Freeze registries AFTER all providers/actions are registered.
+      // This prevents mid-session mutations. Must happen here (in the Results
+      // web part) because it loads LAST — other web parts may still be
+      // registering when the first search executes.
+      if (this._orchestrator) {
+        this._orchestrator.freezeRegistries();
+      }
+    }
 
     // Apply default layout if configured
     if (this.properties.defaultLayout && this._store) {
@@ -152,12 +160,27 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       this._migrateRefinementFiltersToCollection();
     }
 
-    // Sync all property pane settings to the store
+    // Sync all property pane settings to the store BEFORE initializeSearchContext
+    // because initializeSearchContext triggers the first search
     this._syncQueryTemplateToStore();
     this._syncSortablePropertiesToStore();
     this._syncSelectedPropertiesToStore();
     this._syncRefinementFiltersToStore();
     this._syncSearchConfigToStore();
+    this._syncScopeToStore();
+
+    // Initialize the search context (history service, orchestrator, etc.)
+    // This triggers the first search — all store config must be set above
+    await initializeSearchContext(contextId, this.context);
+
+    // Always trigger a search after initialization. The initial search inside
+    // initializeSearchContext may have been skipped if another web part
+    // (e.g., Filters) called initializeSearchContext before the Results web
+    // part registered the data provider. This call is safe — triggerSearch
+    // cancels any pending/in-flight search before starting a new one.
+    if (this._orchestrator) {
+      this._orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
+    }
   }
 
   private _syncQueryTemplateToStore(): void {
@@ -235,8 +258,18 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         if (!item.property || !item.value) {
           return '';
         }
-        const op = item.operator || 'equals';
-        return item.property + ':' + op + '("' + item.value + '")';
+        const op = (item.operator || 'equals').toLowerCase();
+        switch (op) {
+          case 'range':
+            return item.property + ':range(' + item.value + ')';
+          case 'contains':
+            return item.property + ':string("*' + item.value + '*")';
+          case 'beginswith':
+            return item.property + ':string("' + item.value + '*")';
+          default:
+            // 'equals' and any other — simple quoted value
+            return item.property + ':"' + item.value + '"';
+        }
       })
       .filter(Boolean)
       .join(',');
@@ -312,6 +345,58 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         };
       }
     );
+  }
+
+  /**
+   * Sync search scope to the store based on the searchScope property.
+   */
+  private _syncScopeToStore(): void {
+    if (!this._store) {
+      return;
+    }
+
+    const scopeType = this.properties.searchScope || 'all';
+    const state = this._store.getState();
+    let scopeId: string;
+    let scopeLabel: string;
+    let kqlPath: string | undefined;
+
+    switch (scopeType) {
+      case 'currentsite': {
+        const webUrl = this.context.pageContext.web.absoluteUrl;
+        scopeId = 'currentsite';
+        scopeLabel = 'This site';
+        kqlPath = 'Path:"' + webUrl + '"';
+        break;
+      }
+      case 'currentcollection': {
+        const siteUrl = this.context.pageContext.site.absoluteUrl;
+        scopeId = 'currentcollection';
+        scopeLabel = 'This site collection';
+        kqlPath = 'Path:"' + siteUrl + '"';
+        break;
+      }
+      case 'custom': {
+        const customPath = this.properties.searchScopePath || '';
+        scopeId = 'custom';
+        scopeLabel = 'Custom scope';
+        kqlPath = customPath ? 'Path:"' + customPath + '"' : undefined;
+        break;
+      }
+      default:
+        scopeId = 'all';
+        scopeLabel = 'All SharePoint';
+        kqlPath = undefined;
+        break;
+    }
+
+    // Always sync the full scope object — the URL sync middleware may have
+    // set only the scope id (without kqlPath) if it initialized before this
+    // web part. Compare both id and kqlPath to ensure the path restriction
+    // is always present for scoped searches.
+    if (state.scope.id !== scopeId || state.scope.kqlPath !== kqlPath) {
+      state.setScope({ id: scopeId, label: scopeLabel, kqlPath });
+    }
   }
 
   /**
@@ -425,6 +510,10 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       'collapseSpecification', 'showPaging', 'pageRange', 'searchContextId'].indexOf(propertyPath) >= 0) {
       this._syncSearchConfigToStore();
     }
+
+    if (propertyPath === 'searchScope' || propertyPath === 'searchScopePath' || propertyPath === 'searchContextId') {
+      this._syncScopeToStore();
+    }
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
@@ -443,6 +532,23 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.SearchContextIdLabel,
                   description: strings.SearchContextIdDescription
                 }),
+                PropertyPaneDropdown('searchScope', {
+                  label: strings.SearchScopeLabel,
+                  options: [
+                    { key: 'all', text: strings.ScopeAllText },
+                    { key: 'currentsite', text: strings.ScopeCurrentSiteText },
+                    { key: 'currentcollection', text: strings.ScopeCurrentCollectionText },
+                    { key: 'custom', text: strings.ScopeCustomText }
+                  ],
+                  selectedKey: this.properties.searchScope || 'all'
+                }),
+                ...(this.properties.searchScope === 'custom' ? [
+                  PropertyPaneTextField('searchScopePath', {
+                    label: strings.SearchScopePathLabel,
+                    description: strings.SearchScopePathDescription,
+                    placeholder: 'https://contoso.sharepoint.com/sites/hr'
+                  })
+                ] : []),
                 PropertyPaneSchemaHelper('queryTemplate', {
                   label: strings.QueryTemplateLabel,
                   description: strings.QueryTemplateDescription,

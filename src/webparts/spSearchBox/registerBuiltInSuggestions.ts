@@ -1,6 +1,6 @@
 import type { IRegistry, ISuggestionProvider, ISearchDataProvider } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
-import { RecentSearchProvider, TrendingQueryProvider, ManagedPropertyProvider } from '@providers/index';
+import { QuerySuggestionProvider, RecentSearchProvider, TrendingQueryProvider, ManagedPropertyProvider } from '@providers/index';
 
 /**
  * Register all built-in suggestion providers into the given SuggestionProviderRegistry.
@@ -9,6 +9,7 @@ import { RecentSearchProvider, TrendingQueryProvider, ManagedPropertyProvider } 
  * Providers are registered only if not already present (idempotent).
  *
  * Priority order (lower = higher):
+ *    5 — Query suggestions (SharePoint Search Suggest API — real-time autocomplete)
  *   10 — Recent searches (user-specific)
  *   20 — Trending queries (org-wide)
  *   30 — Managed property suggestions
@@ -18,6 +19,11 @@ export function registerBuiltInSuggestions(
   managerService: SearchManagerService,
   dataProviderRegistry: IRegistry<ISearchDataProvider>
 ): void {
+  // Query suggestions (SharePoint Search Suggest API — real-time autocomplete)
+  if (!registry.get('query-suggestions')) {
+    registry.register(new QuerySuggestionProvider());
+  }
+
   // Recent searches
   if (!registry.get('recent-searches')) {
     registry.register(new RecentSearchProvider(managerService));

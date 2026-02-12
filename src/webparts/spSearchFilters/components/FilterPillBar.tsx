@@ -37,13 +37,13 @@ const FilterPillBar: React.FC<IFilterPillBarProps> = (props: IFilterPillBarProps
         const key: string = filter.filterName + '_' + filter.value + '_' + index;
         return (
           <div key={key} className={styles.pill} role="listitem">
-            <span className={styles.pillLabel} title={displayName + ': ' + filter.value}>
-              {displayName}: {filter.value}
+            <span className={styles.pillLabel} title={displayName + ': ' + (filter.displayValue || filter.value)}>
+              {displayName}: {filter.displayValue || filter.value}
             </span>
             <button
               className={styles.pillRemove}
               onClick={function (): void { onRemoveFilter(filter.filterName, filter.value); }}
-              aria-label={'Remove filter ' + displayName + ' ' + filter.value}
+              aria-label={'Remove filter ' + displayName + ' ' + (filter.displayValue || filter.value)}
               type="button"
             >
               &#x2715;

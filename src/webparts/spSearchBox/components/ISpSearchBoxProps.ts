@@ -11,6 +11,7 @@ export interface ISpSearchBoxProps {
   searchScopes: ISearchScope[];
   enableSuggestions: boolean;
   enableQueryBuilder: boolean;
+  enableKqlMode: boolean;
   enableSearchManager: boolean;
   searchInNewPage: boolean;
   newPageUrl: string;

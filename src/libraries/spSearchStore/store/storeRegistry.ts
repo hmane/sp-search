@@ -106,7 +106,7 @@ export async function initializeSearchContext(
 
   // Skip if already initialized
   if (context.isInitialized) {
-    console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") SKIPPED (already initialized)');
+    console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") SKIPPED (already initialized)');
     return;
   }
 
@@ -115,11 +115,11 @@ export async function initializeSearchContext(
   // If initialization is already in-flight, await the existing promise
   const existing = promises.get(searchContextId);
   if (existing) {
-    console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") AWAITING in-flight promise');
+    console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") AWAITING in-flight promise');
     return existing;
   }
 
-  console.log('[SP Search] v1.0.5 — initializeSearchContext("' + searchContextId + '") STARTING initialization');
+  console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") STARTING initialization');
 
   // Create and start the initialization promise
   const promise = _doInitializeContext(searchContextId, context);
@@ -139,6 +139,11 @@ async function _doInitializeContext(
   searchContextId: string,
   context: ISearchContext
 ): Promise<void> {
+  // Proactively clean up stale SPFx numeric hash keys from localStorage to prevent
+  // QuotaExceededError. SPFx serializes web part property bags using numeric hash
+  // keys that accumulate over time and can exceed the 5MB localStorage limit.
+  _cleanupStaleStorage();
+
   // Create and initialize the SearchManagerService (uses SPContext.sp internally)
   const managerService = new SearchManagerService();
   await managerService.initialize();
@@ -175,10 +180,13 @@ async function _doInitializeContext(
 
   context.isInitialized = true;
 
-  // Trigger initial search — the orchestrator only reacts to state changes,
-  // so on first page load (no URL params) we need to kick off the first search.
-  // Uses queryText || '*' internally to match all items.
-  context.orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
+  // NOTE: We do NOT call orchestrator.triggerSearch() here.
+  // The Results web part calls triggerSearch() at the end of its onInit(),
+  // AFTER all providers/actions are registered and all configuration
+  // (scope, queryTemplate, verticals, filterConfig) has been synced.
+  // Calling it here would fire a premature search with incomplete state
+  // (e.g. no vertical config, wrong scope) because the Results web part
+  // often loads AFTER this initialization completes.
 }
 
 /**
@@ -188,7 +196,7 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
   const map = getContextMap();
   let context = map.get(searchContextId);
   if (!context) {
-    console.log('[SP Search] v1.0.5 — Creating NEW context for "' + searchContextId + '" (map size: ' + map.size + ')');
+    console.log('[SP Search] v1.0.12 — Creating NEW context for "' + searchContextId + '" (map size: ' + map.size + ')');
     const registries = createRegistryContainer();
     const store = createSearchStore(registries);
     const orchestrator = new SearchOrchestrator(store);
@@ -201,7 +209,7 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
     };
     map.set(searchContextId, context);
   } else {
-    console.log('[SP Search] v1.0.5 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
+    console.log('[SP Search] v1.0.12 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
   }
   return context;
 }
@@ -230,4 +238,29 @@ export function disposeStore(searchContextId: string): void {
  */
 export function hasStore(searchContextId: string): boolean {
   return getContextMap().has(searchContextId);
+}
+
+/**
+ * Clean up stale SPFx localStorage entries to prevent QuotaExceededError.
+ * SPFx serializes web part property bags using numeric hash keys (e.g. '1517419502').
+ * Over time these accumulate and can exceed the 5MB localStorage limit.
+ * This removes all numeric-keyed entries, which SPFx will regenerate as needed.
+ */
+function _cleanupStaleStorage(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && /^-?\d+$/.test(key)) {
+        keysToRemove.push(key);
+      }
+    }
+    if (keysToRemove.length > 0) {
+      for (let i = 0; i < keysToRemove.length; i++) {
+        localStorage.removeItem(keysToRemove[i]);
+      }
+    }
+  } catch {
+    // localStorage not available or access denied — ignore
+  }
 }

@@ -89,6 +89,26 @@ function buildTokenMap(items: ITaxonomyTreeItem[] | undefined): Map<string, stri
   return map;
 }
 
+function buildLabelMap(items: ITaxonomyTreeItem[] | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!items) {
+    return map;
+  }
+  const stack: ITaxonomyTreeItem[] = items.slice();
+  while (stack.length > 0) {
+    const item = stack.pop() as ITaxonomyTreeItem;
+    // Strip count suffix like " (5)" from text to get clean label
+    const text = item.text.replace(/\s*\(\d+\)$/, '');
+    map.set(item.id, text);
+    if (item.items && item.items.length > 0) {
+      for (let i = 0; i < item.items.length; i++) {
+        stack.push(item.items[i]);
+      }
+    }
+  }
+  return map;
+}
+
 function buildFallbackItems(values: IRefinerValue[], showCount: boolean): ITaxonomyTreeItem[] {
   return values.map((value) => {
     const guid = extractGuid(value.value) || value.value;
@@ -164,6 +184,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
   }, [values, config?.termSetId, showCount, countMap]);
 
   const tokenMap = React.useMemo(() => buildTokenMap(treeItems), [treeItems]);
+  const labelMap = React.useMemo(() => buildLabelMap(treeItems), [treeItems]);
 
   const selectedKeys = React.useMemo(() => {
     const selected: string[] = [];
@@ -201,6 +222,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
         onToggleRefiner({
           filterName,
           value: selectedTokens[i],
+          displayValue: labelMap.get(keys[i]) || undefined,
           operator,
         });
       }

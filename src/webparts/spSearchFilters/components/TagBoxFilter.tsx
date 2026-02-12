@@ -70,6 +70,16 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   // Guard against re-entrant onValueChanged calls from programmatic value updates
   const isUpdatingRef = React.useRef<boolean>(false);
 
+  // Build a value→displayName lookup for setting displayValue on active filters
+  const displayNameMap = React.useMemo(function (): Map<string, string> {
+    const map = new Map<string, string>();
+    for (let i = 0; i < sortedValues.length; i++) {
+      const name = sortedValues[i].name || sortedValues[i].value;
+      map.set(sortedValues[i].value, name);
+    }
+    return map;
+  }, [sortedValues]);
+
   function handleValueChanged(e: { value?: string[] }): void {
     if (isUpdatingRef.current) {
       return;
@@ -84,6 +94,7 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
         onToggleRefiner({
           filterName,
           value: nextValues[i],
+          displayValue: displayNameMap.get(nextValues[i]) || undefined,
           operator,
         });
       }
@@ -95,6 +106,7 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
         onToggleRefiner({
           filterName,
           value: selectedValues[i],
+          displayValue: displayNameMap.get(selectedValues[i]) || undefined,
           operator,
         });
       }

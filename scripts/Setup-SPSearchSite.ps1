@@ -186,6 +186,8 @@ try {
     Write-Host ""
     Write-Host "[3/5] Provisioning hidden lists..." -ForegroundColor Cyan
 
+    # ── List definitions ──
+    # Fields: standard types via Add-PnPField; UserMulti via Add-PnPFieldFromXml
     $hiddenLists = @(
         @{
             Name = "SearchSavedQueries"
@@ -194,15 +196,20 @@ try {
                 @{ Name = "QueryText"; Type = "Note" },
                 @{ Name = "QueryHash"; Type = "Text" },
                 @{ Name = "SearchState"; Type = "Note" },
+                @{ Name = "SearchUrl"; Type = "Note" },
+                @{ Name = "EntryType"; Type = "Text" },
+                @{ Name = "Category"; Type = "Text" },
                 @{ Name = "Vertical"; Type = "Text" },
                 @{ Name = "Scope"; Type = "Text" },
                 @{ Name = "IsShared"; Type = "Boolean" },
-                @{ Name = "SharedWith"; Type = "Note" },
                 @{ Name = "Tags"; Type = "Note" },
                 @{ Name = "UseCount"; Type = "Number" },
-                @{ Name = "LastUsed"; Type = "DateTime" }
+                @{ Name = "ResultCount"; Type = "Number" },
+                @{ Name = "LastUsed"; Type = "DateTime" },
+                @{ Name = "ExpiresAt"; Type = "DateTime" }
             )
-            Indexes = @("QueryHash", "Vertical")
+            UserMultiFields = @("SharedWith")
+            Indexes = @("QueryHash", "Vertical", "EntryType")
         },
         @{
             Name = "SearchHistory"
@@ -215,8 +222,9 @@ try {
                 @{ Name = "Scope"; Type = "Text" },
                 @{ Name = "ResultCount"; Type = "Number" },
                 @{ Name = "SearchTimestamp"; Type = "DateTime" },
-                @{ Name = "ClickedUrls"; Type = "Note" }
+                @{ Name = "ClickedItems"; Type = "Note" }
             )
+            UserMultiFields = @()
             Indexes = @("QueryHash", "SearchTimestamp", "Vertical")
         },
         @{
@@ -229,8 +237,10 @@ try {
                 @{ Name = "ItemTitle"; Type = "Text" },
                 @{ Name = "ItemMetadata"; Type = "Note" },
                 @{ Name = "IsShared"; Type = "Boolean" },
-                @{ Name = "SharedWith"; Type = "Note" }
+                @{ Name = "Tags"; Type = "Note" },
+                @{ Name = "SortOrder"; Type = "Number" }
             )
+            UserMultiFields = @("SharedWith")
             Indexes = @("CollectionName")
         }
     )
@@ -238,30 +248,54 @@ try {
     foreach ($listDef in $hiddenLists) {
         $list = Get-PnPList -Identity $listDef.Name -ErrorAction SilentlyContinue
         if ($list) {
-            Write-Host "  [EXISTS] $($listDef.Name)" -ForegroundColor Yellow
+            Write-Host "  [EXISTS] $($listDef.Name) — checking for missing fields..." -ForegroundColor Yellow
         } else {
             Write-Host "  [CREATE] $($listDef.Name)" -ForegroundColor Green
             $list = New-PnPList -Title $listDef.Name -Template GenericList -Hidden -EnableVersioning -ErrorAction Stop
+        }
 
-            foreach ($field in $listDef.Fields) {
+        # Ensure all standard fields exist (idempotent)
+        foreach ($field in $listDef.Fields) {
+            $existing = Get-PnPField -List $listDef.Name -Identity $field.Name -ErrorAction SilentlyContinue
+            if (-not $existing) {
+                Write-Host "    + $($field.Name) ($($field.Type))" -ForegroundColor Green
                 Add-PnPField -List $listDef.Name -DisplayName $field.Name -InternalName $field.Name -Type $field.Type -ErrorAction SilentlyContinue | Out-Null
             }
+        }
 
-            # Add indexes for query performance
-            foreach ($idx in $listDef.Indexes) {
-                try {
-                    $f = Get-PnPField -List $listDef.Name -Identity $idx -ErrorAction SilentlyContinue
-                    if ($f) {
-                        Set-PnPField -List $listDef.Name -Identity $idx -Values @{ Indexed = $true } -ErrorAction SilentlyContinue
-                    }
-                } catch {
-                    Write-Warning "  Could not index field '$idx' on $($listDef.Name)"
+        # Ensure UserMulti fields exist (for $expand=SharedWith queries)
+        foreach ($umField in $listDef.UserMultiFields) {
+            $existing = Get-PnPField -List $listDef.Name -Identity $umField -ErrorAction SilentlyContinue
+            if ($existing) {
+                # If it exists as a wrong type (e.g., Note), remove and recreate
+                if ($existing.TypeAsString -ne "UserMulti") {
+                    Write-Host "    ~ $umField: changing from $($existing.TypeAsString) to UserMulti" -ForegroundColor Yellow
+                    Remove-PnPField -List $listDef.Name -Identity $umField -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    $existing = $null
                 }
             }
-
-            # Set list as hidden
-            Set-PnPList -Identity $listDef.Name -Hidden $true -ErrorAction SilentlyContinue
+            if (-not $existing) {
+                Write-Host "    + $umField (UserMulti)" -ForegroundColor Green
+                $fieldXml = '<Field Type="UserMulti" DisplayName="' + $umField + '" Name="' + $umField + '" StaticName="' + $umField + '" Mult="TRUE" UserSelectionMode="PeopleOnly" />'
+                Add-PnPFieldFromXml -List $listDef.Name -FieldXml $fieldXml -ErrorAction SilentlyContinue | Out-Null
+            }
         }
+
+        # Add indexes for query performance
+        foreach ($idx in $listDef.Indexes) {
+            try {
+                $f = Get-PnPField -List $listDef.Name -Identity $idx -ErrorAction SilentlyContinue
+                if ($f) {
+                    Set-PnPField -List $listDef.Name -Identity $idx -Values @{ Indexed = $true } -ErrorAction SilentlyContinue
+                }
+            } catch {
+                Write-Warning "  Could not index field '$idx' on $($listDef.Name)"
+            }
+        }
+
+        # Set list as hidden
+        Set-PnPList -Identity $listDef.Name -Hidden $true -ErrorAction SilentlyContinue
     }
     Write-Host "  Hidden lists ready" -ForegroundColor Green
 
@@ -321,6 +355,7 @@ try {
         searchBehavior           = "both"
         enableScopeSelector      = $true
         enableSuggestions        = $true
+        enableKqlMode            = $true
         enableSearchManager      = $false
         enableQueryBuilder       = $false
         searchInNewPage          = $false
@@ -428,7 +463,7 @@ try {
     Write-Host "  └──────────────────────────────────────────────────────┘"
     Write-Host ""
     Write-Host "  Web Part Properties Set:" -ForegroundColor Yellow
-    Write-Host "    Search Box:     contextId=$SearchContextId, debounce=300ms, suggestions=on"
+    Write-Host "    Search Box:     contextId=$SearchContextId, debounce=300ms, suggestions=on, KQL mode=on"
     Write-Host "    Verticals:      5 tabs (All, Documents, Pages, People, Sites)"
     Write-Host "    Results:        list layout, 25/page, sort dropdown, selection"
     Write-Host "    Filters:        4 refiners (FileType, Author, Date, ContentClass)"

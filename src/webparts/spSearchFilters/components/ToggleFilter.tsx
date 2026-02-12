@@ -15,6 +15,7 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
   const { filterName, config, activeFilters, onToggleRefiner } = props;
 
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
+  const trueLabel = config?.trueLabel || 'Yes';
   const falseLabel = config?.falseLabel || 'No';
 
   const currentActive: IActiveFilter | undefined = React.useMemo(() => {
@@ -43,6 +44,7 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
     const next: IActiveFilter = {
       filterName,
       value,
+      displayValue: value === '1' || value === 'true' ? trueLabel : falseLabel,
       operator,
     };
     onToggleRefiner(next);

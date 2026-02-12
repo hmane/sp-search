@@ -30,8 +30,18 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     // Build PnPjs search request
     const startRow = (query.page - 1) * query.pageSize;
 
+    // Apply scope KQL path restriction to query text
+    let queryText = query.queryText || '*';
+
+    // Normalize lowercase boolean operators to uppercase (SharePoint KQL requires AND/OR/NOT)
+    queryText = this._normalizeKqlOperators(queryText);
+
+    if (query.scope && query.scope.kqlPath) {
+      queryText = queryText + ' ' + query.scope.kqlPath;
+    }
+
     const searchRequest: IPnPSearchQuery = {
-      Querytext: query.queryText || '*',
+      Querytext: queryText,
       QueryTemplate: query.queryTemplate,
       RowLimit: query.pageSize,
       StartRow: startRow,
@@ -69,9 +79,11 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       }];
     }
 
-    // Add result source
+    // Add result source — explicit resultSourceId takes priority over scope
     if (query.resultSourceId) {
       searchRequest.SourceId = query.resultSourceId;
+    } else if (query.scope && query.scope.resultSourceId) {
+      searchRequest.SourceId = query.scope.resultSourceId;
     }
 
     // Add collapse specification with validation
@@ -89,7 +101,7 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       throw new Error('SPContext not initialized — search provider waiting for web part initialization');
     }
 
-    // Execute search
+    // Execute search via PnPjs
     const searchResults: SearchResults = await SPContext.sp.search(searchRequest);
 
     // Check abort after API call
@@ -103,9 +115,12 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     const rawResults = searchResults.RawSearchResults as any;
     const refiners = this._mapRefiners(rawResults?.PrimaryQueryResult?.RefinementResults?.Refiners);
     const promotedResults = this._mapPromotedResults(rawResults?.PrimaryQueryResult?.SpecialTermResults?.Results);
+    // SpellingSuggestion is the proper "Did you mean" field.
+    // QueryModification contains internal query rule rewrites (e.g. "* -ContentClass=urn:...")
+    // which are NOT user-facing spelling corrections.
     const querySuggestion = (rawResults?.PrimaryQueryResult?.RelevantResults?.Properties?.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (p: any) => p.Key === 'QueryModification'
+      (p: any) => p.Key === 'SpellingSuggestion'
     )?.Value as string) || undefined;
 
     return {
@@ -156,6 +171,25 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   }
 
   /**
+   * Normalize standalone KQL boolean operators to uppercase.
+   * SharePoint Search requires AND/OR/NOT to be uppercase — lowercase
+   * variants are treated as literal text. Only normalizes tokens that
+   * appear as standalone words (preceded/followed by whitespace or parens),
+   * NOT inside property:value pairs.
+   */
+  private _normalizeKqlOperators(queryText: string): string {
+    if (!queryText) {
+      return queryText;
+    }
+    // Match standalone and/or/not preceded by start-of-string, whitespace, or open-paren
+    // and followed by whitespace, close-paren, or end-of-string.
+    // Uses lookahead so consecutive operators don't consume shared boundaries.
+    return queryText.replace(/(^|[\s(])(and|or|not)(?=[\s)]|$)/gi, function (_match: string, before: string, op: string): string {
+      return before + op.toUpperCase();
+    });
+  }
+
+  /**
    * Build refinement filter strings from active filters.
    * Groups by filterName, combines values with or() within groups.
    */
@@ -174,26 +208,17 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     }
 
     // Build refinement filter strings
+    // Values are refinement tokens from SharePoint (ǂǂ hex, string(), GP0|#, range(), etc.)
+    // or constructed by filter components.
     const result: string[] = [];
     const keys = Object.keys(grouped);
     for (const key of keys) {
       const values = grouped[key];
       if (values.length === 1) {
-        // Check if value is already FQL (range, etc.)
-        const val = values[0];
-        if (this._isFqlExpression(val)) {
-          result.push(key + ':' + val);
-        } else {
-          result.push(key + ':"ǂǂ' + this._encodeRefinementValue(val) + '"');
-        }
+        result.push(key + ':' + this._quoteTokenValue(values[0]));
       } else {
         // Multiple values — combine with or()
-        const encoded = values.map((v) => {
-          if (this._isFqlExpression(v)) {
-            return v;
-          }
-          return '"ǂǂ' + this._encodeRefinementValue(v) + '"';
-        });
+        const encoded = values.map((v) => this._quoteTokenValue(v));
         result.push(key + ':or(' + encoded.join(',') + ')');
       }
     }
@@ -202,26 +227,27 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   }
 
   /**
-   * Check if a value is already an FQL expression (range, and, or, etc.)
+   * Ensure a refinement token value is properly quoted for FQL.
+   * FQL functions (range, string, and, or, not) pass through as-is.
+   * Pre-quoted tokens ("...") pass through as-is.
+   * Everything else gets wrapped in quotes — including ǂǂ hex tokens
+   * and GP0|# taxonomy tokens that may arrive unquoted from PnPjs.
    */
-  private _isFqlExpression(value: string): boolean {
-    return value.indexOf('range(') === 0 ||
+  private _quoteTokenValue(value: string): string {
+    // FQL functions — pass through as-is
+    if (value.indexOf('range(') === 0 ||
+      value.indexOf('string(') === 0 ||
       value.indexOf('and(') === 0 ||
       value.indexOf('or(') === 0 ||
-      value.indexOf('not(') === 0;
-  }
-
-  /**
-   * Hex-encode a refinement value for the ǂǂ prefix format.
-   */
-  private _encodeRefinementValue(value: string): string {
-    let hex = '';
-    for (let i = 0; i < value.length; i++) {
-      const code = value.charCodeAt(i).toString(16);
-      // Pad to 4 chars (ES5-safe alternative to padStart)
-      hex += ('0000' + code).slice(-4);
+      value.indexOf('not(') === 0) {
+      return value;
     }
-    return hex;
+    // Already quoted — pass through as-is
+    if (value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
+      return value;
+    }
+    // All other values (hex tokens, taxonomy tokens, plain values) — quote them
+    return '"' + value + '"';
   }
 
   /**

@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
 import styles from './SpSearchFilters.module.scss';
 import type { ISpSearchFiltersProps } from './ISpSearchFiltersProps';
 import FilterGroup from './FilterGroup';
-import FilterPillBar from './FilterPillBar';
 import type {
   IRefiner,
   IActiveFilter,
@@ -64,11 +64,11 @@ function useStoreState<T>(
 }
 
 const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFiltersProps): React.ReactElement => {
-  const { store, applyMode, showClearAll, enableVisualFilterBuilder } = props;
+  const { store, applyMode, enableVisualFilterBuilder } = props;
 
   // Stable selectors to avoid re-subscriptions
   const selectRefiners = React.useCallback(function (s: ISearchStore): IRefiner[] {
-    return s.availableRefiners;
+    return s.displayRefiners;
   }, []);
 
   const selectActiveFilters = React.useCallback(function (s: ISearchStore): IActiveFilter[] {
@@ -79,9 +79,14 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     return s.filterConfig;
   }, []);
 
+  const selectIsLoading = React.useCallback(function (s: ISearchStore): boolean {
+    return s.isLoading;
+  }, []);
+
   const availableRefiners: IRefiner[] | undefined = useStoreState(store, selectRefiners);
   const activeFilters: IActiveFilter[] | undefined = useStoreState(store, selectActiveFilters);
   const filterConfig: IFilterConfig[] | undefined = useStoreState(store, selectFilterConfig);
+  const isLoading: boolean | undefined = useStoreState(store, selectIsLoading);
 
   // Use safe defaults
   const refiners: IRefiner[] = availableRefiners || [];
@@ -138,41 +143,6 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     }
   }
 
-  /** Handle removing a specific filter from the pill bar. */
-  function handleRemoveFilter(filterName: string, value: string): void {
-    if (!store) {
-      return;
-    }
-
-    if (applyMode === 'instant') {
-      store.getState().removeRefiner(filterName, value);
-    } else {
-      const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
-      const updated: IActiveFilter[] = [];
-      for (let i: number = 0; i < current.length; i++) {
-        if (!(current[i].filterName === filterName && current[i].value === value)) {
-          updated.push(current[i]);
-        }
-      }
-      setPendingFilters(updated);
-      setHasPendingChanges(true);
-    }
-  }
-
-  /** Handle clearing all filters. */
-  function handleClearAll(): void {
-    if (!store) {
-      return;
-    }
-
-    if (applyMode === 'instant') {
-      store.getState().clearAllFilters();
-    } else {
-      setPendingFilters([]);
-      setHasPendingChanges(true);
-    }
-  }
-
   /** Handle applying filters from the visual filter builder. */
   function handleBuilderApply(builderFilters: IActiveFilter[]): void {
     if (!store) {
@@ -216,12 +186,52 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  if (refiners.length === 0) {
+  if (refiners.length === 0 && !isLoading) {
     return (
       <div className={styles.spSearchFilters}>
         <div className={styles.emptyState} role="status">
           No filters available. Perform a search to see available filters.
         </div>
+      </div>
+    );
+  }
+
+  if (refiners.length === 0 && isLoading) {
+    return (
+      <div className={styles.spSearchFilters}>
+        {[0, 1, 2].map(function (i: number): React.ReactElement {
+          return (
+            <div key={i} className={styles.shimmerGroup}>
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 14, width: '45%' }
+                ]}
+                width="100%"
+              />
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 12, width: '80%' }
+                ]}
+                width="100%"
+                style={{ marginTop: 8 }}
+              />
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 12, width: '65%' }
+                ]}
+                width="100%"
+                style={{ marginTop: 6 }}
+              />
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 12, width: '55%' }
+                ]}
+                width="100%"
+                style={{ marginTop: 6 }}
+              />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -251,15 +261,6 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
           onCancel={function (): void { setIsBuilderOpen(false); }}
         />
       )}
-
-      {/* Active filter pill bar */}
-      <FilterPillBar
-        activeFilters={displayFilters}
-        filterConfig={configs}
-        onRemoveFilter={handleRemoveFilter}
-        onClearAll={handleClearAll}
-        showClearAll={showClearAll}
-      />
 
       {/* Filter groups */}
       {refiners.map(function (refiner: IRefiner): React.ReactElement {

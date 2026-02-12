@@ -192,9 +192,34 @@ function buildNumericRangeToken(range: INumericRange): string {
   return 'range(' + min + ', ' + max + ')';
 }
 
+/**
+ * Decode SharePoint refinement hex tokens (e.g. "ǂǂ646f6378" → "docx").
+ * The ǂǂ prefix indicates hex-encoded ASCII/UTF-8 characters.
+ */
+function decodeRefinementToken(value: string): string {
+  const stripped = stripStringWrapper(value);
+  // Match ǂǂ followed by hex characters
+  if (stripped.indexOf('\u01C2\u01C2') === 0) {
+    const hex = stripped.substring(2);
+    // Validate it's all hex characters
+    if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
+      try {
+        const bytes: number[] = [];
+        for (let i = 0; i < hex.length; i += 2) {
+          bytes.push(parseInt(hex.substring(i, i + 2), 16));
+        }
+        return new TextDecoder().decode(new Uint8Array(bytes));
+      } catch {
+        return stripped;
+      }
+    }
+  }
+  return stripped;
+}
+
 export const DefaultFilterFormatter: IFilterValueFormatter = {
   id: 'default',
-  formatForDisplay: (rawValue: string): string => stripStringWrapper(rawValue),
+  formatForDisplay: (rawValue: string): string => decodeRefinementToken(rawValue),
   formatForQuery: (displayValue: unknown): string => String(displayValue || ''),
   formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
   parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),

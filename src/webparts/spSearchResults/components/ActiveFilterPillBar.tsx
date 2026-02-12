@@ -9,6 +9,7 @@ export interface IActiveFilterPillBarProps {
   filterConfig: IFilterConfig[];
   onRemoveFilter: (filterName: string, value?: string) => void;
   onClearAll: () => void;
+  onReset: () => void;
 }
 
 /**
@@ -51,25 +52,60 @@ function getFilterConfig(filterName: string, filterConfig: IFilterConfig[]): IFi
  */
 function groupFiltersByName(
   filters: IActiveFilter[]
-): Map<string, string[]> {
-  const groups = new Map<string, string[]>();
+): Map<string, Array<{ value: string; displayValue?: string }>> {
+  const groups = new Map<string, Array<{ value: string; displayValue?: string }>>();
   for (let i = 0; i < filters.length; i++) {
     const filter = filters[i];
+    const entry = { value: filter.value, displayValue: filter.displayValue };
     const existing = groups.get(filter.filterName);
     if (existing) {
-      existing.push(filter.value);
+      existing.push(entry);
     } else {
-      groups.set(filter.filterName, [filter.value]);
+      groups.set(filter.filterName, [entry]);
     }
   }
   return groups;
 }
 
 /**
+ * Decode a SharePoint hex-encoded refinement token (ǂǂ prefix) to plain text.
+ * E.g. "ǂǂ646f6378" → "docx", ǂǂ706466 → "pdf"
+ */
+function decodeHexToken(token: string): string | undefined {
+  // Strip surrounding quotes if present
+  let inner = token;
+  if (inner.charAt(0) === '"' && inner.charAt(inner.length - 1) === '"') {
+    inner = inner.substring(1, inner.length - 1);
+  }
+  // Check for ǂǂ prefix (U+01C2 = Latin Letter Alveolar Click)
+  if (inner.indexOf('\u01C2\u01C2') !== 0) {
+    return undefined;
+  }
+  const hex = inner.substring(2);
+  if (hex.length === 0 || hex.length % 2 !== 0) {
+    return undefined;
+  }
+  try {
+    const bytes: number[] = [];
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.substring(i, i + 2), 16));
+    }
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Format a raw refiner token value for human-readable display.
- * Strips FQL tokens, GUID prefixes, date ranges, etc.
+ * Decodes hex tokens, strips FQL wrappers, GUID prefixes, date ranges, etc.
  */
 function formatValueForDisplay(rawValue: string): string {
+  // Decode hex-encoded refinement tokens (ǂǂ prefix) — common after page refresh
+  const decoded = decodeHexToken(rawValue);
+  if (decoded) {
+    return decoded;
+  }
   // Strip FQL string() wrapper
   if (rawValue.startsWith('string("') && rawValue.endsWith('")')) {
     return rawValue.substring(8, rawValue.length - 2);
@@ -80,6 +116,10 @@ function formatValueForDisplay(rawValue: string): string {
     // The label is typically after the GUID portion
     const lastPart = parts[parts.length - 1];
     return lastPart || rawValue;
+  }
+  // Strip surrounding quotes
+  if (rawValue.charAt(0) === '"' && rawValue.charAt(rawValue.length - 1) === '"') {
+    return rawValue.substring(1, rawValue.length - 1);
   }
   // Truncate long values
   if (rawValue.length > 40) {
@@ -94,29 +134,40 @@ function formatValueForDisplay(rawValue: string): string {
  * into a single pill with comma-separated values.
  */
 const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function ActiveFilterPillBar(props) {
-  const { activeFilters, filterConfig, onRemoveFilter, onClearAll } = props;
+  const { activeFilters, filterConfig, onRemoveFilter, onClearAll, onReset } = props;
   const [displayMap, setDisplayMap] = React.useState<Map<string, string>>(new Map());
   const displayMapRef = React.useRef<Map<string, string>>(displayMap);
   displayMapRef.current = displayMap;
-  const prevFilterConfigRef = React.useRef(filterConfig);
 
-  // Clear the display cache when filterConfig changes (e.g., filter type swap)
+  // Serialize filterConfig IDs to a stable string for comparison.
+  // This avoids infinite re-renders when filterConfig is a new array reference
+  // each render but contains the same configs.
+  const filterConfigKey = React.useMemo(function (): string {
+    if (!filterConfig || filterConfig.length === 0) { return ''; }
+    const parts: string[] = [];
+    for (let i = 0; i < filterConfig.length; i++) {
+      parts.push(filterConfig[i].id + ':' + filterConfig[i].filterType);
+    }
+    return parts.join('|');
+  }, [filterConfig]);
+
+  // Clear the display cache when filterConfig actually changes (e.g., filter type swap)
   // so that values get re-resolved with the new formatter.
-  if (prevFilterConfigRef.current !== filterConfig) {
-    prevFilterConfigRef.current = filterConfig;
-    if (displayMap.size > 0) {
+  React.useEffect(function (): void {
+    if (displayMapRef.current.size > 0) {
       setDisplayMap(new Map());
       displayMapRef.current = new Map();
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterConfigKey]);
 
-  if (activeFilters.length === 0) {
-    // eslint-disable-next-line @rushstack/no-new-null
-    return null;
-  }
-
+  // Resolve display values for active filters via formatters
   // eslint-disable-next-line react-hooks/exhaustive-deps -- displayMapRef.current used via ref to avoid infinite loop
   React.useEffect(() => {
+    if (activeFilters.length === 0) {
+      return;
+    }
+
     let cancelled = false;
 
     async function resolveValues(): Promise<void> {
@@ -154,15 +205,23 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
     };
   }, [activeFilters, filterConfig]);
 
-  function getDisplayValue(filterName: string, rawValue: string): string {
+  if (activeFilters.length === 0) {
+    // eslint-disable-next-line @rushstack/no-new-null
+    return null;
+  }
+
+  function getDisplayValue(filterName: string, rawValue: string, displayValue?: string): string {
+    if (displayValue) {
+      return displayValue;
+    }
     const key = filterName + '|' + rawValue;
     return displayMap.get(key) || formatValueForDisplay(rawValue);
   }
 
   const grouped = groupFiltersByName(activeFilters);
-  const pillEntries: Array<{ filterName: string; displayName: string; values: string[] }> = [];
+  const pillEntries: Array<{ filterName: string; displayName: string; values: Array<{ value: string; displayValue?: string }> }> = [];
 
-  grouped.forEach(function (values: string[], filterName: string): void {
+  grouped.forEach(function (values: Array<{ value: string; displayValue?: string }>, filterName: string): void {
     pillEntries.push({
       filterName,
       displayName: getDisplayName(filterName, filterConfig),
@@ -173,8 +232,8 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
   return (
     <div className={styles.activeFilterPillBar} role="list" aria-label="Active filters" aria-live="polite">
       {pillEntries.map(function (entry): React.ReactElement {
-        const displayValues = entry.values.map(function (value): string {
-          return getDisplayValue(entry.filterName, value);
+        const displayValues = entry.values.map(function (v): string {
+          return getDisplayValue(entry.filterName, v.value, v.displayValue);
         }).join(', ');
         return (
           <div
@@ -210,6 +269,16 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
           Clear all
         </button>
       )}
+
+      <button
+        className={styles.activeFilterReset}
+        onClick={onReset}
+        type="button"
+        aria-label="Reset search"
+      >
+        <Icon iconName="RevToggleKey" style={{ fontSize: 12 }} />
+        Reset
+      </button>
     </div>
   );
 };

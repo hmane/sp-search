@@ -136,7 +136,7 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
   }, [onLayoutChange]);
 
   const handleDataGridLayout = React.useCallback((): void => {
-    onLayoutChange('datagrid');
+    onLayoutChange('grid');
   }, [onLayoutChange]);
 
   const handleGalleryLayout = React.useCallback((): void => {
@@ -193,11 +193,11 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
           onClick={handlePeopleLayout}
         />
         <IconButton
-          className={activeLayoutKey === 'datagrid' ? styles.layoutButtonActive : styles.layoutButton}
+          className={activeLayoutKey === 'grid' ? styles.layoutButtonActive : styles.layoutButton}
           iconProps={{ iconName: 'Table' }}
           title="DataGrid view"
           ariaLabel="DataGrid view"
-          checked={activeLayoutKey === 'datagrid'}
+          checked={activeLayoutKey === 'grid'}
           onClick={handleDataGridLayout}
         />
         <IconButton

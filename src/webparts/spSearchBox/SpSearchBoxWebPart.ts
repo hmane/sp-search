@@ -30,6 +30,7 @@ export interface ISpSearchBoxWebPartProps {
   searchScopes: ISearchScope[];
   enableSuggestions: boolean;
   enableQueryBuilder: boolean;
+  enableKqlMode: boolean;
   enableSearchManager: boolean;
   searchInNewPage: boolean;
   newPageUrl: string;
@@ -57,6 +58,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
         searchScopes: this.properties.searchScopes || [],
         enableSuggestions: !!this.properties.enableSuggestions,
         enableQueryBuilder: !!this.properties.enableQueryBuilder,
+        enableKqlMode: !!this.properties.enableKqlMode,
         enableSearchManager: !!this.properties.enableSearchManager,
         searchInNewPage: !!this.properties.searchInNewPage,
         newPageUrl: this.properties.newPageUrl || '',
@@ -225,6 +227,11 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                 }),
                 PropertyPaneToggle('enableQueryBuilder', {
                   label: strings.EnableQueryBuilderFieldLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
+                }),
+                PropertyPaneToggle('enableKqlMode', {
+                  label: strings.EnableKqlModeFieldLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
                 }),

@@ -9,6 +9,13 @@ declare interface ISpSearchResultsWebPartStrings {
   AboutGroupName: string;
   SearchContextIdLabel: string;
   SearchContextIdDescription: string;
+  SearchScopeLabel: string;
+  ScopeAllText: string;
+  ScopeCurrentSiteText: string;
+  ScopeCurrentCollectionText: string;
+  ScopeCustomText: string;
+  SearchScopePathLabel: string;
+  SearchScopePathDescription: string;
   QueryTemplateLabel: string;
   QueryTemplateDescription: string;
   ResultSourceIdLabel: string;

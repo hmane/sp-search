@@ -7,7 +7,7 @@ export const createVerticalSlice: StateCreator<ISearchStore, [], [], IVerticalSl
   verticalCounts: {},
 
   setVertical: (key: string): void => {
-    set({ currentVerticalKey: key });
+    set({ currentVerticalKey: key, currentPage: 1, activeFilters: [] });
   },
 
   setVerticalCounts: (counts: Record<string, number>): void => {

@@ -125,12 +125,15 @@ export function serializeToUrl(
 
   const params = new URLSearchParams(window.location.search);
 
-  // ── State version tag (always written) ──
-  params.set(prefixKey(PARAM_STATE_VERSION, prefix), STATE_VERSION);
+  // Track whether any non-default param is written.
+  // The state version tag is only written when at least one meaningful param exists,
+  // to keep clean URLs when the user hasn't changed anything from defaults.
+  let hasNonDefaultParam = false;
 
   // ── q = queryText ──
   if (state.queryText) {
     params.set(prefixKey(PARAM_QUERY, prefix), state.queryText);
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_QUERY, prefix));
   }
@@ -139,13 +142,15 @@ export function serializeToUrl(
   if (state.activeFilters && state.activeFilters.length > 0) {
     const json = JSON.stringify(state.activeFilters);
     params.set(prefixKey(PARAM_FILTERS, prefix), toBase64(json));
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_FILTERS, prefix));
   }
 
-  // ── v = currentVerticalKey ──
-  if (state.currentVerticalKey) {
+  // ── v = currentVerticalKey (only when not 'all') ──
+  if (state.currentVerticalKey && state.currentVerticalKey !== 'all') {
     params.set(prefixKey(PARAM_VERTICAL, prefix), state.currentVerticalKey);
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_VERTICAL, prefix));
   }
@@ -156,6 +161,7 @@ export function serializeToUrl(
       prefixKey(PARAM_SORT, prefix),
       `${state.sort.property}:${state.sort.direction}`
     );
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_SORT, prefix));
   }
@@ -163,13 +169,21 @@ export function serializeToUrl(
   // ── p = currentPage (only when > 1) ──
   if (state.currentPage !== undefined && state.currentPage > 1) {
     params.set(prefixKey(PARAM_PAGE, prefix), String(state.currentPage));
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_PAGE, prefix));
   }
 
   // ── sc = scope id ──
-  if (state.scope) {
+  // Only serialize scope when it's a user-facing change (not the web part
+  // property pane default). The scope is re-synced from property pane settings
+  // on every page load, so persisting the default to the URL is unnecessary
+  // and causes issues when the URL sync overwrites the scope before the
+  // Results web part can set the full scope object (including kqlPath).
+  // Scope is serialized only when it differs from common defaults.
+  if (state.scope && state.scope.id !== 'all' && state.scope.id !== 'currentsite') {
     params.set(prefixKey(PARAM_SCOPE, prefix), state.scope.id);
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_SCOPE, prefix));
   }
@@ -177,8 +191,16 @@ export function serializeToUrl(
   // ── l = activeLayoutKey (only when not 'list') ──
   if (state.activeLayoutKey && state.activeLayoutKey !== 'list') {
     params.set(prefixKey(PARAM_LAYOUT, prefix), state.activeLayoutKey);
+    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_LAYOUT, prefix));
+  }
+
+  // ── sv = state version (only when there are non-default params) ──
+  if (hasNonDefaultParam) {
+    params.set(prefixKey(PARAM_STATE_VERSION, prefix), STATE_VERSION);
+  } else {
+    params.delete(prefixKey(PARAM_STATE_VERSION, prefix));
   }
 
   return params.toString();
@@ -246,6 +268,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
               filters.push({
                 filterName: item.filterName,
                 value: item.value,
+                displayValue: typeof item.displayValue === 'string' ? item.displayValue : undefined,
                 operator: item.operator
               });
             }

@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
-import { PrimaryButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton, IconButton } from '@fluentui/react/lib/Button';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { DefaultButton } from '@fluentui/react/lib/Button';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
@@ -301,7 +302,13 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       saveCategory,
       totalCount
     )
-      .then(function (): void {
+      .then(function (newSearch: ISavedSearch): void {
+        // Optimistically add the new saved search to the store immediately
+        const current = store.getState().savedSearches;
+        store.setState({
+          savedSearches: [newSearch].concat(current)
+        });
+
         setShowSaveDialog(false);
         setSaveTitle('');
         setSaveCategory('General');
@@ -340,6 +347,21 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   function handleCollectionDataChanged(): void {
     reloadData();
     showSuccess('Collections updated');
+  }
+
+  // ─── Search loaded handler (close panel in panel mode) ────
+  function handleSearchLoaded(): void {
+    if (props.mode === 'panel') {
+      store.getState().toggleSearchManager(false);
+    }
+  }
+
+  // ─── Reset handler — navigate to base page without params ─
+  function handleReset(): void {
+    // Navigate to the current page without any search params
+    const url = new URL(window.location.href);
+    url.search = '';
+    window.location.href = url.toString();
   }
 
   // ─── Dismiss error ────────────────────────────────────────
@@ -398,6 +420,13 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
         <div className={styles.header}>
           <h2 className={styles.headerTitle}>Search Manager</h2>
           <div className={styles.headerActions}>
+            <TooltipHost content="Reset search — clear all filters and query">
+              <IconButton
+                iconProps={{ iconName: 'ClearFilter' }}
+                ariaLabel="Reset search"
+                onClick={handleReset}
+              />
+            </TooltipHost>
             <PrimaryButton
               iconProps={{ iconName: 'Save' }}
               text="Save Current Search"
@@ -421,6 +450,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 savedSearches={savedSearches}
                 onDataChanged={handleSavedSearchDataChanged}
                 onShare={handleShare}
+                onSearchLoaded={handleSearchLoaded}
               />
             </PivotItem>
             <PivotItem
@@ -433,6 +463,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 service={service}
                 history={searchHistory}
                 onDataChanged={handleHistoryDataChanged}
+                onSearchLoaded={handleSearchLoaded}
               />
             </PivotItem>
             <PivotItem
@@ -480,16 +511,47 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 onChange={handleSaveCategoryChange}
               />
             </div>
-            {queryText && (
-              <div className={styles.dialogField}>
-                <TextField
-                  label="Query"
-                  value={queryText}
-                  readOnly={true}
-                  borderless={true}
-                />
+            {/* Save state summary — shows everything that will be saved */}
+            <div className={styles.dialogField}>
+              <span className={styles.saveSummaryLabel}>What will be saved</span>
+              <div className={styles.saveSummaryBox}>
+                {queryText && (
+                  <div className={styles.saveSummaryRow}>
+                    <Icon iconName="Search" className={styles.saveSummaryIcon} />
+                    <span className={styles.saveSummaryValue}>{queryText}</span>
+                  </div>
+                )}
+                {activeFilters.length > 0 && (
+                  <div className={styles.saveSummaryRow}>
+                    <Icon iconName="Filter" className={styles.saveSummaryIcon} />
+                    <span className={styles.saveSummaryValue}>
+                      {String(activeFilters.length) + ' filter' + (activeFilters.length > 1 ? 's' : '') + ': '}
+                      {activeFilters.map(function (f: IActiveFilter): string {
+                        return f.filterName + '=' + (f.displayValue || f.value);
+                      }).join(', ')}
+                    </span>
+                  </div>
+                )}
+                {activeFilters.length === 0 && (
+                  <div className={styles.saveSummaryRow}>
+                    <Icon iconName="Filter" className={styles.saveSummaryIcon} />
+                    <span className={styles.saveSummaryMuted}>No filters applied</span>
+                  </div>
+                )}
+                {currentVerticalKey && currentVerticalKey !== 'all' && (
+                  <div className={styles.saveSummaryRow}>
+                    <Icon iconName="TabCenter" className={styles.saveSummaryIcon} />
+                    <span className={styles.saveSummaryValue}>Vertical: {currentVerticalKey}</span>
+                  </div>
+                )}
+                {sort && (
+                  <div className={styles.saveSummaryRow}>
+                    <Icon iconName="Sort" className={styles.saveSummaryIcon} />
+                    <span className={styles.saveSummaryValue}>Sort: {sort.property} ({sort.direction})</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
           <DialogFooter>
             <PrimaryButton

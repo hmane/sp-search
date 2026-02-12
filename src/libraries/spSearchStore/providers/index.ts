@@ -1,4 +1,5 @@
 export { SharePointSearchProvider } from './SharePointSearchProvider';
+export { QuerySuggestionProvider } from './QuerySuggestionProvider';
 export { RecentSearchProvider } from './RecentSearchProvider';
 export { TrendingQueryProvider } from './TrendingQueryProvider';
 export { ManagedPropertyProvider } from './ManagedPropertyProvider';
