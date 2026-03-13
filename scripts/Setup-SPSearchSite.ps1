@@ -221,6 +221,7 @@ try {
                 @{ Name = "Vertical"; Type = "Text" },
                 @{ Name = "Scope"; Type = "Text" },
                 @{ Name = "ResultCount"; Type = "Number" },
+                @{ Name = "IsZeroResult"; Type = "Boolean" },
                 @{ Name = "SearchTimestamp"; Type = "DateTime" },
                 @{ Name = "ClickedItems"; Type = "Note" }
             )

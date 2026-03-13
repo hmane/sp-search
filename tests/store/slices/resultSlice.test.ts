@@ -34,8 +34,13 @@ describe('resultSlice', () => {
       expect(store.getState().promotedResults).toEqual([]);
     });
 
-    it('should not be loading initially', () => {
-      expect(store.getState().isLoading).toBe(false);
+    it('should start in loading state (prevents empty-state flash before first search)', () => {
+      // isLoading starts true so the first render shows a skeleton, not "No results found"
+      expect(store.getState().isLoading).toBe(true);
+    });
+
+    it('should start with hasSearched false', () => {
+      expect(store.getState().hasSearched).toBe(false);
     });
 
     it('should have undefined error', () => {
@@ -57,16 +62,15 @@ describe('resultSlice', () => {
       expect(store.getState().totalCount).toBe(42);
     });
 
-    it('should clear isLoading and error when results are set', () => {
-      // Simulate a loading state
+    it('should clear error and set hasSearched when results are set', () => {
       store.getState().setLoading(true);
       store.getState().setError('Some previous error');
 
       const results = [createMockSearchResult()];
       store.getState().setResults(results, 1);
 
-      expect(store.getState().isLoading).toBe(false);
       expect(store.getState().error).toBeUndefined();
+      expect(store.getState().hasSearched).toBe(true);
     });
 
     it('should handle empty results', () => {
@@ -185,12 +189,13 @@ describe('resultSlice', () => {
   });
 
   describe('setError', () => {
-    it('should set error message and clear isLoading', () => {
+    it('should set error message, clear isLoading, and set hasSearched', () => {
       store.getState().setLoading(true);
       store.getState().setError('Network timeout');
 
       expect(store.getState().error).toBe('Network timeout');
       expect(store.getState().isLoading).toBe(false);
+      expect(store.getState().hasSearched).toBe(true);
     });
 
     it('should clear error when set to undefined', () => {

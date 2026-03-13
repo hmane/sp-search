@@ -179,6 +179,7 @@ export function createMockHistoryEntry(
     queryText: 'budget report',
     vertical: 'all',
     scope: 'all',
+    searchState: '{}',
     resultCount: 25,
     clickedItems: [],
     searchTimestamp: new Date('2024-06-20T10:30:00Z'),

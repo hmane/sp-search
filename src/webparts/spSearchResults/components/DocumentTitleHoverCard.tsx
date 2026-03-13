@@ -26,8 +26,6 @@ export interface IDocumentTitleHoverCardProps {
 const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) => {
   const { item, position, onItemClick, children, hostDisplay, disabled } = props;
   const [previewItem, setPreviewItem] = React.useState<ISearchResult | undefined>(undefined);
-  const [formModalUrl, setFormModalUrl] = React.useState<string | undefined>(undefined);
-  const [formModalTitle, setFormModalTitle] = React.useState<string>('');
   const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
 
   const handleDismissPreview = React.useCallback((): void => {
@@ -35,15 +33,25 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
   }, []);
 
   const handleClick = React.useCallback((e: React.MouseEvent): void => {
-    if (onItemClick) {
-      onItemClick(item, position);
-    }
     const previewUrl = buildPreviewUrl(item);
     if (previewUrl) {
       e.preventDefault();
+      e.nativeEvent.preventDefault();
+      e.stopPropagation();
+      if (onItemClick) {
+        onItemClick(item, position);
+      }
       setPreviewItem(item);
+    } else {
+      if (onItemClick) {
+        onItemClick(item, position);
+      }
     }
   }, [item, position, onItemClick]);
+
+  const openFormInNewTab = React.useCallback((url: string): void => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
 
   const renderPlainCard = React.useCallback((): JSX.Element => {
     const sizeDisplay: string = formatFileSize(item.fileSize);
@@ -129,55 +137,47 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
             <hr className={styles.hoverCardDivider} />
             <div className={styles.hoverCardActions}>
               {viewUrl && (
-                <a
-                  href={viewUrl}
+                <button
+                  type="button"
                   className={styles.hoverCardActionLink}
-                  onClick={(e: React.MouseEvent): void => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setFormModalUrl(viewUrl);
-                    setFormModalTitle('View: ' + item.title);
+                  onClick={(): void => {
+                    openFormInNewTab(viewUrl);
                   }}
                 >
                   <Icon iconName="View" style={{ fontSize: 12 }} />
                   {'View item'}
-                </a>
+                </button>
               )}
               {editUrl && (
-                <a
-                  href={editUrl}
+                <button
+                  type="button"
                   className={styles.hoverCardActionLink}
-                  onClick={(e: React.MouseEvent): void => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setFormModalUrl(editUrl);
-                    setFormModalTitle('Edit: ' + item.title);
+                  onClick={(): void => {
+                    openFormInNewTab(editUrl);
                   }}
                 >
                   <Icon iconName="Edit" style={{ fontSize: 12 }} />
                   {'Edit item'}
-                </a>
+                </button>
               )}
               {hasVersionHistory && (
-                <a
-                  href="#"
+                <button
+                  type="button"
                   className={styles.hoverCardActionLink}
-                  onClick={(e: React.MouseEvent): void => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                  onClick={(): void => {
                     setVersionHistoryItem(item);
                   }}
                 >
                   <Icon iconName="History" style={{ fontSize: 12 }} />
                   {'View history'}
-                </a>
+                </button>
               )}
             </div>
           </>
         )}
       </div>
     );
-  }, [item]);
+  }, [item, openFormInNewTab]);
 
   const display: string = hostDisplay === 'block' ? 'block' : 'inline';
 
@@ -204,13 +204,19 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
           isBlocking={true}
           styles={{
             main: {
-              width: '90vw',
-              maxWidth: '1280px',
-              height: '90vh',
+              width: 'calc(100vw - 48px)',
+              maxWidth: 'calc(100vw - 48px)',
+              height: 'calc(100vh - 48px)',
               padding: 0,
               display: 'flex',
               flexDirection: 'column',
             },
+            scrollableContent: {
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100%',
+              height: '100%'
+            }
           }}
         >
           <div className={styles.previewModalHeader}>
@@ -231,41 +237,6 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
           </div>
         </Modal>
       )}
-
-      {/* View/Edit form modal */}
-      {formModalUrl && (
-        <Modal
-          isOpen={true}
-          onDismiss={(): void => { setFormModalUrl(undefined); }}
-          isBlocking={false}
-          styles={{
-            main: {
-              width: '90vw',
-              maxWidth: '800px',
-              height: '85vh',
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-            },
-          }}
-        >
-          <div className={styles.previewModalHeader}>
-            <span className={styles.previewModalTitle}>{formModalTitle}</span>
-            <IconButton
-              iconProps={{ iconName: 'Cancel' }}
-              ariaLabel="Close"
-              onClick={(): void => { setFormModalUrl(undefined); }}
-            />
-          </div>
-          <div className={styles.previewModalFrame}>
-            <iframe
-              src={formModalUrl + '&IsDlg=1'}
-              title={formModalTitle}
-            />
-          </div>
-        </Modal>
-      )}
-
       {/* Version history (lazy-loaded) */}
       {versionHistoryItem && versionHistoryItem.properties.ListId && versionHistoryItem.properties.ListItemID && (
         <VersionHistory

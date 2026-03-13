@@ -1,224 +1,283 @@
 # SP Search — Admin Configuration Guide
 
-This guide covers property pane configuration for all 5 SP Search web parts. Each web part connects to a shared Zustand store via the `searchContextId` property — web parts with the same ID share state; different IDs create isolated search experiences.
+This guide documents the current SharePoint search solution as shipped after the product cleanup and Sprint 4 work. The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
 
----
+## Core Setup Rule
 
-## Prerequisites
+Every connected web part on the page must use the same `searchContextId`.
 
-1. SP Search `.sppkg` deployed to App Catalog (site-level or tenant-level)
-2. Hidden lists provisioned via `Provision-SPSearchLists.ps1` (see [provisioning-guide.md](./provisioning-guide.md))
-3. App added to the target site collection
+- Use a unique value such as `hr-search` or `policies-search` when a page hosts more than one search experience.
+- `default` is safe for a single search experience on a page.
+- The Results web part is the canonical source of truth. The Box, Filters, Verticals, and Manager web parts should match its context ID.
 
----
+## Starter Experience
 
-## 1. Search Box Web Part (`SPSearchBoxWebPart`)
+Fresh installs now provision a usable starter experience without immediate manual JSON editing.
 
-The query input. Dispatches search text and scope to the shared store.
+| Web part | Starter default |
+|----------|-----------------|
+| Search Box | Placeholder `Search this site`, suggestions enabled, Search Manager enabled, query input transformation set to `{searchTerms}` |
+| Search Results | Scope `This site`, query template `{searchTerms}`, 10 results per page, paging on, sort on, result count on, layouts `List`, `Compact`, `Grid` |
+| Search Filters | File type, modified date, and author filters |
+| Search Verticals | `All`, `Documents`, `Pages`, `Sites` |
+| Search Manager | Panel mode, history/saved searches/collections enabled |
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `searchContextId` | Text | `"default"` | **Required.** Shared store identifier. Must match across all connected web parts. |
-| `placeholder` | Text | `"Search..."` | Placeholder text shown in the empty search input. |
-| `debounceMs` | Slider (100–2000) | `300` | Milliseconds to wait after typing before triggering search. Lower = more responsive but more API calls. |
-| `searchBehavior` | Choice | `"both"` | When to trigger search: **onEnter** (Enter key only), **onButton** (click only), **both** (either). |
-| `enableScopeSelector` | Toggle | `false` | Show scope dropdown (All SharePoint / Current Site / Current Hub / custom). |
-| `enableSuggestions` | Toggle | `true` | Show suggestion dropdown with recent, trending, and property-value suggestions. |
-| `enableQueryBuilder` | Toggle | `false` | Show "Advanced" toggle to expand the visual query builder panel. |
-| `enableSearchManager` | Toggle | `true` | Show the Search Manager icon button (saved searches, history, collections). |
+## Search Box
 
-### Configuration Tips
+The Search Box owns input behavior and query transformation.
 
-- Set `debounceMs` to **500–800** on high-traffic sites to reduce API load.
-- `enableSuggestions` requires the SearchHistory list to be provisioned.
-- `enableSearchManager` requires all 3 hidden lists to be provisioned.
-- `enableQueryBuilder` populates property dropdowns from the Search Administration API — users need at least Search Admin or Site Collection Admin permissions for the schema browser.
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Must match the Results web part |
+| `placeholder` | `Search this site` | Input placeholder text |
+| `debounceMs` | `300` | Delay before search dispatch while typing |
+| `searchBehavior` | `both` | Search on Enter and search button |
+| `enableScopeSelector` | `false` | Uses custom search scopes configured on the box |
+| `enableSuggestions` | `true` | Uses history/trending/property suggestions |
+| `enableQueryBuilder` | `false` | Advanced builder UI |
+| `enableKqlMode` | `false` | Exposes raw KQL input mode |
+| `enableSearchManager` | `true` | Shows Saved/History/Insights entry point |
+| `searchInNewPage` | `false` | Useful for landing-page search boxes |
+| `newPageUrl` | empty | Required only when `searchInNewPage` is enabled |
+| `queryInputTransformation` | `{searchTerms}` | Applied in the orchestrator before the query is built |
 
----
+### Notes
 
-## 2. Search Results Web Part (`SPSearchResultsWebPart`)
+- `queryInputTransformation` belongs to the execution path, not the input UI. Example: `Title:{searchTerms} OR Path:{searchTerms}`.
+- Use `searchInNewPage` for home-page hero search boxes that should navigate to a dedicated results page.
 
-Displays search results with multiple layout options, sorting, and bulk actions.
+## Search Results
 
-### Data Group
+The Results web part owns query scope, returned properties, layouts, sorting, paging, and scenario presets.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `searchContextId` | Text | `"default"` | **Required.** Must match the Search Box web part. |
-| `queryTemplate` | Schema Helper | `"{searchTerms}"` | KQL query template. Use `{searchTerms}` for the user's query. Supports tokens: `{Site.ID}`, `{Site.URL}`, `{Hub}`, `{Today}`, `{User.*}`, `{PageContext.*}`. The "Browse Schema" button opens a managed property picker filtered to queryable properties. |
-| `selectedProperties` | Schema Helper (multiline) | *(see below)* | Comma-separated managed properties to retrieve. The "Browse Schema" button opens a picker filtered to retrievable properties. |
-| `pageSize` | Slider (5–100) | `25` | Results per page. Lower values improve perceived speed. |
+### Data and Query
 
-**Default `selectedProperties`:** `Title,Path,HitHighlightedSummary,Author,LastModifiedTime,Created,FileType,SPSiteURL,SiteName,FileExtension,SecondaryFileExtension,ContentTypeId,UniqueId,NormSiteID,NormWebID,NormListID,NormUniqueID,ServerRedirectedURL,ServerRedirectedEmbedURL,ServerRedirectedPreviewURL,PictureThumbnailURL`
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Required |
+| `searchScope` | `currentsite` | Starter behavior is site-scoped, similar to common PnP site-search pages |
+| `searchScopePath` | empty | Used only when scope is `custom` |
+| `queryTemplate` | `{searchTerms}` | Supports browse scenarios too |
+| `resultSourceId` | empty | Optional SharePoint result source |
+| `selectedPropertiesCollection` | Starter columns | Admin-configured result/grid columns |
+| `refinementFiltersCollection` | empty | Pre-applied FQL/KQL-style restrictions |
+| `collapseSpecification` | empty | SharePoint collapse spec |
+| `enableQueryRules` | `true` | SharePoint query rules |
+| `trimDuplicates` | `true` | SharePoint duplicate trimming |
 
-### Display Group
+### Starter Selected Properties
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `defaultLayout` | Choice | `"list"` | Initial layout: **list** (Google-style cards) or **compact** (single-line rows). Additional layouts (DataGrid, Card, People, Gallery) are available via the layout switcher. |
-| `showResultCount` | Toggle | `true` | Show "N results found" above results. |
-| `showSortDropdown` | Toggle | `true` | Show sort dropdown (Relevance, Date, Author, etc.). |
-| `enableSelection` | Toggle | `false` | Enable checkbox selection on results for bulk actions (share, download, pin, export). |
+The starter results configuration exposes these admin-facing columns:
 
-### Schema Helper Control
+- `Title`
+- `Author`
+- `LastModifiedTime`
+- `FileType`
+- `Size`
+- `Path`
+- `SiteName`
 
-The `queryTemplate` and `selectedProperties` fields use a custom **Schema Helper** control. Clicking "Browse Schema" opens a panel listing all managed properties from the search schema with:
-- Name, alias, type columns
-- Queryable / Retrievable / Refinable / Sortable flag indicators
-- Filter tabs: All | Refinable | Sortable | Retrievable
-- Search-within to find properties by name
-- Click a property to insert it
+The runtime also merges core system properties such as `HitHighlightedSummary`, preview URLs, IDs, and thumbnail fields, so list/card previews still work even if they are not shown as visible columns.
 
-**Permissions:** The schema browser requires Search Admin or Site Collection Admin permissions. If the current user lacks access, the "Browse Schema" button remains enabled but displays an info MessageBar stating "Contact your SharePoint admin for managed property names." The tooltip on the button also updates to indicate the permission requirement.
+### Layouts and Display
 
----
+| Property | Default | Notes |
+|----------|---------|-------|
+| `layoutPreset` | `general` | Applies a starter scenario profile |
+| `defaultLayout` | `list` | Initial layout |
+| `showListLayout` | `true` | Default primary reading view |
+| `showCompactLayout` | `true` | Dense scan view |
+| `showGridLayout` | `true` | Power-user table view |
+| `showCardLayout` | `false` | Opt-in |
+| `showPeopleLayout` | `false` | Opt-in |
+| `showGalleryLayout` | `false` | Opt-in |
+| `showResultCount` | `true` | Shows total results above results |
+| `showSortDropdown` | `true` | Shows sort picker |
 
-## 3. Search Filters Web Part (`SPSearchFiltersWebPart`)
+### Paging and Sort
 
-Displays refinement filters. Reads refiner data from the search response and renders filter controls.
+| Property | Default | Notes |
+|----------|---------|-------|
+| `pageSize` | `10` | Starter value aligned to common search pages |
+| `showPaging` | `true` | Server-side results paging |
+| `pageRange` | `5` | Number of pages shown in pager |
+| `sortablePropertiesCollection` | Modified desc, Title asc | Starter sort options |
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `searchContextId` | Text | `"default"` | **Required.** Must match the Search Results web part. |
-| `applyMode` | Choice | `"instant"` | **instant**: filter changes trigger search immediately. **manual**: user clicks "Apply" to execute. |
-| `operatorBetweenFilters` | Choice | `"AND"` | Logic combining multiple filter selections: **AND** (all must match) or **OR** (any can match). |
-| `showClearAll` | Toggle | `true` | Show "Clear All" button to reset all filter selections. |
-| `enableVisualFilterBuilder` | Toggle | `false` | Show the visual filter builder UI (DevExtreme-style AND/OR group editor). |
+### Scenario Presets
 
-### Filter Configuration
+Built-in scenario presets:
 
-Filter types are configured in the Search Results web part's `queryTemplate` and through the store's `filterConfig` array. Each filter entry defines:
+- `general`
+- `documents`
+- `people`
+- `news`
+- `media`
+- `hub-search`
+- `knowledge-base`
+- `policy-search`
+- `custom`
 
-| Setting | Options | Description |
-|---------|---------|-------------|
-| `managedProperty` | Any refinable property | SharePoint managed property to refine on. |
-| `displayName` | Free text | Label shown above the filter group. |
-| `filterType` | `checkbox`, `daterange`, `slider`, `people`, `taxonomy`, `tagbox`, `toggle` | UI control type. |
-| `operator` | `OR`, `AND` | Logic within a single filter (multi-value). |
-| `maxValues` | Number | Max values to show before "Show more" (0 = unlimited). |
-| `defaultExpanded` | Boolean | Whether the filter group starts expanded. |
-| `showCount` | Boolean | Show result counts next to each value. |
-| `sortBy` | `count`, `name` | Sort filter values by count (descending) or name (alphabetical). |
+Preset selection updates:
 
-### Filter Types Reference
+- query template
+- default layout
+- available layouts
+- selected properties
+- sort fields
 
-| Type | Best For | Notes |
-|------|----------|-------|
-| **checkbox** | Discrete values (File Type, Content Type, Site) | Multi-select with counts. Supports "search within" text filter. |
-| **daterange** | Dates (Created, Modified) | Preset buttons (Today, This Week, Month, Year) + custom range. Uses FQL `range()` tokens. |
-| **slider** | Numeric ranges (File Size, View Count) | Range slider with min/max. Supports file size formatting (KB/MB/GB). |
-| **people** | Person fields (Author, Editor) | PnP PeoplePicker with Azure AD type-ahead. Resolves claim strings. |
-| **taxonomy** | Managed metadata (Department, Category) | Hierarchical tree with expand/collapse. Resolves GP0|#GUID to term labels. |
-| **tagbox** | Multi-value text (Tags, Keywords) | Tag-style chips with search. |
-| **toggle** | Boolean fields (IsDocument, IsContainer) | Three-state: All / Yes / No. |
+Changing any individual layout toggle or the default layout reverts the preset selection to `custom`.
 
----
+### DataGrid Notes
 
-## 4. Search Verticals Web Part (`SPSearchVerticalsWebPart`)
+The DataGrid is meant for power users and includes:
 
-Tab navigation that switches search verticals (All, Documents, People, Sites, etc.).
+- dynamic columns from `selectedPropertiesCollection`
+- column chooser
+- column resize
+- fullscreen view
+- row selection and bulk actions
+- CSV and XLSX export
+- persisted column state in local storage
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `searchContextId` | Text | — | **Required.** Must match the other web parts. |
-| `verticals` | Text (multiline JSON) | — | JSON array of vertical definitions (see below). |
-| `showCounts` | Toggle | — | Show result count badge on each tab. |
-| `hideEmptyVerticals` | Toggle | — | Hide or dim tabs with zero results. |
-| `tabStyle` | Choice | `"tabs"` | Visual style: **tabs**, **pills**, or **underline**. |
+The removed DevExtreme filter row is intentional. It only filtered the current loaded page, not the full result set, which was misleading in a search product.
 
-### Vertical Definition Format
+## Search Filters
 
-The `verticals` property expects a JSON array:
+The Filters web part owns refiner configuration and how multiple filters combine.
 
-```json
-[
-  {
-    "key": "all",
-    "label": "All",
-    "iconName": "Search",
-    "queryTemplate": "{searchTerms}",
-    "sortOrder": 1
-  },
-  {
-    "key": "documents",
-    "label": "Documents",
-    "iconName": "Document",
-    "queryTemplate": "{searchTerms} IsDocument:1",
-    "resultSourceId": "e7ec8cee-eeee-eeee-eeee-eeeeeeeeeeee",
-    "sortOrder": 2
-  },
-  {
-    "key": "people",
-    "label": "People",
-    "iconName": "People",
-    "queryTemplate": "{searchTerms}",
-    "resultSourceId": "b09a7990-05ea-4af9-81ef-edfab16c4e31",
-    "dataProviderId": "graph-search",
-    "audienceGroups": ["group-guid-1"],
-    "sortOrder": 3
-  }
-]
-```
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Must match Results |
+| `applyMode` | `instant` | `instant` or `manual` |
+| `operatorBetweenFilters` | `AND` | Cross-filter logic |
+| `showClearAll` | `true` | Renders clear-all action |
+| `enableVisualFilterBuilder` | `false` | Advanced builder UI |
+| `filtersCollection` | File type, modified date, author | Starter refiners |
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `key` | Yes | Unique identifier. Used in URL parameter `v=`. |
-| `label` | Yes | Tab display text. |
-| `sortOrder` | Yes | Display order (ascending). Required for stable tab ordering. |
-| `iconName` | No | Fluent UI icon name. |
-| `queryTemplate` | No | Override query template for this vertical. |
-| `resultSourceId` | No | SharePoint Result Source GUID for this vertical. |
-| `dataProviderId` | No | Override data provider for this vertical (e.g., `"graph-search"` for People). |
-| `filterConfig` | No | Per-vertical filter configuration override. |
-| `audienceGroups` | No | Azure AD security group GUIDs for audience targeting. Tab hidden from non-members. |
+### Starter Filters
 
----
+| Managed property | Label | Filter type |
+|------------------|-------|-------------|
+| `FileType` | File type | `checkbox` |
+| `LastModifiedTime` | Modified date | `daterange` |
+| `AuthorOWSUSER` | Author | `people` |
 
-## 5. Search Manager Web Part (`SPSearchManagerWebPart`)
+### Notes
 
-Saved searches, shared searches, collections/pinboards, and search history.
+- People filters should use `AuthorOWSUSER`, not `Author`. The filter web part normalizes legacy `Author` people filters to `AuthorOWSUSER`.
+- Date range, people, and toggle filters can render without returned refiner buckets, which allows useful starter filters even on clean pages.
+- `operatorBetweenFilters = OR` is implemented in the provider path and produces cross-property `or(...)` FQL for SharePoint search.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `searchContextId` | Text | — | **Required.** Must match the other web parts. |
-| `mode` | Choice | `"standalone"` | **standalone**: renders as a full web part on the page. **panel**: renders as a side panel triggered from the Search Box web part's icon button. |
+## Search Verticals
+
+The Verticals web part owns tabs, per-vertical query overrides, per-vertical provider routing, and optional default-layout switching.
+
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Must match Results |
+| `verticalsCollection` | Starter tabs | Preferred over legacy JSON |
+| `defaultVertical` | `all` | Activated on initial load |
+| `showCounts` | `true` | Count badges on tabs |
+| `hideEmptyVerticals` | `false` | Keep or hide zero-count tabs |
+| `tabStyle` | `tabs` | `tabs`, `pills`, or `underline` |
+
+### Starter Verticals
+
+| Key | Query template |
+|-----|----------------|
+| `all` | `{searchTerms}` |
+| `documents` | `{searchTerms} IsDocument:1` |
+| `pages` | `{searchTerms} (contentclass:STS_ListItem_WebPageLibrary OR contentclass:STS_ListItem_PublishingPages)` |
+| `sites` | `{searchTerms} contentclass:STS_Site` |
+
+### Per-Vertical Overrides
+
+Each vertical can optionally set:
+
+- `queryTemplate`
+- `resultSourceId`
+- `dataProviderId`
+- `defaultLayout`
+- external-link behavior
+- audience targeting
+
+Example:
+
+- `dataProviderId = graph-people`
+- `defaultLayout = people`
+
+This gives a true Graph-backed People vertical instead of a SharePoint-file result set filtered to people-like properties.
+
+## Search Manager
+
+The Search Manager is not a PnP parity feature. It is a product extension that consolidates saved searches, history, collections, zero-result health, and insights.
+
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Must match Results |
+| `mode` | `panel` | `panel` or `standalone` |
+| `enableSavedSearches` | `true` | Saved searches tab |
+| `enableSharedSearches` | `true` | Shared searches tab |
+| `enableCollections` | `true` | Collections tab |
+| `enableHistory` | `true` | History tab |
+| `enableAnnotations` | `false` | Extra annotations surface |
+| `maxHistoryItems` | `50` | History page size |
 
 ### Tabs
 
-| Tab | Description |
-|-----|-------------|
-| **Saved** | User's saved searches. Click to restore full state (query, filters, vertical, sort, layout). |
-| **Shared** | Searches shared by other users. Item-level permissions control visibility. |
-| **Collections** | Pinboards of individual search results. Supports tags, reordering, sharing. |
-| **History** | Chronological search history with click tracking. Auto-logged, deduplicated via SHA-256 hash. |
+- `Saved Searches`
+- `History`
+- `Collections`
+- `Health`
+- `Insights`
 
-### Requirements
+## Graph Requirements
 
-- All 3 hidden lists must be provisioned (SearchSavedQueries, SearchHistory, SearchCollections).
-- The `mode: "panel"` option requires `enableSearchManager: true` on the Search Box web part.
-- History cleanup is available via the `cleanupHistory(ttlDays)` API — there is no automatic background cleanup.
+Graph-backed People search and org-chart traversal require Microsoft Graph permissions.
 
----
+| Capability | Requirement |
+|------------|-------------|
+| Graph People vertical | `People.Read` / configured Graph search permission path for `/search/query` |
+| Org chart manager/direct reports | `User.Read.All` |
 
-## Multi-Instance Configuration
+If Graph permission is not approved:
 
-To run two independent search experiences on the same page:
+- SharePoint search still works
+- Graph people verticals fall back to registered SharePoint providers where possible
+- org-chart UI hides itself gracefully
 
-1. Add two sets of web parts
-2. Set `searchContextId = "search1"` on the first set
-3. Set `searchContextId = "search2"` on the second set
-4. URL parameters are namespaced automatically: `?search1.q=budget&search2.q=reports`
+## Recommended Authoring Patterns
 
----
+### General site search
 
-## Promoted Results / Best Bets
+- Search Box
+- Verticals
+- Filters
+- Results
+- Search Manager in panel mode
 
-Promoted results are managed through **SharePoint Query Rules** (same approach as PnP Modern Search v4). The web parts do not read promoted results from a custom list.
+### Document center
 
-Recommended approach:
-1. Go to **Site Settings → Search → Query Rules** (or the Search Service Application in classic admin).
-2. Create a rule with your preferred conditions (contains, equals, etc.).
-3. Add promoted results for the rule, including title and URL.
-4. Use the Query Rule activation window and audience settings for scheduling/targeting.
+- Results preset: `documents`
+- Filters: file type, modified date, author, site
+- Layouts: `list`, `compact`, `grid`
 
-The search provider maps SharePoint promoted results (SpecialTermResults) to the UI as `title`, `url`, `description`, `imageUrl`, and `position` when those fields are present.
+### People directory
+
+- Results preset: `people`
+- A People vertical with `dataProviderId = graph-people`
+- Default vertical layout: `people`
+
+## Validation and Edit-Mode Warnings
+
+The Results web part shows edit-mode `MessageBar` warnings for common misconfigurations, including:
+
+- default layout not enabled
+- grid enabled with no columns
+- sparse grid columns
+- query template without `{searchTerms}`
+- card/gallery without thumbnail property
+- people layout without profile fields
+- invalid managed property names
+
+These warnings are advisory. They do not block rendering, but they should be resolved before production rollout.

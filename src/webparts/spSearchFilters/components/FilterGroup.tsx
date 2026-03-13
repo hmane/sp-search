@@ -4,6 +4,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import styles from './SpSearchFilters.module.scss';
 import CheckboxFilter from './CheckboxFilter';
 import DateRangeFilter from './DateRangeFilter';
+import TextFilter from './TextFilter';
 import ToggleFilter from './ToggleFilter';
 import type {
   IRefiner,
@@ -64,6 +65,8 @@ function renderFilterComponent(
   switch (filterType) {
     case 'daterange':
       return React.createElement(DateRangeFilter, commonProps);
+    case 'text':
+      return React.createElement(TextFilter, commonProps);
     case 'toggle':
       return React.createElement(ToggleFilter, commonProps);
     case 'tagbox':

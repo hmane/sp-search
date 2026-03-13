@@ -16,6 +16,17 @@ import {
 const SAVED_QUERIES_LIST = 'SearchSavedQueries';
 const HISTORY_LIST = 'SearchHistory';
 const COLLECTIONS_LIST = 'SearchCollections';
+const HISTORY_RETENTION_DAYS = 90;
+const HISTORY_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+interface IHistoryStateSummary {
+  activeFilters?: Array<{
+    filterName?: string;
+    displayValue?: string;
+    value?: string;
+  }>;
+  currentVerticalKey?: string;
+}
 
 /**
  * Compute SHA-256 hash of the full search state for deduplication.
@@ -125,14 +136,58 @@ function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
   return {
     id: ext.number('Id', 0),
     queryHash: ext.string('QueryHash', ''),
-    queryText: ext.string('Title', ''),
+    queryText: ext.string('Title', '') || ext.string('QueryText', ''),
     vertical: ext.string('Vertical', ''),
     scope: ext.string('Scope', ''),
     searchState: ext.string('SearchState', '{}'),
     resultCount: ext.number('ResultCount', 0),
+    isZeroResult: ext.boolean('IsZeroResult', false),
     clickedItems,
     searchTimestamp: ext.date('SearchTimestamp') || ext.date('Created') || new Date(),
   };
+}
+
+function buildHistoryTitle(
+  queryText: string,
+  vertical: string,
+  searchState: string
+): string {
+  const trimmedQuery = queryText.trim();
+  if (trimmedQuery.length > 0) {
+    return trimmedQuery.length > 255 ? trimmedQuery.substring(0, 255) : trimmedQuery;
+  }
+
+  let parsedState: IHistoryStateSummary | undefined;
+  try {
+    parsedState = JSON.parse(searchState) as IHistoryStateSummary;
+  } catch {
+    parsedState = undefined;
+  }
+
+  const filterLabels: string[] = [];
+  const filters = parsedState?.activeFilters || [];
+  for (let i = 0; i < filters.length && filterLabels.length < 2; i++) {
+    const filter = filters[i];
+    const label = filter.displayValue || filter.value || filter.filterName || '';
+    if (label) {
+      filterLabels.push((filter.filterName || 'Filter') + ': ' + label.replace(/^"|"$/g, ''));
+    }
+  }
+
+  const verticalLabel = (parsedState?.currentVerticalKey || vertical || '').trim();
+
+  let title = '';
+  if (filterLabels.length > 0 && verticalLabel) {
+    title = verticalLabel + ' • ' + filterLabels.join(' • ');
+  } else if (filterLabels.length > 0) {
+    title = filterLabels.join(' • ');
+  } else if (verticalLabel) {
+    title = 'Browse • ' + verticalLabel;
+  } else {
+    title = 'Browse all results';
+  }
+
+  return title.length > 255 ? title.substring(0, 255) : title;
 }
 
 /**
@@ -256,6 +311,7 @@ export class SearchManagerService {
         SPContext.logger.warn('SearchManagerService: Current user ID resolved to 0');
       } else {
         SPContext.logger.info('SearchManagerService: Initialized', { userId: this._currentUserId });
+        this._maybeAutoCleanupHistory().catch(function noop(): void { /* non-critical */ });
       }
     } catch (error) {
       this._initFailed = true;
@@ -502,6 +558,7 @@ export class SearchManagerService {
             <FieldRef Name="Scope" />
             <FieldRef Name="SearchState" />
             <FieldRef Name="ResultCount" />
+            <FieldRef Name="IsZeroResult" />
             <FieldRef Name="ClickedItems" />
             <FieldRef Name="SearchTimestamp" />
             <FieldRef Name="Created" />
@@ -531,13 +588,15 @@ export class SearchManagerService {
     vertical: string,
     scope: string,
     searchState: string,
-    resultCount: number
+    resultCount: number,
+    isZeroResult?: boolean
   ): Promise<number> {
     if (!this.isReady) {
       return 0;
     }
     try {
       const queryHash = await computeStateHash(searchState);
+      const historyTitle = buildHistoryTitle(queryText, vertical, searchState);
 
       // Check for existing entry with same hash using CAML (Author-first)
       const camlQuery = `
@@ -568,23 +627,30 @@ export class SearchManagerService {
 
       if (existing && existing.length > 0) {
         const existingId = (existing[0] as Record<string, unknown>).Id as number;
+        const updatePayload: Record<string, unknown> = {
+          Title: historyTitle,
+          QueryText: queryText,
+          ResultCount: resultCount,
+          IsZeroResult: isZeroResult === true,
+          SearchTimestamp: new Date().toISOString(),
+        };
         await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
-          .items.getById(existingId).update({
-            ResultCount: resultCount,
-            SearchTimestamp: new Date().toISOString(),
-          });
+          .items.getById(existingId).update(updatePayload);
         return existingId;
       } else {
+        const addPayload: Record<string, unknown> = {
+          Title: historyTitle,
+          QueryText: queryText,
+          QueryHash: queryHash,
+          Vertical: vertical,
+          Scope: scope,
+          SearchState: searchState,
+          ResultCount: resultCount,
+          IsZeroResult: isZeroResult === true,
+          SearchTimestamp: new Date().toISOString(),
+        };
         const result = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
-          .items.add({
-            Title: queryText.length > 255 ? queryText.substring(0, 255) : queryText,
-            QueryHash: queryHash,
-            Vertical: vertical,
-            Scope: scope,
-            SearchState: searchState,
-            ResultCount: resultCount,
-            SearchTimestamp: new Date().toISOString(),
-          });
+          .items.add(addPayload);
         const addedItem = (result as { data?: Record<string, unknown> }).data || result;
         return (addedItem as Record<string, unknown>).Id as number || 0;
       }
@@ -592,6 +658,41 @@ export class SearchManagerService {
       // Non-critical — log but don't throw history errors
       console.warn('SearchManagerService.logSearch failed:', error);
       return 0;
+    }
+  }
+
+  private async _maybeAutoCleanupHistory(): Promise<void> {
+    if (!this.isReady) {
+      return;
+    }
+
+    const cleanupKey = 'sp-search-history-cleanup:' + SPContext.webAbsoluteUrl + ':' + String(this._currentUserId);
+    let lastRun = 0;
+
+    try {
+      lastRun = parseInt(localStorage.getItem(cleanupKey) || '0', 10) || 0;
+    } catch {
+      lastRun = 0;
+    }
+
+    const now = Date.now();
+    if (now - lastRun < HISTORY_CLEANUP_INTERVAL_MS) {
+      return;
+    }
+
+    const deleted = await this.cleanupHistory(HISTORY_RETENTION_DAYS);
+
+    try {
+      localStorage.setItem(cleanupKey, String(now));
+    } catch {
+      // ignore
+    }
+
+    if (deleted > 0) {
+      SPContext.logger.info('SearchManagerService: Auto-cleaned history', {
+        deleted,
+        ttlDays: HISTORY_RETENTION_DAYS
+      });
     }
   }
 
@@ -700,6 +801,54 @@ export class SearchManagerService {
       SPContext.logger.info('SearchManagerService: Cleared history');
     } catch (error) {
       SPContext.logger.error('SearchManagerService: Failed to clear history', error);
+    }
+  }
+
+  /**
+   * Delete a single search history entry for the current user.
+   * Verifies ownership via Author-first CAML before recycling the item.
+   */
+  public async deleteHistoryEntry(id: number): Promise<void> {
+    if (!this.isReady || id <= 0) {
+      return;
+    }
+
+    try {
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <And>
+                <Eq>
+                  <FieldRef Name="Author" LookupId="TRUE" />
+                  <Value Type="Integer">${this._currentUserId}</Value>
+                </Eq>
+                <Eq>
+                  <FieldRef Name="Id" />
+                  <Value Type="Counter">${id}</Value>
+                </Eq>
+              </And>
+            </Where>
+          </Query>
+          <RowLimit>1</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      if (!items || items.length === 0) {
+        return;
+      }
+
+      await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .items.getById(id)
+        .recycle();
+    } catch (error) {
+      SPContext.logger.error('SearchManagerService: Failed to delete history entry', error);
     }
   }
 
@@ -1122,6 +1271,133 @@ export class SearchManagerService {
 
     SPContext.logger.info('SearchManagerService: History cleanup complete', { ttlDays, totalDeleted });
     return totalDeleted;
+  }
+
+  // ─── Zero-Result Query Health ─────────────────────────────────
+
+  /**
+   * Load recent zero-result queries across ALL users (admin health view).
+   *
+   * Uses SearchTimestamp as the first CAML predicate (indexed) to avoid the
+   * 5,000-item list-view threshold. IsZeroResult = 1 is the second predicate.
+   * No Author filter — this is intentionally an admin-level cross-user query.
+   *
+   * @param daysBack - Window to scan (default 90 days)
+   * @param maxItems - Row cap (default 200; client aggregates before display)
+   */
+  public async loadZeroResultQueries(
+    daysBack: number = 90,
+    maxItems: number = 200
+  ): Promise<ISearchHistoryEntry[]> {
+    if (!this.isReady) {
+      return [];
+    }
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - daysBack);
+      const cutoffIso = cutoff.toISOString();
+
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <And>
+                <Geq>
+                  <FieldRef Name="SearchTimestamp" />
+                  <Value Type="DateTime" IncludeTimeValue="TRUE">${cutoffIso}</Value>
+                </Geq>
+                <Eq>
+                  <FieldRef Name="IsZeroResult" />
+                  <Value Type="Boolean">1</Value>
+                </Eq>
+              </And>
+            </Where>
+            <OrderBy>
+              <FieldRef Name="SearchTimestamp" Ascending="FALSE" />
+            </OrderBy>
+          </Query>
+          <RowLimit>${maxItems}</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+            <FieldRef Name="Title" />
+            <FieldRef Name="QueryHash" />
+            <FieldRef Name="Vertical" />
+            <FieldRef Name="Scope" />
+            <FieldRef Name="SearchState" />
+            <FieldRef Name="ResultCount" />
+            <FieldRef Name="IsZeroResult" />
+            <FieldRef Name="SearchTimestamp" />
+            <FieldRef Name="Created" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
+    } catch (error) {
+      console.warn('SearchManagerService.loadZeroResultQueries failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load all search history events within a date window across ALL users.
+   * Used by the Insights panel to compute aggregate metrics client-side.
+   *
+   * Uses SearchTimestamp as the first (indexed) predicate — safe above 5k items.
+   * No Author filter — intentional admin-level cross-user query.
+   *
+   * @param daysBack - Window to scan (default 30 days)
+   * @param maxItems - Row cap before client aggregation (default 500)
+   */
+  public async loadAllHistoryForInsights(
+    daysBack: number = 30,
+    maxItems: number = 500
+  ): Promise<ISearchHistoryEntry[]> {
+    if (!this.isReady) {
+      return [];
+    }
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - daysBack);
+      const cutoffIso = cutoff.toISOString();
+
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <Geq>
+                <FieldRef Name="SearchTimestamp" />
+                <Value Type="DateTime" IncludeTimeValue="TRUE">${cutoffIso}</Value>
+              </Geq>
+            </Where>
+            <OrderBy>
+              <FieldRef Name="SearchTimestamp" Ascending="FALSE" />
+            </OrderBy>
+          </Query>
+          <RowLimit>${maxItems}</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+            <FieldRef Name="Title" />
+            <FieldRef Name="Vertical" />
+            <FieldRef Name="ResultCount" />
+            <FieldRef Name="IsZeroResult" />
+            <FieldRef Name="ClickedItems" />
+            <FieldRef Name="SearchTimestamp" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
+    } catch (error) {
+      console.warn('SearchManagerService.loadAllHistoryForInsights failed:', error);
+      return [];
+    }
   }
 
   // ─── State Snapshots (StateId Fallback) ─────────────────────

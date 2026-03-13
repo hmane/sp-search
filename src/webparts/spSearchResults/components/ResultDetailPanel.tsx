@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
-import { Modal } from '@fluentui/react/lib/Modal';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
@@ -57,12 +56,21 @@ function supportsWopiPreview(fileType: string): boolean {
 }
 
 /**
- * Builds the WOPI preview URL for SharePoint documents.
+ * Builds the preview URL for the detail panel iframe.
+ * PDFs: direct file URL (browser native PDF viewer, no frame breakout).
+ * Office docs: WopiFrame interactivepreview.
  */
 function buildPreviewUrl(item: ISearchResult): string {
-  const siteUrl: string = item.siteUrl || '';
   const docUrl: string = item.url || '';
-  if (!siteUrl || !docUrl) {
+  if (!docUrl) {
+    return '';
+  }
+  const ft: string = (item.fileType || '').toLowerCase();
+  if (ft === 'pdf') {
+    return docUrl;
+  }
+  const siteUrl: string = item.siteUrl || '';
+  if (!siteUrl) {
     return '';
   }
   return siteUrl + '/_layouts/15/WopiFrame.aspx?sourcedoc=' +
@@ -114,14 +122,11 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
   const { isOpen, item, onDismiss } = props;
   const [isPreviewLoaded, setIsPreviewLoaded] = React.useState<boolean>(false);
   const [linkCopied, setLinkCopied] = React.useState<boolean>(false);
-  const [formModalUrl, setFormModalUrl] = React.useState<string | undefined>(undefined);
-  const [formModalTitle, setFormModalTitle] = React.useState<string>('');
   const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
 
   React.useEffect((): void => {
     setIsPreviewLoaded(false);
     setLinkCopied(false);
-    setFormModalUrl(undefined);
     setVersionHistoryItem(undefined);
   }, [item]);
 
@@ -155,6 +160,10 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
       });
     }
   }, [item]);
+
+  const handleOpenForm = React.useCallback((url: string): void => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
 
   // ─── Render header content ─────────────────────────────
   const onRenderNavigationContent = React.useCallback(
@@ -369,32 +378,28 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
         {hasFormLinks && (
           <div className={styles.detailPanelFormLinks}>
             {viewUrl && (
-              <a
-                href={viewUrl}
+              <button
+                type="button"
                 className={styles.detailPanelFormLink}
-                onClick={(e: React.MouseEvent): void => {
-                  e.preventDefault();
-                  setFormModalUrl(viewUrl);
-                  setFormModalTitle('View: ' + item.title);
+                onClick={(): void => {
+                  handleOpenForm(viewUrl);
                 }}
               >
                 <Icon iconName="View" className={styles.detailPanelFormLinkIcon} />
                 View item
-              </a>
+              </button>
             )}
             {editUrl && (
-              <a
-                href={editUrl}
+              <button
+                type="button"
                 className={styles.detailPanelFormLink}
-                onClick={(e: React.MouseEvent): void => {
-                  e.preventDefault();
-                  setFormModalUrl(editUrl);
-                  setFormModalTitle('Edit: ' + item.title);
+                onClick={(): void => {
+                  handleOpenForm(editUrl);
                 }}
               >
                 <Icon iconName="Edit" className={styles.detailPanelFormLinkIcon} />
                 Edit item
-              </a>
+              </button>
             )}
             {hasVersionHistory && (
               <button
@@ -409,87 +414,6 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
           </div>
         )}
       </div>
-
-      {/* View/Edit form modal */}
-      {formModalUrl && (
-        <Modal
-          isOpen={true}
-          onDismiss={(): void => { setFormModalUrl(undefined); }}
-          isBlocking={false}
-          styles={{
-            main: {
-              width: '90vw',
-              maxWidth: '800px',
-              height: '85vh',
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-            },
-            scrollableContent: {
-              display: 'flex',
-              flexDirection: 'column' as const,
-              flex: 1,
-              overflow: 'hidden',
-            },
-          }}
-        >
-          <div className={styles.previewModalHeader}>
-            <span className={styles.previewModalTitle}>{formModalTitle}</span>
-            <IconButton
-              iconProps={{ iconName: 'Cancel' }}
-              ariaLabel="Close"
-              onClick={(): void => { setFormModalUrl(undefined); }}
-            />
-          </div>
-          <div className={styles.previewModalFrame}>
-            <iframe
-              src={formModalUrl + '&IsDlg=1'}
-              title={formModalTitle}
-            />
-          </div>
-          <div className={styles.previewModalFooter}>
-            {viewUrl && (
-              <button
-                type="button"
-                className={styles.previewModalFooterLink}
-                onClick={(): void => {
-                  setFormModalUrl(viewUrl);
-                  setFormModalTitle('View: ' + item.title);
-                }}
-              >
-                <Icon iconName="View" />
-                <span>View</span>
-              </button>
-            )}
-            {editUrl && (
-              <button
-                type="button"
-                className={styles.previewModalFooterLink}
-                onClick={(): void => {
-                  setFormModalUrl(editUrl);
-                  setFormModalTitle('Edit: ' + item.title);
-                }}
-              >
-                <Icon iconName="Edit" />
-                <span>Edit</span>
-              </button>
-            )}
-            {hasVersionHistory && (
-              <button
-                type="button"
-                className={styles.previewModalFooterLink}
-                onClick={(): void => {
-                  setFormModalUrl(undefined);
-                  setVersionHistoryItem(item);
-                }}
-              >
-                <Icon iconName="History" />
-                <span>Version history</span>
-              </button>
-            )}
-          </div>
-        </Modal>
-      )}
 
       {/* Version history (lazy-loaded) */}
       {versionHistoryItem && versionHistoryItem.properties.ListId && versionHistoryItem.properties.ListItemID && (

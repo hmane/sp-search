@@ -27,6 +27,8 @@ import SavedSearchList from './SavedSearchList';
 import SearchHistory from './SearchHistory';
 import SearchCollections from './SearchCollections';
 import ShareSearchDialog from './ShareSearchDialog';
+import ZeroResultsPanel from './ZeroResultsPanel';
+import SearchInsightsPanel from './SearchInsightsPanel';
 import styles from './SpSearchManager.module.scss';
 
 // ─── Category options for save dialog ───────────────────────
@@ -356,6 +358,28 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     }
   }
 
+  // ─── Health panel: re-run zero-result query ───────────────
+  function handleRunZeroResultQuery(queryText: string, vertical: string, scope: string): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const update: Record<string, any> = {
+      queryText,
+      activeFilters: [],
+      currentPage: 1,
+    };
+    if (vertical) {
+      update.currentVerticalKey = vertical;
+    }
+    if (scope) {
+      update.scope = { id: scope, label: scope };
+    }
+    store.setState(update);
+
+    // Close panel so results are visible
+    if (props.mode === 'panel') {
+      store.getState().toggleSearchManager(false);
+    }
+  }
+
   // ─── Reset handler — navigate to base page without params ─
   function handleReset(): void {
     // Navigate to the current page without any search params
@@ -476,6 +500,24 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 service={service}
                 collections={collections}
                 onDataChanged={handleCollectionDataChanged}
+              />
+            </PivotItem>
+            <PivotItem
+              headerText="Health"
+              itemIcon="SearchIssue"
+            >
+              <ZeroResultsPanel
+                service={service}
+                onRunQuery={handleRunZeroResultQuery}
+              />
+            </PivotItem>
+            <PivotItem
+              headerText="Insights"
+              itemIcon="BarChart4"
+            >
+              <SearchInsightsPanel
+                service={service}
+                onRunQuery={handleRunZeroResultQuery}
               />
             </PivotItem>
           </Pivot>

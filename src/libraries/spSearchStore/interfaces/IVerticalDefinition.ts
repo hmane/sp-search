@@ -12,8 +12,14 @@ export interface IVerticalDefinition {
   queryTemplate?: string;
   /** SharePoint result source GUID (SharePoint provider only) */
   resultSourceId?: string;
-  /** Per-vertical data provider override, e.g. "graph" for People vertical */
+  /** Per-vertical data provider override, e.g. "graph-people" for a People vertical */
   dataProviderId?: string;
+  /**
+   * Default layout key to activate when the user switches to this vertical.
+   * If unset, the currently active layout is preserved.
+   * Example: 'people' for a People vertical, 'grid' for a Documents vertical.
+   */
+  defaultLayout?: string;
   /** Vertical-specific filter configuration */
   filterConfig?: IFilterConfig[];
   /** Azure AD security group IDs for audience targeting */

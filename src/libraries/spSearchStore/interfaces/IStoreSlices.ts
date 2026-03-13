@@ -8,6 +8,13 @@ import { IVerticalDefinition } from './IVerticalDefinition';
 export interface IQuerySlice {
   queryText: string;
   queryTemplate: string;
+  /**
+   * Client-side transformation applied to the user's raw input before execution.
+   * Use {searchTerms} as the placeholder for the typed text.
+   * Examples: "{searchTerms}*" (wildcard), "Title:{searchTerms}" (field-restricted).
+   * Default: "{searchTerms}" (pass through unchanged).
+   */
+  queryInputTransformation: string;
   scope: ISearchScope;
   suggestions: ISuggestion[];
   isSearching: boolean;
@@ -16,6 +23,7 @@ export interface IQuerySlice {
   setQueryText: (text: string) => void;
   setScope: (scope: ISearchScope) => void;
   setSuggestions: (suggestions: ISuggestion[]) => void;
+  setQueryInputTransformation: (transformation: string) => void;
   cancelSearch: () => void;
 }
 
@@ -28,11 +36,18 @@ export interface IFilterSlice {
   displayRefiners: IRefiner[];
   filterConfig: IFilterConfig[];
   isRefining: boolean;
+  /**
+   * How multiple selected filter groups (different properties) are combined.
+   * 'AND' (default): results must match ALL selected filters.
+   * 'OR': results matching ANY selected filter are returned.
+   */
+  operatorBetweenFilters: 'AND' | 'OR';
   // Actions
   setRefiner: (filter: IActiveFilter) => void;
   removeRefiner: (filterKey: string, value?: string) => void;
   clearAllFilters: () => void;
   setAvailableRefiners: (refiners: IRefiner[]) => void;
+  setOperatorBetweenFilters: (operator: 'AND' | 'OR') => void;
 }
 
 // ─── Result Slice ────────────────────────────────────────────
@@ -62,6 +77,12 @@ export interface IResultSlice {
   /** "Did you mean..." suggestion from the search API (QueryModification / SpellingSuggestion) */
   querySuggestion: string | undefined;
   isLoading: boolean;
+  /**
+   * True after the first search has completed (success or error).
+   * Prevents showing "No results found" during the initial load before
+   * any search has executed. Set to true by setResults and setError.
+   */
+  hasSearched: boolean;
   error: string | undefined;
   /** Search configuration — synced from web part property pane */
   resultSourceId: string;
@@ -99,6 +120,12 @@ export interface IVerticalSlice {
 
 export interface IUISlice {
   activeLayoutKey: string;
+  /**
+   * Layout keys available in the toolbar switcher.
+   * Admins configure this to hide layouts not relevant to the search scenario.
+   * Default: all six layouts.
+   */
+  availableLayouts: string[];
   isSearchManagerOpen: boolean;
   previewPanel: {
     isOpen: boolean;
@@ -109,6 +136,7 @@ export interface IUISlice {
   currentUserGroups: string[];
   // Actions
   setLayout: (key: string) => void;
+  setAvailableLayouts: (layouts: string[]) => void;
   toggleSearchManager: (isOpen?: boolean) => void;
   setPreviewItem: (item: ISearchResult | undefined) => void;
   toggleSelection: (itemKey: string, multiSelect: boolean) => void;
@@ -171,6 +199,7 @@ export interface ISearchHistoryEntry {
   /** JSON-serialized full search state for restore */
   searchState: string;
   resultCount: number;
+  isZeroResult?: boolean;
   clickedItems: IClickedItem[];
   searchTimestamp: Date;
 }

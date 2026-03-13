@@ -1,5 +1,8 @@
 export { SharePointSearchProvider } from './SharePointSearchProvider';
+export { GraphSearchProvider } from './GraphSearchProvider';
+export type { IGraphSearchProviderConfig } from './GraphSearchProvider';
 export { QuerySuggestionProvider } from './QuerySuggestionProvider';
+export { QuickResultsSuggestionProvider } from './QuickResultsSuggestionProvider';
 export { RecentSearchProvider } from './RecentSearchProvider';
 export { TrendingQueryProvider } from './TrendingQueryProvider';
 export { ManagedPropertyProvider } from './ManagedPropertyProvider';

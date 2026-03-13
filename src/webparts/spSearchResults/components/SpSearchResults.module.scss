@@ -275,33 +275,6 @@
   }
 }
 
-.activeFilterReset {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: 1px solid "[theme:neutralTertiaryAlt, default: #c8c6c4]";
-  font-size: 12px;
-  font-weight: 500;
-  color: "[theme:neutralSecondary, default: #605e5c]";
-  cursor: pointer;
-  padding: 3px 10px;
-  border-radius: 4px;
-  margin-left: 4px;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighter, default: #f3f2f1]";
-    color: "[theme:neutralPrimary, default: #323130]";
-    border-color: "[theme:neutralSecondary, default: #605e5c]";
-  }
-
-  &:focus-visible {
-    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
-    outline-offset: 2px;
-  }
-}
-
 // ─── Toolbar ────────────────────────────────────────────────
 .toolbar {
   display: flex;
@@ -318,6 +291,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .toolbarRight {
@@ -327,9 +301,32 @@
 }
 
 .resultCount {
-  font-size: 13px;
-  color: "[theme:bodySubtext, default: #605e5c]";
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 999px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+  color: "[theme:bodyText, default: #323130]";
   white-space: nowrap;
+}
+
+.resultCountIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: "[theme:themeLighterAlt, default: #eff6fc]";
+  color: "[theme:themePrimary, default: #0078d4]";
+  font-size: 12px;
+}
+
+.resultCountText {
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .sortDropdown {
@@ -600,6 +597,11 @@
   align-items: center;
   gap: 4px;
   padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
 
   &:hover {
     text-decoration: underline;
@@ -656,6 +658,7 @@
   position: relative;
   overflow: hidden;
   min-height: 0;
+  width: 100%;
 
   iframe {
     width: 100%;
@@ -704,6 +707,19 @@
   }
 }
 
+// Iframe filling a side panel — used by View/Edit form panels
+.formPanelFrame {
+  display: block;
+  width: 100%;
+
+  iframe {
+    border: none;
+    width: 100%;
+    height: calc(100vh - 60px);
+    display: block;
+  }
+}
+
 .resultThumbnail {
   flex-shrink: 0;
   width: 56px;
@@ -735,16 +751,41 @@
   gap: 8px;
   flex-wrap: wrap;
 
-  a {
-    color: "[theme:link, default: #0078d4]";
-    color: var(--link);
-    text-decoration: none;
+}
 
-    &:hover {
-      text-decoration: underline;
-      color: "[theme:linkHovered, default: #004578]";
-      color: var(--linkHovered);
-    }
+.resultTitleLink {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: "[theme:link, default: #0078d4]";
+  color: var(--link);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:linkHovered, default: #004578]";
+    color: var(--linkHovered);
+  }
+}
+
+.resultTitleLinkWrap {
+  display: inline;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: "[theme:link, default: #0078d4]";
+  color: var(--link);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:linkHovered, default: #004578]";
+    color: var(--linkHovered);
   }
 }
 
@@ -824,7 +865,7 @@
 }
 
 .compactHeader {
-  display: flex;
+  display: grid;
   align-items: center;
   padding: 8px 12px;
   gap: 12px;
@@ -836,44 +877,30 @@
   border-bottom: 2px solid "[theme:neutralLight, default: #edebe9]";
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   user-select: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .compactHeaderIcon {
-  flex-shrink: 0;
   width: 20px;
 }
 
 .compactHeaderTitle {
-  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.compactHeaderAuthor {
-  flex-shrink: 0;
-  width: 140px;
-}
-
-.compactHeaderDate {
-  flex-shrink: 0;
-  width: 110px;
-  display: flex;
-  align-items: center;
-}
-
-.compactHeaderSize {
-  flex-shrink: 0;
-  width: 70px;
-  text-align: right;
-}
-
-.compactHeaderFileType {
-  flex-shrink: 0;
-  width: 60px;
-  text-align: center;
+.compactHeaderMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compactRow {
-  display: flex;
+  display: grid;
   align-items: center;
   padding: 7px 12px;
   border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
@@ -881,6 +908,8 @@
   transition: background-color 150ms ease;
   cursor: default;
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 
   &:last-child {
     border-bottom: none;
@@ -900,7 +929,6 @@
 }
 
 .compactIcon {
-  flex-shrink: 0;
   width: 20px;
   height: 20px;
   display: flex;
@@ -910,17 +938,27 @@
 }
 
 .compactTitle {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-weight: 500;
+  width: 100%;
+
+  :global(.ms-HoverCard-host) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
 
   a {
+    display: block;
+    width: 100%;
     color: "[theme:link, default: #0078d4]";
     color: var(--link);
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     &:hover {
       text-decoration: underline;
@@ -928,35 +966,29 @@
   }
 }
 
-.compactAuthor {
-  flex-shrink: 0;
-  width: 140px;
+.compactTitleLinkWrap {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.compactMetaCell {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.compactMetaText {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: "[theme:bodySubtext, default: #605e5c]";
 }
 
-.compactDate {
-  flex-shrink: 0;
-  width: 110px;
-  color: "[theme:bodySubtext, default: #605e5c]";
-  white-space: nowrap;
-}
-
-.compactSize {
-  flex-shrink: 0;
-  width: 70px;
+.compactMetaAlignRight {
   text-align: right;
-  color: "[theme:bodySubtext, default: #605e5c]";
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.compactFileType {
-  flex-shrink: 0;
-  width: 60px;
-  text-align: center;
 }
 
 .compactFileTypeBadge {
@@ -976,11 +1008,67 @@
   padding: 0;
 }
 
+// Provides position context for the loading overlay.
+.resultsWrapper {
+  position: relative;
+}
+
+// Semi-transparent overlay shown over retained results during a refresh search.
+// Rendered only after a 300ms JS delay — fast searches complete before it appears.
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 48px;
+  background-color: rgba(255, 255, 255, 0.8);
+  // backdrop-filter provides dark-theme resilience: the blur obscures the
+  // retained content instead of a pure white wash, which holds up whether
+  // the site theme is light or dark.
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 4px;
+  z-index: 10;
+  animation: overlayFadeIn 150ms ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .shimmerRow {
   display: flex;
   align-items: flex-start;
   padding: 14px 8px;
   gap: 12px;
+}
+
+.shimmerResultCard {
+  pointer-events: none;
+
+  &:hover {
+    background-color: transparent;
+  }
+}
+
+.shimmerTitleRow {
+  margin: 2px 0 7px 0;
+}
+
+.shimmerUrlRow {
+  margin-bottom: 10px;
+  opacity: 0.75;
+}
+
+.shimmerSummaryRow {
+  margin-bottom: 6px;
+}
+
+.shimmerMetaRow {
+  margin-top: 10px;
+  max-width: 520px;
 }
 
 // ─── Empty State ────────────────────────────────────────────
@@ -1007,11 +1095,68 @@
   margin: 0 0 8px 0;
 }
 
+.emptyQuery {
+  font-style: italic;
+  color: "[theme:bodyText, default: #323130]";
+}
+
 .emptyDescription {
   font-size: 14px;
   color: "[theme:bodySubtext, default: #605e5c]";
   margin: 0;
   max-width: 400px;
+  text-align: center;
+}
+
+// Recovery section shown when active filters are the likely cause.
+.emptyRecovery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.emptyRecoveryButton {
+  background-color: "[theme:themePrimary, default: #0078d4]";
+  color: "[theme:white, default: #ffffff]";
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+
+  &:focus-visible {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 2px;
+  }
+}
+
+// Subtle "Start over" link shown below all other recovery content.
+.emptyResetLink {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 16px;
+  text-decoration: underline;
+
+  &:hover {
+    color: "[theme:bodyText, default: #323130]";
+  }
+
+  &:focus-visible {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 2px;
+  }
 }
 
 // ─── Pagination ─────────────────────────────────────────────
@@ -1248,6 +1393,187 @@
     color: "[theme:linkHovered, default: #004578]";
     color: var(--linkHovered);
   }
+}
+
+.personaAboutMe {
+  font-size: 13px;
+  line-height: 18px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin: 0 0 8px;
+}
+
+.personaSkillsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.personaSkillTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: "[theme:themeLighter, default: #deecf9]";
+  color: "[theme:themeDarkAlt, default: #106ebe]";
+  white-space: nowrap;
+}
+
+.personaActionBar {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+}
+
+.personaActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: "[theme:themePrimary, default: #0078d4]";
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms, border-color 120ms;
+
+  &:hover {
+    background: "[theme:themeLighter, default: #deecf9]";
+    border-color: "[theme:themeLight, default: #c7e0f4]";
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
+}
+
+.personaActionIcon {
+  font-size: 13px;
+}
+
+// ─── Org chart section (inside persona card) ────────────────
+.orgSection {
+  margin-top: 12px;
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  padding-top: 8px;
+}
+
+.orgToggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 13px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  width: 100%;
+  text-align: left;
+
+  &:hover {
+    color: "[theme:neutralPrimary, default: #323130]";
+  }
+  &:focus-visible {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.orgToggleIcon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.orgChevron {
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.orgPanel {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.orgLoading {
+  padding: 4px 0;
+}
+
+.orgNotice {
+  font-size: 12px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  margin: 0;
+  font-style: italic;
+}
+
+.orgGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orgGroupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+}
+
+.orgReportsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orgPersonRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orgPersonDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orgPersonName {
+  font-size: 13px;
+  font-weight: 500;
+  color: "[theme:neutralPrimary, default: #323130]";
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:link, default: #0078d4]";
+  }
+}
+
+.orgPersonTitle {
+  font-size: 11px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 // ─── Detail Panel ───────────────────────────────────────────
@@ -1545,17 +1871,13 @@
   font-size: 14px;
 }
 
-.dataGridLoading {
-  padding: 24px;
-  text-align: center;
-  font-size: 14px;
-  color: "[theme:bodySubtext, default: #605e5c]";
-}
-
 // ─── DataGrid Layout ─────────────────────────────────────────
 .dataGridContainer {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
+  // Momentum scrolling on iOS Safari — without this the DataGrid scrolls
+  // but stops instantly when the touch ends, which feels broken on mobile.
+  -webkit-overflow-scrolling: touch;
   border-radius: 6px;
 
   :global {
@@ -1573,11 +1895,61 @@
   }
 }
 
+.dataGridHost {
+  position: relative;
+}
+
+.dataGridHostFullscreen {
+  position: fixed;
+  top: 88px;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  overflow: hidden;
+  background-color: "[theme:white, default: #ffffff]";
+  background-color: var(--white, #ffffff);
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+
+  :global {
+    .dx-datagrid {
+      min-width: 100%;
+    }
+  }
+}
+
+.dataGridSurface {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+// Shown briefly while the DataGrid render error boundary triggers the layout switch.
+.dataGridError {
+  padding: 16px;
+  font-size: 13px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  text-align: center;
+}
+
 .gridTitleCell {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.gridTitleMain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .gridTitleIcon {
@@ -1591,6 +1963,7 @@
   color: "[theme:link, default: #0078d4]";
   color: var(--link);
   text-decoration: none;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1601,6 +1974,57 @@
     color: "[theme:linkHovered, default: #004578]";
     color: var(--linkHovered);
   }
+}
+
+.gridTitleLinkWrap {
+  color: "[theme:link, default: #0078d4]";
+  color: var(--link);
+  text-decoration: none;
+  flex: 1 1 auto;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:linkHovered, default: #004578]";
+    color: var(--linkHovered);
+  }
+}
+
+.gridTitleActionButton {
+  flex: 0 0 auto;
+  opacity: 0.7;
+
+  :global {
+    .ms-Button {
+      min-width: 22px;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border-radius: 6px;
+    }
+
+    .ms-Button:hover {
+      background-color: "[theme:neutralLighter, default: #f3f2f1]";
+      background-color: var(--neutralLighter, #f3f2f1);
+    }
+
+    .ms-Button-menuIcon {
+      display: none;
+    }
+
+    .ms-Button-label {
+      display: none;
+    }
+  }
+}
+
+.gridTitleCell:hover .gridTitleActionButton {
+  opacity: 1;
 }
 
 .gridAuthorCell {
@@ -1656,6 +2080,45 @@
   color: "[theme:neutralSecondary, default: #605e5c]";
 }
 
+.gridToolbarButton {
+  :global(.ms-Button) {
+    min-width: auto;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid "[theme:themePrimary, default: #0078d4]";
+    border-radius: 2px;
+    background: transparent;
+    color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  :global(.ms-Button:hover) {
+    background: "[theme:themeLighter, default: #deecf9]";
+  }
+
+  :global(.ms-Button-label) {
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  :global(.ms-Button-icon) {
+    font-size: 12px;
+  }
+
+  :global(.ms-Button:focus-visible) {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
+}
+
+.gridToolbarIcon {
+  font-style: normal;
+  font-size: 12px;
+}
+
+:global(.ms-ContextualMenu-list .ms-ContextualMenu-linkText) {
+  white-space: nowrap;
+}
+
 // ─── Gallery Layout ──────────────────────────────────────────
 .galleryGrid {
   display: grid;
@@ -1669,6 +2132,10 @@
 
   @media (max-width: 639px) {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 399px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1801,15 +2268,6 @@
 
 // ─── Responsive ─────────────────────────────────────────────
 @media (max-width: 639px) {
-  .compactHeaderAuthor,
-  .compactHeaderDate,
-  .compactHeaderSize,
-  .compactAuthor,
-  .compactDate,
-  .compactSize {
-    display: none;
-  }
-
   .resultThumbnail {
     width: 44px;
     height: 44px;

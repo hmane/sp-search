@@ -44,6 +44,7 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
   const showCount: boolean = config ? config.showCount : true;
   const configSortBy: SortBy = config ? config.sortBy : 'count';
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
+  const maxVisible: number = config && config.maxValues > 0 ? config.maxValues : DEFAULT_VISIBLE;
 
   // Show file type icons when the filter is for file type/extension properties
   const isFileTypeFilter: boolean = React.useMemo(function (): boolean {
@@ -93,13 +94,13 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
 
   /** Determine visible values based on show more/less. */
   const visibleValues: IRefinerValue[] = React.useMemo(function (): IRefinerValue[] {
-    if (isExpanded || sortedValues.length <= DEFAULT_VISIBLE) {
+    if (isExpanded || sortedValues.length <= maxVisible) {
       return sortedValues;
     }
-    return sortedValues.slice(0, DEFAULT_VISIBLE);
-  }, [sortedValues, isExpanded]);
+    return sortedValues.slice(0, maxVisible);
+  }, [sortedValues, isExpanded, maxVisible]);
 
-  const hasMore: boolean = sortedValues.length > DEFAULT_VISIBLE;
+  const hasMore: boolean = sortedValues.length > maxVisible;
 
   function handleCheckboxChange(refValue: IRefinerValue): void {
     const filter: IActiveFilter = {
@@ -152,7 +153,7 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
       </div>
 
       {/* Search within filter */}
-      {values.length > DEFAULT_VISIBLE && (
+      {values.length > maxVisible && (
         <div className={styles.searchWithinFilter}>
           <Icon iconName="Search" className={styles.searchIcon} />
           <input
@@ -212,7 +213,7 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
           onClick={handleShowMore}
           aria-expanded={isExpanded}
         >
-          {isExpanded ? 'Show less' : 'Show more (' + (sortedValues.length - DEFAULT_VISIBLE) + ')'}
+          {isExpanded ? 'Show less' : 'Show more (' + (sortedValues.length - maxVisible) + ')'}
         </button>
       )}
     </div>

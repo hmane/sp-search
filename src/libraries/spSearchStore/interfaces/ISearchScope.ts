@@ -19,5 +19,9 @@ export interface ISuggestion {
   /** Group label: "Recent", "People", "Files", "Trending" */
   groupName: string;
   iconName?: string;
+  filePath?: string;
+  secondaryText?: string;
   action?: () => void;
+  removeAction?: () => Promise<void> | void;
+  removeLabel?: string;
 }

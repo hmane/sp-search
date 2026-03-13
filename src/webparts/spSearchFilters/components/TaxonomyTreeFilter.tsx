@@ -128,6 +128,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
   const showCount: boolean = config ? config.showCount : true;
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
   const includeChildren = config?.includeChildren !== false;
+  const selectionMode = config?.multiValues === false ? 'single' : 'multiple';
 
   const [treeItems, setTreeItems] = React.useState<ITaxonomyTreeItem[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
@@ -255,7 +256,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
         searchMode="contains"
         showCheckBoxesMode="normal"
         selectNodesRecursive={includeChildren}
-        selectionMode="multiple"
+        selectionMode={selectionMode}
         selectByClick={true}
         selectedItemKeys={selectedKeys}
         onItemSelectionChanged={handleSelectionChanged}

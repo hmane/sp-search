@@ -4,6 +4,7 @@ import { IManagedProperty } from '@interfaces/index';
 // ─── Constants ──────────────────────────────────────────────
 
 const SCHEMA_CACHE_KEY = 'sp-search-schema-v1';
+const SCHEMA_UNAVAILABLE_KEY = 'sp-search-schema-unavailable-v1';
 
 /** Maps SharePoint ManagedType integers to human-readable type names */
 const MANAGED_TYPE_MAP: Record<number, string> = {
@@ -62,6 +63,14 @@ export interface ISchemaResult {
 export async function fetchManagedProperties(forceRefresh?: boolean): Promise<ISchemaResult> {
   // Check sessionStorage cache
   if (!forceRefresh) {
+    if (isSchemaUnavailable()) {
+      return {
+        status: 'error',
+        properties: [],
+        errorMessage: 'Schema API unavailable on this site'
+      };
+    }
+
     const cached = readCache();
     if (cached) {
       return { status: 'success', properties: cached };
@@ -77,6 +86,15 @@ export async function fetchManagedProperties(forceRefresh?: boolean): Promise<IS
       if (response.status === 403 || response.status === 401) {
         SPContext.logger.warn('SchemaService: Unauthorized — user lacks Search Admin permissions');
         return { status: 'unauthorized', properties: [] };
+      }
+      if (response.status === 404) {
+        markSchemaUnavailable();
+        SPContext.logger.warn('SchemaService: Search schema endpoint not available on this site');
+        return {
+          status: 'error',
+          properties: [],
+          errorMessage: 'Schema API unavailable on this site'
+        };
       }
       const errorMsg = 'Schema API returned HTTP ' + String(response.status);
       SPContext.logger.error('SchemaService: ' + errorMsg);
@@ -143,6 +161,9 @@ export async function fetchManagedProperties(forceRefresh?: boolean): Promise<IS
   } catch (error) {
     // Network errors, timeouts, etc. still throw
     const message = error instanceof Error ? error.message : 'Failed to fetch schema';
+    if (message.indexOf('404') >= 0) {
+      markSchemaUnavailable();
+    }
     SPContext.logger.error('SchemaService: Failed to fetch managed properties', error);
     return { status: 'error', properties: [], errorMessage: message };
   }
@@ -174,7 +195,24 @@ function readCache(): IManagedProperty[] | undefined {
 function writeCache(properties: IManagedProperty[]): void {
   try {
     sessionStorage.setItem(SCHEMA_CACHE_KEY, JSON.stringify(properties));
+    sessionStorage.removeItem(SCHEMA_UNAVAILABLE_KEY);
   } catch {
     // sessionStorage full or unavailable — ignore
+  }
+}
+
+function isSchemaUnavailable(): boolean {
+  try {
+    return sessionStorage.getItem(SCHEMA_UNAVAILABLE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSchemaUnavailable(): void {
+  try {
+    sessionStorage.setItem(SCHEMA_UNAVAILABLE_KEY, '1');
+  } catch {
+    // ignore
   }
 }

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
+import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
@@ -19,8 +20,21 @@ import ResultToolbar from './ResultToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
 import ListLayout from './ListLayout';
 import CompactLayout from './CompactLayout';
+import DataGridLayout from './DataGridLayout';
 import Pagination from './Pagination';
 import styles from './SpSearchResults.module.scss';
+import { validateWebPartConfig, IConfigWarning, ConfigWarningLevel } from './configValidation';
+
+// ─── Lazy layout preloaders ──────────────────────────────
+// Called on hover of the corresponding toolbar button to warm the webpack
+// chunk before the user actually clicks. No-ops on subsequent calls because
+// webpack deduplicates dynamic imports after the first load.
+const LAYOUT_PRELOADERS: Record<string, () => void> = {
+  card:    (): void => { import(/* webpackChunkName: 'CardLayout' */    './CardLayout')    .catch((): void => { /* ignore preload error */ }); },
+  people:  (): void => { import(/* webpackChunkName: 'PeopleLayout' */  './PeopleLayout')  .catch((): void => { /* ignore preload error */ }); },
+  grid:    (): void => { /* DataGridLayout is bundled eagerly to avoid runtime chunk-load failures. */ },
+  gallery: (): void => { import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout') .catch((): void => { /* ignore preload error */ }); },
+};
 
 // ─── Lazy-loaded layouts and panels ──────────────────────
 // Type assertions needed due to @types/react mismatch between sp-search and spfx-toolkit
@@ -33,11 +47,6 @@ const CardLayout: any = createLazyComponent(
 const PeopleLayout: any = createLazyComponent(
   () => import(/* webpackChunkName: 'PeopleLayout' */ './PeopleLayout') as any,
   { errorMessage: 'Failed to load people layout' }
-);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DataGridLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout') as any,
-  { errorMessage: 'Failed to load data grid layout' }
 );
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GalleryLayout: any = createLazyComponent(
@@ -68,8 +77,11 @@ function useStoreState(
   currentPage: number;
   pageSize: number;
   isLoading: boolean;
+  hasSearched: boolean;
   error: string | undefined;
+  queryText: string;
   activeLayoutKey: string;
+  availableLayouts: string[];
   promotedResults: IPromotedResultItem[];
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
@@ -88,9 +100,12 @@ function useStoreState(
     totalCount: 0,
     currentPage: 1,
     pageSize: 25,
-    isLoading: false,
+    isLoading: true,
+    hasSearched: false,
     error: undefined as string | undefined,
+    queryText: '',
     activeLayoutKey: 'list',
+    availableLayouts: ['list', 'compact', 'grid'],
     promotedResults: [] as IPromotedResultItem[],
     sort: undefined as ISortField | undefined,
     sortableProperties: [] as ISortableProperty[],
@@ -109,8 +124,11 @@ function useStoreState(
     currentPage: number;
     pageSize: number;
     isLoading: boolean;
+    hasSearched: boolean;
     error: string | undefined;
+    queryText: string;
     activeLayoutKey: string;
+    availableLayouts: string[];
     promotedResults: IPromotedResultItem[];
     sort: ISortField | undefined;
     sortableProperties: ISortableProperty[];
@@ -132,8 +150,11 @@ function useStoreState(
       currentPage: state.currentPage,
       pageSize: state.pageSize,
       isLoading: state.isLoading,
+      hasSearched: state.hasSearched,
       error: state.error,
+      queryText: state.queryText,
       activeLayoutKey: state.activeLayoutKey,
+      availableLayouts: state.availableLayouts,
       promotedResults: state.promotedResults,
       sort: state.sort,
       sortableProperties: state.sortableProperties,
@@ -163,8 +184,11 @@ function useStoreState(
           prev.currentPage === next.currentPage &&
           prev.pageSize === next.pageSize &&
           prev.isLoading === next.isLoading &&
+          prev.hasSearched === next.hasSearched &&
           prev.error === next.error &&
+          prev.queryText === next.queryText &&
           prev.activeLayoutKey === next.activeLayoutKey &&
+          prev.availableLayouts === next.availableLayouts &&
           prev.promotedResults === next.promotedResults &&
           prev.sort === next.sort &&
           prev.sortableProperties === next.sortableProperties &&
@@ -191,22 +215,97 @@ function useStoreState(
  * Renders the loading shimmer placeholders that match the list layout shape.
  */
 const LoadingShimmer: React.FC<{ count: number }> = (shimmerProps) => {
+  const titleWidths = ['54%', '48%', '58%', '44%'];
+  const urlWidths = ['38%', '46%', '34%', '41%'];
+  const summaryWidths = [
+    ['92%', '78%'],
+    ['88%', '72%'],
+    ['94%', '75%'],
+    ['86%', '69%']
+  ];
+  const metaWidths = [
+    ['92', '68', '54'],
+    ['104', '74', '48'],
+    ['88', '70', '56'],
+    ['96', '64', '52']
+  ];
+
   const rows: React.ReactElement[] = [];
   for (let i: number = 0; i < shimmerProps.count; i++) {
+    const titleWidth = titleWidths[i % titleWidths.length];
+    const urlWidth = urlWidths[i % urlWidths.length];
+    const summaryWidthSet = summaryWidths[i % summaryWidths.length];
+    const metaWidthSet = metaWidths[i % metaWidths.length];
+
     rows.push(
-      <div key={i} className={styles.shimmerRow}>
-        <Shimmer
-          shimmerElements={[
-            { type: ShimmerElementType.circle, height: 32 },
-            { type: ShimmerElementType.gap, width: 12 },
-            { type: ShimmerElementType.line, height: 16, width: '40%' }
-          ]}
-          width="100%"
-        />
-      </div>
+      <li key={i} className={`${styles.resultCard} ${styles.shimmerResultCard}`} role="presentation">
+        <div className={styles.resultIcon}>
+          <Shimmer
+            shimmerElements={[
+              { type: ShimmerElementType.line, height: 28, width: 28 }
+            ]}
+            width={28}
+          />
+        </div>
+
+        <div className={styles.resultBody}>
+          <div className={styles.shimmerTitleRow}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.line, height: 18, width: titleWidth },
+                { type: ShimmerElementType.gap, width: 10 },
+                { type: ShimmerElementType.line, height: 16, width: 42 }
+              ]}
+              width="100%"
+            />
+          </div>
+
+          <div className={styles.shimmerUrlRow}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.line, height: 10, width: urlWidth }
+              ]}
+              width="100%"
+            />
+          </div>
+
+          <div className={styles.shimmerSummaryRow}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.line, height: 12, width: summaryWidthSet[0] }
+              ]}
+              width="100%"
+            />
+          </div>
+
+          <div className={styles.shimmerSummaryRow}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.line, height: 12, width: summaryWidthSet[1] }
+              ]}
+              width="100%"
+            />
+          </div>
+
+          <div className={styles.shimmerMetaRow}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.circle, height: 24 },
+                { type: ShimmerElementType.gap, width: 8 },
+                { type: ShimmerElementType.line, height: 12, width: parseInt(metaWidthSet[0], 10) },
+                { type: ShimmerElementType.gap, width: 16 },
+                { type: ShimmerElementType.line, height: 12, width: parseInt(metaWidthSet[1], 10) },
+                { type: ShimmerElementType.gap, width: 16 },
+                { type: ShimmerElementType.line, height: 12, width: parseInt(metaWidthSet[2], 10) }
+              ]}
+              width="100%"
+            />
+          </div>
+        </div>
+      </li>
     );
   }
-  return <div className={styles.shimmerContainer}>{rows}</div>;
+  return <ul className={`${styles.resultList} ${styles.shimmerContainer}`} aria-hidden="true">{rows}</ul>;
 };
 
 /**
@@ -280,20 +379,52 @@ const PromotedResultsSection: React.FC<{ items: IPromotedResultItem[] }> = funct
   );
 };
 
+interface IEmptyStateProps {
+  queryText: string;
+  hasActiveFilters: boolean;
+  onClearFilters: () => void;
+  onReset: () => void;
+}
+
 /**
- * Renders the empty state when no results are found.
+ * Context-aware zero-results recovery panel.
+ * Surfaces the most likely recovery action first based on what is active:
+ * - Active filters → offer to clear them (most common cause of zero results)
+ * - No filters     → suggest broader keywords
+ * Always offers a hard reset to wipe all state and start fresh.
  */
-const EmptyState: React.FC = () => (
-  <div className={styles.emptyState} role="status">
-    <div className={styles.emptyIcon}>
-      <Icon iconName="SearchIssue" />
+const EmptyState: React.FC<IEmptyStateProps> = (emptyProps) => {
+  const { queryText, hasActiveFilters, onClearFilters, onReset } = emptyProps;
+  return (
+    <div className={styles.emptyState} role="status">
+      <div className={styles.emptyIcon}>
+        <Icon iconName="SearchIssue" />
+      </div>
+      <h3 className={styles.emptyTitle}>
+        {queryText
+          ? <>No results for <span className={styles.emptyQuery}>&#x201C;{queryText}&#x201D;</span></>
+          : 'No results found'}
+      </h3>
+      {hasActiveFilters ? (
+        <div className={styles.emptyRecovery}>
+          <p className={styles.emptyDescription}>
+            Your active filters may be narrowing results too much.
+          </p>
+          <button className={styles.emptyRecoveryButton} onClick={onClearFilters} type="button">
+            Clear all filters
+          </button>
+        </div>
+      ) : (
+        <p className={styles.emptyDescription}>
+          Check your spelling or try broader search terms.
+        </p>
+      )}
+      <button className={styles.emptyResetLink} onClick={onReset} type="button">
+        Start over
+      </button>
     </div>
-    <h3 className={styles.emptyTitle}>No results found</h3>
-    <p className={styles.emptyDescription}>
-      Try adjusting your search query or filters to find what you are looking for.
-    </p>
-  </div>
-);
+  );
+};
 
 /**
  * SPSearchResults — main container component.
@@ -307,7 +438,18 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     searchContextId,
     theme,
     showResultCount,
-    showSortDropdown
+    showSortDropdown,
+    showDeleteConfirmation,
+    enablePreviewPanel,
+    hideWebPartWhenNoResults,
+    titleDisplayMode,
+    isEditMode,
+    defaultLayout,
+    selectedPropertyColumns,
+    gridPropertyColumns,
+    compactPropertyColumns,
+    queryTemplate,
+    graphOrgService
   } = props;
 
   const {
@@ -316,8 +458,11 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     currentPage,
     pageSize,
     isLoading,
+    hasSearched,
     error,
+    queryText,
     activeLayoutKey,
+    availableLayouts,
     promotedResults,
     sort,
     sortableProperties,
@@ -332,11 +477,20 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   // Get the manager service for the Search Manager panel
   const managerService = getManagerService(searchContextId);
+  const effectiveDefaultLayout = React.useMemo((): string => {
+    const configured = defaultLayout || 'list';
+    return availableLayouts.indexOf(configured) >= 0 ? configured : (availableLayouts[0] || 'list');
+  }, [availableLayouts, defaultLayout]);
 
   // ─── Store action callbacks ─────────────────────────────────
   const handleLayoutChange = React.useCallback((key: string): void => {
     store.getState().setLayout(key);
   }, [store]);
+
+  const handlePreloadLayout = React.useCallback((key: string): void => {
+    const preload = LAYOUT_PRELOADERS[key];
+    if (preload) { preload(); }
+  }, []);
 
   const handleSortChange = React.useCallback((newSort: ISortField): void => {
     store.getState().setSort(newSort);
@@ -389,6 +543,19 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     window.location.href = url.toString();
   }, []);
 
+  // ─── Loading overlay (delayed to avoid flash for fast searches) ───────────
+  const [showOverlay, setShowOverlay] = React.useState(false);
+  React.useEffect((): (() => void) => {
+    if (!isLoading || items.length === 0) {
+      setShowOverlay(false);
+      return (): void => { /* noop */ };
+    }
+    // Only reveal the overlay after 300ms — sub-300ms searches complete before
+    // it ever appears, so the user sees no flash.
+    const timer = setTimeout((): void => { setShowOverlay(true); }, 300);
+    return (): void => { clearTimeout(timer); };
+  }, [isLoading, items.length]);
+
   // ─── "Did you mean" handler ────────────────────────────────
   const handleQuerySuggestionClick = React.useCallback(function (): void {
     if (querySuggestion) {
@@ -403,56 +570,154 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   // ─── Determine which layout to render ──────────────────────
   const renderLayout = (): React.ReactElement | undefined => {
-    if (isLoading) {
+    // No search has completed yet — show skeleton, never "No results found".
+    // This covers both the very first page load and the case where the store
+    // initializes before the Results web part has registered a data provider.
+    if (!hasSearched) {
       return <LoadingShimmer count={5} />;
     }
 
-    if (items.length === 0) {
-      return <EmptyState />;
+    // A refresh search is in progress with no previous results to retain.
+    // Show the skeleton again rather than flickering to empty state.
+    if (isLoading && items.length === 0) {
+      return <LoadingShimmer count={5} />;
     }
 
+    // Search completed with no results.
+    if (items.length === 0) {
+      return (
+        <EmptyState
+          queryText={queryText}
+          hasActiveFilters={activeFilters.length > 0}
+          onClearFilters={handleClearAllFilters}
+          onReset={handleReset}
+        />
+      );
+    }
+
+    // Build the layout content for the current items.
+    let layoutContent: React.ReactElement;
     switch (activeLayoutKey) {
       case 'compact':
-        return <CompactLayout items={items} onItemClick={handleItemClick} />;
+        layoutContent = (
+          <CompactLayout
+            items={items}
+            compactPropertyColumns={compactPropertyColumns}
+            titleDisplayMode={titleDisplayMode}
+            onItemClick={handleItemClick}
+          />
+        );
+        break;
 
       case 'card':
-        return (
-          <CardLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
+        layoutContent = (
+          <CardLayout
+            items={items}
+            titleDisplayMode={titleDisplayMode}
+            onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
+            onItemClick={handleItemClick}
+          />
         );
+        break;
 
       case 'people':
-        return (
-          <PeopleLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
+        layoutContent = (
+          <PeopleLayout
+            items={items}
+            onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
+            onItemClick={handleItemClick}
+            graphOrgService={graphOrgService}
+          />
         );
+        break;
 
       case 'grid':
-        return (
+        layoutContent = (
           <DataGridLayout
             items={items}
-            onPreviewItem={handlePreviewItem}
+            gridPropertyColumns={gridPropertyColumns}
+            titleDisplayMode={titleDisplayMode}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            showPaging={showPaging}
+            pageRange={pageRange}
+            searchContextId={searchContextId}
+            showDeleteConfirmation={showDeleteConfirmation}
+            sort={sort}
+            sortableProperties={sortableProperties}
+            onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
             onItemClick={handleItemClick}
+            onPageChange={handlePageChange}
+            onSortChange={handleSortChange}
+            onFallback={(): void => handleLayoutChange('list')}
           />
         );
+        break;
 
       case 'gallery':
-        return (
-          <GalleryLayout items={items} onPreviewItem={handlePreviewItem} onItemClick={handleItemClick} />
-        );
-
-      default:
-        // 'list' layout is the default
-        return (
-          <ListLayout
+        layoutContent = (
+          <GalleryLayout
             items={items}
+            titleDisplayMode={titleDisplayMode}
+            onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
             onItemClick={handleItemClick}
           />
         );
+        break;
+
+      default:
+        // 'list' is the default layout
+        layoutContent = <ListLayout items={items} titleDisplayMode={titleDisplayMode} onItemClick={handleItemClick} />;
     }
+
+    return layoutContent;
   };
+
+  if (hideWebPartWhenNoResults && !isEditMode && hasSearched && !isLoading && !error && items.length === 0) {
+    return null;
+  }
 
   return (
     <ErrorBoundary enableRetry={true} maxRetries={3}>
       <div ref={resultsContainerRef} className={styles.spSearchResults}>
+        {/* Admin diagnostic notices — edit mode only */}
+        {isEditMode && searchContextId === 'default' && (
+          <MessageBar messageBarType={MessageBarType.info} isMultiline={true} styles={{ root: { marginBottom: 8 } }}>
+            Using the <strong>default</strong> search context. Set a unique Search Context ID in the property pane
+            when using multiple independent search experiences on the same page.
+          </MessageBar>
+        )}
+        {isEditMode && ((): React.ReactNode => {
+          const configWarnings: IConfigWarning[] = validateWebPartConfig({
+            defaultLayout: effectiveDefaultLayout,
+            availableLayouts,
+            selectedPropertyColumns: selectedPropertyColumns || [],
+            gridPropertyColumns: gridPropertyColumns || [],
+            queryTemplate: queryTemplate || '{searchTerms}',
+          });
+          if (configWarnings.length === 0) { return null; }
+          const levelToMessageBarType = (level: ConfigWarningLevel): MessageBarType => {
+            if (level === 'error')   { return MessageBarType.error; }
+            if (level === 'warning') { return MessageBarType.warning; }
+            return MessageBarType.info;
+          };
+          return (
+            <>
+              {configWarnings.map((w) => (
+                <MessageBar
+                  key={w.id}
+                  messageBarType={levelToMessageBarType(w.level)}
+                  isMultiline={true}
+                  styles={{ root: { marginBottom: 4 } }}
+                >
+                  {w.message}
+                </MessageBar>
+              ))}
+            </>
+          );
+        })()}
+
         {/* Error message bar */}
         {error && (
           <div className={styles.errorContainer} role="alert">
@@ -490,12 +755,14 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           <ResultToolbar
             totalCount={totalCount}
             activeLayoutKey={activeLayoutKey}
+            availableLayouts={availableLayouts}
             sort={sort}
             sortableProperties={sortableProperties}
             showResultCount={showResultCount}
             showSortDropdown={showSortDropdown}
             onLayoutChange={handleLayoutChange}
             onSortChange={handleSortChange}
+            onPreloadLayout={handlePreloadLayout}
           />
         )}
 
@@ -505,11 +772,17 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           filterConfig={filterConfig}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
-          onReset={handleReset}
         />
 
-        {/* Active layout */}
-        {renderLayout()}
+        {/* Active layout — wrapped to provide overlay positioning context */}
+        <div className={styles.resultsWrapper}>
+          {renderLayout()}
+          {showOverlay && (
+            <div className={styles.loadingOverlay} role="status" aria-busy="true" aria-label="Loading results">
+              <Spinner size={SpinnerSize.medium} label="Loading..." ariaLive="assertive" />
+            </div>
+          )}
+        </div>
 
         {/* Pagination */}
         {items.length > 0 && !isLoading && (
@@ -524,7 +797,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         )}
 
         {/* Detail panel — lazy-loaded, only renders when preview panel is open */}
-        {previewPanel.isOpen && (
+        {enablePreviewPanel && previewPanel.isOpen && (
           <ResultDetailPanel
             isOpen={previewPanel.isOpen}
             item={previewPanel.item}

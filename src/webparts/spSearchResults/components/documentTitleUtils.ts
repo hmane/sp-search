@@ -1,6 +1,10 @@
 import { ISearchResult } from '@interfaces/index';
 
-/** Office extensions that use WopiFrame for preview. */
+export type TitleDisplayMode = 'ellipsis' | 'middle' | 'wrap';
+
+/**
+ * Extensions that use WopiFrame interactivepreview (Office Online).
+ */
 export const OFFICE_EXTENSIONS: string[] = [
   'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt',
   'docm', 'dotx', 'xlsm', 'xltx', 'pptm', 'potx',
@@ -9,7 +13,8 @@ export const OFFICE_EXTENSIONS: string[] = [
 /** All extensions that can be previewed in-browser. */
 export const PREVIEWABLE_EXTENSIONS: string[] = [
   ...OFFICE_EXTENSIONS,
-  'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
+  'pdf',
+  'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
   'txt', 'csv', 'json', 'xml',
 ];
 
@@ -165,29 +170,107 @@ export function stripHtml(html: string): string {
 }
 
 /**
+ * Formats a title according to the admin-configured display mode.
+ * "middle" preserves the tail/extension for long filenames.
+ */
+export function formatTitleText(title: string, mode: TitleDisplayMode): string {
+  if (!title || mode !== 'middle') {
+    return title;
+  }
+
+  if (title.length <= 40) {
+    return title;
+  }
+
+  const dotIndex = title.lastIndexOf('.');
+  if (dotIndex > 0 && dotIndex < title.length - 1) {
+    const extension = title.substring(dotIndex);
+    const base = title.substring(0, dotIndex);
+    if (base.length <= 28) {
+      return title;
+    }
+    return base.substring(0, 22) + '...' + base.substring(Math.max(base.length - 10, 22)) + extension;
+  }
+
+  return title.substring(0, 24) + '...' + title.substring(Math.max(title.length - 12, 24));
+}
+
+/**
+ * Extracts the file extension from a URL, ignoring query strings.
+ * Returns empty string for URLs without an extension.
+ */
+function getExtFromUrl(url: string): string {
+  const clean = url.split('?')[0].split('#')[0];
+  const filename = clean.substring(clean.lastIndexOf('/') + 1);
+  const dot = filename.lastIndexOf('.');
+  return dot >= 0 ? filename.substring(dot + 1).toLowerCase() : '';
+}
+
+function getExtFromName(name: string): string {
+  if (!name) {
+    return '';
+  }
+  const clean = name.split('?')[0].split('#')[0];
+  const dot = clean.lastIndexOf('.');
+  return dot >= 0 ? clean.substring(dot + 1).toLowerCase() : '';
+}
+
+function getFileExtension(item: ISearchResult): string {
+  const managedPropertyExt = String(
+    item.fileType ||
+    item.properties.FileExtension ||
+    item.properties.SecondaryFileExtension ||
+    item.properties.FileLeafRef ||
+    item.properties.FileName ||
+    item.properties.Filename ||
+    ''
+  ).toLowerCase();
+
+  return managedPropertyExt || getExtFromUrl(item.url || '') || getExtFromName(item.title || '');
+}
+
+/**
  * Builds the preview iframe URL for a search result.
- * Office docs use WopiFrame.aspx; others use ?web=1.
+ * PDFs and Office docs use WopiFrame.aspx (embeds cleanly in iframes).
+ * Images/text use ?web=1.
  * Returns undefined for non-previewable file types.
  */
 export function buildPreviewUrl(item: ISearchResult): string | undefined {
-  if (!item.fileType || !item.url) {
+  if (!item.url) {
     return undefined;
   }
-  const ext: string = item.fileType.toLowerCase();
-  if (PREVIEWABLE_EXTENSIONS.indexOf(ext) < 0) {
+  const ext: string = getFileExtension(item);
+  if (!ext || PREVIEWABLE_EXTENSIONS.indexOf(ext) < 0) {
     return undefined;
   }
 
+  if (ext === 'pdf') {
+    // PDFs: embed the file directly. SharePoint serves PDFs with
+    // Content-Disposition: inline and X-Frame-Options: SAMEORIGIN so they
+    // render via the browser's native PDF viewer inside the iframe.
+    // WopiFrame (both embedview and interactivepreview) navigates the top
+    // frame for PDFs, breaking out of any modal/panel.
+    return item.url;
+  }
+
   if (OFFICE_EXTENSIONS.indexOf(ext) >= 0) {
+    // Office docs: WopiFrame interactivepreview (Office Online editor in iframe).
+    const siteUrl = item.siteUrl;
+    if (siteUrl) {
+      return siteUrl + '/_layouts/15/WopiFrame.aspx?sourcedoc=' +
+        encodeURIComponent(item.url) + '&action=interactivepreview';
+    }
+    // Fallback: derive the site URL by parsing item.url
     try {
       const parsed = new URL(item.url);
-      const pathSegments: string[] = parsed.pathname.split('/').filter(Boolean);
-      let sitePath: string = '';
-      const first: string = (pathSegments[0] || '').toLowerCase();
-      if ((first === 'sites' || first === 'teams' || first === 'personal') && pathSegments.length >= 2) {
-        sitePath = '/' + pathSegments[0] + '/' + pathSegments[1];
-      }
-      return parsed.origin + sitePath + '/_layouts/15/WopiFrame.aspx?sourcedoc=' + encodeURIComponent(parsed.pathname) + '&action=interactivepreview';
+      const segs: string[] = parsed.pathname.split('/').filter(Boolean);
+      const first: string = (segs[0] || '').toLowerCase();
+      const sitePath: string =
+        (first === 'sites' || first === 'teams' || first === 'personal') && segs.length >= 2
+          ? '/' + segs[0] + '/' + segs[1]
+          : '';
+      return parsed.origin + sitePath + '/_layouts/15/WopiFrame.aspx?sourcedoc=' +
+        encodeURIComponent(parsed.pathname) + '&action=interactivepreview';
     } catch {
       return undefined;
     }
@@ -195,6 +278,44 @@ export function buildPreviewUrl(item: ISearchResult): string | undefined {
 
   const separator: string = item.url.indexOf('?') >= 0 ? '&' : '?';
   return item.url + separator + 'web=1';
+}
+
+export function getResultAnchorProps(item: ISearchResult): {
+  href: string;
+  target?: string;
+  rel?: string;
+} {
+  if (buildPreviewUrl(item)) {
+    return { href: '#' };
+  }
+
+  return {
+    href: item.url || '#',
+    target: '_blank',
+    rel: 'noopener noreferrer'
+  };
+}
+
+/**
+ * Builds a browser-open URL that mirrors normal SharePoint library behavior
+ * more closely than a direct binary link.
+ */
+export function buildBrowserOpenUrl(item: ISearchResult): string {
+  if (!item.url) {
+    return '#';
+  }
+
+  const ext: string = getFileExtension(item);
+  if (ext === 'pdf') {
+    return item.url;
+  }
+
+  if (PREVIEWABLE_EXTENSIONS.indexOf(ext) >= 0 || OFFICE_EXTENSIONS.indexOf(ext) >= 0) {
+    const separator: string = item.url.indexOf('?') >= 0 ? '&' : '?';
+    return item.url + separator + 'web=1';
+  }
+
+  return item.url;
 }
 
 /**

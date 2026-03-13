@@ -17,6 +17,37 @@ import SuggestionDropdown from './SuggestionDropdown';
 import KqlInput from './KqlInput';
 import KqlCompletionDropdown from './KqlCompletionDropdown';
 
+function mergeSuggestionsByPriority(
+  providers: ISuggestionProvider[],
+  resultsByProvider: Map<string, ISuggestion[]>,
+  maxMergedSuggestions: number
+): ISuggestion[] {
+  const merged: ISuggestion[] = [];
+  const seen = new Set<string>();
+
+  for (let p = 0; p < providers.length; p++) {
+    const providerResults = resultsByProvider.get(providers[p].id) || [];
+
+    for (let r = 0; r < providerResults.length; r++) {
+      const suggestion = providerResults[r];
+      const dedupeKey = suggestion.displayText.trim().toLowerCase();
+
+      if (!dedupeKey || seen.has(dedupeKey)) {
+        continue;
+      }
+
+      seen.add(dedupeKey);
+      merged.push(suggestion);
+
+      if (merged.length >= maxMergedSuggestions) {
+        return merged;
+      }
+    }
+  }
+
+  return merged;
+}
+
 /**
  * SpSearchBox -- functional component for the search box web part.
  * Subscribes to the shared Zustand vanilla store and renders
@@ -26,17 +57,29 @@ import KqlCompletionDropdown from './KqlCompletionDropdown';
 const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const {
     store,
+    searchContextId,
+    siteUrl,
     placeholder,
     debounceMs,
     searchBehavior,
+    resetSearchOnClear,
     enableScopeSelector,
     searchScopes,
     enableSuggestions,
+    enableSharePointSuggestions,
+    enableRecentSuggestions,
+    enablePopularSuggestions,
+    enableQuickResults,
+    enablePropertySuggestions,
+    suggestionsPerGroup,
     enableQueryBuilder,
     enableKqlMode,
     enableSearchManager,
     searchInNewPage,
     newPageUrl,
+    newPageOpenBehavior,
+    newPageParameterLocation,
+    newPageQueryParameter,
     theme,
   } = props;
 
@@ -68,6 +111,8 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   // ─── Refs ───────────────────────────────────────────────────────
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const containerRef = React.useRef<HTMLDivElement>(undefined as unknown as HTMLDivElement);
+  const suggestionRequestIdRef = React.useRef<number>(0);
+  const latestSuggestionQueryRef = React.useRef<string>('');
 
   // ─── Subscribe to store changes ─────────────────────────────────
   React.useEffect(() => {
@@ -123,6 +168,120 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
   // ─── Handlers ───────────────────────────────────────────────────
 
+  function isSuggestionProviderEnabled(providerId: string): boolean {
+    switch (providerId) {
+      case 'query-suggestions':
+        return enableSharePointSuggestions;
+      case 'recent-searches':
+        return enableRecentSuggestions;
+      case 'trending-queries':
+        return enablePopularSuggestions;
+      case 'quick-results':
+        return enableQuickResults;
+      case 'managed-property':
+        return enablePropertySuggestions;
+      default:
+        return true;
+    }
+  }
+
+  function requestSuggestions(value: string, useDebounce: boolean): void {
+    if (!enableSuggestions || isQueryBuilderOpen) {
+      return;
+    }
+
+    const shouldLoadSuggestions = value.length === 0 || value.length >= 2;
+
+    if (debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = undefined;
+    }
+
+    if (!shouldLoadSuggestions) {
+      latestSuggestionQueryRef.current = '';
+      suggestionRequestIdRef.current++;
+      store.getState().setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const run = function (): void {
+      const requestId = suggestionRequestIdRef.current + 1;
+      suggestionRequestIdRef.current = requestId;
+      latestSuggestionQueryRef.current = value;
+      setShowSuggestions(true);
+
+      const state = store.getState();
+      const providers: ISuggestionProvider[] = state.registries.suggestions.getAll()
+        .filter(function (provider: ISuggestionProvider): boolean {
+          return isSuggestionProviderEnabled(provider.id);
+        })
+        .slice()
+        .sort(function (a: ISuggestionProvider, b: ISuggestionProvider): number {
+          return a.priority - b.priority;
+        });
+
+      if (providers.length === 0) {
+        state.setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      const context = {
+        searchContextId,
+        siteUrl,
+        scope: state.scope,
+      };
+
+      Promise.all(
+        providers.map(async function (provider: ISuggestionProvider): Promise<[string, ISuggestion[]]> {
+          if (!provider.isEnabled(context)) {
+            return [provider.id, []];
+          }
+
+          try {
+            const results = await provider.getSuggestions(value, context);
+            return [provider.id, results.slice(0, suggestionsPerGroup)];
+          } catch {
+            return [provider.id, []];
+          }
+        })
+      ).then(function (entries): void {
+        if (
+          suggestionRequestIdRef.current !== requestId ||
+          latestSuggestionQueryRef.current !== value
+        ) {
+          return;
+        }
+
+        const resultsByProvider: Map<string, ISuggestion[]> = new Map(entries);
+        const merged = mergeSuggestionsByPriority(
+          providers,
+          resultsByProvider,
+          Math.max(10, suggestionsPerGroup * Math.max(1, providers.length))
+        );
+
+        state.setSuggestions(merged);
+        setShowSuggestions(merged.length > 0);
+      }).catch(function (): void {
+        if (suggestionRequestIdRef.current === requestId) {
+          state.setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      });
+    };
+
+    if (useDebounce && value.length >= 2) {
+      debounceTimerRef.current = setTimeout(function (): void {
+        debounceTimerRef.current = undefined;
+        run();
+      }, debounceMs);
+      return;
+    }
+
+    run();
+  }
+
   /**
    * Execute the search by dispatching setQueryText to the store.
    */
@@ -137,9 +296,21 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
     // Navigate to another page if configured
     if (searchInNewPage && newPageUrl) {
-      const separator = newPageUrl.indexOf('?') >= 0 ? '&' : '?';
-      const targetUrl = newPageUrl + separator + 'q=' + encodeURIComponent(text);
-      window.location.href = targetUrl;
+      const paramName = (newPageQueryParameter || 'q').trim() || 'q';
+      let targetUrl = newPageUrl;
+      if (newPageParameterLocation === 'hash') {
+        const hashSeparator = newPageUrl.indexOf('#') >= 0 ? '&' : '#';
+        targetUrl = newPageUrl + hashSeparator + paramName + '=' + encodeURIComponent(text);
+      } else {
+        const separator = newPageUrl.indexOf('?') >= 0 ? '&' : '?';
+        targetUrl = newPageUrl + separator + paramName + '=' + encodeURIComponent(text);
+      }
+
+      if (newPageOpenBehavior === 'newTab') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = targetUrl;
+      }
       return;
     }
 
@@ -152,89 +323,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   function handleInputChange(_event?: React.ChangeEvent<HTMLInputElement>, newValue?: string): void {
     const value = newValue !== undefined ? newValue : '';
     setInputValue(value);
-
-    if (enableSuggestions && !isQueryBuilderOpen && value.length >= 2) {
-      // Debounce suggestion fetching
-      if (debounceTimerRef.current !== undefined) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(function (): void {
-        debounceTimerRef.current = undefined;
-        setShowSuggestions(true);
-        // Trigger suggestion providers through the store, sorted by priority
-        const state = store.getState();
-        const providers: ISuggestionProvider[] = state.registries.suggestions.getAll()
-          .slice()
-          .sort(function (a: ISuggestionProvider, b: ISuggestionProvider): number {
-            return a.priority - b.priority;
-          });
-        if (providers.length > 0) {
-          // Collect results keyed by provider id to maintain priority order
-          const resultsByProvider: Map<string, ISuggestion[]> = new Map();
-          let remaining = providers.length;
-          for (let idx = 0; idx < providers.length; idx++) {
-            (function (provider: ISuggestionProvider): void {
-              const context = {
-                searchContextId: 'default',
-                siteUrl: '',
-                scope: state.scope,
-              };
-              if (provider.isEnabled(context)) {
-                provider.getSuggestions(value, context)
-                  .then(function (results): void {
-                    resultsByProvider.set(provider.id, results);
-                    remaining--;
-                    if (remaining <= 0) {
-                      // Merge in priority order
-                      const merged: ISuggestion[] = [];
-                      for (let p = 0; p < providers.length; p++) {
-                        const providerResults = resultsByProvider.get(providers[p].id);
-                        if (providerResults) {
-                          for (let r = 0; r < providerResults.length; r++) {
-                            merged.push(providerResults[r]);
-                          }
-                        }
-                      }
-                      state.setSuggestions(merged);
-                    }
-                  })
-                  .catch(function (): void {
-                    remaining--;
-                    if (remaining <= 0) {
-                      const merged: ISuggestion[] = [];
-                      for (let p = 0; p < providers.length; p++) {
-                        const providerResults = resultsByProvider.get(providers[p].id);
-                        if (providerResults) {
-                          for (let r = 0; r < providerResults.length; r++) {
-                            merged.push(providerResults[r]);
-                          }
-                        }
-                      }
-                      state.setSuggestions(merged);
-                    }
-                  });
-              } else {
-                remaining--;
-                if (remaining <= 0) {
-                  const merged: ISuggestion[] = [];
-                  for (let p = 0; p < providers.length; p++) {
-                    const providerResults = resultsByProvider.get(providers[p].id);
-                    if (providerResults) {
-                      for (let r = 0; r < providerResults.length; r++) {
-                        merged.push(providerResults[r]);
-                      }
-                    }
-                  }
-                  state.setSuggestions(merged);
-                }
-              }
-            })(providers[idx]);
-          }
-        }
-      }, debounceMs);
-    } else {
-      setShowSuggestions(false);
-    }
+    requestSuggestions(value, true);
   }
 
   /**
@@ -268,8 +357,10 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     // Reset the store state
     const state = store.getState();
     state.setQueryText('');
-    state.clearAllFilters();
-    state.setPage(1);
+    if (resetSearchOnClear) {
+      state.clearAllFilters();
+      state.setPage(1);
+    }
   }
 
   /**
@@ -304,13 +395,27 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     setShowSuggestions(false);
   }
 
+  function handleSuggestionRemove(suggestion: ISuggestion): void {
+    if (!suggestion.removeAction) {
+      return;
+    }
+
+    Promise.resolve(suggestion.removeAction())
+      .then(function (): void {
+        requestSuggestions(inputValue, false);
+      })
+      .catch(function (): void {
+        // Non-critical — keep the existing list if delete fails
+      });
+  }
+
   /**
    * Handle focus on the search input.
    */
   function handleFocus(): void {
     setIsFocused(true);
-    if (!isKqlMode && enableSuggestions && !isQueryBuilderOpen && suggestions.length > 0 && inputValue.length >= 2) {
-      setShowSuggestions(true);
+    if (!isKqlMode && enableSuggestions && !isQueryBuilderOpen) {
+      requestSuggestions(inputValue, false);
     }
   }
 
@@ -673,7 +778,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       {!isKqlActive && enableSuggestions && showSuggestions && suggestions.length > 0 && (
         <SuggestionDropdown
           suggestions={suggestions}
+          queryText={inputValue}
           onSelect={handleSuggestionClick}
+          onRemove={handleSuggestionRemove}
           onDismiss={function (): void { setShowSuggestions(false); }}
         />
       )}

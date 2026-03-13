@@ -50,6 +50,8 @@ export class RecentSearchProvider implements ISuggestionProvider {
           displayText: entry.queryText,
           groupName: 'Recent',
           iconName: 'History',
+          removeLabel: 'Remove from recent searches',
+          removeAction: (): Promise<void> => this._service.deleteHistoryEntry(entry.id),
         });
 
         if (suggestions.length >= this.maxResults) {

@@ -90,6 +90,7 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
   displayRefiners: [],
   filterConfig: [],
   isRefining: false,
+  operatorBetweenFilters: 'AND',
 
   setRefiner: (filter: IActiveFilter): void => {
     const current = get().activeFilters;
@@ -145,6 +146,10 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
 
   clearAllFilters: (): void => {
     set({ activeFilters: [], currentPage: 1, displayRefiners: [] });
+  },
+
+  setOperatorBetweenFilters: (operator: 'AND' | 'OR'): void => {
+    set({ operatorBetweenFilters: operator });
   },
 
   setAvailableRefiners: (refiners: IRefiner[]): void => {

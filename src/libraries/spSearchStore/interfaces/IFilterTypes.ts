@@ -35,6 +35,7 @@ export interface IRefinerValue {
 export type FilterType =
   | 'checkbox'
   | 'daterange'
+  | 'text'
   | 'people'
   | 'taxonomy'
   | 'tagbox'

@@ -54,6 +54,27 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     }
   });
 
+  // ── Text Query ───────────────────────────────────────────
+  registry.register({
+    id: 'text',
+    displayName: 'Text Query',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    component: createLazyComponent(
+      function () { return import('./components/TextFilter') as any; },
+      { errorMessage: 'Failed to load text filter' }
+    ),
+    serializeValue: function (value: unknown): string {
+      return encodeURIComponent(String(value));
+    },
+    deserializeValue: function (raw: string): unknown {
+      return decodeURIComponent(raw);
+    },
+    buildRefinementToken: function (value: unknown, _managedProperty: string): string {
+      // Text filters are converted into property-scoped query clauses upstream.
+      return String(value);
+    }
+  });
+
   // ── Toggle (Boolean) ─────────────────────────────────────
   registry.register({
     id: 'toggle',

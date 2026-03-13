@@ -4,6 +4,7 @@
 .spSearchVerticals {
   color: "[theme:bodyText, default: #323130]";
   color: var(--bodyText);
+  margin-bottom: -2px;
 }
 
 // ─── Tab Container (shared) ────────────────────────────────
@@ -11,6 +12,7 @@
   display: flex;
   align-items: center;
   overflow-x: auto;
+  margin-bottom: 2px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; // Firefox
   &::-webkit-scrollbar {

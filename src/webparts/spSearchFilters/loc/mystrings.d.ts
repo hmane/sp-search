@@ -1,5 +1,12 @@
 declare interface ISpSearchFiltersWebPartStrings {
   PropertyPaneDescription: string;
+  FiltersPageHeader: string;
+  ConnectionsPageHeader: string;
+  AdvancedPageHeader: string;
+  FiltersGroupName: string;
+  BehaviorGroupName: string;
+  ConnectionsGroupName: string;
+  AdvancedGroupName: string;
   BasicGroupName: string;
   DescriptionFieldLabel: string;
   SearchContextIdLabel: string;
@@ -12,6 +19,7 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterTypeColumn: string;
   FilterTypeCheckbox: string;
   FilterTypeDateRange: string;
+  FilterTypeText: string;
   FilterTypeSlider: string;
   FilterTypePeople: string;
   FilterTypeTaxonomy: string;

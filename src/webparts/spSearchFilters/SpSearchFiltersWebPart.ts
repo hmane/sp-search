@@ -9,7 +9,6 @@ import {
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
-import { SPComponentLoader } from '@microsoft/sp-loader';
 import type { StoreApi } from 'zustand/vanilla';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
@@ -22,6 +21,12 @@ import { getStore, initializeSearchContext } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
+
+// Bundle DevExtreme CSS — injected via style-loader at runtime.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('devextreme/dist/css/dx.common.css');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('devextreme/dist/css/dx.light.css');
 
 export interface ISpSearchFiltersWebPartProps {
   searchContextId: string;
@@ -46,6 +51,34 @@ interface IFilterCollectionItem {
   multiValues: boolean;
 }
 
+function normalizeFiltersCollectionValue(
+  raw: IFilterCollectionItem[] | string | undefined
+): IFilterCollectionItem[] {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as IFilterCollectionItem[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeManagedPropertyForFilter(
+  managedProperty: string,
+  filterType: IFilterConfig['filterType']
+): string {
+  if (filterType === 'people' && managedProperty === 'Author') {
+    return 'AuthorOWSUSER';
+  }
+
+  return managedProperty;
+}
+
 export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSearchFiltersWebPartProps> {
 
   private _store: StoreApi<ISearchStore> | undefined;
@@ -56,7 +89,6 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       {
         store: this._store,
         applyMode: this.properties.applyMode || 'instant',
-        operatorBetweenFilters: this.properties.operatorBetweenFilters || 'AND',
         showClearAll: this.properties.showClearAll !== false,
         enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder
       }
@@ -66,10 +98,6 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
-    // Load DevExtreme CSS for TagBox, Slider, etc.
-    SPComponentLoader.loadCss('https://cdn3.devexpress.com/jslib/22.2.3/css/dx.common.css');
-    SPComponentLoader.loadCss('https://cdn3.devexpress.com/jslib/22.2.3/css/dx.light.css');
-
     try {
       await SPContext.basic(this.context, 'SPSearchFilters');
       const contextId: string = this.properties.searchContextId || 'default';
@@ -86,9 +114,10 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       const filterTypes = this._store.getState().registries.filterTypes;
       registerBuiltInFilterTypes(filterTypes);
 
-      // Sync filter configuration to the store BEFORE initializing context,
+      // Sync filter configuration and operator to the store BEFORE initializing context,
       // so the first search (triggered by initializeSearchContext) includes refiner properties
       this._syncFilterConfigToStore();
+      this._syncOperatorToStore();
 
       // Initialize the shared search context (ensures library bundle's SPContext is ready)
       // Idempotent — if already initialized by another web part, this is a no-op
@@ -104,11 +133,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       return;
     }
 
-    // Handle both array (from property pane) and JSON string (from PnP PowerShell provisioning)
-    let rawFilters = this.properties.filtersCollection;
-    if (typeof rawFilters === 'string') {
-      try { rawFilters = JSON.parse(rawFilters as unknown as string); } catch { rawFilters = []; }
-    }
+    const rawFilters = normalizeFiltersCollectionValue(this.properties.filtersCollection);
 
     if (!rawFilters || rawFilters.length === 0) {
       const state: ISearchStore = this._store.getState();
@@ -118,23 +143,38 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       return;
     }
 
-    const filterConfig: IFilterConfig[] = rawFilters.map((item: IFilterCollectionItem) => ({
-      id: item.uniqueId,
-      managedProperty: item.managedProperty,
-      displayName: item.displayName,
-      filterType: (item.filterType || 'checkbox') as IFilterConfig['filterType'],
-      operator: (item.operator || 'OR') as IFilterConfig['operator'],
-      maxValues: item.maxValues || 10,
-      defaultExpanded: item.defaultExpanded !== false,
-      showCount: item.showCount !== false,
-      sortBy: (item.sortBy || 'count') as IFilterConfig['sortBy'],
-      sortDirection: (item.sortDirection || 'desc') as IFilterConfig['sortDirection'],
-      multiValues: item.multiValues !== false
-    }));
+    const filterConfig: IFilterConfig[] = rawFilters.map((item: IFilterCollectionItem) => {
+      const filterType = (item.filterType || 'checkbox') as IFilterConfig['filterType'];
+
+      return {
+        id: item.uniqueId,
+        managedProperty: normalizeManagedPropertyForFilter(item.managedProperty, filterType),
+        displayName: item.displayName,
+        filterType,
+        operator: (item.operator || 'OR') as IFilterConfig['operator'],
+        maxValues: item.maxValues || 10,
+        defaultExpanded: item.defaultExpanded !== false,
+        showCount: item.showCount !== false,
+        sortBy: (item.sortBy || 'count') as IFilterConfig['sortBy'],
+        sortDirection: (item.sortDirection || 'desc') as IFilterConfig['sortDirection'],
+        multiValues: item.multiValues !== false
+      };
+    });
 
     const state: ISearchStore = this._store.getState();
     if (JSON.stringify(state.filterConfig) !== JSON.stringify(filterConfig)) {
       this._store.setState({ filterConfig });
+    }
+  }
+
+  private _syncOperatorToStore(): void {
+    if (!this._store) {
+      return;
+    }
+    const operator: 'AND' | 'OR' = (this.properties.operatorBetweenFilters === 'OR') ? 'OR' : 'AND';
+    const state: ISearchStore = this._store.getState();
+    if (state.operatorBetweenFilters !== operator) {
+      state.setOperatorBetweenFilters(operator);
     }
   }
 
@@ -172,6 +212,10 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
     if (propertyPath === 'filtersCollection' || propertyPath === 'searchContextId') {
       this._syncFilterConfigToStore();
     }
+
+    if (propertyPath === 'operatorBetweenFilters' || propertyPath === 'searchContextId') {
+      this._syncOperatorToStore();
+    }
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
@@ -179,23 +223,18 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       pages: [
         {
           header: {
-            description: strings.PropertyPaneDescription
+            description: strings.FiltersPageHeader
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: strings.FiltersGroupName,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdLabel,
-                  description: strings.SearchContextIdDescription,
-                  value: this.properties.searchContextId || 'default'
-                }),
                 PropertyFieldCollectionData('filtersCollection', {
                   key: 'filtersCollection',
                   label: strings.FiltersFieldLabel,
                   panelHeader: strings.FiltersPanelHeader,
                   manageBtnLabel: strings.FiltersManageBtn,
-                  value: this.properties.filtersCollection,
+                  value: normalizeFiltersCollectionValue(this.properties.filtersCollection),
                   enableSorting: true,
                   fields: [
                     {
@@ -220,9 +259,10 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                       options: [
                         { key: 'checkbox', text: strings.FilterTypeCheckbox },
                         { key: 'daterange', text: strings.FilterTypeDateRange },
-                        { key: 'slider', text: strings.FilterTypeSlider },
+                        { key: 'text', text: strings.FilterTypeText },
                         { key: 'people', text: strings.FilterTypePeople },
                         { key: 'taxonomy', text: strings.FilterTypeTaxonomy },
+                        { key: 'slider', text: strings.FilterTypeSlider },
                         { key: 'tagbox', text: strings.FilterTypeTagBox },
                         { key: 'toggle', text: strings.FilterTypeToggle }
                       ]
@@ -287,6 +327,11 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                     }
                   ]
                 }),
+              ]
+            },
+            {
+              groupName: strings.BehaviorGroupName,
+              groupFields: [
                 PropertyPaneChoiceGroup('applyMode', {
                   label: strings.ApplyModeLabel,
                   options: [
@@ -305,7 +350,42 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.ShowClearAllLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
-                }),
+                })
+              ]
+            }
+          ]
+        },
+        {
+          header: {
+            description: strings.ConnectionsPageHeader
+          },
+          groups: [
+            {
+              groupName: strings.ConnectionsGroupName,
+              groupFields: [
+                PropertyPaneTextField('searchContextId', {
+                  label: strings.SearchContextIdLabel,
+                  description: strings.SearchContextIdDescription,
+                  value: this.properties.searchContextId || 'default',
+                  onGetErrorMessage: (value: string): string => {
+                    if (!value || value.trim() === '') {
+                      return 'Required — must match the Search Context ID set on the Search Results web part.';
+                    }
+                    return '';
+                  }
+                })
+              ]
+            }
+          ]
+        },
+        {
+          header: {
+            description: strings.AdvancedPageHeader
+          },
+          groups: [
+            {
+              groupName: strings.AdvancedGroupName,
+              groupFields: [
                 PropertyPaneToggle('enableVisualFilterBuilder', {
                   label: strings.EnableVisualFilterBuilderLabel,
                   onText: strings.ToggleOnText,

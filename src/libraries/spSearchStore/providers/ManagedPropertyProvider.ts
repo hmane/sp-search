@@ -44,6 +44,12 @@ export class ManagedPropertyProvider implements ISuggestionProvider {
       // Check if the user is typing a property:value pattern
       const colonIndex = trimmed.indexOf(':');
 
+      // Property suggestions are useful for KQL-like single-token input.
+      // On general multi-word search text they are noise, so suppress them.
+      if (colonIndex < 0 && trimmed.indexOf(' ') >= 0) {
+        return [];
+      }
+
       if (colonIndex > 0) {
         // User has typed "PropertyName: value" — suggest values
         return this._suggestPropertyValues(trimmed, colonIndex);

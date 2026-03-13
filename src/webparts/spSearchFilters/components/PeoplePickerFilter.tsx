@@ -34,7 +34,9 @@ const PeoplePickerFilter: React.FC<IPeoplePickerFilterProps> = (props: IPeoplePi
   const { filterName, config, activeFilters, onToggleRefiner } = props;
 
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
-  const selectionLimit = config && config.maxValues > 0 ? config.maxValues : 10;
+  const selectionLimit = config?.multiValues === false
+    ? 1
+    : (config && config.maxValues > 0 ? config.maxValues : 10);
 
   const selectedClaims = React.useMemo((): string[] => {
     const selected: string[] = [];

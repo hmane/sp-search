@@ -34,6 +34,8 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   const showCount: boolean = config ? config.showCount : true;
   const configSortBy: SortBy = config ? config.sortBy : 'count';
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
+  const maxValues: number = config && config.maxValues > 0 ? config.maxValues : values.length;
+  const allowMultiple: boolean = config?.multiValues !== false;
 
   const [sortBy, setSortBy] = React.useState<SortBy>(configSortBy);
 
@@ -47,16 +49,6 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     return sorted;
   }, [values, sortBy]);
 
-  const items = React.useMemo(function (): Array<{ value: string; displayName: string }> {
-    return sortedValues.map((value) => {
-      const name = value.name || value.value;
-      return {
-        value: value.value,
-        displayName: showCount ? name + ' (' + String(value.count) + ')' : name,
-      };
-    });
-  }, [sortedValues, showCount]);
-
   const selectedValues = React.useMemo(function (): string[] {
     const selected: string[] = [];
     for (let i = 0; i < activeFilters.length; i++) {
@@ -66,6 +58,27 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     }
     return selected;
   }, [activeFilters, filterName]);
+
+  const [editorValues, setEditorValues] = React.useState<string[]>(selectedValues);
+
+  React.useEffect(function (): void {
+    setEditorValues(selectedValues);
+  }, [selectedValues]);
+
+  const items = React.useMemo(function (): Array<{ value: string; displayName: string }> {
+    const selectedSet = new Set(selectedValues);
+    const limitedValues = sortedValues.filter(function (value: IRefinerValue, index: number): boolean {
+      return index < maxValues || selectedSet.has(value.value);
+    });
+
+    return limitedValues.map((value) => {
+      const name = value.name || value.value;
+      return {
+        value: value.value,
+        displayName: showCount ? name + ' (' + String(value.count) + ')' : name,
+      };
+    });
+  }, [maxValues, selectedValues, showCount, sortedValues]);
 
   // Guard against re-entrant onValueChanged calls from programmatic value updates
   const isUpdatingRef = React.useRef<boolean>(false);
@@ -86,7 +99,11 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     }
     isUpdatingRef.current = true;
 
-    const nextValues: string[] = Array.isArray(e.value) ? e.value : [];
+    let nextValues: string[] = Array.isArray(e.value) ? e.value : [];
+    if (!allowMultiple && nextValues.length > 1) {
+      nextValues = [nextValues[nextValues.length - 1]];
+    }
+    setEditorValues(nextValues);
 
     // Toggle added values
     for (let i = 0; i < nextValues.length; i++) {
@@ -155,8 +172,9 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
         searchEnabled={true}
         multiline={true}
         hideSelectedItems={false}
-        value={selectedValues}
+        value={editorValues}
         onValueChanged={handleValueChanged}
+        applyValueMode="useButtons"
         placeholder="Select values..."
         maxDisplayedTags={5}
         showMultiTagOnly={false}

@@ -11,6 +11,7 @@ declare interface ISpSearchVerticalsWebPartStrings {
   VerticalsFieldLabel: string;
   VerticalsPanelHeader: string;
   VerticalsManageBtn: string;
+  VerticalsIntroLabel: string;
   VerticalKeyColumn: string;
   VerticalLabelColumn: string;
   VerticalIconColumn: string;
@@ -21,6 +22,8 @@ declare interface ISpSearchVerticalsWebPartStrings {
   VerticalOpenBehaviorColumn: string;
   OpenBehaviorCurrentTab: string;
   OpenBehaviorNewTab: string;
+  VerticalProviderColumn: string;
+  VerticalDefaultLayoutColumn: string;
   VerticalAudienceColumn: string;
   VerticalAudiencePlaceholder: string;
   DefaultVerticalLabel: string;

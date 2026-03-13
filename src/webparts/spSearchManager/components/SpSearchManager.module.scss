@@ -719,3 +719,379 @@
   min-width: 160px;
   margin-right: 8px;
 }
+
+// ─── Health Panel (C2: Zero-Result Query Tuning) ────────────
+.healthPanel {
+  padding-top: 12px;
+}
+
+.healthToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.healthSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: "[theme:bodyText, default: #323130]";
+  flex: 1;
+}
+
+.healthSummaryIcon {
+  color: "[theme:yellow, default: #ffaa44]";
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+// ─── Zero-Result Table ──────────────────────────────────────
+.zeroResultsTable {
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.zeroResultsHeader {
+  display: grid;
+  grid-template-columns: 1fr 90px 140px 90px 80px;
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  padding: 0 12px;
+
+  > div {
+    padding: 8px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: "[theme:neutralSecondary, default: #605e5c]";
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+}
+
+.zeroResultsRow {
+  display: grid;
+  grid-template-columns: 1fr 90px 140px 90px 80px;
+  padding: 0 12px;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  align-items: center;
+  transition: background-color 100ms ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+
+  > div {
+    padding: 10px 6px;
+    font-size: 13px;
+    overflow: hidden;
+  }
+}
+
+.zeroResultsColQuery {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.zeroResultsColCount {
+  text-align: center;
+}
+
+.zeroResultsColVerticals {
+  overflow: hidden;
+}
+
+.zeroResultsColDate {
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  font-size: 12px;
+}
+
+.zeroResultsColAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.zeroResultsQueryIcon {
+  font-size: 14px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  flex-shrink: 0;
+}
+
+.zeroResultsQueryText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.zeroResultsCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+  color: "[theme:themePrimary, default: #0078d4]";
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.zeroResultsVertical {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  font-size: 12px;
+}
+
+.zeroResultsTryBtn {
+  // Compact — let the grid cell control its space
+  min-width: 0 !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  height: 28px !important;
+}
+
+// ─── Insights Panel (C4) ─────────────────────────────────────
+.insightsPanel {
+  padding-top: 12px;
+}
+
+.insightsToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+// ─── Stat cards ──────────────────────────────────────────────
+.insightStatCards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.insightStatCard {
+  padding: 14px 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 4px;
+  background: "[theme:white, default: #ffffff]";
+  text-align: center;
+}
+
+.insightStatCardWarning {
+  border-color: "[theme:yellowLight, default: #ffdd75]";
+  background: "[theme:yellowBackground, default: #fffef0]";
+}
+
+.insightStatIconRow {
+  margin-bottom: 6px;
+  font-size: 18px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+}
+
+.insightStatIcon {
+  font-size: 18px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+}
+
+.insightStatIconWarning {
+  font-size: 18px;
+  color: "[theme:yellow, default: #ffaa44]";
+}
+
+.insightStatValue {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: "[theme:bodyText, default: #323130]";
+  margin-bottom: 4px;
+}
+
+.insightStatValueHighlight {
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.insightStatLabel {
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+// ─── Two-column split ─────────────────────────────────────────
+.insightsSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ─── Section block ────────────────────────────────────────────
+.insightSection {
+  padding: 14px 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 4px;
+  background: "[theme:white, default: #ffffff]";
+}
+
+.insightSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0 0 12px 0;
+}
+
+.insightSectionIcon {
+  font-size: 14px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.insightNoData {
+  font-size: 13px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  margin: 0;
+}
+
+// ─── Horizontal bar chart rows ────────────────────────────────
+.insightBarList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insightBarRow {
+  display: grid;
+  grid-template-columns: 140px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  text-decoration: none;
+  color: "[theme:bodyText, default: #323130]";
+
+  @media (max-width: 900px) {
+    grid-template-columns: 100px 1fr 32px;
+  }
+}
+
+.insightBarRowClickable {
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 4px 4px;
+  margin: 0 -4px;
+  transition: background-color 100ms ease;
+
+  &:hover {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+}
+
+.insightBarLabel {
+  font-size: 12px;
+  color: "[theme:bodyText, default: #323130]";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insightBarTrack {
+  height: 8px;
+  background: "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.insightBarFill {
+  height: 100%;
+  background: "[theme:themePrimary, default: #0078d4]";
+  border-radius: 4px;
+  transition: width 300ms ease;
+}
+
+.insightBarCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  text-align: right;
+}
+
+// ─── Daily volume sparkline ───────────────────────────────────
+.insightVolumeChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100px;
+  padding: 4px 0 0 0;
+  overflow-x: auto;
+}
+
+.insightVolumeColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 32px;
+  flex: 1;
+}
+
+.insightVolumeCount {
+  font-size: 10px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  line-height: 1;
+}
+
+.insightVolumeBarTrack {
+  width: 100%;
+  height: 56px;
+  background: "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.insightVolumeBarFill {
+  width: 100%;
+  background: "[theme:themeLight, default: #c7e0f4]";
+  border-radius: 3px 3px 0 0;
+  transition: height 300ms ease;
+}
+
+.insightVolumeLabel {
+  font-size: 10px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  line-height: 1;
+}

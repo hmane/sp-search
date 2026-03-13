@@ -22,6 +22,12 @@ module.exports = {
   },
   moduleNameMapper: {
     '\\.(css|scss)$': '<rootDir>/tests/__mocks__/styleMock.js',
+    // @pnp, @microsoft/sp-*, and SPContext all require a live SharePoint page
+    // context that is unavailable in Jest/jsdom. Mock at the service boundary.
+    '^@pnp/(.*)$': '<rootDir>/tests/__mocks__/pnpMock.js',
+    '^@microsoft/(.*)$': '<rootDir>/tests/__mocks__/pnpMock.js',
+    // SPContext wraps the SPFx context — must be mocked before the generic spfx-toolkit mapper.
+    '^spfx-toolkit/lib/utilities/context(.*)$': '<rootDir>/tests/__mocks__/spfxContextMock.js',
     '^spfx-toolkit/(.*)$': '<rootDir>/node_modules/spfx-toolkit/$1',
     '^@store/(.*)$': '<rootDir>/src/libraries/spSearchStore/$1',
     '^@interfaces/(.*)$': '<rootDir>/src/libraries/spSearchStore/interfaces/$1',
@@ -31,6 +37,11 @@ module.exports = {
     '^@orchestrator/(.*)$': '<rootDir>/src/libraries/spSearchStore/orchestrator/$1',
     '^@webparts/(.*)$': '<rootDir>/src/webparts/$1',
   },
+  // Allow ts-jest to transform @pnp/* and spfx-toolkit packages, which use
+  // ESM syntax that Jest cannot parse when left as-is from node_modules.
+  transformIgnorePatterns: [
+    'node_modules/(?!(@pnp|spfx-toolkit)/)',
+  ],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   collectCoverageFrom: [
     'src/libraries/**/*.ts',

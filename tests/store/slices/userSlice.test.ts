@@ -23,20 +23,21 @@ describe('userSlice', () => {
     });
   });
 
-  describe('saveSearch', () => {
-    it('should add a saved search to the list', async () => {
+  describe('addSavedSearch', () => {
+    it('should add a saved search to the list', () => {
       const search = createMockSavedSearch({ id: 1, title: 'Budget Reports' });
-      await store.getState().saveSearch(search);
+      store.getState().addSavedSearch(search);
 
       expect(store.getState().savedSearches).toHaveLength(1);
       expect(store.getState().savedSearches[0].title).toBe('Budget Reports');
     });
 
-    it('should append multiple saved searches', async () => {
-      await store.getState().saveSearch(createMockSavedSearch({ id: 1, title: 'First' }));
-      await store.getState().saveSearch(createMockSavedSearch({ id: 2, title: 'Second' }));
+    it('should prepend multiple saved searches (newest first)', () => {
+      store.getState().addSavedSearch(createMockSavedSearch({ id: 1, title: 'First' }));
+      store.getState().addSavedSearch(createMockSavedSearch({ id: 2, title: 'Second' }));
 
       expect(store.getState().savedSearches).toHaveLength(2);
+      expect(store.getState().savedSearches[0].title).toBe('Second');
     });
   });
 
@@ -50,9 +51,9 @@ describe('userSlice', () => {
     });
 
     it('should prepend new entries (newest first)', () => {
-      store.getState().addToHistory(createMockHistoryEntry({ id: 1, queryText: 'first' }));
-      store.getState().addToHistory(createMockHistoryEntry({ id: 2, queryText: 'second' }));
-      store.getState().addToHistory(createMockHistoryEntry({ id: 3, queryText: 'third' }));
+      store.getState().addToHistory(createMockHistoryEntry({ id: 1, queryText: 'first', queryHash: 'hash1' }));
+      store.getState().addToHistory(createMockHistoryEntry({ id: 2, queryText: 'second', queryHash: 'hash2' }));
+      store.getState().addToHistory(createMockHistoryEntry({ id: 3, queryText: 'third', queryHash: 'hash3' }));
 
       expect(store.getState().searchHistory).toHaveLength(3);
       expect(store.getState().searchHistory[0].queryText).toBe('third');
@@ -61,10 +62,14 @@ describe('userSlice', () => {
     });
   });
 
-  describe('loadHistory', () => {
-    it('should be callable without error (Phase 3 stub)', async () => {
-      // loadHistory is a Phase 3 stub — ensure it doesn't throw
-      await expect(store.getState().loadHistory()).resolves.toBeUndefined();
+  describe('clearSearchHistory', () => {
+    it('should clear all history entries', () => {
+      store.getState().addToHistory(createMockHistoryEntry({ id: 1, queryText: 'first', queryHash: 'hash1' }));
+      store.getState().addToHistory(createMockHistoryEntry({ id: 2, queryText: 'second', queryHash: 'hash2' }));
+      expect(store.getState().searchHistory).toHaveLength(2);
+
+      store.getState().clearSearchHistory();
+      expect(store.getState().searchHistory).toHaveLength(0);
     });
   });
 });

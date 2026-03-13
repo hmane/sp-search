@@ -111,15 +111,19 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 6. **URL sync is bi-directional** — State changes update URL; URL load restores state
 7. **Lazy load heavy components** — DataGrid, Preview Panel, Search Manager panel
 8. **Code split per layout** — Each layout is a separate chunk via `React.lazy()`
+9. **External CSS from node_modules must exclude sp-css-loader** — SPFx registers an `sp-css-loader` rule that matches all non-module `.css` files. `sp-css-loader` uses css-loader's `urlParser` internally and will try to import binary font files (woff2 etc.) as webpack modules. Any external CSS library (DevExtreme, etc.) must be excluded from the sp-css-loader rule in `gulpfile.js`, then handled by a dedicated `css-loader { url: false, import: false }` rule. See `gulpfile.js` `additionalConfiguration` for the pattern. Failing to do this produces `Module parse failed: Unexpected character` errors on binary font files.
+10. **Stale webpack filesystem cache causes phantom `ENOENT` errors** — When `npm install` changes a package's entry point, the dev-mode filesystem cache (`node_modules/.cache/webpack`) retains the old path. Run `gulp clean-cache` (or `rm -rf node_modules/.cache/webpack`) whenever `@pnp/*` or other dependency packages are updated.
 
 ### Data Rules
 
-1. **SearchHistory list will exceed 5,000 items** — ALWAYS filter by `Author eq [Me]` as FIRST CAML predicate
+1. **SearchHistory list will exceed 5,000 items** — ALWAYS filter by `Author eq [Me]` as FIRST CAML predicate for user queries. Admin cross-user queries (`loadZeroResultQueries`, `loadAllHistoryForInsights`) use `SearchTimestamp >= cutoff` as FIRST predicate instead — safe because SearchTimestamp is indexed.
 2. **CollapseSpecification fails silently** if managed property isn't Sortable — Validate before sending
 3. **Taxonomy refiner tokens use GP0|#GUID format** — Must resolve to labels via PnP Taxonomy API
 4. **User claim strings (i:0#.f|...)** — Must resolve to display names, cache in Map
 5. **Date refiners use FQL range()** — NOT raw KQL date comparisons
 6. **Item-level permissions** on saved/shared searches — `breakRoleInheritance()` + `addRoleAssignment()`
+7. **`IsZeroResult` Boolean field in SearchHistory** — Added in Sprint 3. Any pre-Sprint 3 install needs the field added before Health/Insights tabs populate. `mapToHistoryEntry` reads it with `ext.boolean('IsZeroResult', false)` — note `boolean()` not `bool()`.
+8. **GraphSearchProvider requires `People.Read`** — `Sites.Read.All` is NOT sufficient for Graph people search. Presence batch calls use `/communications/presences` (no extra permission required beyond People.Read).
 
 ### Security Rules
 
@@ -400,7 +404,7 @@ sp-search/
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation ✓ Complete
 - Library component with Zustand store registry + URL sync
 - Provider/registry scaffolding (all interfaces + registry classes)
 - Search Box: basic input, debounce, scope selector
@@ -410,22 +414,30 @@ sp-search/
 - PnPjs search service with AbortController + request coalescing
 - Hidden list provisioning script
 
-### Phase 2: Rich Layouts
-- DataGrid Layout (DevExtreme), Card Layout (spfx-toolkit), People Layout, Gallery Layout
-- Result Detail Panel with WOPI preview, metadata, version history
-- Layout switcher, refiner stability mode
+### Phase 2: Rich Layouts ✓ Complete
+- DataGrid Layout (DevExtreme), Card Layout, People Layout, Gallery Layout
+- Result Detail Panel with metadata, version history
+- Layout switcher with configurable available layouts per preset
 
-### Phase 3: User Features
+### Phase 3: User Features ✓ Complete
 - Search Manager (standalone + panel), saved/shared searches
 - Collections/pinboards, search history, item-level permissions
 - Promoted Results / Best Bets, StateId deep link fallback
 
-### Phase 4: Power Features
-- Visual Query Builder, advanced filter types, visual filter builder
-- Result annotations, bulk actions, smart suggestions, audience targeting
+### Phase 4: Power Features ✓ Complete (Sprint 3)
+- Advanced DataGrid: admin-configured columns, cell renderers, filter row, column chooser, virtual scrolling, row selection, CSV export, localStorage column preferences
+- Graph-backed People vertical: `GraphSearchProvider`, presence via `/communications/presences`, Teams/email/profile actions, per-vertical `dataProviderId` routing
+- Analytics feedback loop: `IsZeroResult` logging, `ZeroResultsPanel` (Health tab), `SearchInsightsPanel` (Insights tab) with stat cards / top queries / CTR / daily volume
+- Scenario presets: `SCENARIO_PRESETS` registry in `searchPresets.ts`, `_applyScenarioPreset()`, property pane ChoiceGroup, `Search-ScenarioPresets.ps1` with `Invoke-SearchScenarioPage`
+- Mobile hardening: gallery single-column at 399px, overlay backdrop-filter, iOS DataGrid momentum scroll, layout chunk preloading on hover
 
-### Phase 5: Polish
-- Bundle optimization, accessibility audit, responsive testing, analytics
+### Phase 5: Sprint 4 Backlog
+- Fix Jest harness (`ts-jest`/`jest-util` resolution failure) and add smoke tests
+- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied)
+- Implement `operatorBetweenFilters` in filter execution path or remove from property pane
+- Excel (XLSX) export for DataGrid
+- Knowledge Base, Hub Search, Policy Search provisioning presets
+- Admin-time property validation in edit mode
 
 ---
 

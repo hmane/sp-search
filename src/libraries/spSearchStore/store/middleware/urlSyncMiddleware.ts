@@ -37,10 +37,13 @@ const PARAM_FILTERS = 'f';
 const PARAM_VERTICAL = 'v';
 const PARAM_SORT = 's';
 const PARAM_PAGE = 'p';
-const PARAM_SCOPE = 'sc';
+const PARAM_SCOPE = 'c';
 const PARAM_LAYOUT = 'l';
-const PARAM_STATE_VERSION = 'sv';
-const PARAM_STATE_ID = 'sid';
+const PARAM_STATE_VERSION = 'x';
+const PARAM_STATE_ID = 'i';
+const LEGACY_PARAM_SCOPE = 'sc';
+const LEGACY_PARAM_STATE_VERSION = 'sv';
+const LEGACY_PARAM_STATE_ID = 'sid';
 
 /** Current state version — bumped if the schema changes. */
 const STATE_VERSION = '1';
@@ -80,6 +83,14 @@ function isBrowser(): boolean {
  */
 function prefixKey(key: string, prefix?: string): string {
   return prefix ? `${prefix}.${key}` : key;
+}
+
+function getParam(params: URLSearchParams, key: string, prefix?: string, legacyKey?: string): string | null {
+  const currentValue = params.get(prefixKey(key, prefix));
+  if (currentValue !== null) {
+    return currentValue;
+  }
+  return legacyKey ? params.get(prefixKey(legacyKey, prefix)) : null;
 }
 
 /**
@@ -225,7 +236,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const state: IUrlState = {};
 
   // Check for ?sid= (StateId fallback) first
-  const stateIdRaw = params.get(prefixKey(PARAM_STATE_ID, prefix));
+  const stateIdRaw = getParam(params, PARAM_STATE_ID, prefix, LEGACY_PARAM_STATE_ID);
   if (stateIdRaw) {
     const stateId = parseInt(stateIdRaw, 10);
     if (!isNaN(stateId) && stateId > 0) {
@@ -237,7 +248,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   // Bail early if no state-version tag — nothing was serialized by us
   // Note: URLSearchParams.get() returns null for missing keys.
   // We use truthiness checks which handle both null and empty string.
-  const version = params.get(prefixKey(PARAM_STATE_VERSION, prefix));
+  const version = getParam(params, PARAM_STATE_VERSION, prefix, LEGACY_PARAM_STATE_VERSION);
   if (!version) {
     return state;
   }
@@ -312,7 +323,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   }
 
   // ── sc ──
-  const scopeId = params.get(prefixKey(PARAM_SCOPE, prefix));
+  const scopeId = getParam(params, PARAM_SCOPE, prefix, LEGACY_PARAM_SCOPE);
   if (scopeId) {
     state.scope = scopeId;
   }
@@ -462,6 +473,7 @@ export function createUrlSyncSubscription(
         }
         try {
           const parsed = JSON.parse(stateJson) as IUrlState;
+          // sid= snapshots are not namespaced — no prefix needed here
           applyUrlStateToStore(store, parsed);
         } catch {
           // Malformed snapshot JSON — ignore
@@ -471,7 +483,7 @@ export function createUrlSyncSubscription(
         // Failed to load snapshot — stay with defaults
       });
   } else if (Object.keys(initial).length > 0 && !initial.stateId) {
-    applyUrlStateToStore(store, initial);
+    applyUrlStateToStore(store, initial, prefix);
   }
 
   // ─── 2. Store → URL subscription ───────────────────────────
@@ -493,7 +505,7 @@ export function createUrlSyncSubscription(
   // ─── 3. URL → Store (popstate) ─────────────────────────────
   const onPopState = (): void => {
     const urlState = deserializeFromUrl(prefix);
-    applyUrlStateToStore(store, urlState);
+    applyUrlStateToStore(store, urlState, prefix);
   };
 
   window.addEventListener('popstate', onPopState);
@@ -517,10 +529,18 @@ export function createUrlSyncSubscription(
 /**
  * Apply a deserialized URL state to the store, mapping IUrlState
  * fields to their corresponding slice properties.
+ *
+ * `availableLayouts` wins over `?l=`: if the URL requests a layout that
+ * is not in the store's `availableLayouts`, `activeLayoutKey` is coerced
+ * to the first available layout and the URL is normalized immediately so
+ * the deep link reflects reality.
+ *
+ * @param prefix - Optional namespace prefix; passed through for URL normalization.
  */
 function applyUrlStateToStore(
   store: StoreApi<IUrlSyncStoreSlice>,
-  urlState: IUrlState
+  urlState: IUrlState,
+  prefix?: string
 ): void {
   const patch: Record<string, unknown> = {};
 
@@ -556,7 +576,32 @@ function applyUrlStateToStore(
   }
 
   if (urlState.activeLayoutKey !== undefined) {
-    patch.activeLayoutKey = urlState.activeLayoutKey;
+    // availableLayouts wins — coerce if the URL requests a disabled layout.
+    const availableLayouts: string[] = store.getState().availableLayouts;
+    const requested = urlState.activeLayoutKey;
+    const resolved = (availableLayouts.length > 0 && availableLayouts.indexOf(requested) >= 0)
+      ? requested
+      : (availableLayouts[0] || 'list');
+    patch.activeLayoutKey = resolved;
+
+    // Normalize the URL immediately when the requested layout was coerced,
+    // so the deep link reflects the actual active layout rather than a
+    // disabled layout key that would confuse copy-paste sharing.
+    if (resolved !== requested && isBrowser()) {
+      const lKey = prefixKey(PARAM_LAYOUT, prefix);
+      const params = new URLSearchParams(window.location.search);
+      // 'list' is the default — omit the param rather than writing ?l=list
+      if (resolved !== 'list') {
+        params.set(lKey, resolved);
+      } else {
+        params.delete(lKey);
+      }
+      const qs = params.toString();
+      const normalized = qs
+        ? `${window.location.pathname}?${qs}${window.location.hash}`
+        : `${window.location.pathname}${window.location.hash}`;
+      window.history.replaceState(window.history.state, '', normalized);
+    }
   }
 
   if (Object.keys(patch).length > 0) {

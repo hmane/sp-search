@@ -68,12 +68,15 @@ Stores per-user search history. **This list will exceed 5,000 items** — all in
 | Scope | Text | No | Active scope at search time |
 | SearchState | Note | No | Full query state JSON |
 | ResultCount | Number | No | Number of results returned |
+| IsZeroResult | Boolean | No | True when a search returned zero results. Used by the Health panel. |
 | ClickedItems | Note | No | JSON array of clicked result tracking |
 | SearchTimestamp | DateTime | Yes | **CRITICAL** — for date-range filtering |
 
 **Permissions:** Item-level security enabled (`ReadSecurity=2, WriteSecurity=2`). Users can only read and edit their own items — prevents visibility of others' search history.
 
 **Index Validation:** The script verifies that Author and SearchTimestamp indexes were successfully created. If either fails, the script exits with an error rather than continuing silently, because missing indexes will cause list view threshold failures at scale.
+
+**Admin analytics note:** User-facing history queries still filter by `Author` first, but the admin Health and Insights views intentionally query cross-user data by `SearchTimestamp` first so they stay index-friendly above 5,000 items.
 
 ---
 
@@ -127,6 +130,10 @@ The script is **fully safe to re-run**:
 4. **Configure history cleanup (optional)**
    - Call `cleanupHistory(ttlDays)` via the SearchManagerService API to delete entries older than the specified TTL
    - This is a manual operation — there is no automatic background cleanup
+
+5. **Provision scenario pages (optional)**
+   - Use `scripts/Search-ScenarioPresets.ps1` to create fully-configured starter pages for built-in scenarios such as `documents`, `knowledge-base`, or `policy-search`
+   - See [deployment-guide.md](./deployment-guide.md) for example commands
 
 ---
 

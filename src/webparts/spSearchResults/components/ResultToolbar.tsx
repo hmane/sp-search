@@ -1,18 +1,23 @@
 import * as React from 'react';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
+import { Icon } from '@fluentui/react/lib/Icon';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { ISortField, ISortableProperty } from '@interfaces/index';
 import styles from './SpSearchResults.module.scss';
 
 export interface IResultToolbarProps {
   totalCount: number;
   activeLayoutKey: string;
+  availableLayouts: string[];
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   showResultCount: boolean;
   showSortDropdown: boolean;
   onLayoutChange: (key: string) => void;
   onSortChange: (sort: ISortField) => void;
+  /** Called on button hover to warm the webpack chunk before the user clicks. */
+  onPreloadLayout?: (key: string) => void;
 }
 
 /** Sort preset key for "Relevance" (no explicit sort) */
@@ -91,16 +96,60 @@ function formatResultCount(count: number): string {
   return formatted + ' results';
 }
 
+function getLayoutTooltip(layoutKey: string): string {
+  switch (layoutKey) {
+    case 'list':
+      return 'List view: titles, summaries, and metadata in a readable stack.';
+    case 'compact':
+      return 'Compact view: dense rows for quick scanning with minimal detail.';
+    case 'card':
+      return 'Card view: visual tiles with thumbnails and richer content.';
+    case 'people':
+      return 'People view: profile cards with contact and org details.';
+    case 'grid':
+      return 'DataGrid view: resizable columns, chooser, export, and fullscreen.';
+    case 'gallery':
+      return 'Gallery view: large previews for image and media-heavy content.';
+    default:
+      return 'Switch result layout.';
+  }
+}
+
+function renderLayoutButton(
+  key: string,
+  iconName: string,
+  label: string,
+  activeLayoutKey: string,
+  onLayoutChange: (key: string) => void,
+  onPreloadLayout?: (key: string) => void
+): React.ReactElement {
+  return (
+    <TooltipHost key={key} content={getLayoutTooltip(key)}>
+      <IconButton
+        className={activeLayoutKey === key ? styles.layoutButtonActive : styles.layoutButton}
+        iconProps={{ iconName }}
+        title={label}
+        ariaLabel={label}
+        checked={activeLayoutKey === key}
+        onClick={(): void => { onLayoutChange(key); }}
+        onMouseEnter={onPreloadLayout ? (): void => { onPreloadLayout(key); } : undefined}
+      />
+    </TooltipHost>
+  );
+}
+
 const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
   const {
     totalCount,
     activeLayoutKey,
+    availableLayouts,
     sort,
     sortableProperties,
     showResultCount,
     showSortDropdown,
     onLayoutChange,
-    onSortChange
+    onSortChange,
+    onPreloadLayout
   } = props;
 
   const sortOptions: IDropdownOption[] = React.useMemo(
@@ -119,35 +168,14 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
     [onSortChange]
   );
 
-  const handleListLayout = React.useCallback((): void => {
-    onLayoutChange('list');
-  }, [onLayoutChange]);
-
-  const handleCompactLayout = React.useCallback((): void => {
-    onLayoutChange('compact');
-  }, [onLayoutChange]);
-
-  const handleCardLayout = React.useCallback((): void => {
-    onLayoutChange('card');
-  }, [onLayoutChange]);
-
-  const handlePeopleLayout = React.useCallback((): void => {
-    onLayoutChange('people');
-  }, [onLayoutChange]);
-
-  const handleDataGridLayout = React.useCallback((): void => {
-    onLayoutChange('grid');
-  }, [onLayoutChange]);
-
-  const handleGalleryLayout = React.useCallback((): void => {
-    onLayoutChange('gallery');
-  }, [onLayoutChange]);
-
   return (
     <div className={styles.toolbar}>
       <div className={styles.toolbarLeft}>
         {showResultCount && (
-          <span className={styles.resultCount} aria-live="polite" role="status">{formatResultCount(totalCount)}</span>
+          <span className={styles.resultCount} aria-live="polite" role="status">
+            <span className={styles.resultCountIcon}><Icon iconName="Search" /></span>
+            <span className={styles.resultCountText}>{formatResultCount(totalCount)}</span>
+          </span>
         )}
         {showSortDropdown && (
           <Dropdown
@@ -160,54 +188,24 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
         )}
       </div>
       <div className={styles.toolbarRight}>
-        <IconButton
-          className={activeLayoutKey === 'list' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'List' }}
-          title="List view"
-          ariaLabel="List view"
-          checked={activeLayoutKey === 'list'}
-          onClick={handleListLayout}
-        />
-        <IconButton
-          className={activeLayoutKey === 'compact' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'GridViewSmall' }}
-          title="Compact view"
-          ariaLabel="Compact view"
-          checked={activeLayoutKey === 'compact'}
-          onClick={handleCompactLayout}
-        />
-        <IconButton
-          className={activeLayoutKey === 'card' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'GridViewMedium' }}
-          title="Card view"
-          ariaLabel="Card view"
-          checked={activeLayoutKey === 'card'}
-          onClick={handleCardLayout}
-        />
-        <IconButton
-          className={activeLayoutKey === 'people' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'People' }}
-          title="People view"
-          ariaLabel="People view"
-          checked={activeLayoutKey === 'people'}
-          onClick={handlePeopleLayout}
-        />
-        <IconButton
-          className={activeLayoutKey === 'grid' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'Table' }}
-          title="DataGrid view"
-          ariaLabel="DataGrid view"
-          checked={activeLayoutKey === 'grid'}
-          onClick={handleDataGridLayout}
-        />
-        <IconButton
-          className={activeLayoutKey === 'gallery' ? styles.layoutButtonActive : styles.layoutButton}
-          iconProps={{ iconName: 'PhotoCollection' }}
-          title="Gallery view"
-          ariaLabel="Gallery view"
-          checked={activeLayoutKey === 'gallery'}
-          onClick={handleGalleryLayout}
-        />
+        {availableLayouts.indexOf('list') >= 0 && (
+          renderLayoutButton('list', 'List', 'List view', activeLayoutKey, onLayoutChange)
+        )}
+        {availableLayouts.indexOf('compact') >= 0 && (
+          renderLayoutButton('compact', 'GridViewSmall', 'Compact view', activeLayoutKey, onLayoutChange)
+        )}
+        {availableLayouts.indexOf('card') >= 0 && (
+          renderLayoutButton('card', 'GridViewMedium', 'Card view', activeLayoutKey, onLayoutChange, onPreloadLayout)
+        )}
+        {availableLayouts.indexOf('people') >= 0 && (
+          renderLayoutButton('people', 'People', 'People view', activeLayoutKey, onLayoutChange, onPreloadLayout)
+        )}
+        {availableLayouts.indexOf('grid') >= 0 && (
+          renderLayoutButton('grid', 'Table', 'DataGrid view', activeLayoutKey, onLayoutChange, onPreloadLayout)
+        )}
+        {availableLayouts.indexOf('gallery') >= 0 && (
+          renderLayoutButton('gallery', 'PhotoCollection', 'Gallery view', activeLayoutKey, onLayoutChange, onPreloadLayout)
+        )}
       </div>
     </div>
   );

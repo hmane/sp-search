@@ -18,16 +18,56 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Advanced
     "group": { "default": "Advanced" },
-    "title": { "default": "SPSearchFilters" },
-    "description": { "default": "Refinement filters with DevExtreme controls and visual filter builder" },
-    "officeFabricIconFontName": "Page",
+    "title": { "default": "SP Search Filters" },
+    "description": { "default": "PnP-style starter refiners for file type, modified date, and author" },
+    "officeFabricIconFontName": "Filter",
     "properties": {
       "searchContextId": "default",
       "applyMode": "instant",
       "operatorBetweenFilters": "AND",
       "showClearAll": true,
       "enableVisualFilterBuilder": false,
-      "filtersCollection": []
+      "filtersCollection": [
+        {
+          "uniqueId": "starter-filter-0",
+          "managedProperty": "FileType",
+          "displayName": "File type",
+          "filterType": "checkbox",
+          "operator": "OR",
+          "maxValues": 10,
+          "defaultExpanded": true,
+          "showCount": true,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": true
+        },
+        {
+          "uniqueId": "starter-filter-1",
+          "managedProperty": "LastModifiedTime",
+          "displayName": "Modified date",
+          "filterType": "daterange",
+          "operator": "OR",
+          "maxValues": 1,
+          "defaultExpanded": true,
+          "showCount": false,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": false
+        },
+        {
+          "uniqueId": "starter-filter-2",
+          "managedProperty": "AuthorOWSUSER",
+          "displayName": "Author",
+          "filterType": "people",
+          "operator": "OR",
+          "maxValues": 10,
+          "defaultExpanded": false,
+          "showCount": false,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": true
+        }
+      ]
     }
   }]
 }

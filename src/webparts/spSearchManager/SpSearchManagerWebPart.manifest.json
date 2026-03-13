@@ -18,11 +18,18 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Advanced
     "group": { "default": "Advanced" },
-    "title": { "default": "SPSearchManager" },
-    "description": { "default": "Saved searches, shared searches, collections, history, and result annotations" },
-    "officeFabricIconFontName": "Page",
+    "title": { "default": "SP Search Manager" },
+    "description": { "default": "Saved searches, history, collections, health, and insights for the connected search experience" },
+    "officeFabricIconFontName": "SearchAndApps",
     "properties": {
-      "description": "SPSearchManager"
+      "searchContextId": "default",
+      "mode": "panel",
+      "enableSavedSearches": true,
+      "enableSharedSearches": true,
+      "enableCollections": true,
+      "enableHistory": true,
+      "enableAnnotations": false,
+      "maxHistoryItems": 50
     }
   }]
 }

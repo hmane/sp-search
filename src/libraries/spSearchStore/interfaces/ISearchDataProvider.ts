@@ -28,6 +28,12 @@ export interface ISearchQuery {
   enableQueryRules?: boolean;
   /** Persistent FQL refinement filters (admin-configured, always applied) */
   refinementFilters?: string;
+  /**
+   * How multiple filter groups (different properties) are combined.
+   * 'AND' (default): all property groups must match.
+   * 'OR': any property group match is sufficient.
+   */
+  operatorBetweenFilters?: 'AND' | 'OR';
 }
 
 // ─── Normalized Query Output ─────────────────────────────────

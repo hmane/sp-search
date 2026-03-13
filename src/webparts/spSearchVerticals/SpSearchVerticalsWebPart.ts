@@ -6,7 +6,8 @@ import {
   PropertyPaneTextField,
   PropertyPaneToggle,
   PropertyPaneChoiceGroup,
-  PropertyPaneDropdown
+  PropertyPaneDropdown,
+  PropertyPaneLabel
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
@@ -39,6 +40,10 @@ interface IVerticalCollectionItem {
   iconName: string;
   queryTemplate: string;
   resultSourceId: string;
+  /** ID of the data provider to use for this vertical, e.g. 'graph-people'. */
+  dataProviderId: string;
+  /** Layout key to activate automatically when this vertical is selected. */
+  defaultLayout: string;
   sortOrder: number;
   isLink: boolean;
   linkUrl: string;
@@ -107,6 +112,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
           iconName: v.iconName || '',
           queryTemplate: v.queryTemplate || '',
           resultSourceId: v.resultSourceId || '',
+          dataProviderId: v.dataProviderId || '',
+          defaultLayout: v.defaultLayout || '',
           sortOrder: v.sortOrder ?? idx + 1,
           isLink: !!v.isLink,
           linkUrl: v.linkUrl || '',
@@ -136,6 +143,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
         iconName: item.iconName || undefined,
         queryTemplate: item.queryTemplate || undefined,
         resultSourceId: item.resultSourceId || undefined,
+        dataProviderId: item.dataProviderId || undefined,
+        defaultLayout: item.defaultLayout || undefined,
         isLink: !!item.isLink,
         linkUrl: item.linkUrl || undefined,
         openBehavior: (item.openBehavior as 'currentTab' | 'newTab') || undefined,
@@ -191,6 +200,106 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     const verticalOptions = (this.properties.verticalsCollection || [])
       .filter((v: IVerticalCollectionItem) => !v.isLink)
       .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
+    // PropertyFieldCollectionData field configs have a broad union type; build them in steps
+    // so TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
+    const verticalFields: any[] = [
+      {
+        id: 'key',
+        title: strings.VerticalKeyColumn,
+        type: CustomCollectionFieldType.string,
+        required: true,
+        placeholder: 'documents'
+      },
+      {
+        id: 'label',
+        title: strings.VerticalLabelColumn,
+        type: CustomCollectionFieldType.string,
+        required: true,
+        placeholder: 'Documents'
+      },
+      {
+        id: 'iconName',
+        title: strings.VerticalIconColumn,
+        type: CustomCollectionFieldType.string,
+        required: false,
+        placeholder: 'Document'
+      },
+      {
+        id: 'queryTemplate',
+        title: strings.VerticalQueryColumn,
+        type: CustomCollectionFieldType.string,
+        required: false,
+        placeholder: '{searchTerms} IsDocument:1'
+      },
+      {
+        id: 'isLink',
+        title: strings.VerticalIsLinkColumn,
+        type: CustomCollectionFieldType.boolean,
+        required: false,
+        defaultValue: false
+      },
+      {
+        id: 'linkUrl',
+        title: strings.VerticalLinkUrlColumn,
+        type: CustomCollectionFieldType.string,
+        required: false,
+        placeholder: 'https://...'
+      }
+    ];
+
+    verticalFields.push(
+      {
+        id: 'resultSourceId',
+        title: strings.VerticalSourceColumn,
+        type: CustomCollectionFieldType.string,
+        required: false,
+        placeholder: 'GUID'
+      },
+      {
+        id: 'dataProviderId',
+        title: strings.VerticalProviderColumn,
+        type: CustomCollectionFieldType.dropdown,
+        required: false,
+        options: [
+          { key: '', text: 'SharePoint Search (default)' },
+          { key: 'sharepoint-search', text: 'SharePoint Search' },
+          { key: 'graph-search', text: 'Graph Search (files)' },
+          { key: 'graph-people', text: 'Graph Search (people)' }
+        ]
+      },
+      {
+        id: 'defaultLayout',
+        title: strings.VerticalDefaultLayoutColumn,
+        type: CustomCollectionFieldType.dropdown,
+        required: false,
+        options: [
+          { key: '', text: 'Inherit active layout' },
+          { key: 'list', text: 'List' },
+          { key: 'compact', text: 'Compact' },
+          { key: 'grid', text: 'Grid' },
+          { key: 'card', text: 'Card' },
+          { key: 'people', text: 'People' },
+          { key: 'gallery', text: 'Gallery' }
+        ]
+      },
+      {
+        id: 'openBehavior',
+        title: strings.VerticalOpenBehaviorColumn,
+        type: CustomCollectionFieldType.dropdown,
+        required: false,
+        options: [
+          { key: 'currentTab', text: strings.OpenBehaviorCurrentTab },
+          { key: 'newTab', text: strings.OpenBehaviorNewTab }
+        ]
+      },
+      {
+        id: 'audience',
+        title: strings.VerticalAudienceColumn,
+        type: CustomCollectionFieldType.string,
+        required: false,
+        placeholder: strings.VerticalAudiencePlaceholder
+      }
+    );
 
     return {
       pages: [
@@ -212,6 +321,9 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
             {
               groupName: strings.VerticalsGroupName,
               groupFields: [
+                PropertyPaneLabel('verticalsIntro', {
+                  text: strings.VerticalsIntroLabel
+                }),
                 PropertyFieldCollectionData('verticalsCollection', {
                   key: 'verticalsCollection',
                   label: strings.VerticalsFieldLabel,
@@ -219,74 +331,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                   manageBtnLabel: strings.VerticalsManageBtn,
                   value: this.properties.verticalsCollection,
                   enableSorting: true,
-                  fields: [
-                    {
-                      id: 'key',
-                      title: strings.VerticalKeyColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: true,
-                      placeholder: 'documents'
-                    },
-                    {
-                      id: 'label',
-                      title: strings.VerticalLabelColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: true,
-                      placeholder: 'Documents'
-                    },
-                    {
-                      id: 'iconName',
-                      title: strings.VerticalIconColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'Document'
-                    },
-                    {
-                      id: 'queryTemplate',
-                      title: strings.VerticalQueryColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: '{searchTerms} IsDocument:1'
-                    },
-                    {
-                      id: 'resultSourceId',
-                      title: strings.VerticalSourceColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'GUID'
-                    },
-                    {
-                      id: 'isLink',
-                      title: strings.VerticalIsLinkColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: false
-                    },
-                    {
-                      id: 'linkUrl',
-                      title: strings.VerticalLinkUrlColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'https://...'
-                    },
-                    {
-                      id: 'openBehavior',
-                      title: strings.VerticalOpenBehaviorColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: false,
-                      options: [
-                        { key: 'currentTab', text: strings.OpenBehaviorCurrentTab },
-                        { key: 'newTab', text: strings.OpenBehaviorNewTab }
-                      ]
-                    },
-                    {
-                      id: 'audience',
-                      title: strings.VerticalAudienceColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: strings.VerticalAudiencePlaceholder
-                    }
-                  ]
+                  fields: verticalFields,
+                  disabled: false
                 }),
                 ...(verticalOptions.length > 0 ? [
                   PropertyPaneDropdown('defaultVertical', {

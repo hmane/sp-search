@@ -11,6 +11,7 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   promotedResults: [],
   querySuggestion: undefined,
   isLoading: true,
+  hasSearched: false,
   error: undefined,
   resultSourceId: '',
   enableQueryRules: true,
@@ -22,7 +23,7 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   selectedProperties: '',
 
   setResults: (items: ISearchResult[], total: number): void => {
-    set({ items, totalCount: total, error: undefined });
+    set({ items, totalCount: total, error: undefined, hasSearched: true });
   },
 
   setPage: (page: number): void => {
@@ -46,6 +47,10 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   },
 
   setError: (error: string | undefined): void => {
-    set({ error, isLoading: false });
+    if (error !== undefined) {
+      set({ error, isLoading: false, hasSearched: true });
+    } else {
+      set({ error: undefined });
+    }
   },
 });

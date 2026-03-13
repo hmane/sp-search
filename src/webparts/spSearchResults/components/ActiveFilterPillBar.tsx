@@ -9,7 +9,6 @@ export interface IActiveFilterPillBarProps {
   filterConfig: IFilterConfig[];
   onRemoveFilter: (filterName: string, value?: string) => void;
   onClearAll: () => void;
-  onReset: () => void;
 }
 
 /**
@@ -44,27 +43,6 @@ function getFilterConfig(filterName: string, filterConfig: IFilterConfig[]): IFi
     sortDirection: 'desc',
     multiValues: true,
   };
-}
-
-/**
- * Group active filters by filterName so multi-value filters are
- * combined into one pill with comma-separated values.
- */
-function groupFiltersByName(
-  filters: IActiveFilter[]
-): Map<string, Array<{ value: string; displayValue?: string }>> {
-  const groups = new Map<string, Array<{ value: string; displayValue?: string }>>();
-  for (let i = 0; i < filters.length; i++) {
-    const filter = filters[i];
-    const entry = { value: filter.value, displayValue: filter.displayValue };
-    const existing = groups.get(filter.filterName);
-    if (existing) {
-      existing.push(entry);
-    } else {
-      groups.set(filter.filterName, [entry]);
-    }
-  }
-  return groups;
 }
 
 /**
@@ -130,11 +108,11 @@ function formatValueForDisplay(rawValue: string): string {
 
 /**
  * ActiveFilterPillBar — horizontal strip of dismissible filter pills
- * displayed above search results. Multi-value filters are combined
- * into a single pill with comma-separated values.
+ * displayed above search results. Each selected filter value gets its
+ * own pill so multi-select refiners remain readable and removable.
  */
 const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function ActiveFilterPillBar(props) {
-  const { activeFilters, filterConfig, onRemoveFilter, onClearAll, onReset } = props;
+  const { activeFilters, filterConfig, onRemoveFilter, onClearAll } = props;
   const [displayMap, setDisplayMap] = React.useState<Map<string, string>>(new Map());
   const displayMapRef = React.useRef<Map<string, string>>(displayMap);
   displayMapRef.current = displayMap;
@@ -211,46 +189,35 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
   }
 
   function getDisplayValue(filterName: string, rawValue: string, displayValue?: string): string {
-    if (displayValue) {
+    if (displayValue && displayValue !== rawValue) {
       return displayValue;
     }
     const key = filterName + '|' + rawValue;
     return displayMap.get(key) || formatValueForDisplay(rawValue);
   }
 
-  const grouped = groupFiltersByName(activeFilters);
-  const pillEntries: Array<{ filterName: string; displayName: string; values: Array<{ value: string; displayValue?: string }> }> = [];
-
-  grouped.forEach(function (values: Array<{ value: string; displayValue?: string }>, filterName: string): void {
-    pillEntries.push({
-      filterName,
-      displayName: getDisplayName(filterName, filterConfig),
-      values,
-    });
-  });
-
   return (
     <div className={styles.activeFilterPillBar} role="list" aria-label="Active filters" aria-live="polite">
-      {pillEntries.map(function (entry): React.ReactElement {
-        const displayValues = entry.values.map(function (v): string {
-          return getDisplayValue(entry.filterName, v.value, v.displayValue);
-        }).join(', ');
+      {activeFilters.map(function (filter: IActiveFilter, index: number): React.ReactElement {
+        const displayName = getDisplayName(filter.filterName, filterConfig);
+        const displayValue = getDisplayValue(filter.filterName, filter.value, filter.displayValue);
+        const pillKey = filter.filterName + '|' + filter.value + '|' + String(index);
         return (
           <div
-            key={entry.filterName}
+            key={pillKey}
             className={styles.activeFilterPill}
             role="listitem"
           >
             <span
               className={styles.activeFilterPillLabel}
-              title={entry.displayName + ': ' + displayValues}
+              title={displayName + ': ' + displayValue}
             >
-              <strong>{entry.displayName}</strong>: {displayValues}
+              <strong>{displayName}</strong>: {displayValue}
             </span>
             <button
               className={styles.activeFilterPillRemove}
-              onClick={function (): void { onRemoveFilter(entry.filterName); }}
-              aria-label={'Remove filter ' + entry.displayName}
+              onClick={function (): void { onRemoveFilter(filter.filterName, filter.value); }}
+              aria-label={'Remove filter ' + displayName + ' ' + displayValue}
               type="button"
             >
               <Icon iconName="Cancel" style={{ fontSize: 10 }} />
@@ -269,16 +236,6 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
           Clear all
         </button>
       )}
-
-      <button
-        className={styles.activeFilterReset}
-        onClick={onReset}
-        type="button"
-        aria-label="Reset search"
-      >
-        <Icon iconName="RevToggleKey" style={{ fontSize: 12 }} />
-        Reset
-      </button>
     </div>
   );
 };

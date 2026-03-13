@@ -30,6 +30,92 @@ function findFilterConfig(filterName: string, configs: IFilterConfig[]): IFilter
   return undefined;
 }
 
+function buildDisplayRefiners(refiners: IRefiner[], configs: IFilterConfig[]): IRefiner[] {
+  const merged: IRefiner[] = refiners.slice();
+  const existing = new Set<string>();
+
+  for (let i: number = 0; i < refiners.length; i++) {
+    existing.add(refiners[i].filterName);
+  }
+
+  for (let i: number = 0; i < configs.length; i++) {
+    const config = configs[i];
+    const canRenderWithoutBuckets =
+      config.filterType === 'people' ||
+      config.filterType === 'daterange' ||
+      config.filterType === 'toggle' ||
+      config.filterType === 'text';
+
+    if (canRenderWithoutBuckets && !existing.has(config.managedProperty)) {
+      merged.push({
+        filterName: config.managedProperty,
+        values: []
+      });
+    }
+  }
+
+  return merged;
+}
+
+function isSingleValueFilter(config: IFilterConfig | undefined): boolean {
+  if (!config) {
+    return false;
+  }
+
+  if (config.multiValues === false) {
+    return true;
+  }
+
+  return config.filterType === 'daterange' ||
+    config.filterType === 'slider' ||
+    config.filterType === 'toggle' ||
+    config.filterType === 'text';
+}
+
+function areFiltersEqual(a: IActiveFilter[], b: IActiveFilter[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let i: number = 0; i < a.length; i++) {
+    if (
+      a[i].filterName !== b[i].filterName ||
+      a[i].value !== b[i].value ||
+      a[i].displayValue !== b[i].displayValue ||
+      a[i].operator !== b[i].operator
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildNextFilters(
+  current: IActiveFilter[],
+  nextFilter: IActiveFilter,
+  config: IFilterConfig | undefined
+): IActiveFilter[] {
+  const sameValueIndex = current.findIndex(function (filter: IActiveFilter): boolean {
+    return filter.filterName === nextFilter.filterName && filter.value === nextFilter.value;
+  });
+
+  if (sameValueIndex >= 0) {
+    const updated = current.slice();
+    updated.splice(sameValueIndex, 1);
+    return updated;
+  }
+
+  if (isSingleValueFilter(config)) {
+    const withoutSameName = current.filter(function (filter: IActiveFilter): boolean {
+      return filter.filterName !== nextFilter.filterName;
+    });
+    return withoutSameName.concat([nextFilter]);
+  }
+
+  return current.concat([nextFilter]);
+}
+
 /**
  * Custom hook to subscribe to Zustand store state outside of React context.
  * Uses the vanilla store API with subscribe + getState.
@@ -83,10 +169,15 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     return s.isLoading;
   }, []);
 
+  const selectOperatorBetweenFilters = React.useCallback(function (s: ISearchStore): 'AND' | 'OR' {
+    return s.operatorBetweenFilters;
+  }, []);
+
   const availableRefiners: IRefiner[] | undefined = useStoreState(store, selectRefiners);
   const activeFilters: IActiveFilter[] | undefined = useStoreState(store, selectActiveFilters);
   const filterConfig: IFilterConfig[] | undefined = useStoreState(store, selectFilterConfig);
   const isLoading: boolean | undefined = useStoreState(store, selectIsLoading);
+  const operatorBetweenFilters: 'AND' | 'OR' | undefined = useStoreState(store, selectOperatorBetweenFilters);
 
   // Use safe defaults
   const refiners: IRefiner[] = availableRefiners || [];
@@ -104,6 +195,12 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   const displayFilters: IActiveFilter[] = applyMode === 'manual' && hasPendingChanges
     ? pendingFilters
     : filters;
+  const displayRefiners: IRefiner[] = React.useMemo(
+    function (): IRefiner[] {
+      return buildDisplayRefiners(refiners, configs);
+    },
+    [refiners, configs]
+  );
 
   // Sync pending filters when store filters change (manual mode)
   React.useEffect(function (): void {
@@ -118,28 +215,19 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       return;
     }
 
-    if (applyMode === 'instant') {
-      store.getState().setRefiner(filter);
-    } else {
-      // Manual mode: update pending filters locally
-      const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
-      let existingIndex: number = -1;
-      for (let i: number = 0; i < current.length; i++) {
-        if (current[i].filterName === filter.filterName && current[i].value === filter.value) {
-          existingIndex = i;
-          break;
-        }
-      }
+    const config = findFilterConfig(filter.filterName, configs);
 
-      let updated: IActiveFilter[];
-      if (existingIndex >= 0) {
-        updated = current.slice();
-        updated.splice(existingIndex, 1);
-      } else {
-        updated = current.concat([filter]);
-      }
+    if (applyMode === 'instant') {
+      const nextFilters = buildNextFilters(filters, filter, config);
+      store.setState({
+        activeFilters: nextFilters,
+        currentPage: 1
+      });
+    } else {
+      const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
+      const updated = buildNextFilters(current, filter, config);
       setPendingFilters(updated);
-      setHasPendingChanges(true);
+      setHasPendingChanges(!areFiltersEqual(updated, filters));
     }
   }
 
@@ -186,7 +274,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  if (refiners.length === 0 && !isLoading) {
+  if (displayRefiners.length === 0 && !isLoading) {
     return (
       <div className={styles.spSearchFilters}>
         <div className={styles.emptyState} role="status">
@@ -196,7 +284,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  if (refiners.length === 0 && isLoading) {
+  if (displayRefiners.length === 0 && isLoading) {
     return (
       <div className={styles.spSearchFilters}>
         {[0, 1, 2].map(function (i: number): React.ReactElement {
@@ -254,16 +342,17 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       {/* Visual Filter Builder panel */}
       {enableVisualFilterBuilder && isBuilderOpen && (
         <VisualFilterBuilder
-          refiners={refiners}
+          refiners={displayRefiners}
           filterConfig={configs}
           activeFilters={displayFilters}
+          operatorBetweenFilters={operatorBetweenFilters || 'AND'}
           onApplyFilters={handleBuilderApply}
           onCancel={function (): void { setIsBuilderOpen(false); }}
         />
       )}
 
       {/* Filter groups */}
-      {refiners.map(function (refiner: IRefiner): React.ReactElement {
+      {displayRefiners.map(function (refiner: IRefiner): React.ReactElement {
         const config: IFilterConfig | undefined = findFilterConfig(refiner.filterName, configs);
         return (
           <FilterGroup

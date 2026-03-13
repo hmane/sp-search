@@ -19,19 +19,59 @@
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
     "title": { "default": "SP Search Results" },
-    "description": { "default": "Rich result display with configurable layouts, detail panel, and bulk actions" },
-    "officeFabricIconFontName": "Page",
+    "description": { "default": "Search results with PnP-style starter defaults, multiple layouts, detail preview, and bulk actions" },
+    "officeFabricIconFontName": "Search",
     "properties": {
       "searchContextId": "default",
+      "searchScope": "currentsite",
       "queryTemplate": "{searchTerms}",
-      "selectedProperties": "",
-      "selectedPropertiesCollection": [],
+      "selectedProperties": "Title,Author,LastModifiedTime,FileType,Size,Path,SiteName",
+      "selectedPropertiesCollection": [
+        { "uniqueId": "starter-sp-0", "property": "Title", "alias": "Title" },
+        { "uniqueId": "starter-sp-1", "property": "Author", "alias": "Author" },
+        { "uniqueId": "starter-sp-2", "property": "LastModifiedTime", "alias": "Modified" },
+        { "uniqueId": "starter-sp-3", "property": "FileType", "alias": "Type" },
+        { "uniqueId": "starter-sp-4", "property": "Size", "alias": "Size" },
+        { "uniqueId": "starter-sp-5", "property": "Path", "alias": "URL" },
+        { "uniqueId": "starter-sp-6", "property": "SiteName", "alias": "Site" }
+      ],
+      "compactPropertiesCollection": [
+        { "uniqueId": "starter-compact-0", "property": "Author", "alias": "Author" },
+        { "uniqueId": "starter-compact-1", "property": "LastModifiedTime", "alias": "Modified" },
+        { "uniqueId": "starter-compact-2", "property": "Size", "alias": "Size" },
+        { "uniqueId": "starter-compact-3", "property": "FileType", "alias": "Type" }
+      ],
+      "gridPropertiesCollection": [
+        { "uniqueId": "starter-grid-0", "property": "Author" },
+        { "uniqueId": "starter-grid-1", "property": "LastModifiedTime" },
+        { "uniqueId": "starter-grid-2", "property": "FileType" },
+        { "uniqueId": "starter-grid-3", "property": "Size" },
+        { "uniqueId": "starter-grid-4", "property": "Path" },
+        { "uniqueId": "starter-grid-5", "property": "SiteName" }
+      ],
       "refinementFilters": "",
       "refinementFiltersCollection": [],
-      "pageSize": 25,
+      "pageSize": 10,
+      "showPaging": true,
+      "pageRange": 5,
+      "layoutPreset": "general",
       "defaultLayout": "list",
+      "showListLayout": true,
+      "showCompactLayout": true,
+      "showGridLayout": true,
+      "showCardLayout": false,
+      "showPeopleLayout": false,
+      "showGalleryLayout": false,
+      "sortablePropertiesCollection": [
+        { "uniqueId": "starter-sort-0", "property": "LastModifiedTime", "label": "Date Modified", "direction": "Descending" },
+        { "uniqueId": "starter-sort-1", "property": "Title", "label": "Title", "direction": "Ascending" }
+      ],
       "showResultCount": true,
-      "showSortDropdown": true
+      "showSortDropdown": true,
+      "showDeleteConfirmation": true,
+      "enablePreviewPanel": true,
+      "hideWebPartWhenNoResults": false,
+      "titleDisplayMode": "wrap"
     }
   }]
 }

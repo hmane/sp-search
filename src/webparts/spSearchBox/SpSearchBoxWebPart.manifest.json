@@ -19,18 +19,32 @@
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
     "title": { "default": "SP Search Box" },
-    "description": { "default": "Query input with suggestions, scope selector, and query builder" },
+    "description": { "default": "Search input with PnP-style starter behavior, suggestions, and Search Manager access" },
     "officeFabricIconFontName": "Search",
     "properties": {
       "searchContextId": "default",
-      "placeholder": "Search...",
+      "placeholder": "Search this site",
       "debounceMs": 300,
       "searchBehavior": "both",
+      "resetSearchOnClear": true,
       "enableScopeSelector": false,
       "searchScopes": [],
       "enableSuggestions": true,
+      "enableSharePointSuggestions": true,
+      "enableRecentSuggestions": true,
+      "enablePopularSuggestions": true,
+      "enableQuickResults": true,
+      "enablePropertySuggestions": true,
+      "suggestionsPerGroup": 5,
       "enableQueryBuilder": false,
-      "enableSearchManager": true
+      "enableKqlMode": false,
+      "enableSearchManager": true,
+      "searchInNewPage": false,
+      "newPageUrl": "",
+      "newPageOpenBehavior": "sameTab",
+      "newPageParameterLocation": "queryString",
+      "newPageQueryParameter": "q",
+      "queryInputTransformation": "{searchTerms}"
     }
   }]
 }

@@ -220,11 +220,48 @@
   color: var(--neutralSecondary, #605e5c);
   text-transform: uppercase;
   letter-spacing: 0.6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suggestionGroupMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.suggestionGroupDescription {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  color: var(--neutralTertiary, #a19f9d);
+}
+
+.suggestionGroupCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: "[theme:neutralLighter, default: #f3f2f1]";
+  background-color: var(--neutralLighter, #f3f2f1);
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  color: var(--neutralSecondary, #605e5c);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .suggestionItem {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
@@ -253,6 +290,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
+  margin-top: 2px;
   margin-right: 10px;
   font-size: 14px;
   color: "[theme:themePrimary, default: #0078d4]";
@@ -263,11 +301,67 @@
   flex-shrink: 0;
 }
 
-.suggestionText {
+.suggestionFileIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 2px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.suggestionTextBlock {
   flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestionRemoveButton {
+  flex: 0 0 auto;
+  margin-left: 4px;
+
+  :global {
+    .ms-Button {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+
+    .ms-Button:hover {
+      background-color: "[theme:neutralLighter, default: #f3f2f1]";
+      background-color: var(--neutralLighter, #f3f2f1);
+    }
+  }
+}
+
+.suggestionText {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.suggestionSecondaryText {
+  font-size: 12px;
+  line-height: 16px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  color: var(--neutralSecondary, #605e5c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionMatch {
+  background-color: "[theme:themeLight, default: #c7e0f4]";
+  background-color: var(--themeLight, #c7e0f4);
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText, #323130);
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 600;
 }
 
 /* ── Query Builder Panel ────────────────────────────────── */

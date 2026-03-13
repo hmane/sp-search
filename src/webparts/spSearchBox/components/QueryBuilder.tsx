@@ -59,7 +59,10 @@ function buildFields(properties: IManagedProperty[]): IQueryBuilderField[] {
     let defaultFilterOperation: string | undefined;
 
     if (dataType === 'string') {
-      filterOperations = ['contains', 'notcontains', 'startswith', 'endswith', '=', '<>'];
+      // Keep string operations aligned to KQL patterns that SharePoint Search
+      // can represent reliably. Leading-wildcard "ends with" semantics are too
+      // misleading here, so we do not expose them.
+      filterOperations = ['contains', 'notcontains', 'startswith', '=', '<>'];
       defaultFilterOperation = 'contains';
     } else if (dataType === 'number' || dataType === 'date') {
       filterOperations = ['=', '<>', '>', '>=', '<', '<=', 'between'];
@@ -260,6 +263,25 @@ const QueryBuilder: React.FC<IQueryBuilderProps> = (props: IQueryBuilderProps): 
           value={builderValue}
           onValueChanged={(e: { value?: FilterBuilderValue }): void => {
             setBuilderValue(e.value || null);
+          }}
+          allowHierarchicalFields={false}
+          groupOperationDescriptions={{
+            and: 'AND — all conditions must match',
+            or: 'OR — any condition can match',
+            notAnd: 'NOT AND',
+            notOr: 'NOT OR',
+          }}
+          filterOperationDescriptions={{
+            equal: 'Equals',
+            notEqual: 'Does not equal',
+            greaterThan: 'Greater than',
+            greaterThanOrEqual: 'Greater than or equal',
+            lessThan: 'Less than',
+            lessThanOrEqual: 'Less than or equal',
+            between: 'Between',
+            contains: 'Contains text',
+            notContains: 'Does not contain text',
+            startsWith: 'Starts with',
           }}
         />
       )}

@@ -43,9 +43,17 @@ describe('urlSyncMiddleware', () => {
       setLocationSearch('');
     });
 
-    it('should produce state version tag (sv=1)', () => {
+    it('should produce state version tag (x=1) when at least one non-default param is set', () => {
+      // x is intentionally omitted on empty/default state to keep clean URLs.
+      // It is only emitted when a meaningful param is also written.
+      const result = serializeToUrl({ queryText: 'annual report' });
+      expect(result).toContain('x=1');
+    });
+
+    it('should omit x when no non-default params are present', () => {
       const result = serializeToUrl({});
-      expect(result).toContain('sv=1');
+      const params = new URLSearchParams(result);
+      expect(params.has('x')).toBe(false);
     });
 
     it('should serialize queryText as q parameter', () => {
@@ -91,12 +99,22 @@ describe('urlSyncMiddleware', () => {
       expect(params.has('p')).toBe(false);
     });
 
-    it('should serialize scope as sc parameter', () => {
+    it('should serialize non-default scope as c parameter', () => {
+      // 'all' and 'currentsite' are intentionally excluded as common defaults
+      // to avoid polluting URLs when the user hasn't changed the scope.
       const result = serializeToUrl({
-        scope: { id: 'currentsite', label: 'Current Site' },
+        scope: { id: 'hub-finance', label: 'Finance Hub' },
       });
       const params = new URLSearchParams(result);
-      expect(params.get('sc')).toBe('currentsite');
+      expect(params.get('c')).toBe('hub-finance');
+    });
+
+    it('should omit c for default scopes (all, currentsite)', () => {
+      const resultAll = serializeToUrl({ scope: { id: 'all', label: 'All' } });
+      expect(new URLSearchParams(resultAll).has('c')).toBe(false);
+
+      const resultSite = serializeToUrl({ scope: { id: 'currentsite', label: 'Current Site' } });
+      expect(new URLSearchParams(resultSite).has('c')).toBe(false);
     });
 
     it('should serialize activeLayoutKey as l only when not "list"', () => {
@@ -152,10 +170,10 @@ describe('urlSyncMiddleware', () => {
       expect(params.get('v')).toBe('documents');
       expect(params.get('s')).toBe('Created:Ascending');
       expect(params.get('p')).toBe('2');
-      expect(params.get('sc')).toBe('hr');
+      expect(params.get('c')).toBe('hr');
       expect(params.get('l')).toBe('card');
       expect(params.has('f')).toBe(true);
-      expect(params.get('sv')).toBe('1');
+      expect(params.get('x')).toBe('1');
     });
 
     describe('with prefix (multi-context)', () => {
@@ -163,32 +181,32 @@ describe('urlSyncMiddleware', () => {
         const result = serializeToUrl({ queryText: 'test' }, 'ctx1');
         const params = new URLSearchParams(result);
         expect(params.get('ctx1.q')).toBe('test');
-        expect(params.get('ctx1.sv')).toBe('1');
+        expect(params.get('ctx1.x')).toBe('1');
       });
     });
   });
 
   describe('deserializeFromUrl', () => {
-    it('should return empty object when no sv tag is present', () => {
+    it('should return empty object when no x tag is present', () => {
       setLocationSearch('?q=test');
       const result = deserializeFromUrl();
       expect(result).toEqual({});
     });
 
     it('should parse queryText from q parameter', () => {
-      setLocationSearch('?sv=1&q=annual+report');
+      setLocationSearch('?x=1&q=annual+report');
       const result = deserializeFromUrl();
       expect(result.queryText).toBe('annual report');
     });
 
     it('should parse currentVerticalKey from v parameter', () => {
-      setLocationSearch('?sv=1&v=documents');
+      setLocationSearch('?x=1&v=documents');
       const result = deserializeFromUrl();
       expect(result.currentVerticalKey).toBe('documents');
     });
 
     it('should parse sort from s parameter (property:direction)', () => {
-      setLocationSearch('?sv=1&s=LastModifiedTime:Descending');
+      setLocationSearch('?x=1&s=LastModifiedTime:Descending');
       const result = deserializeFromUrl();
       expect(result.sort).toEqual({
         property: 'LastModifiedTime',
@@ -197,7 +215,7 @@ describe('urlSyncMiddleware', () => {
     });
 
     it('should parse sort with Ascending direction', () => {
-      setLocationSearch('?sv=1&s=Title:Ascending');
+      setLocationSearch('?x=1&s=Title:Ascending');
       const result = deserializeFromUrl();
       expect(result.sort).toEqual({
         property: 'Title',
@@ -206,37 +224,37 @@ describe('urlSyncMiddleware', () => {
     });
 
     it('should ignore sort with invalid direction', () => {
-      setLocationSearch('?sv=1&s=Title:InvalidDir');
+      setLocationSearch('?x=1&s=Title:InvalidDir');
       const result = deserializeFromUrl();
       expect(result.sort).toBeUndefined();
     });
 
     it('should parse currentPage from p parameter', () => {
-      setLocationSearch('?sv=1&p=5');
+      setLocationSearch('?x=1&p=5');
       const result = deserializeFromUrl();
       expect(result.currentPage).toBe(5);
     });
 
     it('should ignore non-numeric page values', () => {
-      setLocationSearch('?sv=1&p=abc');
+      setLocationSearch('?x=1&p=abc');
       const result = deserializeFromUrl();
       expect(result.currentPage).toBeUndefined();
     });
 
     it('should ignore page values less than 1', () => {
-      setLocationSearch('?sv=1&p=0');
+      setLocationSearch('?x=1&p=0');
       const result = deserializeFromUrl();
       expect(result.currentPage).toBeUndefined();
     });
 
-    it('should parse scope from sc parameter', () => {
-      setLocationSearch('?sv=1&sc=currentsite');
+    it('should parse scope from c parameter', () => {
+      setLocationSearch('?x=1&c=currentsite');
       const result = deserializeFromUrl();
       expect(result.scope).toBe('currentsite');
     });
 
     it('should parse activeLayoutKey from l parameter', () => {
-      setLocationSearch('?sv=1&l=grid');
+      setLocationSearch('?x=1&l=grid');
       const result = deserializeFromUrl();
       expect(result.activeLayoutKey).toBe('grid');
     });
@@ -248,14 +266,14 @@ describe('urlSyncMiddleware', () => {
       ];
       const json = JSON.stringify(filters);
       const encoded = btoa(unescape(encodeURIComponent(json)));
-      setLocationSearch(`?sv=1&f=${encoded}`);
+      setLocationSearch(`?x=1&f=${encoded}`);
 
       const result = deserializeFromUrl();
       expect(result.activeFilters).toEqual(filters);
     });
 
     it('should ignore malformed base64 in f parameter', () => {
-      setLocationSearch('?sv=1&f=!!!not-valid-base64!!!');
+      setLocationSearch('?x=1&f=!!!not-valid-base64!!!');
       const result = deserializeFromUrl();
       expect(result.activeFilters).toBeUndefined();
     });
@@ -263,7 +281,7 @@ describe('urlSyncMiddleware', () => {
     it('should ignore invalid JSON in f parameter', () => {
       // Valid base64 but invalid JSON
       const encoded = btoa('not json at all');
-      setLocationSearch(`?sv=1&f=${encoded}`);
+      setLocationSearch(`?x=1&f=${encoded}`);
       const result = deserializeFromUrl();
       expect(result.activeFilters).toBeUndefined();
     });
@@ -274,7 +292,7 @@ describe('urlSyncMiddleware', () => {
       ];
       const json = JSON.stringify(invalidFilters);
       const encoded = btoa(unescape(encodeURIComponent(json)));
-      setLocationSearch(`?sv=1&f=${encoded}`);
+      setLocationSearch(`?x=1&f=${encoded}`);
 
       const result = deserializeFromUrl();
       // The invalid items should be filtered out, resulting in no filters
@@ -287,7 +305,7 @@ describe('urlSyncMiddleware', () => {
       ];
       const json = JSON.stringify(filtersWithBadOperator);
       const encoded = btoa(unescape(encodeURIComponent(json)));
-      setLocationSearch(`?sv=1&f=${encoded}`);
+      setLocationSearch(`?x=1&f=${encoded}`);
 
       const result = deserializeFromUrl();
       expect(result.activeFilters).toBeUndefined();
@@ -300,7 +318,7 @@ describe('urlSyncMiddleware', () => {
       const json = JSON.stringify(filters);
       const encoded = btoa(unescape(encodeURIComponent(json)));
       setLocationSearch(
-        `?sv=1&q=report&v=documents&s=Created:Descending&p=3&sc=hr&l=card&f=${encoded}`
+        `?x=1&q=report&v=documents&s=Created:Descending&p=3&c=hr&l=card&f=${encoded}`
       );
 
       const result = deserializeFromUrl();
@@ -314,7 +332,7 @@ describe('urlSyncMiddleware', () => {
     });
 
     it('should return empty state for missing parameters', () => {
-      setLocationSearch('?sv=1');
+      setLocationSearch('?x=1');
       const result = deserializeFromUrl();
       expect(result.queryText).toBeUndefined();
       expect(result.activeFilters).toBeUndefined();
@@ -333,21 +351,21 @@ describe('urlSyncMiddleware', () => {
 
     describe('with prefix (multi-context)', () => {
       it('should parse prefixed parameters', () => {
-        setLocationSearch('?ctx1.sv=1&ctx1.q=budget&ctx1.v=documents');
+        setLocationSearch('?ctx1.x=1&ctx1.q=budget&ctx1.v=documents');
         const result = deserializeFromUrl('ctx1');
         expect(result.queryText).toBe('budget');
         expect(result.currentVerticalKey).toBe('documents');
       });
 
       it('should not read non-prefixed params when prefix is specified', () => {
-        setLocationSearch('?sv=1&q=unprefixed');
+        setLocationSearch('?x=1&q=unprefixed');
         const result = deserializeFromUrl('ctx1');
-        // No ctx1.sv present, so bail early
+        // No ctx1.x present, so bail early
         expect(result).toEqual({});
       });
 
       it('should isolate contexts on the same page', () => {
-        setLocationSearch('?ctx1.sv=1&ctx1.q=budget&ctx2.sv=1&ctx2.q=people');
+        setLocationSearch('?ctx1.x=1&ctx1.q=budget&ctx2.x=1&ctx2.q=people');
         const result1 = deserializeFromUrl('ctx1');
         const result2 = deserializeFromUrl('ctx2');
         expect(result1.queryText).toBe('budget');
@@ -358,7 +376,7 @@ describe('urlSyncMiddleware', () => {
     describe('sort parsing edge cases', () => {
       it('should handle sort property containing colons (e.g. custom managed property)', () => {
         // Uses lastIndexOf(':') — property can contain colons
-        setLocationSearch('?sv=1&s=ows_MyProp:Descending');
+        setLocationSearch('?x=1&s=ows_MyProp:Descending');
         const result = deserializeFromUrl();
         expect(result.sort).toEqual({
           property: 'ows_MyProp',
@@ -367,9 +385,21 @@ describe('urlSyncMiddleware', () => {
       });
 
       it('should ignore sort with no colon', () => {
-        setLocationSearch('?sv=1&s=InvalidSortNocolon');
+        setLocationSearch('?x=1&s=InvalidSortNocolon');
         const result = deserializeFromUrl();
         expect(result.sort).toBeUndefined();
+      });
+
+      it('should keep backward compatibility for legacy sc, sv, and sid parameters', () => {
+        setLocationSearch('?sv=1&sc=legacy-scope');
+        const result = deserializeFromUrl();
+        expect(result.scope).toBe('legacy-scope');
+      });
+
+      it('should keep backward compatibility for legacy sid parameter', () => {
+        setLocationSearch('?sid=25');
+        const result = deserializeFromUrl();
+        expect(result.stateId).toBe(25);
       });
     });
   });

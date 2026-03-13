@@ -4,8 +4,13 @@ declare interface ISpSearchResultsWebPartStrings {
   QuerySettingsGroupName: string;
   PaginationGroupName: string;
   LayoutGroupName: string;
+  MainLayoutsGroupName: string;
+  AdvancedLayoutsGroupName: string;
   SortGroupName: string;
   GeneralGroupName: string;
+  BehaviorGroupName: string;
+  ConnectionsGroupName: string;
+  AdvancedGroupName: string;
   AboutGroupName: string;
   SearchContextIdLabel: string;
   SearchContextIdDescription: string;
@@ -26,6 +31,15 @@ declare interface ISpSearchResultsWebPartStrings {
   SelectedPropertiesManageBtn: string;
   SelectedPropertyColumn: string;
   SelectedPropertyAliasColumn: string;
+  CompactViewGroupName: string;
+  CompactPropertiesLabel: string;
+  CompactPropertiesDescription: string;
+  CompactPropertiesPanelHeader: string;
+  CompactPropertiesManageBtn: string;
+  GridViewGroupName: string;
+  GridPropertiesLabel: string;
+  GridPropertiesPanelHeader: string;
+  GridPropertiesManageBtn: string;
   RefinementFiltersLabel: string;
   RefinementFiltersDescription: string;
   RefinementFiltersPanelHeader: string;
@@ -46,6 +60,8 @@ declare interface ISpSearchResultsWebPartStrings {
   PageRangeLabel: string;
   PageRangeDescription: string;
   DefaultLayoutLabel: string;
+  ScenarioPresetLabel: string;
+  ScenarioPresetHint: string;
   ListLayoutText: string;
   CompactLayoutText: string;
   GridLayoutText: string;
@@ -54,6 +70,13 @@ declare interface ISpSearchResultsWebPartStrings {
   GalleryLayoutText: string;
   ShowResultCountLabel: string;
   ShowSortDropdownLabel: string;
+  ShowDeleteConfirmationLabel: string;
+  ShowPreviewPanelLabel: string;
+  HideWebPartWhenNoResultsLabel: string;
+  TitleDisplayModeLabel: string;
+  TitleDisplayEllipsisText: string;
+  TitleDisplayMiddleText: string;
+  TitleDisplayWrapText: string;
   SortFieldLabel: string;
   SortPanelHeader: string;
   SortManageBtn: string;
@@ -67,6 +90,8 @@ declare interface ISpSearchResultsWebPartStrings {
   ToggleOffText: string;
   DataSourcePageHeader: string;
   DisplayPageHeader: string;
+  ConnectionsPageHeader: string;
+  AdvancedPageHeader: string;
   AboutPageHeader: string;
 }
 

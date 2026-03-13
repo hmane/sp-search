@@ -178,11 +178,13 @@ Write-Host "`n[2/3] SearchHistory" -ForegroundColor Magenta
 Ensure-HiddenList -ListName "SearchHistory" -Description "SP Search: User search history (high-volume, auto-pruned)"
 
 # Columns
+Ensure-Field -ListName "SearchHistory" -FieldName "QueryText" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "QueryHash" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Vertical" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Scope" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "SearchState" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "ResultCount" -FieldType "Number"
+Ensure-Field -ListName "SearchHistory" -FieldName "IsZeroResult" -FieldType "Boolean"
 Ensure-Field -ListName "SearchHistory" -FieldName "ClickedItems" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "SearchTimestamp" -FieldType "DateTime"
 

@@ -57,7 +57,7 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     }
 
     // Build refinement filters from active user filters
-    const refinementFilters = this._buildRefinementFilters(query.filters);
+    const refinementFilters = this._buildRefinementFilters(query.filters, query.operatorBetweenFilters);
 
     // Merge persistent admin-configured refinement filters
     if (query.refinementFilters) {
@@ -191,9 +191,13 @@ export class SharePointSearchProvider implements ISearchDataProvider {
 
   /**
    * Build refinement filter strings from active filters.
-   * Groups by filterName, combines values with or() within groups.
+   * Values within the same property are always OR'd (standard SharePoint behavior).
+   * Cross-property groups are AND'd by default; pass 'OR' to combine them with or().
    */
-  private _buildRefinementFilters(filters: ISearchQuery['filters']): string[] {
+  private _buildRefinementFilters(
+    filters: ISearchQuery['filters'],
+    operator: 'AND' | 'OR' = 'AND'
+  ): string[] {
     if (!filters || filters.length === 0) {
       return [];
     }
@@ -207,9 +211,8 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       grouped[filter.filterName].push(filter.value);
     }
 
-    // Build refinement filter strings
-    // Values are refinement tokens from SharePoint (ǂǂ hex, string(), GP0|#, range(), etc.)
-    // or constructed by filter components.
+    // Build per-property filter expressions.
+    // Values within the same property are combined with or() (multi-select within a facet).
     const result: string[] = [];
     const keys = Object.keys(grouped);
     for (const key of keys) {
@@ -217,10 +220,15 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       if (values.length === 1) {
         result.push(key + ':' + this._quoteTokenValue(values[0]));
       } else {
-        // Multiple values — combine with or()
         const encoded = values.map((v) => this._quoteTokenValue(v));
         result.push(key + ':or(' + encoded.join(',') + ')');
       }
+    }
+
+    // Cross-property operator: AND passes multiple array items (SharePoint AND's them by default).
+    // OR wraps all property expressions in a single or() FQL function.
+    if (operator === 'OR' && result.length > 1) {
+      return ['or(' + result.join(',') + ')'];
     }
 
     return result;

@@ -8,12 +8,13 @@ import {
 import { ImageFit } from '@fluentui/react/lib/Image';
 import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import { ISearchResult } from '@interfaces/index';
-import { formatRelativeDate } from './documentTitleUtils';
+import { formatRelativeDate, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
 export interface ICardLayoutProps {
   items: ISearchResult[];
+  titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
 }
@@ -46,10 +47,12 @@ const FileTypeIconPreview: React.FC<{ url: string }> = (iconProps) => {
 const CardItem: React.FC<{
   item: ISearchResult;
   position: number;
+  titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
 }> = (cardItemProps) => {
-  const { item, position, onItemClick } = cardItemProps;
+  const { item, position, titleDisplayMode, onItemClick } = cardItemProps;
+  const linkProps = getResultAnchorProps(item);
 
   // Build activity string (modified date + file type)
   const activityParts: string[] = [];
@@ -60,6 +63,7 @@ const CardItem: React.FC<{
     activityParts.push(item.fileType.toUpperCase());
   }
   const activityText: string = activityParts.join(' \u00B7 ');
+  const activityTooltip: string = item.modified ? formatDateTime(item.modified) : '';
 
   // Build people array for DocumentCardActivity
   const people: { name: string; profileImageSrc: string }[] = [];
@@ -97,13 +101,13 @@ const CardItem: React.FC<{
           <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick} hostDisplay="block">
             {(handleClick): React.ReactNode => (
               <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={linkProps.href}
+                target={linkProps.target}
+                rel={linkProps.rel}
                 className={styles.docCardTitleLink}
                 onClick={handleClick}
               >
-                {item.title}
+                {formatTitleText(item.title, titleDisplayMode)}
               </a>
             )}
           </DocumentTitleHoverCard>
@@ -111,10 +115,12 @@ const CardItem: React.FC<{
 
         {/* Activity: author persona + modified date */}
         {people.length > 0 && (
-          <DocumentCardActivity
-            activity={activityText}
-            people={people}
-          />
+          <div title={activityTooltip}>
+            <DocumentCardActivity
+              activity={activityText}
+              people={people}
+            />
+          </div>
         )}
       </DocumentCard>
     </div>
@@ -130,7 +136,7 @@ const CardItem: React.FC<{
  *  - Mobile (< 640px): 1 column
  */
 const CardLayout: React.FC<ICardLayoutProps> = (props) => {
-  const { items, onPreviewItem, onItemClick } = props;
+  const { items, titleDisplayMode, onPreviewItem, onItemClick } = props;
 
   return (
     <div className={styles.cardGrid} role="list">
@@ -139,6 +145,7 @@ const CardLayout: React.FC<ICardLayoutProps> = (props) => {
           key={item.key}
           item={item}
           position={index + 1}
+          titleDisplayMode={titleDisplayMode}
           onPreviewItem={onPreviewItem}
           onItemClick={onItemClick}
         />

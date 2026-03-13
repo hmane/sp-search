@@ -9,6 +9,7 @@ const defaultScope: ISearchScope = {
 export const createQuerySlice: StateCreator<ISearchStore, [], [], IQuerySlice> = (set, get) => ({
   queryText: '',
   queryTemplate: '{searchTerms}',
+  queryInputTransformation: '{searchTerms}',
   scope: defaultScope,
   suggestions: [],
   isSearching: false,
@@ -24,6 +25,10 @@ export const createQuerySlice: StateCreator<ISearchStore, [], [], IQuerySlice> =
 
   setSuggestions: (suggestions: ISuggestion[]): void => {
     set({ suggestions });
+  },
+
+  setQueryInputTransformation: (transformation: string): void => {
+    set({ queryInputTransformation: transformation });
   },
 
   cancelSearch: (): void => {

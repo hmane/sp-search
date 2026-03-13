@@ -97,6 +97,18 @@
   border: 1px solid "[theme:neutralLight, default: #edebe9]";
   border-radius: 4px;
   box-shadow: none;
+
+  :global(.spfx-card-content.collapsed) {
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  :global(.spfx-card-content.collapsed .spfx-card-body) {
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
 }
 
 .filterGroupHeader {
@@ -247,6 +259,62 @@
   composes: sortButton;
   color: "[theme:themePrimary, default: #0078d4]";
   font-weight: 600;
+}
+
+/* ── Text filter ─────────────────────────────────────────── */
+
+.textFilterContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textFilterInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.textFilterButton {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 2px;
+  background-color: "[theme:themePrimary, default: #0078d4]";
+  color: "[theme:white, default: #ffffff]";
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 4px 10px;
+
+  &:hover {
+    background-color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
+}
+
+.textFilterClear {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: "[theme:themePrimary, default: #0078d4]";
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
 }
 
 /* ── Apply button (manual mode) ──────────────────────────── */
@@ -692,6 +760,20 @@
 
 .visualFilterBuilderBody {
   min-height: 80px;
+
+  :global(.dx-filterbuilder) {
+    width: 100%;
+  }
+
+  :global(.dx-filterbuilder .dx-texteditor),
+  :global(.dx-filterbuilder .dx-dropdowneditor) {
+    max-width: 100%;
+  }
+
+  :global(.dx-filterbuilder .dx-field-item),
+  :global(.dx-filterbuilder .dx-filterbuilder-item-value) {
+    min-width: 0;
+  }
 }
 
 .visualFilterBuilderLoading {
