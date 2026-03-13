@@ -164,8 +164,10 @@ async function _doInitializeContext(
     return managerService.loadStateSnapshot(stateId);
   });
 
-  // Create the URL sync subscription (namespace = searchContextId if not 'default')
-  const urlPrefix = searchContextId !== 'default' ? searchContextId : undefined;
+  // Create the URL sync subscription.
+  // Prefer clean unprefixed URLs for the common single-search-page case.
+  // If multiple independent search contexts exist, fall back to a stable prefix.
+  const urlPrefix = getContextMap().size > 1 ? _buildStableUrlPrefix(searchContextId) : undefined;
   context.urlSyncUnsubscribe = createUrlSyncSubscription(
     context.store as StoreApi<ISearchStore>,
     urlPrefix
@@ -263,4 +265,20 @@ function _cleanupStaleStorage(): void {
   } catch {
     // localStorage not available or access denied — ignore
   }
+}
+
+function _buildStableUrlPrefix(searchContextId: string): string {
+  const raw = searchContextId || 's';
+  const normalized = raw.replace(/[^a-z0-9]/gi, '').toLowerCase() || 's';
+  const stem = normalized.substring(0, Math.min(6, normalized.length));
+  return stem + _stableHash(raw).toString(36).substring(0, 6);
+}
+
+function _stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }

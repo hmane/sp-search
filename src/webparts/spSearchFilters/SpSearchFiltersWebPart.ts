@@ -21,6 +21,7 @@ import { getStore, initializeSearchContext } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
+import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -41,6 +42,7 @@ interface IFilterCollectionItem {
   uniqueId: string;
   managedProperty: string;
   displayName: string;
+  urlAlias?: string;
   filterType: string;
   operator: string;
   maxValues: number;
@@ -150,6 +152,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         id: item.uniqueId,
         managedProperty: normalizeManagedPropertyForFilter(item.managedProperty, filterType),
         displayName: item.displayName,
+        urlAlias: sanitizeUrlAlias(item.urlAlias),
         filterType,
         operator: (item.operator || 'OR') as IFilterConfig['operator'],
         maxValues: item.maxValues || 10,
@@ -250,6 +253,13 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                       type: CustomCollectionFieldType.string,
                       required: true,
                       placeholder: 'File Type'
+                    },
+                    {
+                      id: 'urlAlias',
+                      title: strings.FilterUrlAliasColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'ft'
                     },
                     {
                       id: 'filterType',

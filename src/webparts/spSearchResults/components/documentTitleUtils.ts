@@ -196,6 +196,66 @@ export function formatTitleText(title: string, mode: TitleDisplayMode): string {
 }
 
 /**
+ * Maps a file extension to a Fluent UI icon name. Useful in dense layouts where
+ * image-based file icons cause extra flicker while CDN assets load.
+ */
+export function getFileTypeFluentIconName(fileType: string): string {
+  const ft: string = (fileType || '').toLowerCase();
+  switch (ft) {
+    case 'docx':
+    case 'doc':
+      return 'WordDocument';
+    case 'xlsx':
+    case 'xls':
+    case 'csv':
+      return 'ExcelDocument';
+    case 'pptx':
+    case 'ppt':
+      return 'PowerPointDocument';
+    case 'pdf':
+      return 'PDF';
+    case 'one':
+    case 'onetoc2':
+      return 'OneNoteLogo';
+    case 'vsdx':
+    case 'vsd':
+      return 'VisioDocument';
+    case 'html':
+    case 'htm':
+    case 'aspx':
+      return 'FileHTML';
+    case 'txt':
+    case 'json':
+    case 'xml':
+      return 'TextDocument';
+    case 'zip':
+    case 'rar':
+    case '7z':
+      return 'ZipFolder';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'bmp':
+    case 'svg':
+      return 'FileImage';
+    case 'mp4':
+    case 'avi':
+    case 'mov':
+    case 'wmv':
+      return 'Video';
+    case 'mp3':
+    case 'wav':
+      return 'MusicInCollectionFill';
+    case 'msg':
+    case 'eml':
+      return 'Mail';
+    default:
+      return 'Page';
+  }
+}
+
+/**
  * Extracts the file extension from a URL, ignoring query strings.
  * Returns empty string for URLs without an extension.
  */

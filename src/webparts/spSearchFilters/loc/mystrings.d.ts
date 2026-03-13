@@ -16,6 +16,7 @@ declare interface ISpSearchFiltersWebPartStrings {
   FiltersManageBtn: string;
   FilterPropertyColumn: string;
   FilterDisplayNameColumn: string;
+  FilterUrlAliasColumn: string;
   FilterTypeColumn: string;
   FilterTypeCheckbox: string;
   FilterTypeDateRange: string;

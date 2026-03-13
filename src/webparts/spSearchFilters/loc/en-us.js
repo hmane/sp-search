@@ -17,6 +17,7 @@ define([], function() {
     "FiltersManageBtn": "Manage refiners",
     "FilterPropertyColumn": "Managed property",
     "FilterDisplayNameColumn": "Display name",
+    "FilterUrlAliasColumn": "URL alias",
     "FilterTypeColumn": "Type",
     "FilterTypeCheckbox": "Checkbox",
     "FilterTypeDateRange": "Date range",

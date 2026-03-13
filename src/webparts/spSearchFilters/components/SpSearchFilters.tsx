@@ -11,6 +11,7 @@ import type {
   IFilterConfig,
   ISearchStore
 } from '@interfaces/index';
+import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VisualFilterBuilder: any = createLazyComponent(
@@ -97,7 +98,7 @@ function buildNextFilters(
   config: IFilterConfig | undefined
 ): IActiveFilter[] {
   const sameValueIndex = current.findIndex(function (filter: IActiveFilter): boolean {
-    return filter.filterName === nextFilter.filterName && filter.value === nextFilter.value;
+    return areFiltersEquivalent(filter, nextFilter);
   });
 
   if (sameValueIndex >= 0) {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { TagBox } from 'devextreme-react/tag-box';
 import styles from './SpSearchFilters.module.scss';
+import { getSelectedRefinerTokens } from './filterSelectionUtils';
 import type {
   IRefinerValue,
   IActiveFilter,
@@ -50,14 +51,8 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   }, [values, sortBy]);
 
   const selectedValues = React.useMemo(function (): string[] {
-    const selected: string[] = [];
-    for (let i = 0; i < activeFilters.length; i++) {
-      if (activeFilters[i].filterName === filterName) {
-        selected.push(activeFilters[i].value);
-      }
-    }
-    return selected;
-  }, [activeFilters, filterName]);
+    return getSelectedRefinerTokens(filterName, values, activeFilters);
+  }, [activeFilters, filterName, values]);
 
   const [editorValues, setEditorValues] = React.useState<string[]>(selectedValues);
 

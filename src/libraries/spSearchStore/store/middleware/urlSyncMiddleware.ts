@@ -1,14 +1,13 @@
 import { StoreApi } from 'zustand/vanilla';
 import {
+  ISearchStore,
   IActiveFilter,
+  IFilterConfig,
   ISortField,
   ISearchScope,
-  IQuerySlice,
-  IFilterSlice,
-  IResultSlice,
-  IVerticalSlice,
-  IUISlice
 } from '@interfaces/index';
+import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
+import { getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 
 // ─── URL State Shape ────────────────────────────────────────────
 
@@ -20,6 +19,7 @@ import {
 interface IUrlState {
   queryText?: string;
   activeFilters?: IActiveFilter[];
+  urlFilters?: IUrlFilterParam[];
   currentVerticalKey?: string;
   sort?: ISortField;
   currentPage?: number;
@@ -27,6 +27,11 @@ interface IUrlState {
   activeLayoutKey?: string;
   /** If set, a ?sid= was found — caller should load the snapshot and apply it */
   stateId?: number;
+}
+
+interface IUrlFilterParam {
+  key: string;
+  rawValue: string;
 }
 
 // ─── URL Param Keys ─────────────────────────────────────────────
@@ -45,9 +50,6 @@ const LEGACY_PARAM_SCOPE = 'sc';
 const LEGACY_PARAM_STATE_VERSION = 'sv';
 const LEGACY_PARAM_STATE_ID = 'sid';
 
-/** Current state version — bumped if the schema changes. */
-const STATE_VERSION = '1';
-
 /** Maximum URL length before falling back to ?sid= deep link. */
 const MAX_URL_LENGTH = 2000;
 
@@ -57,15 +59,11 @@ const DEBOUNCE_MS = 300;
 // ─── Store Type ─────────────────────────────────────────────────
 
 /**
- * Minimal store shape consumed by the URL sync middleware.
- * We avoid importing the full ISearchStore to keep coupling low.
+ * Store shape consumed by the URL sync middleware.
+ * URL filter serialization/deserialization depends on filterConfig
+ * and registered filter type definitions, so this uses the full store.
  */
-type IUrlSyncStoreSlice =
-  IQuerySlice &
-  IFilterSlice &
-  IResultSlice &
-  IVerticalSlice &
-  IUISlice;
+type IUrlSyncStoreSlice = ISearchStore;
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -93,27 +91,305 @@ function getParam(params: URLSearchParams, key: string, prefix?: string, legacyK
   return legacyKey ? params.get(prefixKey(legacyKey, prefix)) : null;
 }
 
-/**
- * Encode a value as base64.
- * Uses `btoa` which is available in all modern browsers.
- */
-function toBase64(value: string): string {
-  try {
-    return btoa(unescape(encodeURIComponent(value)));
-  } catch {
-    return '';
+const RESERVED_PARAM_KEYS = new Set([
+  PARAM_QUERY,
+  PARAM_FILTERS,
+  PARAM_VERTICAL,
+  PARAM_SORT,
+  PARAM_PAGE,
+  PARAM_SCOPE,
+  PARAM_LAYOUT,
+  PARAM_STATE_VERSION,
+  PARAM_STATE_ID,
+  LEGACY_PARAM_SCOPE,
+  LEGACY_PARAM_STATE_VERSION,
+  LEGACY_PARAM_STATE_ID,
+]);
+
+function getFilterParamKey(urlKey: string, prefix?: string): string {
+  return prefix ? `${prefix}.${urlKey}` : urlKey;
+}
+
+function normalizeFilterKey(value: string | undefined): string {
+  return sanitizeUrlAlias(value) || '';
+}
+
+function isReservedParam(key: string, prefix?: string): boolean {
+  if (!prefix) {
+    return RESERVED_PARAM_KEYS.has(key);
+  }
+  if (key.indexOf(prefix + '.') !== 0) {
+    return false;
+  }
+  return RESERVED_PARAM_KEYS.has(key.substring(prefix.length + 1));
+}
+
+function clearFilterParams(
+  params: URLSearchParams,
+  state: Partial<IUrlSyncStoreSlice>,
+  prefix?: string
+): void {
+  const keysToDelete: string[] = [];
+  const filterConfig = state.filterConfig || [];
+  const filterKeys = new Set<string>();
+
+  for (let i = 0; i < filterConfig.length; i++) {
+    filterKeys.add(getFilterParamKey(getFilterUrlAlias(filterConfig[i]), prefix));
+    filterKeys.add(prefixKey(filterConfig[i].managedProperty, prefix));
+  }
+
+  if (state.activeFilters) {
+    for (let i = 0; i < state.activeFilters.length; i++) {
+      const filter = state.activeFilters[i];
+      const config = filterConfig.find((f) => f.managedProperty === filter.filterName);
+      filterKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+        managedProperty: filter.filterName,
+        filterType: 'checkbox',
+      } as IFilterConfig), prefix));
+      filterKeys.add(prefixKey(filter.filterName, prefix));
+    }
+  }
+
+  params.forEach((_value, key) => {
+    if (filterKeys.has(key) || key.indexOf(prefixKey('f.', prefix)) === 0) {
+      keysToDelete.push(key);
+    }
+  });
+  for (let i = 0; i < keysToDelete.length; i++) {
+    params.delete(keysToDelete[i]);
   }
 }
 
-/**
- * Decode a base64 value.
- */
+function extractPeopleEmail(value: string): string {
+  const lower = value.toLowerCase();
+  if (lower.indexOf('|membership|') >= 0) {
+    return lower.substring(lower.lastIndexOf('|') + 1);
+  }
+  return value;
+}
+
+function decodeUrlComponentSafely(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function fromBase64(encoded: string): string {
   try {
     return decodeURIComponent(escape(atob(encoded)));
   } catch {
     return '';
   }
+}
+
+function stripWrappingQuotes(value: string): string {
+  if (value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
+    return value.substring(1, value.length - 1);
+  }
+  return value;
+}
+
+function decodeHexRefinementToken(value: string): string {
+  const stripped = stripWrappingQuotes(value);
+  if (stripped.indexOf('\u01C2\u01C2') !== 0) {
+    return stripped;
+  }
+  const hex = stripped.substring(2);
+  if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) {
+    return stripped;
+  }
+  try {
+    let encoded = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      encoded += '%' + hex.substring(i, i + 2);
+    }
+    return decodeURIComponent(encoded);
+  } catch {
+    return stripped;
+  }
+}
+
+function compactUrlFilterValue(value: string): string {
+  return decodeHexRefinementToken(stripWrappingQuotes(value));
+}
+
+function parseLegacyFiltersParam(filtersRaw: string): IActiveFilter[] | undefined {
+  try {
+    const decoded = fromBase64(filtersRaw);
+    if (!decoded) {
+      return undefined;
+    }
+
+    const parsed: unknown = JSON.parse(decoded);
+    if (!Array.isArray(parsed)) {
+      return undefined;
+    }
+
+    const filters: IActiveFilter[] = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i] as Record<string, unknown>;
+      if (
+        typeof item.filterName === 'string' &&
+        typeof item.value === 'string' &&
+        (item.operator === 'AND' || item.operator === 'OR')
+      ) {
+        filters.push({
+          filterName: item.filterName,
+          value: item.value,
+          displayValue: typeof item.displayValue === 'string' ? item.displayValue : undefined,
+          operator: item.operator
+        });
+      }
+    }
+
+    return filters.length > 0 ? filters : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function serializeActiveFilterForUrl(
+  filter: IActiveFilter,
+  state: Partial<IUrlSyncStoreSlice>
+): string {
+  const filterConfig = state.filterConfig || [];
+  let config: IFilterConfig | undefined;
+  for (let i = 0; i < filterConfig.length; i++) {
+    if (normalizeFilterKey(filterConfig[i].managedProperty) === normalizeFilterKey(filter.filterName)) {
+      config = filterConfig[i];
+      break;
+    }
+  }
+
+  return compactUrlFilterValue(
+    decodeUrlComponentSafely(
+      getFilterValueFormatter(config?.filterType).formatForUrl(filter.value)
+    )
+  );
+}
+
+function shouldUseMultiValueParam(config: IFilterConfig | undefined): boolean {
+  if (!config) {
+    return false;
+  }
+  if (config.multiValues === false) {
+    return false;
+  }
+  return config.filterType !== 'text' && config.filterType !== 'daterange' && config.filterType !== 'slider' && config.filterType !== 'toggle';
+}
+
+function splitSerializedFilterValues(rawValue: string, config: IFilterConfig | undefined): string[] {
+  if (!rawValue) {
+    return [];
+  }
+  if (!shouldUseMultiValueParam(config)) {
+    return [rawValue];
+  }
+  return rawValue
+    .split(',')
+    .map((part) => decodeUrlComponentSafely(part.trim()))
+    .filter((part) => part.length > 0);
+}
+
+function resolveFilterConfigByUrlKey(
+  key: string,
+  state: IUrlSyncStoreSlice
+): IFilterConfig | undefined {
+  const normalizedKey = normalizeFilterKey(key);
+  const filterConfig = state.filterConfig || [];
+  for (let i = 0; i < filterConfig.length; i++) {
+    const config = filterConfig[i];
+    if (
+      normalizeFilterKey(getFilterUrlAlias(config)) === normalizedKey ||
+      normalizeFilterKey(config.managedProperty) === normalizedKey
+    ) {
+      return config;
+    }
+  }
+  return undefined;
+}
+
+function deserializeUrlFilterToActiveFilter(
+  rawFilter: IUrlFilterParam,
+  state: IUrlSyncStoreSlice,
+  config?: IFilterConfig
+): IActiveFilter | undefined {
+  const resolvedConfig = config || resolveFilterConfigByUrlKey(rawFilter.key, state);
+
+  if (!resolvedConfig) {
+    return undefined;
+  }
+
+  const operator = resolvedConfig.operator || 'OR';
+
+  const typeDef = state.registries.filterTypes.get(resolvedConfig.filterType);
+  if (!typeDef) {
+    return undefined;
+  }
+
+  const formatter = getFilterValueFormatter(resolvedConfig.filterType);
+  const urlParsed = formatter.parseFromUrl(rawFilter.rawValue);
+  const deserialized = typeDef.deserializeValue(urlParsed);
+  let token = typeDef.buildRefinementToken(deserialized, resolvedConfig.managedProperty);
+  let displayValue: string | undefined;
+
+  if (resolvedConfig.filterType === 'people') {
+    const raw = String(deserialized).trim();
+    if (raw && raw.indexOf('|') < 0 && raw.indexOf('@') >= 0) {
+      token = 'i:0#.f|membership|' + raw.toLowerCase();
+      displayValue = raw;
+    } else {
+      displayValue = extractPeopleEmail(raw);
+    }
+  } else if (resolvedConfig.filterType === 'text') {
+    displayValue = String(deserialized);
+  }
+
+  return {
+    filterName: resolvedConfig.managedProperty,
+    value: token,
+    displayValue,
+    operator
+  };
+}
+
+function resolveUrlFilters(
+  urlFilters: IUrlFilterParam[],
+  state: IUrlSyncStoreSlice
+): {
+  resolved: IActiveFilter[];
+  unresolved: IUrlFilterParam[];
+} {
+  const resolved: IActiveFilter[] = [];
+  const unresolved: IUrlFilterParam[] = [];
+
+  for (let i = 0; i < urlFilters.length; i++) {
+    const rawFilter = urlFilters[i];
+    const config = resolveFilterConfigByUrlKey(rawFilter.key, state);
+    if (!config || !state.registries.filterTypes.get(config.filterType)) {
+      unresolved.push(rawFilter);
+      continue;
+    }
+
+    const parts = splitSerializedFilterValues(rawFilter.rawValue, config);
+    for (let j = 0; j < parts.length; j++) {
+      const next = deserializeUrlFilterToActiveFilter(
+        {
+          key: rawFilter.key,
+          rawValue: parts[j],
+        },
+        state,
+        config
+      );
+      if (next) {
+        resolved.push(next);
+      }
+    }
+  }
+
+  return { resolved, unresolved };
 }
 
 // ─── Serialization ──────────────────────────────────────────────
@@ -136,32 +412,69 @@ export function serializeToUrl(
 
   const params = new URLSearchParams(window.location.search);
 
-  // Track whether any non-default param is written.
-  // The state version tag is only written when at least one meaningful param exists,
-  // to keep clean URLs when the user hasn't changed anything from defaults.
-  let hasNonDefaultParam = false;
-
   // ── q = queryText ──
   if (state.queryText) {
     params.set(prefixKey(PARAM_QUERY, prefix), state.queryText);
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_QUERY, prefix));
   }
 
-  // ── f = activeFilters (JSON → base64) ──
+  // ── <alias> = filter values (multi-select collapsed as comma-separated) ──
+  clearFilterParams(params, state, prefix);
   if (state.activeFilters && state.activeFilters.length > 0) {
-    const json = JSON.stringify(state.activeFilters);
-    params.set(prefixKey(PARAM_FILTERS, prefix), toBase64(json));
-    hasNonDefaultParam = true;
-  } else {
-    params.delete(prefixKey(PARAM_FILTERS, prefix));
+    const filterConfig = state.filterConfig || [];
+    const groupedValues = new Map<string, string[]>();
+    for (let i = 0; i < state.activeFilters.length; i++) {
+      const filter = state.activeFilters[i];
+      const config = filterConfig.find(
+        (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
+      );
+      const key = getFilterParamKey(getFilterUrlAlias(config || {
+        managedProperty: filter.filterName,
+        filterType: 'checkbox',
+      } as IFilterConfig), prefix);
+      const serializedValue = serializeActiveFilterForUrl(filter, state);
+      if (shouldUseMultiValueParam(config)) {
+        const existing = groupedValues.get(key) || [];
+        existing.push(serializedValue);
+        groupedValues.set(key, existing);
+      } else {
+        params.set(key, serializedValue);
+      }
+    }
+
+    groupedValues.forEach((values, key) => {
+      params.set(key, values.map((value) => encodeURIComponent(value)).join(','));
+    });
+  }
+
+  // If a non-grouped key was also grouped later, grouped value wins.
+  if (state.activeFilters && state.activeFilters.length > 0) {
+    const filterConfig = state.filterConfig || [];
+    const groupedKeys = new Set<string>();
+    for (let i = 0; i < state.activeFilters.length; i++) {
+      const filter = state.activeFilters[i];
+      const config = filterConfig.find(
+        (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
+      );
+      if (shouldUseMultiValueParam(config)) {
+        groupedKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+          managedProperty: filter.filterName,
+          filterType: 'checkbox',
+        } as IFilterConfig), prefix));
+      }
+    }
+    groupedKeys.forEach((key) => {
+      const value = params.get(key);
+      if (value !== null) {
+        params.set(key, value);
+      }
+    });
   }
 
   // ── v = currentVerticalKey (only when not 'all') ──
   if (state.currentVerticalKey && state.currentVerticalKey !== 'all') {
     params.set(prefixKey(PARAM_VERTICAL, prefix), state.currentVerticalKey);
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_VERTICAL, prefix));
   }
@@ -172,7 +485,6 @@ export function serializeToUrl(
       prefixKey(PARAM_SORT, prefix),
       `${state.sort.property}:${state.sort.direction}`
     );
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_SORT, prefix));
   }
@@ -180,7 +492,6 @@ export function serializeToUrl(
   // ── p = currentPage (only when > 1) ──
   if (state.currentPage !== undefined && state.currentPage > 1) {
     params.set(prefixKey(PARAM_PAGE, prefix), String(state.currentPage));
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_PAGE, prefix));
   }
@@ -194,7 +505,6 @@ export function serializeToUrl(
   // Scope is serialized only when it differs from common defaults.
   if (state.scope && state.scope.id !== 'all' && state.scope.id !== 'currentsite') {
     params.set(prefixKey(PARAM_SCOPE, prefix), state.scope.id);
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_SCOPE, prefix));
   }
@@ -202,16 +512,8 @@ export function serializeToUrl(
   // ── l = activeLayoutKey (only when not 'list') ──
   if (state.activeLayoutKey && state.activeLayoutKey !== 'list') {
     params.set(prefixKey(PARAM_LAYOUT, prefix), state.activeLayoutKey);
-    hasNonDefaultParam = true;
   } else {
     params.delete(prefixKey(PARAM_LAYOUT, prefix));
-  }
-
-  // ── sv = state version (only when there are non-default params) ──
-  if (hasNonDefaultParam) {
-    params.set(prefixKey(PARAM_STATE_VERSION, prefix), STATE_VERSION);
-  } else {
-    params.delete(prefixKey(PARAM_STATE_VERSION, prefix));
   }
 
   return params.toString();
@@ -245,53 +547,41 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
     }
   }
 
-  // Bail early if no state-version tag — nothing was serialized by us
-  // Note: URLSearchParams.get() returns null for missing keys.
-  // We use truthiness checks which handle both null and empty string.
-  const version = getParam(params, PARAM_STATE_VERSION, prefix, LEGACY_PARAM_STATE_VERSION);
-  if (!version) {
-    return state;
-  }
-
   // ── q ──
   const queryText = params.get(prefixKey(PARAM_QUERY, prefix));
   if (queryText) {
     state.queryText = queryText;
   }
 
-  // ── f ──
-  const filtersRaw = params.get(prefixKey(PARAM_FILTERS, prefix));
-  if (filtersRaw) {
-    try {
-      const decoded = fromBase64(filtersRaw);
-      if (decoded) {
-        const parsed: unknown = JSON.parse(decoded);
-        if (Array.isArray(parsed)) {
-          // Validate each item has the expected shape
-          const filters: IActiveFilter[] = [];
-          for (let i = 0; i < parsed.length; i++) {
-            const item = parsed[i] as Record<string, unknown>;
-            if (
-              typeof item.filterName === 'string' &&
-              typeof item.value === 'string' &&
-              (item.operator === 'AND' || item.operator === 'OR')
-            ) {
-              filters.push({
-                filterName: item.filterName,
-                value: item.value,
-                displayValue: typeof item.displayValue === 'string' ? item.displayValue : undefined,
-                operator: item.operator
-              });
-            }
-          }
-          if (filters.length > 0) {
-            state.activeFilters = filters;
-          }
-        }
-      }
-    } catch {
-      // Malformed base64 or JSON — ignore silently
+  // ── legacy f = base64(JSON) activeFilters ──
+  const legacyFilters = params.get(prefixKey(PARAM_FILTERS, prefix));
+  if (legacyFilters) {
+    state.activeFilters = parseLegacyFiltersParam(legacyFilters);
+  }
+
+  // ── <alias> / <managedProperty> filter params ──
+  const urlFilters: IUrlFilterParam[] = [];
+  params.forEach((value, key) => {
+    if (isReservedParam(key, prefix)) {
+      return;
     }
+    let filterKey = key;
+    if (prefix) {
+      if (key.indexOf(prefix + '.') !== 0) {
+        return;
+      }
+      filterKey = key.substring(prefix.length + 1);
+    }
+    if (!filterKey) {
+      return;
+    }
+    urlFilters.push({
+      key: filterKey,
+      rawValue: value
+    });
+  });
+  if (urlFilters.length > 0) {
+    state.urlFilters = urlFilters;
   }
 
   // ── v ──
@@ -463,6 +753,7 @@ export function createUrlSyncSubscription(
 
   // ─── 1. Hydrate store from URL on init ──────────────────────
   const initial = deserializeFromUrl(prefix);
+  let pendingUrlFilters: IUrlFilterParam[] | undefined;
 
   // Handle ?sid= fallback: load state snapshot from list
   if (initial.stateId && _loadSnapshotHandler) {
@@ -483,7 +774,7 @@ export function createUrlSyncSubscription(
         // Failed to load snapshot — stay with defaults
       });
   } else if (Object.keys(initial).length > 0 && !initial.stateId) {
-    applyUrlStateToStore(store, initial, prefix);
+    pendingUrlFilters = applyUrlStateToStore(store, initial, prefix).unresolvedUrlFilters;
   }
 
   // ─── 2. Store → URL subscription ───────────────────────────
@@ -495,6 +786,22 @@ export function createUrlSyncSubscription(
   let previousSnapshot = takeSnapshot(store.getState());
 
   const unsubStore = store.subscribe((state): void => {
+    if (pendingUrlFilters && pendingUrlFilters.length > 0) {
+      if (state.activeFilters.length > 0) {
+        pendingUrlFilters = undefined;
+      } else if (state.filterConfig.length > 0) {
+        const replayResult = applyUrlStateToStore(
+          store,
+          { urlFilters: pendingUrlFilters },
+          prefix
+        );
+        pendingUrlFilters = replayResult.unresolvedUrlFilters;
+        if (replayResult.didUpdate) {
+          return;
+        }
+      }
+    }
+
     const snapshot = takeSnapshot(state);
     if (!shallowEqualSnapshot(previousSnapshot, snapshot)) {
       previousSnapshot = snapshot;
@@ -505,7 +812,7 @@ export function createUrlSyncSubscription(
   // ─── 3. URL → Store (popstate) ─────────────────────────────
   const onPopState = (): void => {
     const urlState = deserializeFromUrl(prefix);
-    applyUrlStateToStore(store, urlState, prefix);
+    pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
   };
 
   window.addEventListener('popstate', onPopState);
@@ -541,14 +848,26 @@ function applyUrlStateToStore(
   store: StoreApi<IUrlSyncStoreSlice>,
   urlState: IUrlState,
   prefix?: string
-): void {
+): {
+  didUpdate: boolean;
+  unresolvedUrlFilters?: IUrlFilterParam[];
+} {
   const patch: Record<string, unknown> = {};
+  let unresolvedUrlFilters: IUrlFilterParam[] | undefined;
 
   if (urlState.queryText !== undefined) {
     patch.queryText = urlState.queryText;
   }
 
-  if (urlState.activeFilters !== undefined) {
+  if (urlState.urlFilters && urlState.urlFilters.length > 0) {
+    const resolution = resolveUrlFilters(urlState.urlFilters, store.getState());
+    if (resolution.resolved.length > 0) {
+      patch.activeFilters = resolution.resolved;
+    }
+    if (resolution.unresolved.length > 0) {
+      unresolvedUrlFilters = resolution.unresolved;
+    }
+  } else if (urlState.activeFilters !== undefined) {
     patch.activeFilters = urlState.activeFilters;
   }
 
@@ -606,7 +925,16 @@ function applyUrlStateToStore(
 
   if (Object.keys(patch).length > 0) {
     store.setState(patch as Partial<IUrlSyncStoreSlice>);
+    return {
+      didUpdate: true,
+      unresolvedUrlFilters,
+    };
   }
+
+  return {
+    didUpdate: false,
+    unresolvedUrlFilters,
+  };
 }
 
 /**

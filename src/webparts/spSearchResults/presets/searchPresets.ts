@@ -26,6 +26,8 @@ export interface IPresetFilterSuggestion {
   managedProperty: string;
   /** Suggested filter label */
   label: string;
+  /** Short public URL alias for this filter */
+  urlAlias?: string;
   /** Suggested filter type key */
   filterType: string;
 }
@@ -88,9 +90,9 @@ const GENERAL: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'FileType',         label: 'File type',      filterType: 'checkbox' },
-    { managedProperty: 'LastModifiedTime', label: 'Modified date',  filterType: 'daterange' },
-    { managedProperty: 'AuthorOWSUSER',    label: 'Author',         filterType: 'people'   },
+    { managedProperty: 'FileType',         label: 'File type',      urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'LastModifiedTime', label: 'Modified date',  urlAlias: 'md', filterType: 'daterange' },
+    { managedProperty: 'AuthorOWSUSER',    label: 'Author',         urlAlias: 'au', filterType: 'people'   },
   ],
 };
 
@@ -128,10 +130,10 @@ const DOCUMENTS: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'FileType',         label: 'File type',     filterType: 'checkbox' },
-    { managedProperty: 'LastModifiedTime', label: 'Modified date', filterType: 'daterange' },
-    { managedProperty: 'AuthorOWSUSER',    label: 'Author',        filterType: 'people'   },
-    { managedProperty: 'SiteName',         label: 'Site',          filterType: 'checkbox' },
+    { managedProperty: 'FileType',         label: 'File type',     urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'LastModifiedTime', label: 'Modified date', urlAlias: 'md', filterType: 'daterange' },
+    { managedProperty: 'AuthorOWSUSER',    label: 'Author',        urlAlias: 'au', filterType: 'people'   },
+    { managedProperty: 'SiteName',         label: 'Site',          urlAlias: 'si', filterType: 'checkbox' },
   ],
 };
 
@@ -168,9 +170,9 @@ const PEOPLE: IScenarioPreset = {
   ],
   dataProviderHint: 'graph-people',
   filterSuggestions: [
-    { managedProperty: 'Department',   label: 'Department', filterType: 'checkbox' },
-    { managedProperty: 'JobTitle',     label: 'Job title',  filterType: 'checkbox' },
-    { managedProperty: 'OfficeNumber', label: 'Office',     filterType: 'checkbox' },
+    { managedProperty: 'Department',   label: 'Department', urlAlias: 'dp', filterType: 'checkbox' },
+    { managedProperty: 'JobTitle',     label: 'Job title',  urlAlias: 'jt', filterType: 'checkbox' },
+    { managedProperty: 'OfficeNumber', label: 'Office',     urlAlias: 'of', filterType: 'checkbox' },
   ],
 };
 
@@ -204,9 +206,9 @@ const NEWS: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'Created',  label: 'Published date', filterType: 'daterange' },
-    { managedProperty: 'AuthorOWSUSER', label: 'Author',         filterType: 'people'   },
-    { managedProperty: 'SiteName', label: 'Site',           filterType: 'checkbox' },
+    { managedProperty: 'Created',        label: 'Published date', urlAlias: 'pd', filterType: 'daterange' },
+    { managedProperty: 'AuthorOWSUSER',  label: 'Author',         urlAlias: 'au', filterType: 'people'   },
+    { managedProperty: 'SiteName',       label: 'Site',           urlAlias: 'si', filterType: 'checkbox' },
   ],
 };
 
@@ -241,10 +243,10 @@ const HUB_SEARCH: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'FileType',         label: 'Content type',  filterType: 'checkbox' },
-    { managedProperty: 'SiteName',         label: 'Site',          filterType: 'checkbox' },
-    { managedProperty: 'AuthorOWSUSER',    label: 'Author',        filterType: 'people'   },
-    { managedProperty: 'LastModifiedTime', label: 'Modified date', filterType: 'daterange' },
+    { managedProperty: 'FileType',         label: 'Content type',  urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'SiteName',         label: 'Site',          urlAlias: 'si', filterType: 'checkbox' },
+    { managedProperty: 'AuthorOWSUSER',    label: 'Author',        urlAlias: 'au', filterType: 'people'   },
+    { managedProperty: 'LastModifiedTime', label: 'Modified date', urlAlias: 'md', filterType: 'daterange' },
   ],
 };
 
@@ -280,10 +282,10 @@ const KNOWLEDGE_BASE: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'ContentType',      label: 'Category',       filterType: 'checkbox' },
-    { managedProperty: 'SiteName',         label: 'Site',           filterType: 'checkbox' },
-    { managedProperty: 'AuthorOWSUSER',    label: 'Author',         filterType: 'people'   },
-    { managedProperty: 'Created',          label: 'Published date', filterType: 'daterange' },
+    { managedProperty: 'ContentType',      label: 'Category',       urlAlias: 'ct', filterType: 'checkbox' },
+    { managedProperty: 'SiteName',         label: 'Site',           urlAlias: 'si', filterType: 'checkbox' },
+    { managedProperty: 'AuthorOWSUSER',    label: 'Author',         urlAlias: 'au', filterType: 'people'   },
+    { managedProperty: 'Created',          label: 'Published date', urlAlias: 'pd', filterType: 'daterange' },
   ],
 };
 
@@ -320,10 +322,10 @@ const POLICY_SEARCH: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'FileType',         label: 'File type',     filterType: 'checkbox' },
-    { managedProperty: 'SiteName',         label: 'Source',        filterType: 'checkbox' },
-    { managedProperty: 'AuthorOWSUSER',    label: 'Policy owner',  filterType: 'people'   },
-    { managedProperty: 'LastModifiedTime', label: 'Last reviewed', filterType: 'daterange' },
+    { managedProperty: 'FileType',         label: 'File type',     urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'SiteName',         label: 'Source',        urlAlias: 'si', filterType: 'checkbox' },
+    { managedProperty: 'AuthorOWSUSER',    label: 'Policy owner',  urlAlias: 'au', filterType: 'people'   },
+    { managedProperty: 'LastModifiedTime', label: 'Last reviewed', urlAlias: 'md', filterType: 'daterange' },
   ],
 };
 
@@ -360,9 +362,9 @@ const MEDIA: IScenarioPreset = {
   ],
   dataProviderHint: 'sharepoint-search',
   filterSuggestions: [
-    { managedProperty: 'FileType',         label: 'File type',     filterType: 'checkbox' },
-    { managedProperty: 'LastModifiedTime', label: 'Modified date', filterType: 'daterange' },
-    { managedProperty: 'SiteName',         label: 'Site',          filterType: 'checkbox' },
+    { managedProperty: 'FileType',         label: 'File type',     urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'LastModifiedTime', label: 'Modified date', urlAlias: 'md', filterType: 'daterange' },
+    { managedProperty: 'SiteName',         label: 'Site',          urlAlias: 'si', filterType: 'checkbox' },
   ],
 };
 

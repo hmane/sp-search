@@ -3,6 +3,7 @@ import { Checkbox } from '@fluentui/react/lib/Checkbox';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import styles from './SpSearchFilters.module.scss';
+import { isRefinerValueSelected } from './filterSelectionUtils';
 import type {
   IRefinerValue,
   IActiveFilter,
@@ -58,9 +59,9 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
 
   /** Determine if a value is currently selected in activeFilters. */
   function isValueSelected(value: string): boolean {
-    for (let i: number = 0; i < activeFilters.length; i++) {
-      if (activeFilters[i].filterName === filterName && activeFilters[i].value === value) {
-        return true;
+    for (let i: number = 0; i < values.length; i++) {
+      if (values[i].value === value) {
+        return isRefinerValueSelected(filterName, values[i], activeFilters);
       }
     }
     return false;

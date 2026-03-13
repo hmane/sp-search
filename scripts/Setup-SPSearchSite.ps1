@@ -341,10 +341,10 @@ try {
 
     # Filters config - configured for the test data site columns
     $defaultFilters = @(
-        @{ uniqueId = "f1"; managedProperty = "FileType"; displayName = "File Type"; filterType = "checkbox"; operator = "OR"; maxValues = 15; showCount = $true; defaultExpanded = $true; sortBy = "count" },
-        @{ uniqueId = "f2"; managedProperty = "Author"; displayName = "Author"; filterType = "people"; operator = "OR"; maxValues = 10; showCount = $true; defaultExpanded = $true; sortBy = "count" },
-        @{ uniqueId = "f3"; managedProperty = "LastModifiedTime"; displayName = "Modified Date"; filterType = "daterange"; operator = "AND"; maxValues = 1; showCount = $false; defaultExpanded = $true; sortBy = "alphabetical" },
-        @{ uniqueId = "f4"; managedProperty = "contentclass"; displayName = "Content Type"; filterType = "checkbox"; operator = "OR"; maxValues = 10; showCount = $true; defaultExpanded = $false; sortBy = "count" }
+        @{ uniqueId = "f1"; managedProperty = "FileType";         displayName = "File Type";     urlAlias = "ft"; filterType = "checkbox";  operator = "OR";  maxValues = 15; showCount = $true;  defaultExpanded = $true;  sortBy = "count" },
+        @{ uniqueId = "f2"; managedProperty = "AuthorOWSUSER";    displayName = "Author";        urlAlias = "au"; filterType = "people";    operator = "OR";  maxValues = 10; showCount = $true;  defaultExpanded = $true;  sortBy = "count" },
+        @{ uniqueId = "f3"; managedProperty = "LastModifiedTime"; displayName = "Modified Date"; urlAlias = "md"; filterType = "daterange"; operator = "AND"; maxValues = 1;  showCount = $false; defaultExpanded = $true;  sortBy = "alphabetical" },
+        @{ uniqueId = "f4"; managedProperty = "contentclass";     displayName = "Content Type";  urlAlias = "ct"; filterType = "checkbox";  operator = "OR";  maxValues = 10; showCount = $true;  defaultExpanded = $false; sortBy = "count" }
     ) | ConvertTo-Json -Depth 4 -Compress
 
     # Add web parts

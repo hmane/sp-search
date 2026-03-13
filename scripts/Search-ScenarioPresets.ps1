@@ -58,9 +58,9 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='FileType';         label='File type';     filterType='checkbox' }
-      @{ managedProperty='LastModifiedTime'; label='Modified date'; filterType='daterange' }
-      @{ managedProperty='Author';           label='Author';        filterType='people' }
+      @{ managedProperty='FileType';         label='File type';     urlAlias='ft'; filterType='checkbox' }
+      @{ managedProperty='LastModifiedTime'; label='Modified date'; urlAlias='md'; filterType='daterange' }
+      @{ managedProperty='AuthorOWSUSER';    label='Author';        urlAlias='au'; filterType='people' }
     )
     verticalSuggestions = @()
   }
@@ -90,10 +90,10 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='FileType';         label='File type';     filterType='checkbox' }
-      @{ managedProperty='LastModifiedTime'; label='Modified date'; filterType='daterange' }
-      @{ managedProperty='Author';           label='Author';        filterType='people'   }
-      @{ managedProperty='SiteName';         label='Site';          filterType='checkbox' }
+      @{ managedProperty='FileType';         label='File type';     urlAlias='ft'; filterType='checkbox' }
+      @{ managedProperty='LastModifiedTime'; label='Modified date'; urlAlias='md'; filterType='daterange' }
+      @{ managedProperty='AuthorOWSUSER';    label='Author';        urlAlias='au'; filterType='people'   }
+      @{ managedProperty='SiteName';         label='Site';          urlAlias='si'; filterType='checkbox' }
     )
     verticalSuggestions = @(
       @{ key='all';  label='All Documents'; queryTemplate='{searchTerms} IsDocument:1' }
@@ -128,9 +128,9 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'graph-people'
     filterSuggestions  = @(
-      @{ managedProperty='Department';   label='Department'; filterType='checkbox' }
-      @{ managedProperty='JobTitle';     label='Job title';  filterType='checkbox' }
-      @{ managedProperty='OfficeNumber'; label='Office';     filterType='checkbox' }
+      @{ managedProperty='Department';   label='Department'; urlAlias='dp'; filterType='checkbox' }
+      @{ managedProperty='JobTitle';     label='Job title';  urlAlias='jt'; filterType='checkbox' }
+      @{ managedProperty='OfficeNumber'; label='Office';     urlAlias='of'; filterType='checkbox' }
     )
     verticalSuggestions = @(
       @{ key='people'; label='People'; dataProvider='graph-people' }
@@ -159,9 +159,9 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='Created';  label='Published date'; filterType='daterange' }
-      @{ managedProperty='Author';   label='Author';         filterType='people'   }
-      @{ managedProperty='SiteName'; label='Site';           filterType='checkbox' }
+      @{ managedProperty='Created';       label='Published date'; urlAlias='pd'; filterType='daterange' }
+      @{ managedProperty='AuthorOWSUSER'; label='Author';         urlAlias='au'; filterType='people'   }
+      @{ managedProperty='SiteName';      label='Site';           urlAlias='si'; filterType='checkbox' }
     )
     verticalSuggestions = @(
       @{ key='news'; label='News'; queryTemplate='{searchTerms} PromotedState:2' }
@@ -192,9 +192,9 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='FileType';         label='File type';     filterType='checkbox' }
-      @{ managedProperty='LastModifiedTime'; label='Modified date'; filterType='daterange' }
-      @{ managedProperty='SiteName';         label='Site';          filterType='checkbox' }
+      @{ managedProperty='FileType';         label='File type';     urlAlias='ft'; filterType='checkbox' }
+      @{ managedProperty='LastModifiedTime'; label='Modified date'; urlAlias='md'; filterType='daterange' }
+      @{ managedProperty='SiteName';         label='Site';          urlAlias='si'; filterType='checkbox' }
     )
     verticalSuggestions = @(
       @{ key='images'; label='Images'; queryTemplate='{searchTerms} (FileType:jpg OR FileType:jpeg OR FileType:png OR FileType:gif)' }
@@ -224,10 +224,10 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='FileType';         label='Content type';  filterType='checkbox'  }
-      @{ managedProperty='SiteName';         label='Site';          filterType='checkbox'  }
-      @{ managedProperty='Author';           label='Author';        filterType='people'    }
-      @{ managedProperty='LastModifiedTime'; label='Modified date'; filterType='daterange' }
+      @{ managedProperty='FileType';         label='Content type';  urlAlias='ft'; filterType='checkbox'  }
+      @{ managedProperty='SiteName';         label='Site';          urlAlias='si'; filterType='checkbox'  }
+      @{ managedProperty='AuthorOWSUSER';    label='Author';        urlAlias='au'; filterType='people'    }
+      @{ managedProperty='LastModifiedTime'; label='Modified date'; urlAlias='md'; filterType='daterange' }
     )
     verticalSuggestions = @(
       @{ key='all';       label='All';       queryTemplate='{searchTerms}'                          }
@@ -261,10 +261,10 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='ContentType'; label='Category';       filterType='checkbox'  }
-      @{ managedProperty='SiteName';    label='Site';           filterType='checkbox'  }
-      @{ managedProperty='Author';      label='Author';         filterType='people'    }
-      @{ managedProperty='Created';     label='Published date'; filterType='daterange' }
+      @{ managedProperty='ContentType';   label='Category';       urlAlias='ct'; filterType='checkbox'  }
+      @{ managedProperty='SiteName';      label='Site';           urlAlias='si'; filterType='checkbox'  }
+      @{ managedProperty='AuthorOWSUSER'; label='Author';         urlAlias='au'; filterType='people'    }
+      @{ managedProperty='Created';       label='Published date'; urlAlias='pd'; filterType='daterange' }
     )
     verticalSuggestions = @(
       @{ key='all';        label='All';        queryTemplate='{searchTerms} (IsDocument:1 OR contentclass:STS_ListItem_Pages)' }
@@ -297,10 +297,10 @@ $PRESET_REGISTRY = @{
     )
     dataProviderHint   = 'sharepoint-search'
     filterSuggestions  = @(
-      @{ managedProperty='FileType';         label='File type';     filterType='checkbox'  }
-      @{ managedProperty='SiteName';         label='Source';        filterType='checkbox'  }
-      @{ managedProperty='Author';           label='Policy owner';  filterType='people'    }
-      @{ managedProperty='LastModifiedTime'; label='Last reviewed'; filterType='daterange' }
+      @{ managedProperty='FileType';         label='File type';     urlAlias='ft'; filterType='checkbox'  }
+      @{ managedProperty='SiteName';         label='Source';        urlAlias='si'; filterType='checkbox'  }
+      @{ managedProperty='AuthorOWSUSER';    label='Policy owner';  urlAlias='au'; filterType='people'    }
+      @{ managedProperty='LastModifiedTime'; label='Last reviewed'; urlAlias='md'; filterType='daterange' }
     )
     verticalSuggestions = @(
       @{ key='all';        label='All';        queryTemplate='{searchTerms} IsDocument:1 (FileType:pdf OR FileType:docx OR FileType:doc OR FileType:xlsx)' }
@@ -480,6 +480,7 @@ function Invoke-SearchScenarioPage {
         uniqueId       = "preset-filter-$idx"
         displayName    = $_.label
         managedProperty = $_.managedProperty
+        urlAlias       = $_.urlAlias
         filterType     = $_.filterType
         isCollapsed    = $false
         showCount      = $true

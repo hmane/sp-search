@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { ISearchStore, IFilterSlice, IActiveFilter, IRefiner, IRefinerValue } from '@interfaces/index';
+import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
 
 /**
  * Merge new refiners from a search response with existing display refiners.
@@ -106,7 +107,7 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
         (f) => f.filterName === filter.filterName
       );
 
-      if (existingIndex >= 0 && current[existingIndex].value === filter.value) {
+      if (existingIndex >= 0 && areFiltersEquivalent(current[existingIndex], filter)) {
         // Same value clicked again — toggle off
         const updated = [...current];
         updated.splice(existingIndex, 1);
@@ -123,7 +124,7 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
     } else {
       // Standard toggle behavior for non-date filters
       const existing = current.findIndex(
-        (f) => f.filterName === filter.filterName && f.value === filter.value
+        (f) => areFiltersEquivalent(f, filter)
       );
       if (existing >= 0) {
         // Already exists — remove it (toggle off)

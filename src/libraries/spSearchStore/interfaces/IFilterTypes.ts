@@ -55,6 +55,8 @@ export interface IFilterConfig {
   id: string;
   displayName: string;
   managedProperty: string;
+  /** Optional short alias used in URLs, e.g. ft, ct, au */
+  urlAlias?: string;
   filterType: FilterType;
   operator: FilterOperator;
   maxValues: number;

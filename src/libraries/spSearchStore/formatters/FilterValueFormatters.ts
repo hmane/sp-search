@@ -22,6 +22,13 @@ function stripStringWrapper(value: string): string {
   return value;
 }
 
+function stripWrappingQuotes(value: string): string {
+  if (value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
+    return value.substring(1, value.length - 1);
+  }
+  return value;
+}
+
 function encodeUrlValue(value: string): string {
   return encodeURIComponent(value);
 }
@@ -197,18 +204,18 @@ function buildNumericRangeToken(range: INumericRange): string {
  * The ǂǂ prefix indicates hex-encoded ASCII/UTF-8 characters.
  */
 function decodeRefinementToken(value: string): string {
-  const stripped = stripStringWrapper(value);
+  const stripped = stripWrappingQuotes(stripStringWrapper(value));
   // Match ǂǂ followed by hex characters
   if (stripped.indexOf('\u01C2\u01C2') === 0) {
     const hex = stripped.substring(2);
     // Validate it's all hex characters
     if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
       try {
-        const bytes: number[] = [];
+        let encoded = '';
         for (let i = 0; i < hex.length; i += 2) {
-          bytes.push(parseInt(hex.substring(i, i + 2), 16));
+          encoded += '%' + hex.substring(i, i + 2);
         }
-        return new TextDecoder().decode(new Uint8Array(bytes));
+        return decodeURIComponent(encoded);
       } catch {
         return stripped;
       }
@@ -221,7 +228,7 @@ export const DefaultFilterFormatter: IFilterValueFormatter = {
   id: 'default',
   formatForDisplay: (rawValue: string): string => decodeRefinementToken(rawValue),
   formatForQuery: (displayValue: unknown): string => String(displayValue || ''),
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
+  formatForUrl: (rawValue: string): string => encodeUrlValue(stripWrappingQuotes(decodeRefinementToken(rawValue))),
   parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
 };
 
@@ -251,7 +258,11 @@ export const TaxonomyFilterFormatter: IFilterValueFormatter = {
     const id = value?.termId || value?.id;
     return id ? 'GP0|#' + id : '';
   },
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
+  formatForUrl: (rawValue: string): string => {
+    const stripped = stripStringWrapper(rawValue);
+    const guid = extractGuid(stripped);
+    return encodeUrlValue(guid || stripped);
+  },
   parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
 };
 
@@ -273,7 +284,7 @@ export const PeopleFilterFormatter: IFilterValueFormatter = {
     }
     return '';
   },
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
+  formatForUrl: (rawValue: string): string => encodeUrlValue(extractEmailFromClaim(stripStringWrapper(rawValue))),
   parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
 };
 
@@ -299,8 +310,26 @@ export const NumericFilterFormatter: IFilterValueFormatter = {
     }
     return buildNumericRangeToken(range);
   },
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
-  parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
+  formatForUrl: (rawValue: string): string => {
+    const range = parseRangeToken(rawValue);
+    if (!range) {
+      return encodeUrlValue(stripStringWrapper(rawValue));
+    }
+    const min = range.min !== undefined ? String(range.min) : 'min';
+    const max = range.max !== undefined ? String(range.max) : 'max';
+    return encodeUrlValue(min + ':' + max);
+  },
+  parseFromUrl: (urlValue: string): string => {
+    const decoded = decodeUrlValue(urlValue);
+    const parts = decoded.split(':');
+    if (parts.length === 2) {
+      return buildNumericRangeToken({
+        min: parts[0] !== 'min' ? parseFloat(parts[0]) : undefined,
+        max: parts[1] !== 'max' ? parseFloat(parts[1]) : undefined
+      });
+    }
+    return decoded;
+  },
 };
 
 function parseDateRangePart(value: string): string | undefined {
@@ -358,8 +387,21 @@ export const DateFilterFormatter: IFilterValueFormatter = {
     }
     return '';
   },
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
-  parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
+  formatForUrl: (rawValue: string): string => {
+    const parsed = parseDateRangeToken(rawValue);
+    if (!parsed) {
+      return encodeUrlValue(stripStringWrapper(rawValue));
+    }
+    return encodeUrlValue(parsed.from.toISOString().substring(0, 10) + '..' + parsed.to.toISOString().substring(0, 10));
+  },
+  parseFromUrl: (urlValue: string): string => {
+    const decoded = decodeUrlValue(urlValue);
+    const parts = decoded.split('..');
+    if (parts.length === 2) {
+      return buildDateRangeToken(new Date(parts[0]), new Date(parts[1]));
+    }
+    return decoded;
+  },
 };
 
 export const BooleanFilterFormatter: IFilterValueFormatter = {
@@ -392,7 +434,7 @@ export const BooleanFilterFormatter: IFilterValueFormatter = {
     }
     return '';
   },
-  formatForUrl: (rawValue: string): string => encodeUrlValue(rawValue),
+  formatForUrl: (rawValue: string): string => encodeUrlValue(stripWrappingQuotes(stripStringWrapper(rawValue))),
   parseFromUrl: (urlValue: string): string => decodeUrlValue(urlValue),
 };
 

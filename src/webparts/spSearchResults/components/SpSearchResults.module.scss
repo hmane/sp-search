@@ -1899,6 +1899,54 @@
   position: relative;
 }
 
+.gridCopyToastViewport {
+  position: fixed;
+  top: 88px;
+  right: 20px;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.gridCopyToast {
+  min-width: 280px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid "[theme:themeLight, default: #c7e0f4]";
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+.gridCopyToastHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.gridCopyToastIcon {
+  color: "[theme:greenDark, default: #0b6a0b]";
+  font-size: 14px;
+}
+
+.gridCopyToastTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.gridCopyToastUrl {
+  font-size: 12px;
+  line-height: 1.35;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dataGridHostFullscreen {
   position: fixed;
   top: 88px;

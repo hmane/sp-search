@@ -1,6 +1,8 @@
 import * as React from 'react';
-import DataGrid, { Column, Scrolling, Sorting, StateStoring, Toolbar, Item, Paging, Pager } from 'devextreme-react/data-grid';
+import * as ReactDom from 'react-dom';
+import DataGrid, { Column, Scrolling, Sorting, StateStoring, Toolbar, Item, Paging, Pager, LoadPanel } from 'devextreme-react/data-grid';
 import { IconButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { Icon } from '@fluentui/react/lib/Icon';
 import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { confirm } from 'spfx-toolkit/lib/utilities/dialogService';
 import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index';
@@ -278,7 +280,7 @@ function mapDxSortToStore(property: string, sortOrder: 'asc' | 'desc' | undefine
  * search context. Scoped by context ID so multi-context pages don't share state.
  */
 function getGridPrefsKey(searchContextId: string): string {
-  return 'sp-search-grid-cols-' + searchContextId;
+  return 'sp-search-grid-v2-cols-' + searchContextId;
 }
 
 function buildColumnSignature(columns: string[]): string {
@@ -301,8 +303,22 @@ function loadGridState(searchContextId: string, currentColumnKeys: string[]): an
     const currentSignature = buildColumnSignature(currentColumnKeys);
     const allowSavedOrder = savedSignature !== '' && savedSignature === currentSignature;
 
-    return {
-      columns: parsed.columns.map((column: {
+    const allowed = new Set(currentColumnKeys.map((key) => key.toLowerCase()));
+    const seen = new Set<string>();
+    const sanitizedColumns = parsed.columns
+      .filter((column: { dataField?: string }) => {
+        const dataField = String(column.dataField || '').trim();
+        if (!dataField) {
+          return false;
+        }
+        const normalized = dataField.toLowerCase();
+        if (!allowed.has(normalized) || seen.has(normalized)) {
+          return false;
+        }
+        seen.add(normalized);
+        return true;
+      })
+      .map((column: {
         dataField?: string;
         visible?: boolean;
         width?: number | string;
@@ -311,8 +327,11 @@ function loadGridState(searchContextId: string, currentColumnKeys: string[]): an
         dataField: column.dataField,
         visible: column.visible,
         width: column.width,
-        ...(allowSavedOrder ? { visibleIndex: column.visibleIndex } : {})
-      }))
+        ...(allowSavedOrder && typeof column.visibleIndex === 'number' ? { visibleIndex: column.visibleIndex } : {})
+      }));
+
+    return {
+      columns: sanitizedColumns
     };
   } catch {
     return {};
@@ -485,6 +504,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
   const [permissionCache, setPermissionCache] = React.useState<Record<string, IItemPermissionState>>({});
   const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
+  const [copiedUrlToast, setCopiedUrlToast] = React.useState<string | undefined>(undefined);
 
   React.useEffect((): (() => void) => {
     if (!isFullscreen) {
@@ -547,24 +567,40 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     return Math.max(GRID_MIN_HEIGHT, Math.min(GRID_MAX_HEIGHT, estimated));
   }, [gridData.length, isFullscreen, useVirtualScrolling]);
 
-  React.useEffect((): void => {
+  React.useEffect((): (() => void) => {
     const permissionItems = items.filter((item) => !!getDeleteInfo(item) && !permissionCache[item.key]);
     if (permissionItems.length === 0) {
-      return;
+      return (): void => { /* noop */ };
     }
 
-    permissionItems.forEach((item) => {
-      loadItemPermissions(item)
-        .then((state): void => {
-          setPermissionCache((prev) => ({ ...prev, [item.key]: state }));
-        })
-        .catch((): void => {
-          setPermissionCache((prev) => ({
-            ...prev,
-            [item.key]: { checked: true, canEdit: false, canDelete: false }
-          }));
+    let isActive = true;
+    Promise.all(permissionItems.map(async (item) => {
+      try {
+        const state = await loadItemPermissions(item);
+        return [item.key, state] as const;
+      } catch {
+        return [item.key, { checked: true, canEdit: false, canDelete: false } satisfies IItemPermissionState] as const;
+      }
+    }))
+      .then((entries): void => {
+        if (!isActive || entries.length === 0) {
+          return;
+        }
+        setPermissionCache((prev) => {
+          const next = { ...prev };
+          for (let i: number = 0; i < entries.length; i++) {
+            next[entries[i][0]] = entries[i][1];
+          }
+          return next;
         });
-    });
+      })
+      .catch((): void => {
+        // Swallow permission prefetch failures — per-item actions degrade safely.
+      });
+
+    return (): void => {
+      isActive = false;
+    };
   }, [items, permissionCache]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -643,6 +679,20 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       }
     };
   }, []);
+
+  React.useEffect((): (() => void) | void => {
+    if (!copiedUrlToast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout((): void => {
+      setCopiedUrlToast(undefined);
+    }, 3200);
+
+    return (): void => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [copiedUrlToast]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleGridOptionChanged = React.useCallback((e: any): void => {
@@ -759,9 +809,13 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         text: 'Copy link',
         iconProps: { iconName: 'Link' },
         onClick: (): void => {
-          copyTextToClipboard(matchingItem.url).catch((): void => {
-            // Silently fail
-          });
+          copyTextToClipboard(matchingItem.url)
+            .then((): void => {
+              setCopiedUrlToast(matchingItem.url);
+            })
+            .catch((): void => {
+              // Silently fail
+            });
         }
       },
       ...(permissionState?.canDelete ? [{
@@ -963,7 +1017,6 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         width={column.width}
         minWidth={column.minWidth}
         alignment={column.alignment}
-        visibleIndex={index}
         allowHiding={column.kind !== 'title'}
         showInColumnChooser={column.kind !== 'title'}
         allowSorting={!!sortProperty}
@@ -978,6 +1031,20 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       ref={hostRef}
       className={isFullscreen ? styles.dataGridHostFullscreen : styles.dataGridHost}
     >
+      {copiedUrlToast && typeof document !== 'undefined' && ReactDom.createPortal(
+        <div className={styles.gridCopyToastViewport} role="status" aria-live="polite">
+          <div className={styles.gridCopyToast}>
+            <div className={styles.gridCopyToastHeader}>
+              <Icon iconName="StatusCircleCheckmark" className={styles.gridCopyToastIcon} />
+              <span className={styles.gridCopyToastTitle}>Link copied</span>
+            </div>
+            <div className={styles.gridCopyToastUrl} title={copiedUrlToast}>
+              {copiedUrlToast}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       <div className={styles.dataGridSurface}>
         <DataGrid
         ref={gridRef}
@@ -1004,6 +1071,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       <Paging enabled={false} />
       <Pager visible={false} />
       <Sorting mode="single" />
+      <LoadPanel enabled={false} showPane={false} />
       {/* Column preferences — persists visibility, widths, and order per search context */}
       <StateStoring
         enabled={true}
