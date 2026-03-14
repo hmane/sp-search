@@ -4,10 +4,12 @@ import { ISearchResult } from '@interfaces/index';
 import { formatFileSize, formatShortDate, stripHtml, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface ICompactLayoutProps {
   items: ISearchResult[];
+  searchContextId: string;
   compactPropertyColumns: ISelectedPropertyColumn[];
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
@@ -121,7 +123,7 @@ function renderCompactCell(item: ISearchResult, column: ICompactColumnConfig): R
 }
 
 const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
-  const { items, compactPropertyColumns, titleDisplayMode, onItemClick } = props;
+  const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick } = props;
   const columns = React.useMemo(
     (): ICompactColumnConfig[] => getCompactColumns(compactPropertyColumns),
     [compactPropertyColumns]
@@ -163,19 +165,25 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
               <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.small} />
             </div>
             <div className={styles.compactTitle} role="cell">
-              <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick} hostDisplay="block">
-                {(handleClick): React.ReactNode => (
-                  <a
-                    href={linkProps.href}
-                    target={linkProps.target}
-                    rel={linkProps.rel}
-                    className={titleDisplayMode === 'wrap' ? styles.compactTitleLinkWrap : undefined}
-                    onClick={handleClick}
-                  >
-                    {formatTitleText(item.title, titleDisplayMode)}
-                  </a>
-                )}
-              </DocumentTitleHoverCard>
+              <div className={styles.compactTitleInner}>
+                <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick} hostDisplay="block">
+                  {(handleClick): React.ReactNode => (
+                    <a
+                      href={linkProps.href}
+                      target={linkProps.target}
+                      rel={linkProps.rel}
+                      className={titleDisplayMode === 'wrap' ? styles.compactTitleLinkWrap : undefined}
+                      onClick={handleClick}
+                    >
+                      {formatTitleText(item.title, titleDisplayMode)}
+                    </a>
+                  )}
+                </DocumentTitleHoverCard>
+                <AddToCollectionButton
+                  item={item}
+                  searchContextId={searchContextId}
+                />
+              </div>
             </div>
             {columns.map((column) => (
               <div

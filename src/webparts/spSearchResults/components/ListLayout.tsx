@@ -7,16 +7,18 @@ const UserPersona: any = _UserPersona;
 import { ISearchResult } from '@interfaces/index';
 import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, sanitizeSummaryHtml, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
+import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface IListLayoutProps {
   items: ISearchResult[];
+  searchContextId: string;
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, titleDisplayMode, onItemClick } = props;
+  const { items, searchContextId, titleDisplayMode, onItemClick } = props;
 
   return (
     <ul className={styles.resultList} role="list">
@@ -33,24 +35,32 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
 
             <div className={styles.resultBody}>
               <h3 className={styles.resultTitle}>
-                <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick}>
-                  {(handleClick): React.ReactNode => (
-                    <a
-                      href={linkProps.href}
-                      target={linkProps.target}
-                      rel={linkProps.rel}
-                      className={titleDisplayMode === 'wrap' ? styles.resultTitleLinkWrap : styles.resultTitleLink}
-                      onClick={handleClick}
-                    >
-                      {formatTitleText(item.title, titleDisplayMode)}
-                    </a>
-                  )}
-                </DocumentTitleHoverCard>
-                {item.fileType && (
-                  <span className={styles.resultFileTypeBadge}>
-                    {item.fileType.toUpperCase()}
-                  </span>
-                )}
+                <div className={styles.resultTitleRow}>
+                  <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick}>
+                    {(handleClick): React.ReactNode => (
+                      <a
+                        href={linkProps.href}
+                        target={linkProps.target}
+                        rel={linkProps.rel}
+                        className={titleDisplayMode === 'wrap' ? styles.resultTitleLinkWrap : styles.resultTitleLink}
+                        onClick={handleClick}
+                      >
+                        {formatTitleText(item.title, titleDisplayMode)}
+                      </a>
+                    )}
+                  </DocumentTitleHoverCard>
+                  <div className={styles.resultTitleActions}>
+                    <AddToCollectionButton
+                      item={item}
+                      searchContextId={searchContextId}
+                    />
+                    {item.fileType && (
+                      <span className={styles.resultFileTypeBadge}>
+                        {item.fileType.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </h3>
               <p className={styles.resultUrl}>{formatUrlBreadcrumb(item.url)}</p>
               {item.summary && (

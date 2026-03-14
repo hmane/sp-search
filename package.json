@@ -11,6 +11,7 @@
     "*.css",
     "**/node_modules/@pnp/**",
     "**/node_modules/spfx-toolkit/lib/utilities/context/pnpImports/**",
+    "**/node_modules/spfx-toolkit/esm/utilities/context/pnpImports/**",
     "**/node_modules/devextreme/dist/css/**"
   ],
   "scripts": {
@@ -19,7 +20,7 @@
     "debug": "gulp clean && gulp bundle && gulp package-solution",
     "release": "gulp clean && gulp bundle --ship && gulp package-solution --ship",
     "clean": "gulp clean && gulp clean-cache",
-    "stats": "gulp bundle --ship && gulp analyze-bundle",
+    "stats": "ANALYZE=1 gulp bundle --ship && gulp analyze-bundle",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

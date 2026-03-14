@@ -81,25 +81,35 @@ export class TrendingQueryProvider implements ISuggestionProvider {
 
       // CRITICAL: Always filter by Author first to avoid list view threshold (>5000 items).
       // SearchHistory is indexed on Author — filtering by current user prevents throttling.
-      const items = await SPContext.sp.web.lists.getByTitle('SearchHistory').items
-        .select('QueryText')
-        .filter('Author eq ' + SPContext.currentUser.id + ' and Created ge datetime\'' + isoDate + '\'')
-        .top(500)
-        ();
+      let items: Array<{ QueryText?: string; UseCount?: number }> = [];
+      try {
+        items = await SPContext.sp.web.lists.getByTitle('SearchHistory').items
+          .select('QueryText', 'UseCount')
+          .filter('Author eq ' + SPContext.currentUser.id + ' and SearchTimestamp ge datetime\'' + isoDate + '\'')
+          .top(500)
+          ();
+      } catch {
+        items = await SPContext.sp.web.lists.getByTitle('SearchHistory').items
+          .select('QueryText')
+          .filter('Author eq ' + SPContext.currentUser.id + ' and SearchTimestamp ge datetime\'' + isoDate + '\'')
+          .top(500)
+          ();
+      }
 
       // Aggregate by query text (case-insensitive)
       const countMap: Map<string, { text: string; count: number }> = new Map();
       for (let i = 0; i < items.length; i++) {
-        const text: string = items[i].QueryText;
+        const text = (items[i].QueryText || '').trim();
         if (!text || text.trim().length === 0) {
           continue;
         }
-        const key = text.toLowerCase().trim();
+        const key = text.toLowerCase();
+        const increment = Math.max(1, Number(items[i].UseCount || 1));
         const existing = countMap.get(key);
         if (existing) {
-          existing.count++;
+          existing.count += increment;
         } else {
-          countMap.set(key, { text: text.trim(), count: 1 });
+          countMap.set(key, { text, count: increment });
         }
       }
 

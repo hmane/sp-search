@@ -14,6 +14,7 @@ import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
 import Pagination from './Pagination';
+import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridContentProps {
@@ -871,19 +872,26 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
                   e.stopPropagation();
                   handleClick(e);
                 }}
-              >
+                >
                 {title}
               </a>
-              <IconButton
-                iconProps={{ iconName: 'MoreVertical' }}
-                title="More actions"
-                ariaLabel="More actions"
-                menuProps={{ items: menuItems }}
-                className={styles.gridTitleActionButton}
-                onClick={(event): void => {
-                  event.stopPropagation();
-                }}
-              />
+              <div className={styles.gridTitleActions}>
+                <AddToCollectionButton
+                  item={matchingItem}
+                  searchContextId={searchContextId}
+                  buttonClassName={styles.gridTitleActionButton}
+                />
+                <IconButton
+                  iconProps={{ iconName: 'MoreVertical' }}
+                  title="More actions"
+                  ariaLabel="More actions"
+                  menuProps={{ items: menuItems }}
+                  className={styles.gridTitleActionButton}
+                  onClick={(event): void => {
+                    event.stopPropagation();
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

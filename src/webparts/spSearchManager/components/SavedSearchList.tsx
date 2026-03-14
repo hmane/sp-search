@@ -19,6 +19,7 @@ export interface ISavedSearchListProps {
   service: SearchManagerService;
   savedSearches: ISavedSearch[];
   onDataChanged: () => void;
+  allowSharing: boolean;
   onShare: (search: ISavedSearch) => void;
   onSearchLoaded?: () => void;
 }
@@ -105,7 +106,7 @@ function getFilterSummary(search: ISavedSearch): string | undefined {
  * confirmation, and share action.
  */
 const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
-  const { store, service, savedSearches, onDataChanged, onShare, onSearchLoaded } = props;
+  const { store, service, savedSearches, onDataChanged, allowSharing, onShare, onSearchLoaded } = props;
 
   // ─── Local state ──────────────────────────────────────────
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
@@ -299,7 +300,7 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
         </div>
         <h3 className={styles.emptyTitle}>No saved searches</h3>
         <p className={styles.emptyDescription}>
-          Save your current search to quickly access it later. Use the Save button above to get started.
+          Save your current search setup to reuse the same query, filters, and vertical later. Collections are for saving result items, not the search itself.
         </p>
       </div>
     );
@@ -311,6 +312,9 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
 
   return (
     <div className={styles.savedSearchList}>
+      <div className={styles.sectionIntro}>
+        <strong>Saved searches keep your search setup.</strong> Save the query, filters, and vertical so you can rerun the same search later or share that setup with someone else.
+      </div>
       {categoryKeys.map(function (category): React.ReactElement {
         const items = grouped[category];
         const isExpanded = expandedCategories[category] !== false;
@@ -417,14 +421,16 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
                               handleStartRename(search, e as unknown as React.MouseEvent);
                             }}
                           />
-                          <IconButton
-                            iconProps={{ iconName: 'Share' }}
-                            title="Share"
-                            ariaLabel={'Share ' + search.title}
-                            onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
-                              handleShareClick(search, e as unknown as React.MouseEvent);
-                            }}
-                          />
+                          {allowSharing && (
+                            <IconButton
+                              iconProps={{ iconName: 'Share' }}
+                              title="Share"
+                              ariaLabel={'Share ' + search.title}
+                              onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
+                                handleShareClick(search, e as unknown as React.MouseEvent);
+                              }}
+                            />
+                          )}
                           <IconButton
                             iconProps={{ iconName: 'Delete' }}
                             title="Delete"

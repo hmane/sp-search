@@ -14,6 +14,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
+import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
@@ -40,6 +41,7 @@ import { TitleDisplayMode } from './components/documentTitleUtils';
 require('devextreme/dist/css/dx.common.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('devextreme/dist/css/dx.light.css');
+void spfxToolkitStylesLoaded;
 
 export interface ISpSearchResultsWebPartProps {
   searchContextId: string;

@@ -49,6 +49,14 @@
           "manifest": "./src/webparts/spSearchManager/SpSearchManagerWebPart.manifest.json"
         }
       ]
+    },
+    "sp-search-admin-manager-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/spSearchAdminManager/SpSearchAdminManagerWebPart.js",
+          "manifest": "./src/webparts/spSearchAdminManager/SpSearchAdminManagerWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},

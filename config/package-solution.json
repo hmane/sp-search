@@ -3,7 +3,7 @@
   "solution": {
     "name": "sp-search-client-side-solution",
     "id": "45db56d4-82af-4e61-b722-3b4766320c68",
-    "version": "1.0.12.0",
+    "version": "1.0.13.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -30,7 +30,7 @@
         "title": "SP Search",
         "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, and Search Manager web parts with shared Zustand store.",
         "id": "8051ab65-8eae-4408-b5ad-b61c9e6a0baf",
-        "version": "1.0.5.0"
+        "version": "1.0.6.0"
       }
     ]
   },

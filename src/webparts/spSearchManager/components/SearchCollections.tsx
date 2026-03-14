@@ -9,9 +9,13 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import {
   ISearchCollection,
   ICollectionItem,
-  ISearchStore
+  ISearchStore,
+  ISearchResult,
+  IPersonaInfo
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { buildDownloadUrl, normalizeUrl } from '@providers/actions/actionUtils';
+import { buildBrowserOpenUrl, buildFormUrl } from '@webparts/spSearchResults/components/documentTitleUtils';
 import TagBadges from './TagBadges';
 import ResultAnnotations from './ResultAnnotations';
 import styles from './SpSearchManager.module.scss';
@@ -20,6 +24,7 @@ export interface ISearchCollectionsProps {
   store: StoreApi<ISearchStore>;
   service: SearchManagerService;
   collections: ISearchCollection[];
+  enableAnnotations: boolean;
   onDataChanged: () => void;
 }
 
@@ -30,7 +35,7 @@ export interface ISearchCollectionsProps {
  * editing per-item tags, and filtering collections by tag.
  */
 const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
-  const { store, service, collections, onDataChanged } = props;
+  const { store, service, collections, enableAnnotations, onDataChanged } = props;
 
   // ─── Local state ──────────────────────────────────────────
   const [expandedCollections, setExpandedCollections] = React.useState<Record<string, boolean>>({});
@@ -193,6 +198,15 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
     }
   }
 
+  function handleOpenAction(url: string, event: React.MouseEvent<HTMLElement>): void {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!url) {
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   // ─── Empty state ──────────────────────────────────────────
   if (!collections || collections.length === 0) {
     return (
@@ -211,7 +225,7 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
           </div>
           <h3 className={styles.emptyTitle}>No collections</h3>
           <p className={styles.emptyDescription}>
-            Create a collection to organize and pin important search results for quick access.
+            Collections save the results you want to keep. Add selected results from the results toolbar or create a collection here to start organizing them.
           </p>
         </div>
 
@@ -254,6 +268,9 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
 
   return (
     <div>
+      <div className={styles.sectionIntro}>
+        <strong>Collections keep the results you found.</strong> Add selected documents and links from the results list into named collections for later review or sharing.
+      </div>
       {/* Toolbar */}
       <div className={styles.collectionToolbar}>
         {allTags.length > 0 && (
@@ -336,20 +353,65 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
                     </div>
                   )}
                   {pinnedItems.map(function (item, idx): React.ReactElement {
+                    const actionTargets = buildCollectionActionTargets(item);
                     return (
                       <div key={item.url + '-' + String(idx)}>
                         <div className={styles.collectionPinnedItem}>
                           <div className={styles.pinnedItemIcon}>
                             <Icon iconName="Pin" />
                           </div>
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.pinnedItemTitle}
-                          >
-                            {item.title || item.url}
-                          </a>
+                          <div className={styles.pinnedItemBody}>
+                            <a
+                              href={actionTargets.openUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.pinnedItemTitle}
+                            >
+                              {item.title || item.url}
+                            </a>
+                            <div className={styles.pinnedItemActionLinks}>
+                              <button
+                                type="button"
+                                className={styles.pinnedItemActionLink}
+                                onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
+                                  handleOpenAction(actionTargets.browserUrl, e);
+                                }}
+                                disabled={!actionTargets.browserUrl}
+                              >
+                                Open in Browser
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.pinnedItemActionLink}
+                                onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
+                                  handleOpenAction(actionTargets.downloadUrl, e);
+                                }}
+                                disabled={!actionTargets.downloadUrl}
+                              >
+                                Download
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.pinnedItemActionLink}
+                                onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
+                                  handleOpenAction(actionTargets.viewUrl, e);
+                                }}
+                                disabled={!actionTargets.viewUrl}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.pinnedItemActionLink}
+                                onClick={function (e: React.MouseEvent<HTMLButtonElement>): void {
+                                  handleOpenAction(actionTargets.editUrl, e);
+                                }}
+                                disabled={!actionTargets.editUrl}
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          </div>
                           <div className={styles.pinnedItemActions}>
                             <IconButton
                               iconProps={{ iconName: 'Unpin' }}
@@ -361,11 +423,13 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
                             />
                           </div>
                         </div>
-                        <ResultAnnotations
-                          itemId={item.id}
-                          tags={item.tags}
-                          onTagsChanged={handleTagsChanged}
-                        />
+                        {enableAnnotations && (
+                          <ResultAnnotations
+                            itemId={item.id}
+                            tags={item.tags}
+                            onTagsChanged={handleTagsChanged}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -443,5 +507,61 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
     </div>
   );
 };
+
+function buildCollectionActionTargets(item: ICollectionItem): {
+  openUrl: string;
+  browserUrl: string;
+  downloadUrl: string;
+  viewUrl: string;
+  editUrl: string;
+} {
+  const normalizedUrl = normalizeUrl(item.url);
+  const searchItem = mapCollectionItemToSearchResult(item);
+  const browserUrl = normalizedUrl ? buildBrowserOpenUrl(searchItem) : '';
+  const downloadUrl = normalizedUrl ? buildDownloadUrl(normalizedUrl) : '';
+  const viewUrl = buildFormUrl(searchItem, 4) || '';
+  const editUrl = buildFormUrl(searchItem, 6) || '';
+
+  return {
+    openUrl: normalizedUrl || '#',
+    browserUrl,
+    downloadUrl,
+    viewUrl,
+    editUrl
+  };
+}
+
+function mapCollectionItemToSearchResult(item: ICollectionItem): ISearchResult {
+  const metadata = item.metadata || {};
+  const authorValue = metadata.Author || metadata.DisplayAuthor || '';
+  const authorDisplayText = typeof authorValue === 'string' ? authorValue : '';
+  const authorEmail = typeof metadata.AuthorOWSUSER === 'string' ? metadata.AuthorOWSUSER : '';
+  const author: IPersonaInfo = {
+    displayText: authorDisplayText,
+    email: authorEmail
+  };
+
+  return {
+    key: String(item.id),
+    title: item.title || item.url,
+    url: item.url,
+    summary: '',
+    author,
+    created: typeof metadata.Created === 'string' ? metadata.Created : '',
+    modified: typeof metadata.LastModifiedTime === 'string'
+      ? metadata.LastModifiedTime
+      : (typeof metadata.Modified === 'string' ? metadata.Modified : ''),
+    fileType: typeof metadata.FileType === 'string'
+      ? metadata.FileType
+      : (typeof metadata.FileExtension === 'string' ? metadata.FileExtension : ''),
+    fileSize: typeof metadata.Size === 'number' ? metadata.Size : 0,
+    siteName: typeof metadata.SiteTitle === 'string'
+      ? metadata.SiteTitle
+      : (typeof metadata.SiteName === 'string' ? metadata.SiteName : ''),
+    siteUrl: typeof metadata.SPSiteURL === 'string' ? metadata.SPSiteURL : '',
+    thumbnailUrl: typeof metadata.PictureThumbnailURL === 'string' ? metadata.PictureThumbnailURL : '',
+    properties: metadata
+  };
+}
 
 export default SearchCollections;

@@ -78,10 +78,12 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
         scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
         activeLayoutKey?: string;
       } = JSON.parse(entry.searchState || '{}');
+      const hasSavedQueryText = Object.prototype.hasOwnProperty.call(savedState, 'queryText');
+      const restoredQueryText = hasSavedQueryText ? (savedState.queryText || '') : '';
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const update: Record<string, any> = {
-        queryText: savedState.queryText || entry.queryText,
+        queryText: restoredQueryText,
         activeFilters: savedState.activeFilters || [],
         currentPage: 1,
       };
@@ -198,6 +200,14 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
                     <span>{entry.vertical}</span>
                   )}
                   {entry.vertical && <span className={styles.metaDot} />}
+                  {entry.useCount > 1 && (
+                    <>
+                      <span className={styles.historyCountBadge}>
+                        Used {String(entry.useCount)} times
+                      </span>
+                      <span className={styles.metaDot} />
+                    </>
+                  )}
                   <span>{String(entry.resultCount) + ' results'}</span>
                 </div>
               </div>

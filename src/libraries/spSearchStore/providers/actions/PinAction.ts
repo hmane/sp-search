@@ -3,8 +3,8 @@ import { getManagerService } from '@store/store';
 
 export class PinAction implements IActionProvider {
   public readonly id: string = 'pin';
-  public readonly label: string = 'Pin';
-  public readonly iconName: string = 'Pin';
+  public readonly label: string = 'Add to Collection';
+  public readonly iconName: string = 'FabricFolder';
   public readonly position: 'toolbar' | 'contextMenu' | 'both' = 'toolbar';
   public readonly isBulkEnabled: boolean = true;
 
@@ -17,7 +17,7 @@ export class PinAction implements IActionProvider {
       return;
     }
 
-    const collectionName = window.prompt('Pin to collection', 'Favorites');
+    const collectionName = window.prompt('Add to collection', 'Favorites');
     if (!collectionName || !collectionName.trim()) {
       return;
     }

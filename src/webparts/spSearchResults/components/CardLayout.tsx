@@ -10,10 +10,12 @@ import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/
 import { ISearchResult } from '@interfaces/index';
 import { formatRelativeDate, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
+import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface ICardLayoutProps {
   items: ISearchResult[];
+  searchContextId: string;
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
@@ -47,11 +49,12 @@ const FileTypeIconPreview: React.FC<{ url: string }> = (iconProps) => {
 const CardItem: React.FC<{
   item: ISearchResult;
   position: number;
+  searchContextId: string;
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
 }> = (cardItemProps) => {
-  const { item, position, titleDisplayMode, onItemClick } = cardItemProps;
+  const { item, position, searchContextId, titleDisplayMode, onItemClick } = cardItemProps;
   const linkProps = getResultAnchorProps(item);
 
   // Build activity string (modified date + file type)
@@ -98,19 +101,25 @@ const CardItem: React.FC<{
 
         {/* Document title with HoverCard */}
         <div className={styles.docCardTitleWrapper} title={item.title}>
-          <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick} hostDisplay="block">
-            {(handleClick): React.ReactNode => (
-              <a
-                href={linkProps.href}
-                target={linkProps.target}
-                rel={linkProps.rel}
-                className={styles.docCardTitleLink}
-                onClick={handleClick}
-              >
-                {formatTitleText(item.title, titleDisplayMode)}
-              </a>
-            )}
-          </DocumentTitleHoverCard>
+          <div className={styles.docCardTitleBar}>
+            <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick} hostDisplay="block">
+              {(handleClick): React.ReactNode => (
+                <a
+                  href={linkProps.href}
+                  target={linkProps.target}
+                  rel={linkProps.rel}
+                  className={styles.docCardTitleLink}
+                  onClick={handleClick}
+                >
+                  {formatTitleText(item.title, titleDisplayMode)}
+                </a>
+              )}
+            </DocumentTitleHoverCard>
+            <AddToCollectionButton
+              item={item}
+              searchContextId={searchContextId}
+            />
+          </div>
         </div>
 
         {/* Activity: author persona + modified date */}
@@ -136,7 +145,7 @@ const CardItem: React.FC<{
  *  - Mobile (< 640px): 1 column
  */
 const CardLayout: React.FC<ICardLayoutProps> = (props) => {
-  const { items, titleDisplayMode, onPreviewItem, onItemClick } = props;
+  const { items, searchContextId, titleDisplayMode, onPreviewItem, onItemClick } = props;
 
   return (
     <div className={styles.cardGrid} role="list">
@@ -145,6 +154,7 @@ const CardLayout: React.FC<ICardLayoutProps> = (props) => {
           key={item.key}
           item={item}
           position={index + 1}
+          searchContextId={searchContextId}
           titleDisplayMode={titleDisplayMode}
           onPreviewItem={onPreviewItem}
           onItemClick={onItemClick}

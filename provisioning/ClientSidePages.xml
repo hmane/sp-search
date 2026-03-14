@@ -33,7 +33,7 @@
                              ControlId="13a82dbe-2c57-4e20-bfe8-ec4de5776191"
                              Order="1"
                              Column="1"
-            JsonControlData="{&quot;id&quot;:&quot;13a82dbe-2c57-4e20-bfe8-ec4de5776191&quot;,&quot;instanceId&quot;:&quot;a1000001-sp00-srch-b0x0-000000000001&quot;,&quot;title&quot;:&quot;SP Search Box&quot;,&quot;description&quot;:&quot;Enterprise search input with suggestions and scope selector&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;placeholder&quot;:&quot;Search SharePoint...&quot;,&quot;debounceMs&quot;:300,&quot;searchBehavior&quot;:&quot;both&quot;,&quot;enableScopeSelector&quot;:true,&quot;enableSuggestions&quot;:true,&quot;enableSearchManager&quot;:false,&quot;enableQueryBuilder&quot;:false},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
+            JsonControlData="{&quot;id&quot;:&quot;13a82dbe-2c57-4e20-bfe8-ec4de5776191&quot;,&quot;instanceId&quot;:&quot;a1000001-sp00-srch-b0x0-000000000001&quot;,&quot;title&quot;:&quot;SP Search Box&quot;,&quot;description&quot;:&quot;Enterprise search input with suggestions and scope selector&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;placeholder&quot;:&quot;Search SharePoint...&quot;,&quot;debounceMs&quot;:300,&quot;searchBehavior&quot;:&quot;both&quot;,&quot;enableScopeSelector&quot;:true,&quot;enableSuggestions&quot;:true,&quot;enableSearchManager&quot;:true,&quot;enableQueryBuilder&quot;:false},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
         </pnp:Controls>
       </pnp:Section>
 
@@ -66,6 +66,17 @@
                              Column="2"
             JsonControlData="{&quot;id&quot;:&quot;2eb68250-879f-45a8-af9b-9fc3e97b2050&quot;,&quot;instanceId&quot;:&quot;a1000004-sp00-srch-flt0-000000000004&quot;,&quot;title&quot;:&quot;SP Search Filters&quot;,&quot;description&quot;:&quot;Refinement filters for search results&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;applyMode&quot;:&quot;instant&quot;,&quot;operatorBetweenFilters&quot;:&quot;AND&quot;,&quot;showClearAll&quot;:true,&quot;enableVisualFilterBuilder&quot;:false},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
 
+        </pnp:Controls>
+      </pnp:Section>
+
+      <!-- ═══ Section 4: Full Width — Admin Search Manager ═══ -->
+      <pnp:Section Order="4" Type="OneColumn">
+        <pnp:Controls>
+          <pnp:CanvasControl WebPartType="Custom"
+                             ControlId="17007020-148e-49b8-a628-972fa08139c6"
+                             Order="1"
+                             Column="1"
+            JsonControlData="{&quot;id&quot;:&quot;17007020-148e-49b8-a628-972fa08139c6&quot;,&quot;instanceId&quot;:&quot;a1000005-sp00-srch-admn-000000000005&quot;,&quot;title&quot;:&quot;SP Search Admin Manager&quot;,&quot;description&quot;:&quot;Admin diagnostics for search coverage, health, and insights&quot;,&quot;dataVersion&quot;:&quot;1.0&quot;,&quot;properties&quot;:{&quot;searchContextId&quot;:&quot;default&quot;,&quot;mode&quot;:&quot;standalone&quot;,&quot;defaultTab&quot;:&quot;coverage&quot;,&quot;enableCoverage&quot;:true,&quot;coverageProfilesCollection&quot;:[],&quot;enableHealth&quot;:true,&quot;enableInsights&quot;:true},&quot;serverProcessedContent&quot;:{&quot;htmlStrings&quot;:{},&quot;searchablePlainTexts&quot;:{},&quot;imageSources&quot;:{},&quot;links&quot;:{}},&quot;dynamicDataPaths&quot;:{},&quot;dynamicDataValues&quot;:{}}" />
         </pnp:Controls>
       </pnp:Section>
 

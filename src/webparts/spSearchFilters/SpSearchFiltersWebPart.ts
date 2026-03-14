@@ -10,6 +10,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import type { StoreApi } from 'zustand/vanilla';
+import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 
@@ -28,6 +29,7 @@ import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 require('devextreme/dist/css/dx.common.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('devextreme/dist/css/dx.light.css');
+void spfxToolkitStylesLoaded;
 
 export interface ISpSearchFiltersWebPartProps {
   searchContextId: string;

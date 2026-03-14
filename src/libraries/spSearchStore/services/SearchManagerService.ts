@@ -140,6 +140,7 @@ function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
     vertical: ext.string('Vertical', ''),
     scope: ext.string('Scope', ''),
     searchState: ext.string('SearchState', '{}'),
+    useCount: Math.max(1, ext.number('UseCount', 1)),
     resultCount: ext.number('ResultCount', 0),
     isZeroResult: ext.boolean('IsZeroResult', false),
     clickedItems,
@@ -289,6 +290,7 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
 export class SearchManagerService {
   private _currentUserId: number = 0;
   private _initFailed: boolean = false;
+  private _historySupportsUseCount: boolean = false;
 
   /**
    * Initialize the service by resolving the current user ID.
@@ -310,6 +312,7 @@ export class SearchManagerService {
         this._initFailed = true;
         SPContext.logger.warn('SearchManagerService: Current user ID resolved to 0');
       } else {
+        this._historySupportsUseCount = await this._detectHistoryUseCountField();
         SPContext.logger.info('SearchManagerService: Initialized', { userId: this._currentUserId });
         this._maybeAutoCleanupHistory().catch(function noop(): void { /* non-critical */ });
       }
@@ -326,6 +329,18 @@ export class SearchManagerService {
    */
   public get isReady(): boolean {
     return this._currentUserId > 0 && !this._initFailed;
+  }
+
+  private async _detectHistoryUseCountField(): Promise<boolean> {
+    try {
+      await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
+        .fields
+        .getByInternalNameOrTitle('UseCount')
+        .select('InternalName')();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ─── Saved Searches ────────────────────────────────────────
@@ -557,6 +572,7 @@ export class SearchManagerService {
             <FieldRef Name="Vertical" />
             <FieldRef Name="Scope" />
             <FieldRef Name="SearchState" />
+            ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
             <FieldRef Name="IsZeroResult" />
             <FieldRef Name="ClickedItems" />
@@ -579,7 +595,7 @@ export class SearchManagerService {
 
   /**
    * Log a search to the history list (async, non-blocking).
-   * Uses full state hash for deduplication.
+   * Uses full state hash for deduplication and increments UseCount when available.
    *
    * @returns The history entry ID (for click tracking)
    */
@@ -618,6 +634,7 @@ export class SearchManagerService {
           <RowLimit>1</RowLimit>
           <ViewFields>
             <FieldRef Name="Id" />
+            ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
           </ViewFields>
         </View>
       `;
@@ -626,14 +643,21 @@ export class SearchManagerService {
         .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
       if (existing && existing.length > 0) {
-        const existingId = (existing[0] as Record<string, unknown>).Id as number;
+        const existingItem = existing[0] as Record<string, unknown>;
+        const existingId = existingItem.Id as number;
         const updatePayload: Record<string, unknown> = {
           Title: historyTitle,
           QueryText: queryText,
+          Vertical: vertical,
+          Scope: scope,
+          SearchState: searchState,
           ResultCount: resultCount,
           IsZeroResult: isZeroResult === true,
           SearchTimestamp: new Date().toISOString(),
         };
+        if (this._historySupportsUseCount) {
+          updatePayload.UseCount = Math.max(1, Number(existingItem.UseCount || 1)) + 1;
+        }
         await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
           .items.getById(existingId).update(updatePayload);
         return existingId;
@@ -649,6 +673,9 @@ export class SearchManagerService {
           IsZeroResult: isZeroResult === true,
           SearchTimestamp: new Date().toISOString(),
         };
+        if (this._historySupportsUseCount) {
+          addPayload.UseCount = 1;
+        }
         const result = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
           .items.add(addPayload);
         const addedItem = (result as { data?: Record<string, unknown> }).data || result;
@@ -1324,6 +1351,7 @@ export class SearchManagerService {
             <FieldRef Name="Vertical" />
             <FieldRef Name="Scope" />
             <FieldRef Name="SearchState" />
+            ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
             <FieldRef Name="IsZeroResult" />
             <FieldRef Name="SearchTimestamp" />
@@ -1343,7 +1371,7 @@ export class SearchManagerService {
   }
 
   /**
-   * Load all search history events within a date window across ALL users.
+   * Load search history rows within a date window across ALL users.
    * Used by the Insights panel to compute aggregate metrics client-side.
    *
    * Uses SearchTimestamp as the first (indexed) predicate — safe above 5k items.
@@ -1382,6 +1410,7 @@ export class SearchManagerService {
             <FieldRef Name="Id" />
             <FieldRef Name="Title" />
             <FieldRef Name="Vertical" />
+            ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
             <FieldRef Name="IsZeroResult" />
             <FieldRef Name="ClickedItems" />

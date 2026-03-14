@@ -18,6 +18,7 @@ export interface IShareSearchDialogProps {
   onDismiss: () => void;
   service?: SearchManagerService;
   context?: WebPartContext;
+  enableUserSharing?: boolean;
   onShareComplete?: () => void;
 }
 
@@ -26,7 +27,8 @@ export interface IShareSearchDialogProps {
  * Tabs: Copy Link, Email, Teams, Share to Users
  */
 const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearchDialog(props) {
-  const { isOpen, search, onDismiss, service, context, onShareComplete } = props;
+  const { isOpen, search, onDismiss, service, context, enableUserSharing, onShareComplete } = props;
+  const canShareToUsers = enableUserSharing !== false && !!context && !!service && !!search && search.id > 0;
 
   // ─── Local state ──────────────────────────────────────────
   const [copied, setCopied] = React.useState<boolean>(false);
@@ -274,70 +276,71 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
             </div>
           </PivotItem>
 
-          {/* ── Share to Users tab ──────────────────────── */}
-          <PivotItem headerText="Users" itemIcon="People">
-            <div className={styles.shareUserContainer}>
-              {shareSuccess && (
-                <MessageBar
-                  messageBarType={MessageBarType.success}
-                  onDismiss={function (): void { setShareSuccess(false); }}
-                  dismissButtonAriaLabel="Close"
-                >
-                  Search shared successfully
-                </MessageBar>
-              )}
+          {enableUserSharing !== false && (
+            <PivotItem headerText="Users" itemIcon="People">
+              <div className={styles.shareUserContainer}>
+                {shareSuccess && (
+                  <MessageBar
+                    messageBarType={MessageBarType.success}
+                    onDismiss={function (): void { setShareSuccess(false); }}
+                    dismissButtonAriaLabel="Close"
+                  >
+                    Search shared successfully
+                  </MessageBar>
+                )}
 
-              {shareError && (
-                <MessageBar
-                  messageBarType={MessageBarType.error}
-                  onDismiss={function (): void { setShareError(undefined); }}
-                  dismissButtonAriaLabel="Close"
-                >
-                  {shareError}
-                </MessageBar>
-              )}
+                {shareError && (
+                  <MessageBar
+                    messageBarType={MessageBarType.error}
+                    onDismiss={function (): void { setShareError(undefined); }}
+                    dismissButtonAriaLabel="Close"
+                  >
+                    {shareError}
+                  </MessageBar>
+                )}
 
-              {context && service ? (
-                <>
-                  <p style={{ fontSize: '13px', color: '#323130', margin: '0 0 12px 0' }}>
-                    Share this search with specific people. They will see it in their Shared Searches tab.
-                  </p>
+                {canShareToUsers ? (
+                  <>
+                    <p style={{ fontSize: '13px', color: '#323130', margin: '0 0 12px 0' }}>
+                      Share this search with specific people. They will see it in their Shared Searches tab.
+                    </p>
 
-                  <PeoplePicker
-                    context={context as never}
-                    titleText="Select people"
-                    personSelectionLimit={10}
-                    showtooltip={true}
-                    required={false}
-                    onChange={handlePeopleChanged}
-                    principalTypes={[PrincipalType.User]}
-                    resolveDelay={300}
-                  />
+                    <PeoplePicker
+                      context={context as never}
+                      titleText="Select people"
+                      personSelectionLimit={10}
+                      showtooltip={true}
+                      required={false}
+                      onChange={handlePeopleChanged}
+                      principalTypes={[PrincipalType.User]}
+                      resolveDelay={300}
+                    />
 
-                  <div style={{ marginTop: '16px' }}>
-                    {isSharing ? (
-                      <Spinner size={SpinnerSize.small} label="Sharing..." />
-                    ) : (
-                      <PrimaryButton
-                        iconProps={{ iconName: 'Share' }}
-                        text="Share"
-                        onClick={handleShareToUsers}
-                        disabled={selectedUsers.length === 0}
-                      />
-                    )}
+                    <div style={{ marginTop: '16px' }}>
+                      {isSharing ? (
+                        <Spinner size={SpinnerSize.small} label="Sharing..." />
+                      ) : (
+                        <PrimaryButton
+                          iconProps={{ iconName: 'Share' }}
+                          text="Share"
+                          onClick={handleShareToUsers}
+                          disabled={selectedUsers.length === 0}
+                        />
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.shareUserPlaceholder}>
+                    <Icon iconName="People" className={styles.shareUserPlaceholderIcon} />
+                    <p>
+                      People-based sharing requires a saved search with SharePoint sharing enabled.
+                      Use the Copy Link tab to share the current search URL directly.
+                    </p>
                   </div>
-                </>
-              ) : (
-                <div className={styles.shareUserPlaceholder}>
-                  <Icon iconName="People" className={styles.shareUserPlaceholderIcon} />
-                  <p>
-                    People-based sharing requires additional configuration.
-                    Use the Copy Link tab to share the search URL directly.
-                  </p>
-                </div>
-              )}
-            </div>
-          </PivotItem>
+                )}
+              </div>
+            </PivotItem>
+          )}
         </Pivot>
       </div>
 

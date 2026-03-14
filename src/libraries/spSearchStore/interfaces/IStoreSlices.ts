@@ -198,6 +198,7 @@ export interface ISearchHistoryEntry {
   scope: string;
   /** JSON-serialized full search state for restore */
   searchState: string;
+  useCount: number;
   resultCount: number;
   isZeroResult?: boolean;
   clickedItems: IClickedItem[];

@@ -5,7 +5,7 @@ import { DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
-import { LazyVersionHistory as _LazyVersionHistory } from 'spfx-toolkit/lib/components/lazy';
+import { LazyVersionHistory as _LazyVersionHistory } from './LazyVersionHistory';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VersionHistory: any = _LazyVersionHistory;
 import { ISearchResult } from '@interfaces/index';

@@ -44,6 +44,21 @@
   padding: 0;
 }
 
+.sectionIntro {
+  margin: 0 0 14px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  font-size: 13px;
+  line-height: 20px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+
+  strong {
+    color: "[theme:bodyText, default: #323130]";
+  }
+}
+
 .categoryGroup {
   margin-bottom: 12px;
 }
@@ -273,10 +288,24 @@
 .historyMeta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 2px;
   font-size: 12px;
   color: "[theme:bodySubtext, default: #605e5c]";
+}
+
+.historyCountBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
 }
 
 .historyTimestamp {
@@ -383,7 +412,7 @@
 
 .collectionPinnedItem {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 6px 8px;
   border-radius: 2px;
   transition: background-color 150ms ease;
@@ -410,8 +439,6 @@
 }
 
 .pinnedItemTitle {
-  flex: 1;
-  min-width: 0;
   font-size: 13px;
   color: "[theme:link, default: #0078d4]";
   color: var(--link);
@@ -427,6 +454,41 @@
   }
 }
 
+.pinnedItemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pinnedItemActionLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pinnedItemActionLink {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: "[theme:themePrimary, default: #0078d4]";
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 18px;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+    color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+
+  &:disabled {
+    color: "[theme:neutralTertiary, default: #a19f9d]";
+    cursor: not-allowed;
+  }
+}
+
 .pinnedItemActions {
   display: flex;
   align-items: center;
@@ -434,6 +496,7 @@
   transition: opacity 150ms ease;
   flex-shrink: 0;
   margin-left: 8px;
+  padding-top: 2px;
 }
 
 .collectionToolbar {
@@ -481,6 +544,37 @@
   align-items: center;
   justify-content: center;
   padding: 48px 16px;
+}
+
+.accessDenied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.accessDeniedIcon {
+  font-size: 40px;
+  color: "[theme:neutralTertiary, default: #a19f9d]";
+  margin-bottom: 14px;
+}
+
+.accessDeniedTitle {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0 0 8px 0;
+}
+
+.accessDeniedDescription {
+  font-size: 13px;
+  line-height: 20px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  max-width: 420px;
+  margin: 0;
 }
 
 // ─── Error Container ───────────────────────────────────────
@@ -747,6 +841,339 @@
   color: "[theme:yellow, default: #ffaa44]";
   font-size: 14px;
   flex-shrink: 0;
+}
+
+.coverageToolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.coverageProfilePicker {
+  flex: 1;
+  min-width: 280px;
+}
+
+.coverageProfileDescription {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+}
+
+.coverageSummaryNarrative {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border-left: 4px solid "[theme:themePrimary, default: #0078d4]";
+  border-radius: 6px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+}
+
+.coverageSummaryNarrativeLabel {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.coverageSummaryNarrativeText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.coverageNarrativeActions {
+  margin-top: 12px;
+}
+
+.coverageSummarySections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.coverageSummarySection {
+  padding: 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 8px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+}
+
+.coverageSectionHeader {
+  margin-bottom: 14px;
+}
+
+.coverageSectionHeaderTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+}
+
+.coverageSectionEyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.coverageSectionTitle {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.coverageSectionDescription {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.coverageSectionMetric {
+  flex: 0 0 auto;
+  min-width: 96px;
+  text-align: right;
+
+  @media (max-width: 640px) {
+    text-align: left;
+  }
+}
+
+.coverageSectionMetricLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.coverageSectionMetricValue {
+  display: block;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.coverageSummaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.coverageSummaryCard {
+  padding: 14px 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 6px;
+  background: "[theme:white, default: #ffffff]";
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.coverageSummaryLabel {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  margin-bottom: 6px;
+}
+
+.coverageSummaryValue {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.coverageSummaryHint {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.coverageQueryBox {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 6px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+}
+
+.coverageQueryRow {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.coverageQueryLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.coverageQueryValue {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: "[theme:bodyText, default: #323130]";
+  word-break: break-word;
+}
+
+.coverageQueryMeta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+}
+
+.coverageTable {
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-bottom: 18px;
+}
+
+.coverageHeader {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) repeat(5, minmax(96px, 120px)) minmax(140px, 1.1fr);
+  min-width: 980px;
+  padding: 0 12px;
+  background: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+
+  > div {
+    padding: 9px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: "[theme:neutralSecondary, default: #605e5c]";
+  }
+}
+
+.coverageRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) repeat(5, minmax(96px, 120px)) minmax(140px, 1.1fr);
+  min-width: 980px;
+  padding: 0 12px;
+  align-items: start;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: "[theme:neutralLighterAlt, default: #faf9f8]";
+  }
+
+  > div {
+    padding: 12px 6px;
+    font-size: 13px;
+    color: "[theme:bodyText, default: #323130]";
+  }
+}
+
+.coverageSourceCell {
+  min-width: 0;
+}
+
+.coverageSourceTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.coverageSourceUrl {
+  font-size: 12px;
+  line-height: 18px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  word-break: break-word;
+}
+
+.coverageDeltaWarning {
+  color: "[theme:errorText, default: #a4262c]" !important;
+  font-weight: 600;
+}
+
+.coverageNotesCell {
+  color: "[theme:neutralSecondary, default: #605e5c]" !important;
+}
+
+.coverageMissingSection {
+  padding: 14px 16px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 6px;
+  background: "[theme:white, default: #ffffff]";
+}
+
+.coverageMissingList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coverageMissingItem {
+  padding-top: 10px;
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+
+  &:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+.coverageMissingTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  margin-bottom: 4px;
+}
+
+.coverageMissingMeta {
+  font-size: 12px;
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  margin-bottom: 4px;
+}
+
+.coverageMissingPath {
+  font-size: 12px;
+  line-height: 18px;
+  color: "[theme:bodyText, default: #323130]";
+  word-break: break-word;
 }
 
 // ─── Zero-Result Table ──────────────────────────────────────

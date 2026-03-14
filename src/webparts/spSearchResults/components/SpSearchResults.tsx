@@ -3,7 +3,6 @@ import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
 import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
 import type { ISpSearchResultsProps } from './ISpSearchResultsProps';
@@ -15,7 +14,6 @@ import {
   IActiveFilter,
   IFilterConfig
 } from '@interfaces/index';
-import { getManagerService } from '@store/store';
 import ResultToolbar from './ResultToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
 import ListLayout from './ListLayout';
@@ -58,12 +56,6 @@ const ResultDetailPanel: any = createLazyComponent(
   () => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel') as any,
   { errorMessage: 'Failed to load detail panel' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SpSearchManager: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as any,
-  { errorMessage: 'Failed to load search manager' }
-);
-
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
  * returns selected state slices. Uses store.subscribe for efficient
@@ -86,7 +78,6 @@ function useStoreState(
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
-  isSearchManagerOpen: boolean;
   activeFilters: IActiveFilter[];
   filterConfig: IFilterConfig[];
   querySuggestion: string | undefined;
@@ -110,7 +101,6 @@ function useStoreState(
     sort: undefined as ISortField | undefined,
     sortableProperties: [] as ISortableProperty[],
     previewPanel: { isOpen: false, item: undefined as ISearchResult | undefined },
-    isSearchManagerOpen: false,
     activeFilters: [] as IActiveFilter[],
     filterConfig: [] as IFilterConfig[],
     querySuggestion: undefined as string | undefined,
@@ -133,7 +123,6 @@ function useStoreState(
     sort: ISortField | undefined;
     sortableProperties: ISortableProperty[];
     previewPanel: { isOpen: boolean; item: ISearchResult | undefined };
-    isSearchManagerOpen: boolean;
     activeFilters: IActiveFilter[];
     filterConfig: IFilterConfig[];
     querySuggestion: string | undefined;
@@ -159,7 +148,6 @@ function useStoreState(
       sort: state.sort,
       sortableProperties: state.sortableProperties,
       previewPanel: state.previewPanel,
-      isSearchManagerOpen: state.isSearchManagerOpen,
       activeFilters: state.activeFilters,
       filterConfig: state.filterConfig,
       querySuggestion: state.querySuggestion,
@@ -193,7 +181,6 @@ function useStoreState(
           prev.sort === next.sort &&
           prev.sortableProperties === next.sortableProperties &&
           prev.previewPanel === next.previewPanel &&
-          prev.isSearchManagerOpen === next.isSearchManagerOpen &&
           prev.activeFilters === next.activeFilters &&
           prev.filterConfig === next.filterConfig &&
           prev.querySuggestion === next.querySuggestion &&
@@ -436,7 +423,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store,
     orchestrator,
     searchContextId,
-    theme,
     showResultCount,
     showSortDropdown,
     showDeleteConfirmation,
@@ -467,7 +453,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     sort,
     sortableProperties,
     previewPanel,
-    isSearchManagerOpen,
     activeFilters,
     filterConfig,
     querySuggestion,
@@ -475,8 +460,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     pageRange
   } = useStoreState(props);
 
-  // Get the manager service for the Search Manager panel
-  const managerService = getManagerService(searchContextId);
   const effectiveDefaultLayout = React.useMemo((): string => {
     const configured = defaultLayout || 'list';
     return availableLayouts.indexOf(configured) >= 0 ? configured : (availableLayouts[0] || 'list');
@@ -563,11 +546,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     }
   }, [store, querySuggestion]);
 
-  // ─── Search Manager panel dismiss ─────────────────────────
-  const handleDismissSearchManager = React.useCallback((): void => {
-    store.getState().toggleSearchManager();
-  }, [store]);
-
   // ─── Determine which layout to render ──────────────────────
   const renderLayout = (): React.ReactElement | undefined => {
     // No search has completed yet — show skeleton, never "No results found".
@@ -602,6 +580,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         layoutContent = (
           <CompactLayout
             items={items}
+            searchContextId={searchContextId}
             compactPropertyColumns={compactPropertyColumns}
             titleDisplayMode={titleDisplayMode}
             onItemClick={handleItemClick}
@@ -613,6 +592,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         layoutContent = (
           <CardLayout
             items={items}
+            searchContextId={searchContextId}
             titleDisplayMode={titleDisplayMode}
             onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
             onItemClick={handleItemClick}
@@ -635,6 +615,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         layoutContent = (
           <DataGridLayout
             items={items}
+            searchContextId={searchContextId}
             gridPropertyColumns={gridPropertyColumns}
             titleDisplayMode={titleDisplayMode}
             totalCount={totalCount}
@@ -642,7 +623,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             currentPage={currentPage}
             showPaging={showPaging}
             pageRange={pageRange}
-            searchContextId={searchContextId}
             showDeleteConfirmation={showDeleteConfirmation}
             sort={sort}
             sortableProperties={sortableProperties}
@@ -668,7 +648,14 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
       default:
         // 'list' is the default layout
-        layoutContent = <ListLayout items={items} titleDisplayMode={titleDisplayMode} onItemClick={handleItemClick} />;
+        layoutContent = (
+          <ListLayout
+            items={items}
+            searchContextId={searchContextId}
+            titleDisplayMode={titleDisplayMode}
+            onItemClick={handleItemClick}
+          />
+        );
     }
 
     return layoutContent;
@@ -803,25 +790,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             item={previewPanel.item}
             onDismiss={handleDismissPreviewPanel}
           />
-        )}
-
-        {/* Search Manager panel — lazy-loaded, only renders when manager panel is open */}
-        {isSearchManagerOpen && managerService && (
-          <Panel
-            isOpen={isSearchManagerOpen}
-            onDismiss={handleDismissSearchManager}
-            type={PanelType.medium}
-            headerText="Search Manager"
-            closeButtonAriaLabel="Close"
-            isLightDismiss={true}
-          >
-            <SpSearchManager
-              store={store}
-              service={managerService}
-              theme={theme}
-              mode="panel"
-            />
-          </Panel>
         )}
       </div>
     </ErrorBoundary>

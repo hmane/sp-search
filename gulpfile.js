@@ -27,12 +27,29 @@ build.addSuppression(/Warning - lint.*/g);
 build.configureWebpack.mergeConfig({
   additionalConfiguration: generatedConfiguration => {
     const isProduction = build.getConfig().production;
+    const projectNodeModules = path.resolve(__dirname, 'node_modules');
+    const sharedDependencyAliases = {
+      react: path.resolve(projectNodeModules, 'react'),
+      'react-dom': path.resolve(projectNodeModules, 'react-dom'),
+      'react-hook-form': path.resolve(projectNodeModules, 'react-hook-form'),
+      '@fluentui/react': path.resolve(projectNodeModules, '@fluentui/react'),
+      '@fluentui/utilities': path.resolve(projectNodeModules, '@fluentui/utilities'),
+      '@fluentui/merge-styles': path.resolve(projectNodeModules, '@fluentui/merge-styles'),
+      '@fluentui/react-focus': path.resolve(projectNodeModules, '@fluentui/react-focus'),
+      devextreme: path.resolve(projectNodeModules, 'devextreme'),
+      'devextreme-react': path.resolve(projectNodeModules, 'devextreme-react'),
+      inferno: path.resolve(projectNodeModules, 'inferno'),
+      tslib: path.resolve(projectNodeModules, 'tslib'),
+      zustand: path.resolve(projectNodeModules, 'zustand'),
+    };
 
     // Configure path aliases to match tsconfig.json
     // These resolve at both TypeScript compilation and webpack bundling
     generatedConfiguration.resolve = generatedConfiguration.resolve || {};
     generatedConfiguration.resolve.alias = {
       ...generatedConfiguration.resolve.alias,
+      // Force linked packages like spfx-toolkit to share the app's dependency tree.
+      ...sharedDependencyAliases,
       '@store': path.resolve(__dirname, 'lib/libraries/spSearchStore'),
       '@interfaces': path.resolve(__dirname, 'lib/libraries/spSearchStore/interfaces'),
       '@services': path.resolve(__dirname, 'lib/libraries/spSearchStore/services'),
@@ -48,21 +65,9 @@ build.configureWebpack.mergeConfig({
       'node_modules',
     ];
 
-    // Tree-shaking optimizations
+    // Module rules
     generatedConfiguration.module = generatedConfiguration.module || {};
     generatedConfiguration.module.rules = generatedConfiguration.module.rules || [];
-
-    // DevExtreme optimization: use individual component imports for tree-shaking
-    generatedConfiguration.module.rules.push({
-      test: /node_modules[\\/]devextreme-react[\\/].*.js$/,
-      sideEffects: false,
-    });
-
-    // DevExtreme core: only keep what's imported
-    generatedConfiguration.module.rules.push({
-      test: /node_modules[\\/]devextreme[\\/](?!dist[\\/]css).*.js$/,
-      sideEffects: false,
-    });
 
     // Bundle DevExtreme CSS without breaking the SPFx build.
     //
@@ -80,6 +85,18 @@ build.configureWebpack.mergeConfig({
 
     const dxCssDir = path.resolve(__dirname, 'node_modules/devextreme/dist/css');
     const dxCssIconsDir = path.resolve(__dirname, 'node_modules/devextreme/dist/css/icons');
+    const toolkitPackageDir = path.resolve(__dirname, 'node_modules/spfx-toolkit');
+    const toolkitRealPackageDir = fs.existsSync(toolkitPackageDir)
+      ? fs.realpathSync(toolkitPackageDir)
+      : toolkitPackageDir;
+    const toolkitCssDirs = Array.from(
+      new Set([
+        path.join(toolkitPackageDir, 'lib'),
+        path.join(toolkitPackageDir, 'esm'),
+        path.join(toolkitRealPackageDir, 'lib'),
+        path.join(toolkitRealPackageDir, 'esm'),
+      ])
+    );
 
     // Helper: does this rule's test match .css files?
     function ruleMatchesCss(r) {
@@ -92,24 +109,27 @@ build.configureWebpack.mergeConfig({
     }
 
     // Helper: append dxCssDir to a rule's exclude list
-    function excludeDxCss(r, idx) {
+    function excludePaths(r, paths, idx, label) {
       const prev = r.exclude;
       r.exclude = prev
-        ? (Array.isArray(prev) ? [...prev, dxCssDir] : [prev, dxCssDir])
-        : [dxCssDir];
-      console.log('[SP Search] Excluded devextreme CSS from rule[' + idx + ']');
+        ? (Array.isArray(prev) ? [...prev, ...paths] : [prev, ...paths])
+        : [...paths];
+      console.log('[SP Search] Excluded ' + label + ' from rule[' + idx + ']');
     }
 
     // Patch every CSS rule at the top level
     (generatedConfiguration.module.rules || []).forEach((r, idx) => {
       if (ruleMatchesCss(r)) {
-        excludeDxCss(r, idx);
+        excludePaths(r, [dxCssDir], idx, 'devextreme CSS');
+        excludePaths(r, toolkitCssDirs, idx, 'spfx-toolkit CSS');
       }
       // Also patch inside any oneOf groups
       if (Array.isArray(r.oneOf)) {
         r.oneOf.forEach((inner, innerIdx) => {
           if (ruleMatchesCss(inner)) {
-            excludeDxCss(inner, idx + '.oneOf[' + innerIdx + ']');
+            const ruleLabel = idx + '.oneOf[' + innerIdx + ']';
+            excludePaths(inner, [dxCssDir], ruleLabel, 'devextreme CSS');
+            excludePaths(inner, toolkitCssDirs, ruleLabel, 'spfx-toolkit CSS');
           }
         });
       }
@@ -138,6 +158,22 @@ build.configureWebpack.mergeConfig({
         {
           loader: require.resolve('css-loader'),
           options: { url: true, import: false }
+        },
+      ],
+    });
+
+    // Explicitly bundle CSS shipped by the linked spfx-toolkit package. SPFx's
+    // default CSS rules do not reliably pick up package CSS from symlinked file:
+    // dependencies during ship builds, which drops shared component styling.
+    generatedConfiguration.module.rules.push({
+      test: /\.css$/,
+      include: toolkitCssDirs,
+      sideEffects: true,
+      use: [
+        require.resolve('style-loader'),
+        {
+          loader: require.resolve('css-loader'),
+          options: { url: true, import: true }
         },
       ],
     });
@@ -252,7 +288,7 @@ task('analyze-bundle', done => {
   if (fs.existsSync(reportPath)) {
     console.log(`📊 Bundle report: ${reportPath}`);
   } else {
-    console.log('❌ Run production build first');
+    console.log('❌ Run `ANALYZE=1 gulp bundle --ship` first');
   }
   done();
 });

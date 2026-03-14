@@ -36,6 +36,31 @@ if (-not (Get-Module -ListAvailable -Name "PnP.PowerShell")) {
 
 Import-Module PnP.PowerShell -ErrorAction Stop
 
+function Resolve-PnPClientId {
+    param(
+        [string]$ExplicitClientId
+    )
+
+    if ($ExplicitClientId) {
+        return $ExplicitClientId
+    }
+
+    $candidateNames = @(
+        'ENTRAID_APP_ID',
+        'ENTRAID_CLIENT_ID',
+        'AZURE_CLIENT_ID'
+    )
+
+    foreach ($candidateName in $candidateNames) {
+        $candidateValue = [Environment]::GetEnvironmentVariable($candidateName)
+        if (-not [string]::IsNullOrWhiteSpace($candidateValue)) {
+            return $candidateValue.Trim()
+        }
+    }
+
+    throw "PnP interactive auth now requires an Entra app client ID. Re-run with -ClientId <app-id>, or set one of these environment variables before running: ENTRAID_APP_ID, ENTRAID_CLIENT_ID, AZURE_CLIENT_ID."
+}
+
 # ───────────────────────────────────────────────────────────
 # Helper: Create list if it doesn't exist
 # ───────────────────────────────────────────────────────────
@@ -139,11 +164,8 @@ Write-Host "================================================`n" -ForegroundColor
 
 # Connect to SharePoint
 Write-Host "Connecting to $SiteUrl..." -ForegroundColor White
-if ($ClientId) {
-    Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Interactive
-} else {
-    Connect-PnPOnline -Url $SiteUrl -Interactive
-}
+$resolvedClientId = Resolve-PnPClientId -ExplicitClientId $ClientId
+Connect-PnPOnline -Url $SiteUrl -ClientId $resolvedClientId -Interactive
 
 # ─── 1. SearchSavedQueries ────────────────────────────────
 Write-Host "`n[1/3] SearchSavedQueries" -ForegroundColor Magenta
@@ -183,6 +205,7 @@ Ensure-Field -ListName "SearchHistory" -FieldName "QueryHash" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Vertical" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Scope" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "SearchState" -FieldType "Note"
+Ensure-Field -ListName "SearchHistory" -FieldName "UseCount" -FieldType "Number"
 Ensure-Field -ListName "SearchHistory" -FieldName "ResultCount" -FieldType "Number"
 Ensure-Field -ListName "SearchHistory" -FieldName "IsZeroResult" -FieldType "Boolean"
 Ensure-Field -ListName "SearchHistory" -FieldName "ClickedItems" -FieldType "Note"

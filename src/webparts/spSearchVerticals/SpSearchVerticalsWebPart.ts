@@ -12,6 +12,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { type StoreApi } from 'zustand/vanilla';
+import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 
@@ -22,6 +23,8 @@ import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
 import { getStore, initializeSearchContext } from '@store/store';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
+
+void spfxToolkitStylesLoaded;
 
 export interface ISpSearchVerticalsWebPartProps {
   searchContextId: string;

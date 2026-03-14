@@ -310,6 +310,94 @@ $PRESET_REGISTRY = @{
   }
 }
 
+$PROVISIONED_DOCUMENT_LIBRARIES = @(
+  "CorporatePolicies",
+  "SalesMaterials",
+  "MarketingContent",
+  "HRResources",
+  "FinanceReports",
+  "EngineeringDocs",
+  "LegalDocuments",
+  "ProjectFiles",
+  "MediaAssets",
+  "KnowledgeBase"
+)
+
+$PROVISIONED_CUSTOM_LISTS = @(
+  "Projects",
+  "Contacts",
+  "Tasks",
+  "Events",
+  "Inventory",
+  "Announcements",
+  "Issues",
+  "FAQ",
+  "Policies",
+  "Glossary"
+)
+
+function Resolve-PnPClientId {
+  [CmdletBinding()]
+  param(
+    [string]$ExplicitClientId
+  )
+
+  if ($ExplicitClientId) {
+    return $ExplicitClientId
+  }
+
+  $candidateNames = @(
+    'ENTRAID_APP_ID',
+    'ENTRAID_CLIENT_ID',
+    'AZURE_CLIENT_ID'
+  )
+
+  foreach ($candidateName in $candidateNames) {
+    $candidateValue = [Environment]::GetEnvironmentVariable($candidateName)
+    if (-not [string]::IsNullOrWhiteSpace($candidateValue)) {
+      return $candidateValue.Trim()
+    }
+  }
+
+  throw "PnP interactive auth now requires an Entra app client ID. Set one of these environment variables before running: ENTRAID_APP_ID, ENTRAID_CLIENT_ID, AZURE_CLIENT_ID."
+}
+
+function Get-SeededCoverageProfiles {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$BaseSiteUrl
+  )
+
+  $normalizedSiteUrl = $BaseSiteUrl.TrimEnd('/')
+
+  $documentLibraryUrls = $PROVISIONED_DOCUMENT_LIBRARIES | ForEach-Object {
+    "$normalizedSiteUrl/$_"
+  }
+
+  $customListUrls = $PROVISIONED_CUSTOM_LISTS | ForEach-Object {
+    "$normalizedSiteUrl/Lists/$_"
+  }
+
+  return @(
+    @{
+      title = 'Provisioned Document Libraries'
+      description = 'Coverage profile for the seeded document libraries created by Provision-TestData.ps1.'
+      sourceUrls = ($documentLibraryUrls -join ', ')
+      queryTemplate = '{searchTerms} IsDocument:1'
+      includeFolders = $false
+      trimDuplicates = $false
+    },
+    @{
+      title = 'Provisioned Business Lists'
+      description = 'Coverage profile for the seeded custom lists created by Provision-TestData.ps1.'
+      sourceUrls = ($customListUrls -join ', ')
+      queryTemplate = '{searchTerms}'
+      includeFolders = $false
+      trimDuplicates = $false
+    }
+  )
+}
+
 # ── Public functions ───────────────────────────────────────────────────────────
 
 <#
@@ -355,7 +443,7 @@ function Get-SearchScenarioPreset {
       - SP Search Filters (sidebar)
       - SP Search Results (pre-configured with preset layout, query template,
         and selected properties)
-      - SP Search Manager
+      - SP Search Admin Manager
 
     All web parts share the same SearchContextId so they communicate via the
     Zustand store.
@@ -414,7 +502,8 @@ function Invoke-SearchScenarioPage {
   }
   catch {
     Write-Host "Connecting to $SiteUrl..." -ForegroundColor Yellow
-    Connect-PnPOnline -Url $SiteUrl -Interactive
+    $resolvedClientId = Resolve-PnPClientId
+    Connect-PnPOnline -Url $SiteUrl -ClientId $resolvedClientId -Interactive
   }
 
   # ── Create / get page ───────────────────────────────────────────────────────
@@ -443,6 +532,7 @@ function Invoke-SearchScenarioPage {
   $boxProps = @{
     searchContextId = $SearchContextId
     placeholder     = "Search $($preset.label.ToLower())..."
+    enableSearchManager = $true
   } | ConvertTo-Json -Compress
 
   # Search Results — core preset properties
@@ -518,10 +608,16 @@ function Invoke-SearchScenarioPage {
     verticalCollection = $verticalItems
   } | ConvertTo-Json -Compress -Depth 5
 
-  # Search Manager
+  # Admin Search Manager
   $managerProps = @{
-    searchContextId = $SearchContextId
-    displayMode     = 'panel'
+    searchContextId            = $SearchContextId
+    coverageSourcePageUrl      = "$($SiteUrl.TrimEnd('/'))/SitePages/$pagePath"
+    mode                       = 'standalone'
+    defaultTab                 = 'coverage'
+    enableCoverage             = $true
+    coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
+    enableHealth               = $true
+    enableInsights             = $true
   } | ConvertTo-Json -Compress
 
   # ── Add web parts to page ───────────────────────────────────────────────────
@@ -531,7 +627,7 @@ function Invoke-SearchScenarioPage {
   # Row 2: Filters (left 1/3) + Results (right 2/3)
   $page | Add-PnPPageSection -SectionTemplate TwoColumnLeft -Order 2
 
-  # Row 3: Manager (full width, hidden visual footprint)
+  # Row 3: Admin manager (full width)
   $page | Add-PnPPageSection -SectionTemplate OneColumn -Order 3
 
   # Add web parts — component names must match installed SPFx package manifest titles
@@ -554,8 +650,8 @@ function Invoke-SearchScenarioPage {
       -Section 1 -Column 1 -Order 2 -WebPartProperties $verticalsProps -ErrorAction SilentlyContinue
   }
 
-  Write-Host "Adding SP Search Manager..." -ForegroundColor White
-  Add-PnPPageWebPart -Page $page -Component "SP Search Manager" `
+  Write-Host "Adding SP Search Admin Manager..." -ForegroundColor White
+  Add-PnPPageWebPart -Page $page -Component "SP Search Admin Manager" `
     -Section 3 -Column 1 -WebPartProperties $managerProps -ErrorAction SilentlyContinue
 
   # ── Publish ─────────────────────────────────────────────────────────────────

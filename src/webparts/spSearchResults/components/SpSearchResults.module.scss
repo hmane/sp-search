@@ -405,6 +405,33 @@
   margin-top: 6px;
 }
 
+.bulkToolbarDialogIntro {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+}
+
+.bulkToolbarDialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bulkToolbarDialogHint {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  font-size: 12px;
+  line-height: 18px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+}
+
+.bulkToolbarDialogSpinner {
+  padding: 8px 0 12px 0;
+}
+
 // ─── List Layout ────────────────────────────────────────────
 .resultList {
   list-style: none;
@@ -617,6 +644,17 @@
   white-space: nowrap;
 }
 
+.docCardTitleBar {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+
+  :global(.ms-HoverCard-host) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
 .docCardTitleLink {
   font-size: 14px;
   font-weight: 600;
@@ -751,6 +789,25 @@
   gap: 8px;
   flex-wrap: wrap;
 
+}
+
+.resultTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+
+  :global(.ms-HoverCard-host) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+.resultTitleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .resultTitleLink {
@@ -942,12 +999,20 @@
   overflow: hidden;
   font-weight: 500;
   width: 100%;
+}
+
+.compactTitleInner {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
 
   :global(.ms-HoverCard-host) {
     display: block;
     width: 100%;
     min-width: 0;
     overflow: hidden;
+    flex: 1 1 auto;
   }
 
   a {
@@ -962,6 +1027,31 @@
 
     &:hover {
       text-decoration: underline;
+    }
+  }
+}
+
+.resultInlineAction {
+  flex: 0 0 auto;
+  opacity: 0.75;
+
+  :global {
+    .ms-Button {
+      min-width: 24px;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 6px;
+    }
+
+    .ms-Button:hover {
+      background-color: "[theme:neutralLighter, default: #f3f2f1]";
+      background-color: var(--neutralLighter, #f3f2f1);
+    }
+
+    .ms-Button-label,
+    .ms-Button-menuIcon {
+      display: none;
     }
   }
 }
@@ -1998,6 +2088,13 @@
   gap: 4px;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.gridTitleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .gridTitleIcon {

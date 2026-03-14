@@ -62,7 +62,6 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
 
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
-
     if (e.isZeroResult) {
       zeroCount++;
     }

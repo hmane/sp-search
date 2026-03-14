@@ -5,9 +5,11 @@ import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
+import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
 import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
@@ -16,6 +18,12 @@ import QueryBuilder from './QueryBuilder';
 import SuggestionDropdown from './SuggestionDropdown';
 import KqlInput from './KqlInput';
 import KqlCompletionDropdown from './KqlCompletionDropdown';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const UserSearchManager: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as any,
+  { errorMessage: 'Failed to load search manager' }
+);
 
 function mergeSuggestionsByPriority(
   providers: ISuggestionProvider[],
@@ -81,6 +89,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     newPageParameterLocation,
     newPageQueryParameter,
     theme,
+    managerService,
   } = props;
 
   // ─── Local state subscribed from the Zustand vanilla store ──────
@@ -88,13 +97,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [suggestions, setSuggestions] = React.useState<ISuggestion[]>(store.getState().suggestions);
   const [activeScope, setActiveScope] = React.useState<ISearchScope>(store.getState().scope);
   const [isSearching, setIsSearching] = React.useState<boolean>(store.getState().isSearching);
-  const [isSearchManagerOpen, setIsSearchManagerOpen] = React.useState<boolean>(store.getState().isSearchManagerOpen);
   const [displayRefiners, setDisplayRefiners] = React.useState<IRefiner[]>(store.getState().displayRefiners);
 
   // ─── Local UI state ─────────────────────────────────────────────
   const [inputValue, setInputValue] = React.useState<string>(queryText);
   const [isFocused, setIsFocused] = React.useState<boolean>(false);
   const [showSuggestions, setShowSuggestions] = React.useState<boolean>(false);
+  const [isSearchManagerOpen, setIsSearchManagerOpen] = React.useState<boolean>(false);
   const [isQueryBuilderOpen, setIsQueryBuilderOpen] = React.useState<boolean>(false);
   const [schemaProperties, setSchemaProperties] = React.useState<IManagedProperty[]>([]);
   const [schemaLoading, setSchemaLoading] = React.useState<boolean>(false);
@@ -121,7 +130,6 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       setSuggestions(state.suggestions);
       setActiveScope(state.scope);
       setIsSearching(state.isSearching);
-      setIsSearchManagerOpen(state.isSearchManagerOpen);
       setDisplayRefiners(state.displayRefiners);
     });
 
@@ -430,7 +438,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
    * Toggle the Search Manager panel.
    */
   function handleToggleSearchManager(): void {
-    store.getState().toggleSearchManager();
+    setIsSearchManagerOpen(function (current): boolean {
+      return !current;
+    });
+  }
+
+  function handleDismissSearchManager(): void {
+    setIsSearchManagerOpen(false);
   }
 
   function handleToggleQueryBuilder(): void {
@@ -747,12 +761,12 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               />
             </div>
           )}
-          {enableSearchManager && (
+          {enableSearchManager && managerService && (
             <div className={styles.searchManagerButton}>
               <IconButton
                 iconProps={{ iconName: 'SearchBookmark' }}
-                title="Saved searches and history"
-                ariaLabel="Saved searches and history"
+                title="My searches"
+                ariaLabel="My searches"
                 aria-expanded={isSearchManagerOpen}
                 onClick={handleToggleSearchManager}
                 checked={isSearchManagerOpen}
@@ -808,6 +822,39 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
             setInputValue('');
           }}
         />
+      )}
+
+      {enableSearchManager && managerService && (
+        <Panel
+          isOpen={isSearchManagerOpen}
+          onDismiss={handleDismissSearchManager}
+          type={PanelType.medium}
+          headerText=""
+          closeButtonAriaLabel="Close"
+          isLightDismiss={true}
+        >
+          <UserSearchManager
+            store={store}
+            service={managerService}
+            theme={theme}
+            variant="user"
+            mode="panel"
+            defaultTab="saved"
+            headerTitle="My Search Manager"
+            hideHeader={false}
+            enableSavedSearches={true}
+            enableSharedSearches={true}
+            enableCollections={true}
+            enableHistory={true}
+            enableHealth={false}
+            enableInsights={false}
+            enableAnnotations={true}
+            maxHistoryItems={50}
+            showResetAction={false}
+            showSaveAction={true}
+            onRequestClose={handleDismissSearchManager}
+          />
+        </Panel>
       )}
     </div>
   );

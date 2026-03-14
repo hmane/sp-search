@@ -1,6 +1,7 @@
 import { StoreApi } from 'zustand/vanilla';
 import { ISearchStore, ISearchScope } from '@interfaces/index';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
+import { SearchManagerService } from '@services/index';
 
 export interface ISpSearchBoxProps {
   store: StoreApi<ISearchStore>;
@@ -28,4 +29,5 @@ export interface ISpSearchBoxProps {
   newPageParameterLocation: 'queryString' | 'hash';
   newPageQueryParameter: string;
   theme: IReadonlyTheme | undefined;
+  managerService?: SearchManagerService;
 }

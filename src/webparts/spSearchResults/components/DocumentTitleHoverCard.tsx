@@ -5,7 +5,7 @@ import { HoverCard, HoverCardType } from '@fluentui/react/lib/HoverCard';
 import { Modal } from '@fluentui/react/lib/Modal';
 import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
-import { LazyVersionHistory as _LazyVersionHistory } from 'spfx-toolkit/lib/components/lazy';
+import { LazyVersionHistory as _LazyVersionHistory } from './LazyVersionHistory';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UserPersona: any = _UserPersona;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

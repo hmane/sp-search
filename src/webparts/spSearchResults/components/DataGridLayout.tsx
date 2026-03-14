@@ -7,6 +7,7 @@ import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridLayoutProps {
   items: ISearchResult[];
+  searchContextId: string;
   gridPropertyColumns: ISelectedPropertyColumn[];
   titleDisplayMode: TitleDisplayMode;
   totalCount: number;
@@ -14,8 +15,6 @@ export interface IDataGridLayoutProps {
   currentPage: number;
   showPaging: boolean;
   pageRange: number;
-  /** Passed through to DataGridContent for scoping the column-preference localStorage key. */
-  searchContextId: string;
   showDeleteConfirmation: boolean;
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
@@ -97,6 +96,7 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
       <DataGridRenderErrorBoundary onFallback={props.onFallback}>
         <DataGridContent
           items={props.items}
+          searchContextId={props.searchContextId}
           selectedPropertyColumns={props.gridPropertyColumns}
           titleDisplayMode={props.titleDisplayMode}
           totalCount={props.totalCount}
@@ -104,7 +104,6 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
           currentPage={props.currentPage}
           showPaging={props.showPaging}
           pageRange={props.pageRange}
-          searchContextId={props.searchContextId}
           showDeleteConfirmation={props.showDeleteConfirmation}
           sort={props.sort}
           sortableProperties={props.sortableProperties}

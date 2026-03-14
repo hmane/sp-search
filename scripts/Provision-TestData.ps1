@@ -93,6 +93,31 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Resolve-PnPClientId {
+    param(
+        [string]$ExplicitClientId
+    )
+
+    if ($ExplicitClientId) {
+        return $ExplicitClientId
+    }
+
+    $candidateNames = @(
+        'ENTRAID_APP_ID',
+        'ENTRAID_CLIENT_ID',
+        'AZURE_CLIENT_ID'
+    )
+
+    foreach ($candidateName in $candidateNames) {
+        $candidateValue = [Environment]::GetEnvironmentVariable($candidateName)
+        if (-not [string]::IsNullOrWhiteSpace($candidateValue)) {
+            return $candidateValue.Trim()
+        }
+    }
+
+    throw "PnP interactive auth now requires an Entra app client ID. Re-run with -ClientId <app-id>, or set one of these environment variables before running: ENTRAID_APP_ID, ENTRAID_CLIENT_ID, AZURE_CLIENT_ID."
+}
+
 # ─── Statistics ───────────────────────────────────────────────────────────────
 
 $script:stats = @{
@@ -1075,11 +1100,8 @@ try {
 
     # Connect
     Write-Host "  Connecting to SharePoint..." -ForegroundColor Gray
-    if ($ClientId) {
-        Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Interactive
-    } else {
-        Connect-PnPOnline -Url $SiteUrl -Interactive
-    }
+    $resolvedClientId = Resolve-PnPClientId -ExplicitClientId $ClientId
+    Connect-PnPOnline -Url $SiteUrl -ClientId $resolvedClientId -Interactive
     Write-Host "  Connected successfully" -ForegroundColor Green
 
     # Resolve users

@@ -12,6 +12,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
+import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
 import * as strings from 'SpSearchBoxWebPartStrings';
 import SpSearchBox from './components/SpSearchBox';
@@ -21,6 +22,8 @@ import { ISearchStore, ISearchScope } from '@interfaces/index';
 import { getStore, initializeSearchContext, getManagerService } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
+
+void spfxToolkitStylesLoaded;
 
 export interface ISpSearchBoxWebPartProps {
   searchContextId: string;
@@ -105,6 +108,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
         newPageParameterLocation: this.properties.newPageParameterLocation || 'queryString',
         newPageQueryParameter: this.properties.newPageQueryParameter || 'q',
         theme: this._theme,
+        managerService: getManagerService(this.properties.searchContextId || 'default'),
       }
     );
 

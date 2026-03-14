@@ -180,6 +180,7 @@ export function createMockHistoryEntry(
     vertical: 'all',
     scope: 'all',
     searchState: '{}',
+    useCount: 1,
     resultCount: 25,
     clickedItems: [],
     searchTimestamp: new Date('2024-06-20T10:30:00Z'),

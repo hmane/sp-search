@@ -31,8 +31,8 @@
 .PARAMETER SetAsHomePage
     Set the search page as the site's home page.
 
-.PARAMETER IncludeSearchManager
-    Add a Search Manager web part below the results area (standalone mode).
+.PARAMETER IncludeAdminManager
+    Add an Admin Search Manager web part below the results area (standalone mode). Defaults to true.
 
 .PARAMETER Publish
     Publish the page after creation. Defaults to true.
@@ -51,7 +51,7 @@
       -PageName "SearchCenter" `
       -PageTitle "Search Center" `
       -SetAsHomePage `
-      -IncludeSearchManager
+      -IncludeAdminManager
 
 .EXAMPLE
     # Multi-context: create a second search page with isolated state
@@ -73,7 +73,7 @@ param(
     [string]$ClientId,
 
     [Parameter(Mandatory = $false)]
-    [string]$PageName = "Search",
+    [string]$PageName = "Search1",
 
     [Parameter(Mandatory = $false)]
     [string]$PageTitle = "Search",
@@ -85,7 +85,8 @@ param(
     [switch]$SetAsHomePage,
 
     [Parameter(Mandatory = $false)]
-    [switch]$IncludeSearchManager,
+    [Alias('IncludeSearchManager')]
+    [bool]$IncludeAdminManager = $true,
 
     [Parameter(Mandatory = $false)]
     [bool]$Publish = $true
@@ -94,13 +95,39 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ============================================================================
-# Web Part Component IDs (from manifest files)
+# Web Part component names as registered in the SharePoint toolbox
 # ============================================================================
-$WP_SEARCH_BOX       = "13a82dbe-2c57-4e20-bfe8-ec4de5776191"
-$WP_SEARCH_RESULTS   = "1836671c-a710-45b4-9a83-55c65344a3d5"
-$WP_SEARCH_FILTERS   = "2eb68250-879f-45a8-af9b-9fc3e97b2050"
-$WP_SEARCH_VERTICALS = "d0481c49-49f9-4219-90fe-be8338051f58"
-$WP_SEARCH_MANAGER   = "46308c1c-af6b-43c5-98b7-2d39082498cb"
+$WP_SEARCH_BOX       = "SP Search Box"
+$WP_SEARCH_RESULTS   = "SP Search Results"
+$WP_SEARCH_FILTERS   = "SP Search Filters"
+$WP_SEARCH_VERTICALS = "SP Search Verticals"
+$WP_SEARCH_ADMIN_MANAGER = "SP Search Admin Manager"
+
+$PROVISIONED_DOCUMENT_LIBRARIES = @(
+    "CorporatePolicies",
+    "SalesMaterials",
+    "MarketingContent",
+    "HRResources",
+    "FinanceReports",
+    "EngineeringDocs",
+    "LegalDocuments",
+    "ProjectFiles",
+    "MediaAssets",
+    "KnowledgeBase"
+)
+
+$PROVISIONED_CUSTOM_LISTS = @(
+    "Projects",
+    "Contacts",
+    "Tasks",
+    "Events",
+    "Inventory",
+    "Announcements",
+    "Issues",
+    "FAQ",
+    "Policies",
+    "Glossary"
+)
 
 # ============================================================================
 # Default vertical configuration
@@ -153,28 +180,147 @@ if (-not (Get-Module -ListAvailable -Name $requiredModule)) {
 
 Import-Module $requiredModule -ErrorAction Stop
 
+function Resolve-PnPClientId {
+    param(
+        [string]$ExplicitClientId
+    )
+
+    if ($ExplicitClientId) {
+        return $ExplicitClientId
+    }
+
+    $candidateNames = @(
+        'ENTRAID_APP_ID',
+        'ENTRAID_CLIENT_ID',
+        'AZURE_CLIENT_ID'
+    )
+
+    foreach ($candidateName in $candidateNames) {
+        $candidateValue = [Environment]::GetEnvironmentVariable($candidateName)
+        if (-not [string]::IsNullOrWhiteSpace($candidateValue)) {
+            return $candidateValue.Trim()
+        }
+    }
+
+    throw "PnP interactive auth now requires an Entra app client ID. Re-run with -ClientId <app-id>, or set one of these environment variables before running: ENTRAID_APP_ID, ENTRAID_CLIENT_ID, AZURE_CLIENT_ID."
+}
+
 # ============================================================================
 # Helper: Add SPFx web part to a page
 # ============================================================================
 function Add-SPSearchWebPart {
     param(
         [string]$Page,
-        [string]$ComponentId,
+        [string]$ComponentName,
         [int]$Section,
         [int]$Column,
         [int]$Order = 1,
         [hashtable]$Properties
     )
 
-    $propsJson = $Properties | ConvertTo-Json -Depth 10 -Compress
-
     Add-PnPPageWebPart -Page $Page `
-        -Component $ComponentId `
+        -Component $ComponentName `
         -Section $Section `
         -Column $Column `
         -Order $Order `
         -WebPartProperties $Properties `
         -ErrorAction Stop | Out-Null
+}
+
+function Get-SeededCoverageProfiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BaseSiteUrl
+    )
+
+    $normalizedSiteUrl = $BaseSiteUrl.TrimEnd('/')
+
+    $documentLibraryUrls = $PROVISIONED_DOCUMENT_LIBRARIES | ForEach-Object {
+        "$normalizedSiteUrl/$_"
+    }
+
+    $customListUrls = $PROVISIONED_CUSTOM_LISTS | ForEach-Object {
+        "$normalizedSiteUrl/Lists/$_"
+    }
+
+    return @(
+        @{
+            title = "Provisioned Document Libraries"
+            description = "Coverage profile for the seeded document libraries created by Provision-TestData.ps1."
+            sourceUrls = ($documentLibraryUrls -join ", ")
+            queryTemplate = "{searchTerms} IsDocument:1"
+            includeFolders = $false
+            trimDuplicates = $false
+        },
+        @{
+            title = "Provisioned Business Lists"
+            description = "Coverage profile for the seeded custom lists created by Provision-TestData.ps1."
+            sourceUrls = ($customListUrls -join ", ")
+            queryTemplate = "{searchTerms}"
+            includeFolders = $false
+            trimDuplicates = $false
+        }
+    )
+}
+
+function Normalize-SiteUrl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    return $Value.Trim().TrimEnd('/').ToLowerInvariant()
+}
+
+function Get-PageServerRelativeUrl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BaseSiteUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPageName
+    )
+
+    $siteUri = [Uri]$BaseSiteUrl
+    $sitePath = $siteUri.AbsolutePath.TrimEnd('/')
+    if ([string]::IsNullOrWhiteSpace($sitePath)) {
+        $sitePath = ''
+    }
+
+    return "$sitePath/SitePages/$TargetPageName.aspx"
+}
+
+function Remove-ExistingSearchPage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BaseSiteUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPageName
+    )
+
+    $pageServerRelativeUrl = Get-PageServerRelativeUrl -BaseSiteUrl $BaseSiteUrl -TargetPageName $TargetPageName
+
+    try {
+        Get-PnPFile -Url $pageServerRelativeUrl -AsListItem -ErrorAction Stop | Out-Null
+    } catch {
+        return
+    }
+
+    try {
+        Undo-PnPFileCheckedOut -Url $pageServerRelativeUrl -ErrorAction Stop
+        Write-Host "  Cleared checked-out draft for '$TargetPageName.aspx'" -ForegroundColor Yellow
+    } catch {
+        if ($_.Exception.Message -notmatch 'not checked out|is not checked out|does not exist') {
+            Write-Host "  Unable to clear checkout for '$TargetPageName.aspx': $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    try {
+        Remove-PnPFile -ServerRelativeUrl $pageServerRelativeUrl -Force -Recycle -ErrorAction Stop
+    } catch {
+        Remove-PnPPage -Identity $TargetPageName -Force -ErrorAction Stop
+    }
 }
 
 # ============================================================================
@@ -192,26 +338,46 @@ Write-Host "  Context:   $SearchContextId" -ForegroundColor White
 if ($SetAsHomePage) {
     Write-Host "  Home page: Yes" -ForegroundColor White
 }
-if ($IncludeSearchManager) {
-    Write-Host "  Manager:   Standalone (below results)" -ForegroundColor White
+if ($IncludeAdminManager) {
+    Write-Host "  Admin:     Standalone (below results)" -ForegroundColor White
 }
 Write-Host ""
 
 $totalSteps = 5
 if ($SetAsHomePage) { $totalSteps++ }
-if ($IncludeSearchManager) { $totalSteps++ }
+if ($IncludeAdminManager) { $totalSteps++ }
 $step = 0
+$disconnectOnExit = $false
 
 try {
     # ─── Step 1: Connect ──────────────────────────────────────
     $step++
     Write-Host "[$step/$totalSteps] Connecting to SharePoint..." -ForegroundColor Cyan
-    if ($ClientId) {
-        Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Interactive
-    } else {
-        Connect-PnPOnline -Url $SiteUrl -Interactive
+    $existingConnection = $null
+    try {
+        $existingConnection = Get-PnPConnection -ErrorAction Stop
+    } catch {
+        $existingConnection = $null
     }
-    Write-Host "  Connected successfully" -ForegroundColor Green
+
+    $normalizedTargetSiteUrl = Normalize-SiteUrl -Value $SiteUrl
+    $currentConnectionUrl = ''
+    if ($existingConnection -and $existingConnection.Url) {
+        $currentConnectionUrl = Normalize-SiteUrl -Value $existingConnection.Url
+    }
+
+    if ($existingConnection -and $currentConnectionUrl -eq $normalizedTargetSiteUrl) {
+        Write-Host "  Reusing existing PnP connection" -ForegroundColor Green
+    } else {
+        $resolvedClientId = Resolve-PnPClientId -ExplicitClientId $ClientId
+        Connect-PnPOnline -Url $SiteUrl -ClientId $resolvedClientId -Interactive
+        $disconnectOnExit = $true
+        if ($existingConnection -and $currentConnectionUrl) {
+            Write-Host "  Switched connection from $($existingConnection.Url) to $SiteUrl" -ForegroundColor Green
+        } else {
+            Write-Host "  Connected successfully" -ForegroundColor Green
+        }
+    }
     Write-Host ""
 
     # ─── Step 2: Create page ──────────────────────────────────
@@ -222,7 +388,7 @@ try {
     $existingPage = Get-PnPPage -Identity $PageName -ErrorAction SilentlyContinue
     if ($existingPage) {
         Write-Host "  [EXISTS] Page '$PageName.aspx' exists — removing for clean recreation..." -ForegroundColor Yellow
-        Remove-PnPPage -Identity $PageName -Force -ErrorAction Stop
+        Remove-ExistingSearchPage -BaseSiteUrl $SiteUrl -TargetPageName $PageName
     }
 
     # Create the page with Article layout (standard content page)
@@ -246,10 +412,10 @@ try {
     Add-PnPPageSection -Page $PageName -SectionTemplate TwoColumnLeft -Order 3 -ErrorAction Stop
     Write-Host "  Section 3: TwoColumnLeft (Results | Filters)" -ForegroundColor Green
 
-    if ($IncludeSearchManager) {
-        # Section 4: Full width — Search Manager
+    if ($IncludeAdminManager) {
+        # Section 4: Full width — Admin Search Manager
         Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 4 -ErrorAction Stop
-        Write-Host "  Section 4: OneColumn (Search Manager)" -ForegroundColor Green
+        Write-Host "  Section 4: OneColumn (Admin Search Manager)" -ForegroundColor Green
     }
     Write-Host ""
 
@@ -259,21 +425,21 @@ try {
 
     # Search Box (Section 1)
     Write-Host "  Adding Search Box..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentId $WP_SEARCH_BOX -Section 1 -Column 1 -Properties @{
+    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_BOX -Section 1 -Column 1 -Properties @{
         searchContextId     = $SearchContextId
         placeholder         = "Search SharePoint..."
         debounceMs          = 300
         searchBehavior      = "both"
         enableScopeSelector = $true
-        enableSuggestions    = $true
-        enableSearchManager = (-not $IncludeSearchManager)
+        enableSuggestions   = $true
+        enableSearchManager = $true
         enableQueryBuilder  = $false
     }
     Write-Host "  [OK] Search Box" -ForegroundColor Green
 
     # Verticals (Section 2)
     Write-Host "  Adding Verticals..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentId $WP_SEARCH_VERTICALS -Section 2 -Column 1 -Properties @{
+    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_VERTICALS -Section 2 -Column 1 -Properties @{
         searchContextId    = $SearchContextId
         verticals          = $defaultVerticals
         showCounts         = $true
@@ -284,7 +450,7 @@ try {
 
     # Search Results (Section 3, Column 1 — left, wider)
     Write-Host "  Adding Search Results..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentId $WP_SEARCH_RESULTS -Section 3 -Column 1 -Properties @{
+    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_RESULTS -Section 3 -Column 1 -Properties @{
         searchContextId  = $SearchContextId
         pageSize         = 25
         defaultLayout    = "list"
@@ -296,7 +462,7 @@ try {
 
     # Search Filters (Section 3, Column 2 — right, narrower)
     Write-Host "  Adding Search Filters..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentId $WP_SEARCH_FILTERS -Section 3 -Column 2 -Properties @{
+    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_FILTERS -Section 3 -Column 2 -Properties @{
         searchContextId        = $SearchContextId
         applyMode              = "instant"
         operatorBetweenFilters = "AND"
@@ -306,15 +472,21 @@ try {
 
     Write-Host ""
 
-    # ─── Step 4b: Search Manager (optional) ───────────────────
-    if ($IncludeSearchManager) {
+    # ─── Step 4b: Admin Search Manager (optional) ─────────────
+    if ($IncludeAdminManager) {
         $step++
-        Write-Host "[$step/$totalSteps] Adding Search Manager..." -ForegroundColor Cyan
-        Add-SPSearchWebPart -Page $PageName -ComponentId $WP_SEARCH_MANAGER -Section 4 -Column 1 -Properties @{
-            searchContextId = $SearchContextId
-            mode            = "standalone"
+        Write-Host "[$step/$totalSteps] Adding Admin Search Manager..." -ForegroundColor Cyan
+        Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_ADMIN_MANAGER -Section 4 -Column 1 -Properties @{
+            searchContextId           = $SearchContextId
+            coverageSourcePageUrl     = "$($SiteUrl.TrimEnd('/'))/SitePages/$PageName.aspx"
+            mode                      = "standalone"
+            defaultTab                = "coverage"
+            enableCoverage            = $true
+            coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
+            enableHealth              = $true
+            enableInsights            = $true
         }
-        Write-Host "  [OK] Search Manager (standalone mode)" -ForegroundColor Green
+        Write-Host "  [OK] Admin Search Manager (standalone mode)" -ForegroundColor Green
         Write-Host ""
     }
 
@@ -355,9 +527,9 @@ try {
     Write-Host "  │ Results (66%)              │ Filters (33%)          │"
     Write-Host "  │  - List layout, 25/page    │  - Instant apply       │"
     Write-Host "  │  - Sort + selection        │  - AND operator        │"
-    if ($IncludeSearchManager) {
+    if ($IncludeAdminManager) {
         Write-Host "  ├────────────────────────────┴─────────────────────────┤"
-        Write-Host "  │ Search Manager (saved searches, collections, history)│"
+        Write-Host "  │ Admin Search Manager (coverage, health, insights)    │"
     }
     Write-Host "  └──────────────────────────────────────────────────────┘"
     Write-Host ""
@@ -383,11 +555,13 @@ try {
     exit 1
 
 } finally {
-    try {
-        $null = Get-PnPConnection -ErrorAction Stop
-        Disconnect-PnPOnline -ErrorAction SilentlyContinue
-        Write-Host "Disconnected from SharePoint" -ForegroundColor Gray
-    } catch {
-        # Already disconnected
+    if ($disconnectOnExit) {
+        try {
+            $null = Get-PnPConnection -ErrorAction Stop
+            Disconnect-PnPOnline -ErrorAction SilentlyContinue
+            Write-Host "Disconnected from SharePoint" -ForegroundColor Gray
+        } catch {
+            # Already disconnected
+        }
     }
 }

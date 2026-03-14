@@ -45,7 +45,69 @@ $WP_SEARCH_BOX       = "SP Search Box"
 $WP_SEARCH_RESULTS   = "SP Search Results"
 $WP_SEARCH_FILTERS   = "SPSearchFilters"
 $WP_SEARCH_VERTICALS = "SPSearchVerticals"
-$WP_SEARCH_MANAGER   = "SPSearchManager"
+$WP_SEARCH_ADMIN_MANAGER = "SP Search Admin Manager"
+
+$PROVISIONED_DOCUMENT_LIBRARIES = @(
+    "CorporatePolicies",
+    "SalesMaterials",
+    "MarketingContent",
+    "HRResources",
+    "FinanceReports",
+    "EngineeringDocs",
+    "LegalDocuments",
+    "ProjectFiles",
+    "MediaAssets",
+    "KnowledgeBase"
+)
+
+$PROVISIONED_CUSTOM_LISTS = @(
+    "Projects",
+    "Contacts",
+    "Tasks",
+    "Events",
+    "Inventory",
+    "Announcements",
+    "Issues",
+    "FAQ",
+    "Policies",
+    "Glossary"
+)
+
+function Get-SeededCoverageProfiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BaseSiteUrl
+    )
+
+    $normalizedSiteUrl = $BaseSiteUrl.TrimEnd('/')
+
+    $documentLibraryUrls = $PROVISIONED_DOCUMENT_LIBRARIES | ForEach-Object {
+        "$normalizedSiteUrl/$_"
+    }
+
+    $customListUrls = $PROVISIONED_CUSTOM_LISTS | ForEach-Object {
+        "$normalizedSiteUrl/Lists/$_"
+    }
+
+    return @(
+        @{
+            title = "Provisioned Document Libraries"
+            description = "Coverage profile for the seeded document libraries created by Provision-TestData.ps1."
+            sourceUrls = ($documentLibraryUrls -join ", ")
+            queryTemplate = "{searchTerms} IsDocument:1"
+            includeFolders = $false
+            trimDuplicates = $false
+        },
+        @{
+            title = "Provisioned Business Lists"
+            description = "Coverage profile for the seeded custom lists created by Provision-TestData.ps1."
+            sourceUrls = ($customListUrls -join ", ")
+            queryTemplate = "{searchTerms}"
+            includeFolders = $false
+            trimDuplicates = $false
+        }
+    )
+}
 
 Write-Host ""
 Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
@@ -220,6 +282,7 @@ try {
                 @{ Name = "SearchState"; Type = "Note" },
                 @{ Name = "Vertical"; Type = "Text" },
                 @{ Name = "Scope"; Type = "Text" },
+                @{ Name = "UseCount"; Type = "Number" },
                 @{ Name = "ResultCount"; Type = "Number" },
                 @{ Name = "IsZeroResult"; Type = "Boolean" },
                 @{ Name = "SearchTimestamp"; Type = "DateTime" },
@@ -270,7 +333,7 @@ try {
             if ($existing) {
                 # If it exists as a wrong type (e.g., Note), remove and recreate
                 if ($existing.TypeAsString -ne "UserMulti") {
-                    Write-Host "    ~ $umField: changing from $($existing.TypeAsString) to UserMulti" -ForegroundColor Yellow
+                    Write-Host "    ~ ${umField}: changing from $($existing.TypeAsString) to UserMulti" -ForegroundColor Yellow
                     Remove-PnPField -List $listDef.Name -Identity $umField -Force -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 1
                     $existing = $null
@@ -320,7 +383,7 @@ try {
     Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 1 -ErrorAction Stop         # Search Box
     Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 2 -ErrorAction Stop         # Verticals
     Add-PnPPageSection -Page $PageName -SectionTemplate TwoColumnLeft -Order 3 -ErrorAction Stop     # Results | Filters
-    Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 4 -ErrorAction Stop         # Search Manager
+    Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 4 -ErrorAction Stop         # Admin Search Manager
 
     # Verticals config
     $defaultVerticals = @(
@@ -357,7 +420,7 @@ try {
         enableScopeSelector      = $true
         enableSuggestions        = $true
         enableKqlMode            = $true
-        enableSearchManager      = $false
+        enableSearchManager      = $true
         enableQueryBuilder       = $false
         searchInNewPage          = $false
         newPageUrl               = ""
@@ -415,18 +478,18 @@ try {
     } -ErrorAction Stop | Out-Null
     Write-Host "  [OK] Search Filters (FileType, Author, Date, ContentClass)" -ForegroundColor Green
 
-    Write-Host "  Adding Search Manager..." -ForegroundColor Yellow
-    Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_MANAGER -Section 4 -Column 1 -WebPartProperties @{
-        searchContextId      = $SearchContextId
-        mode                 = "standalone"
-        enableSavedSearches  = $true
-        enableSharedSearches = $true
-        enableCollections    = $true
-        enableHistory        = $true
-        enableAnnotations    = $false
-        maxHistoryItems      = 50
+    Write-Host "  Adding Admin Search Manager..." -ForegroundColor Yellow
+    Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_ADMIN_MANAGER -Section 4 -Column 1 -WebPartProperties @{
+        searchContextId            = $SearchContextId
+        coverageSourcePageUrl      = "$($SiteUrl.TrimEnd('/'))/SitePages/$PageName.aspx"
+        mode                       = "standalone"
+        defaultTab                 = "coverage"
+        enableCoverage             = $true
+        coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
+        enableHealth               = $true
+        enableInsights             = $true
     } -ErrorAction Stop | Out-Null
-    Write-Host "  [OK] Search Manager (standalone)" -ForegroundColor Green
+    Write-Host "  [OK] Admin Search Manager (standalone)" -ForegroundColor Green
 
     # ═══════════════════════════════════════════════════════════════════
     # PHASE 5: Publish
@@ -460,7 +523,7 @@ try {
     Write-Host "  │  - Selection enabled       │  - Modified Date       │"
     Write-Host "  │                            │  - Content Type        │"
     Write-Host "  ├────────────────────────────┴─────────────────────────┤"
-    Write-Host "  │ Search Manager (saved searches, history, collections)│"
+    Write-Host "  │ Admin Search Manager (coverage, health, insights)    │"
     Write-Host "  └──────────────────────────────────────────────────────┘"
     Write-Host ""
     Write-Host "  Web Part Properties Set:" -ForegroundColor Yellow
@@ -469,7 +532,8 @@ try {
     Write-Host "    Results:        list layout, 25/page, sort dropdown, selection"
     Write-Host "    Filters:        4 refiners (FileType, Author, Date, ContentClass)"
     Write-Host "    Sort options:   Date newest/oldest, Size, Popularity"
-    Write-Host "    Search Manager: standalone mode"
+    Write-Host "    Search Box:     user Search Manager panel enabled"
+    Write-Host "    Admin Manager:  standalone coverage/health/insights"
     Write-Host ""
     Write-Host "  Open: $SiteUrl/SitePages/$PageName.aspx" -ForegroundColor Cyan
     Write-Host ""
