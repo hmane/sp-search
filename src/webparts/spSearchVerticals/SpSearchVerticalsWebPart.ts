@@ -14,7 +14,7 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { type StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import { PropertyFieldCollectionData, CustomCollectionFieldType, type ICustomCollectionField } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 
 import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
@@ -206,7 +206,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
     // PropertyFieldCollectionData field configs have a broad union type; build them in steps
     // so TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
-    const verticalFields: Array<Record<string, unknown>> = [
+    const verticalFields: ICustomCollectionField[] = [
       {
         id: 'key',
         title: strings.VerticalKeyColumn,
