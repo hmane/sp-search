@@ -5,8 +5,8 @@ const path = require('path');
 const fs = require('fs');
 
 // In gulpfile.js __dirname was the project root. This file lives in
-// config/webpack-patch/, so resolve two levels up to reach the project root.
-const projectRoot = path.resolve(__dirname, '../..');
+// config/, so resolve one level up to reach the project root.
+const projectRoot = path.resolve(__dirname, '..');
 
 /**
  * Heft webpack patch for SP Search.
@@ -66,6 +66,48 @@ module.exports = function (webpackConfig) {
   // ---------------------------------------------------------------------------
   webpackConfig.module = webpackConfig.module || {};
   webpackConfig.module.rules = webpackConfig.module.rules || [];
+
+  // ---------------------------------------------------------------------------
+  // Exclude project lib/ from source-map-loader
+  // Heft's source-map-loader rule tries to resolve .module.scss imports in
+  // compiled JS files, which fails because CSS is handled by webpack's SASS
+  // rules at bundle time, not as separate files in lib/.
+  // Match ANY rule referencing source-map-loader (string, use array, or loader prop).
+  // ---------------------------------------------------------------------------
+  const libDir = path.resolve(projectRoot, 'lib');
+  function hasSourceMapLoader(rule) {
+    if (!rule) return false;
+    // Direct loader string
+    if (typeof rule.loader === 'string' && rule.loader.indexOf('source-map-loader') >= 0) return true;
+    // use array
+    if (Array.isArray(rule.use)) {
+      return rule.use.some(function (u) {
+        var loader = typeof u === 'string' ? u : (u && u.loader ? u.loader : '');
+        return loader.indexOf('source-map-loader') >= 0;
+      });
+    }
+    // Single use string
+    if (typeof rule.use === 'string' && rule.use.indexOf('source-map-loader') >= 0) return true;
+    return false;
+  }
+  function addExclude(rule, dir) {
+    rule.exclude = rule.exclude
+      ? (Array.isArray(rule.exclude) ? [...rule.exclude, dir] : [rule.exclude, dir])
+      : [dir];
+  }
+  webpackConfig.module.rules.forEach(function (rule) {
+    if (hasSourceMapLoader(rule)) {
+      addExclude(rule, libDir);
+    }
+    // Also check oneOf groups
+    if (Array.isArray(rule.oneOf)) {
+      rule.oneOf.forEach(function (inner) {
+        if (hasSourceMapLoader(inner)) {
+          addExclude(inner, libDir);
+        }
+      });
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // DevExtreme CSS handling
@@ -199,6 +241,29 @@ module.exports = function (webpackConfig) {
   });
 
   // ---------------------------------------------------------------------------
+  // Disable webpack's internal source-map-loader
+  // SPFx's Heft build adds `devtool: 'source-map'` which causes webpack to
+  // inject an internal source-map-loader rule. This rule processes lib/ JS files
+  // and tries to resolve .module.scss imports, which don't exist as separate
+  // files (CSS is bundled at webpack time via the SASS pipeline).
+  // Fix: set devtool to false (disables the internal loader), then use
+  // SourceMapDevToolPlugin for production source maps.
+  // ---------------------------------------------------------------------------
+  // Find and patch the source-map-loader rule to exclude project lib/ files.
+  // SPFx adds a source-map-loader rule with enforce:'pre' that processes all JS.
+  // When it hits compiled JS that imports .module.scss, it fails because those
+  // files don't exist separately (CSS is bundled by the SASS pipeline).
+  webpackConfig.module.rules.forEach(function (rule, idx) {
+    if (!rule || !rule.use) return;
+    var loaderPath = typeof rule.use === 'object' && rule.use.loader ? rule.use.loader : '';
+    if (typeof rule.use === 'string') loaderPath = rule.use;
+    if (loaderPath.indexOf('source-map-loader') >= 0 && rule.enforce === 'pre') {
+      addExclude(rule, libDir);
+      console.log('[SP Search] Excluded lib/ from source-map-loader rule[' + idx + ']');
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // Plugins
   // ---------------------------------------------------------------------------
   webpackConfig.plugins = webpackConfig.plugins || [];
@@ -231,8 +296,15 @@ module.exports = function (webpackConfig) {
       chunkIds: 'deterministic',
     };
 
-    // Production source maps
-    webpackConfig.devtool = 'hidden-source-map';
+    // Production source maps — use plugin instead of devtool to avoid
+    // webpack's internal source-map-loader which fails on .module.scss imports
+    webpackConfig.devtool = false;
+    webpackConfig.plugins.push(
+      new webpack.SourceMapDevToolPlugin({
+        filename: '[file].map',
+        append: false, // hidden source maps (not linked in bundle)
+      })
+    );
 
     // Bundle analyzer (only when ANALYZE env var is set)
     if (process.env.ANALYZE) {
@@ -268,8 +340,14 @@ module.exports = function (webpackConfig) {
       name: 'spfx-dev-cache',
     };
 
-    // Development source maps
-    webpackConfig.devtool = 'eval-cheap-module-source-map';
+    // Development source maps — use devtool:false + plugin to avoid
+    // webpack's internal source-map-loader which fails on .module.scss imports
+    webpackConfig.devtool = false;
+    webpackConfig.plugins.push(
+      new webpack.EvalSourceMapDevToolPlugin({
+        moduleFilenameTemplate: '[resource-path]',
+      })
+    );
 
     console.log('[SP Search] Development build - Fast compilation with filesystem cache');
   }

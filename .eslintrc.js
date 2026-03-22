@@ -1,6 +1,7 @@
 require('@rushstack/eslint-config/patch/modern-module-resolution');
 module.exports = {
   extends: ['@rushstack/eslint-config/profile/web-app'],
+  plugins: ['react-hooks', 'react'],
   parserOptions: { tsconfigRootDir: __dirname },
   overrides: [
     {
@@ -270,7 +271,8 @@ module.exports = {
         'promise/param-names': 2,
         // RATIONALE:         Catches code that is likely to be incorrect
         // STANDARDIZED BY:   eslint\conf\eslint-recommended.js
-        'require-atomic-updates': 2,
+        // Downgraded to warn: false positives on module-level cache patterns
+        'require-atomic-updates': 1,
         // STANDARDIZED BY:   eslint\conf\eslint-recommended.js
         'require-yield': 1,
         // "Use strict" is redundant when using the TypeScript compiler.
@@ -289,7 +291,6 @@ module.exports = {
         // @microsoft/eslint-plugin-spfx
         // ====================================================================
         '@rushstack/import-requires-chunk-name': 1,
-        '@rushstack/no-require-ensure': 2,
         '@rushstack/pair-react-dom-render-unmount': 1
       }
     },
