@@ -294,6 +294,51 @@ module.exports = function (webpackConfig) {
       usedExports: true,
       moduleIds: 'deterministic',
       chunkIds: 'deterministic',
+      // Extract common code shared between web part entry points into shared chunks.
+      // SPFx loads all web parts on the same page, so shared chunks are loaded once
+      // and reused across all web parts — reducing total download size.
+      splitChunks: {
+        ...webpackConfig.optimization.splitChunks,
+        cacheGroups: {
+          ...(webpackConfig.optimization.splitChunks && webpackConfig.optimization.splitChunks.cacheGroups),
+          // Extract Fluent UI components shared across 3+ web parts
+          fluentui: {
+            test: /[\\/]node_modules[\\/]@fluentui[\\/]/,
+            name: 'vendor-fluentui',
+            chunks: 'all',
+            minChunks: 3,
+            priority: 20,
+            reuseExistingChunk: true,
+          },
+          // Extract PnP controls shared across 3+ web parts
+          pnpControls: {
+            test: /[\\/]node_modules[\\/]@pnp[\\/]spfx-controls-react[\\/]/,
+            name: 'vendor-pnp-controls',
+            chunks: 'all',
+            minChunks: 3,
+            priority: 15,
+            reuseExistingChunk: true,
+          },
+          // Extract spfx-toolkit shared across 3+ web parts
+          spfxToolkit: {
+            test: /[\\/]node_modules[\\/]spfx-toolkit[\\/]/,
+            name: 'vendor-spfx-toolkit',
+            chunks: 'all',
+            minChunks: 3,
+            priority: 15,
+            reuseExistingChunk: true,
+          },
+          // Extract DevExtreme core (shared between Results and Filters lazy chunks)
+          devextreme: {
+            test: /[\\/]node_modules[\\/]devextreme[\\/]/,
+            name: 'vendor-devextreme',
+            chunks: 'all',
+            minChunks: 2,
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+        },
+      },
     };
 
     // Production source maps — use plugin instead of devtool to avoid
