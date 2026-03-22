@@ -465,6 +465,13 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     return availableLayouts.indexOf(configured) >= 0 ? configured : (availableLayouts[0] || 'list');
   }, [availableLayouts, defaultLayout]);
 
+  // Sync store when URL-provided layout is not in available layouts
+  React.useEffect((): void => {
+    if (activeLayoutKey && availableLayouts.length > 0 && availableLayouts.indexOf(activeLayoutKey) < 0) {
+      store.getState().setLayout(effectiveDefaultLayout);
+    }
+  }, [activeLayoutKey, availableLayouts, effectiveDefaultLayout, store]);
+
   // ─── Store action callbacks ─────────────────────────────────
   const handleLayoutChange = React.useCallback((key: string): void => {
     store.getState().setLayout(key);
