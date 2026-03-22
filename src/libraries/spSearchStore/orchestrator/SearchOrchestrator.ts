@@ -72,6 +72,7 @@ export class SearchOrchestrator {
     // same filterConfig array (new reference, same content) on mount, which
     // triggers a false-positive change detection and aborts in-flight searches.
     let prevFilterConfigJson = JSON.stringify(this._store.getState().filterConfig);
+    let prevOperatorBetweenFilters = this._store.getState().operatorBetweenFilters;
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
@@ -90,6 +91,7 @@ export class SearchOrchestrator {
       const refinementFiltersChanged = state.refinementFilters !== prevRefinementFilters;
       const currentFilterConfigJson = JSON.stringify(state.filterConfig);
       const filterConfigChanged = currentFilterConfigJson !== prevFilterConfigJson;
+      const operatorChanged = state.operatorBetweenFilters !== prevOperatorBetweenFilters;
 
       prevQueryText = state.queryText;
       prevQueryTemplate = state.queryTemplate;
@@ -106,6 +108,7 @@ export class SearchOrchestrator {
       prevCollapseSpecification = state.collapseSpecification;
       prevRefinementFilters = state.refinementFilters;
       prevFilterConfigJson = currentFilterConfigJson;
+      prevOperatorBetweenFilters = state.operatorBetweenFilters;
 
       // Auto-switch to the vertical's configured defaultLayout when the vertical changes.
       // Deferred via setTimeout to avoid Zustand subscriber re-entry during state propagation.
@@ -135,7 +138,8 @@ export class SearchOrchestrator {
         trimDuplicatesChanged ||
         collapseChanged ||
         refinementFiltersChanged ||
-        filterConfigChanged
+        filterConfigChanged ||
+        operatorChanged
       ) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
         this._debouncedSearch();
@@ -584,6 +588,7 @@ export class SearchOrchestrator {
 
   private _usesBucketedRefiners(filterType: ISearchStore['filterConfig'][number]['filterType']): boolean {
     return filterType === 'checkbox' ||
+      filterType === 'dropdown' ||
       filterType === 'tagbox' ||
       filterType === 'slider' ||
       filterType === 'taxonomy';
