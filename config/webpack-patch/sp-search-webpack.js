@@ -1,0 +1,278 @@
+'use strict';
+
+const webpack = require('webpack');
+const path = require('path');
+const fs = require('fs');
+
+// In gulpfile.js __dirname was the project root. This file lives in
+// config/webpack-patch/, so resolve two levels up to reach the project root.
+const projectRoot = path.resolve(__dirname, '../..');
+
+/**
+ * Heft webpack patch for SP Search.
+ *
+ * Migrated from the gulpfile.js `additionalConfiguration` callback.
+ * Signature: receives the generated webpack config, returns the patched config.
+ */
+module.exports = function (webpackConfig) {
+  const isProduction = webpackConfig.mode === 'production';
+  const projectNodeModules = path.resolve(projectRoot, 'node_modules');
+
+  // ---------------------------------------------------------------------------
+  // Shared dependency aliases — force linked packages (spfx-toolkit etc.) to
+  // share the host app's dependency tree and avoid duplicate React instances.
+  // ---------------------------------------------------------------------------
+  const sharedDependencyAliases = {
+    react: path.resolve(projectNodeModules, 'react'),
+    'react-dom': path.resolve(projectNodeModules, 'react-dom'),
+    'react-hook-form': path.resolve(projectNodeModules, 'react-hook-form'),
+    '@fluentui/react': path.resolve(projectNodeModules, '@fluentui/react'),
+    '@fluentui/utilities': path.resolve(projectNodeModules, '@fluentui/utilities'),
+    '@fluentui/merge-styles': path.resolve(projectNodeModules, '@fluentui/merge-styles'),
+    '@fluentui/react-focus': path.resolve(projectNodeModules, '@fluentui/react-focus'),
+    devextreme: path.resolve(projectNodeModules, 'devextreme'),
+    'devextreme-react': path.resolve(projectNodeModules, 'devextreme-react'),
+    inferno: path.resolve(projectNodeModules, 'inferno'),
+    tslib: path.resolve(projectNodeModules, 'tslib'),
+    zustand: path.resolve(projectNodeModules, 'zustand'),
+  };
+
+  // ---------------------------------------------------------------------------
+  // Path aliases (match tsconfig.json paths)
+  // ---------------------------------------------------------------------------
+  webpackConfig.resolve = webpackConfig.resolve || {};
+  webpackConfig.resolve.alias = {
+    ...webpackConfig.resolve.alias,
+    ...sharedDependencyAliases,
+    '@store': path.resolve(projectRoot, 'lib/libraries/spSearchStore'),
+    '@interfaces': path.resolve(projectRoot, 'lib/libraries/spSearchStore/interfaces'),
+    '@services': path.resolve(projectRoot, 'lib/libraries/spSearchStore/services'),
+    '@providers': path.resolve(projectRoot, 'lib/libraries/spSearchStore/providers'),
+    '@registries': path.resolve(projectRoot, 'lib/libraries/spSearchStore/registries'),
+    '@orchestrator': path.resolve(projectRoot, 'lib/libraries/spSearchStore/orchestrator'),
+    '@webparts': path.resolve(projectRoot, 'lib/webparts'),
+  };
+
+  // ---------------------------------------------------------------------------
+  // Module resolution
+  // ---------------------------------------------------------------------------
+  webpackConfig.resolve.modules = [
+    ...(webpackConfig.resolve.modules || []),
+    'node_modules',
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Module rules setup
+  // ---------------------------------------------------------------------------
+  webpackConfig.module = webpackConfig.module || {};
+  webpackConfig.module.rules = webpackConfig.module.rules || [];
+
+  // ---------------------------------------------------------------------------
+  // DevExtreme CSS handling
+  //
+  // Root cause: SPFx CSS rules can process DevExtreme CSS before our custom
+  // rule does. When css-loader resolves url() inside dx.light.css it imports
+  // binary icon fonts (dxicons.woff2, etc.). If webpack has no matching font
+  // loader at that point, it tries to parse the binary as JS.
+  //
+  // Strategy:
+  //   1. Patch every SPFx CSS rule to exclude dxCssDir.
+  //   2. Add an exact icon-font rule for devextreme/dist/css/icons/*.
+  //   3. Add our own exclusive DevExtreme CSS rule with css-loader url:true
+  //      so the font URLs resolve through the explicit font rule.
+  //   4. Keep a generic font asset rule as a final safety net.
+  // ---------------------------------------------------------------------------
+  const dxCssDir = path.resolve(projectRoot, 'node_modules/devextreme/dist/css');
+  const dxCssIconsDir = path.resolve(projectRoot, 'node_modules/devextreme/dist/css/icons');
+  const toolkitPackageDir = path.resolve(projectRoot, 'node_modules/spfx-toolkit');
+  const toolkitRealPackageDir = fs.existsSync(toolkitPackageDir)
+    ? fs.realpathSync(toolkitPackageDir)
+    : toolkitPackageDir;
+  const toolkitCssDirs = Array.from(
+    new Set([
+      path.join(toolkitPackageDir, 'lib'),
+      path.join(toolkitPackageDir, 'esm'),
+      path.join(toolkitRealPackageDir, 'lib'),
+      path.join(toolkitRealPackageDir, 'esm'),
+    ])
+  );
+
+  // Helper: does this rule's test match .css files?
+  function ruleMatchesCss(r) {
+    if (!r || !r.test) return false;
+    try {
+      if (r.test instanceof RegExp) return r.test.test('dummy.css');
+      if (typeof r.test === 'string') return r.test === '.css' || r.test.indexOf('css') >= 0;
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
+  // Helper: append paths to a rule's exclude list
+  function excludePaths(r, paths, idx, label) {
+    const prev = r.exclude;
+    r.exclude = prev
+      ? (Array.isArray(prev) ? [...prev, ...paths] : [prev, ...paths])
+      : [...paths];
+    console.log('[SP Search] Excluded ' + label + ' from rule[' + idx + ']');
+  }
+
+  // Patch every CSS rule at the top level
+  (webpackConfig.module.rules || []).forEach((r, idx) => {
+    if (ruleMatchesCss(r)) {
+      excludePaths(r, [dxCssDir], idx, 'devextreme CSS');
+      excludePaths(r, toolkitCssDirs, idx, 'spfx-toolkit CSS');
+    }
+    // Also patch inside any oneOf groups
+    if (Array.isArray(r.oneOf)) {
+      r.oneOf.forEach((inner, innerIdx) => {
+        if (ruleMatchesCss(inner)) {
+          const ruleLabel = idx + '.oneOf[' + innerIdx + ']';
+          excludePaths(inner, [dxCssDir], ruleLabel, 'devextreme CSS');
+          excludePaths(inner, toolkitCssDirs, ruleLabel, 'spfx-toolkit CSS');
+        }
+      });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // DevExtreme icon font rule — webpack 5 asset/resource (replaces file-loader)
+  // ---------------------------------------------------------------------------
+  const dxIconFontRule = {
+    test: /\.(woff2?|ttf|eot|svg)(\?.*)?$/i,
+    include: [dxCssIconsDir],
+    type: 'asset/resource',
+    generator: {
+      filename: 'devextreme-icons/[name]_[contenthash][ext]',
+    },
+  };
+  webpackConfig.module.rules.unshift(dxIconFontRule);
+
+  // ---------------------------------------------------------------------------
+  // Exclusive DevExtreme CSS rule
+  // ---------------------------------------------------------------------------
+  webpackConfig.module.rules.push({
+    test: /\.css$/,
+    include: [dxCssDir],
+    use: [
+      require.resolve('style-loader'),
+      {
+        loader: require.resolve('css-loader'),
+        options: { url: true, import: false },
+      },
+    ],
+  });
+
+  // ---------------------------------------------------------------------------
+  // spfx-toolkit CSS rule — explicitly bundle CSS shipped by the linked
+  // spfx-toolkit package. SPFx's default CSS rules do not reliably pick up
+  // package CSS from symlinked file: dependencies during ship builds.
+  // ---------------------------------------------------------------------------
+  webpackConfig.module.rules.push({
+    test: /\.css$/,
+    include: toolkitCssDirs,
+    sideEffects: true,
+    use: [
+      require.resolve('style-loader'),
+      {
+        loader: require.resolve('css-loader'),
+        options: { url: true, import: true },
+      },
+    ],
+  });
+
+  // ---------------------------------------------------------------------------
+  // Safety-net font rule — handles any woff/woff2/ttf/eot that still ends up
+  // as a webpack module dep (e.g. from a non-CSS import or a rule we missed).
+  // Placed via unshift so it is evaluated FIRST, and also injected inside any
+  // oneOf group so it wins even if SPFx uses oneOf for asset routing.
+  // ---------------------------------------------------------------------------
+  const fontRule = {
+    test: /\.(woff2?|ttf|eot)(\?.*)?$/i,
+    type: 'asset/resource',
+  };
+  webpackConfig.module.rules.unshift(fontRule);
+  (webpackConfig.module.rules || []).forEach(r => {
+    if (Array.isArray(r.oneOf)) {
+      r.oneOf.unshift(dxIconFontRule);
+      r.oneOf.unshift(fontRule);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Plugins
+  // ---------------------------------------------------------------------------
+  webpackConfig.plugins = webpackConfig.plugins || [];
+
+  // Ignore unnecessary DevExtreme locales (only keep en)
+  webpackConfig.plugins.push(
+    new webpack.IgnorePlugin({
+      resourceRegExp: /^\.\/locale$/,
+      contextRegExp: /devextreme/,
+    })
+  );
+
+  // Ignore moment.js locales if moment is used
+  webpackConfig.plugins.push(
+    new webpack.IgnorePlugin({
+      resourceRegExp: /^\.\/locale$/,
+      contextRegExp: /moment$/,
+    })
+  );
+
+  // ---------------------------------------------------------------------------
+  // Production vs Development settings
+  // ---------------------------------------------------------------------------
+  if (isProduction) {
+    // Production optimizations
+    webpackConfig.optimization = {
+      ...webpackConfig.optimization,
+      usedExports: true,
+      moduleIds: 'deterministic',
+      chunkIds: 'deterministic',
+    };
+
+    // Production source maps
+    webpackConfig.devtool = 'hidden-source-map';
+
+    // Bundle analyzer (only when ANALYZE env var is set)
+    if (process.env.ANALYZE) {
+      const bundleAnalyzer = require('webpack-bundle-analyzer');
+      webpackConfig.plugins.push(
+        new bundleAnalyzer.BundleAnalyzerPlugin({
+          analyzerMode: 'static',
+          reportFilename: path.join(projectRoot, 'temp', 'stats', 'bundle-report.html'),
+          openAnalyzer: false,
+          generateStatsFile: true,
+          statsFilename: path.join(projectRoot, 'temp', 'stats', 'bundle-stats.json'),
+          logLevel: 'warn',
+        })
+      );
+    }
+
+    console.log('[SP Search] Production build - Optimized');
+  } else {
+    // Development optimizations
+    webpackConfig.optimization = {
+      ...webpackConfig.optimization,
+      moduleIds: 'named',
+      chunkIds: 'named',
+    };
+
+    // Filesystem cache for faster rebuilds
+    webpackConfig.cache = {
+      type: 'filesystem',
+      buildDependencies: {
+        config: [__filename, path.resolve(projectRoot, 'tsconfig.json')],
+      },
+      cacheDirectory: path.resolve(projectRoot, 'node_modules/.cache/webpack'),
+      name: 'spfx-dev-cache',
+    };
+
+    // Development source maps
+    webpackConfig.devtool = 'eval-cheap-module-source-map';
+
+    console.log('[SP Search] Development build - Fast compilation with filesystem cache');
+  }
+
+  return webpackConfig;
+};

@@ -1,0 +1,5 @@
+{
+  "webpackPatches": [
+    "./webpack-patch/sp-search-webpack.js"
+  ]
+}
