@@ -12,6 +12,17 @@ import { ISavedSearch } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
 import styles from './SpSearchManager.module.scss';
 
+/**
+ * Returns the correct Teams base URL for the current cloud environment.
+ * Detects GCC High (.us) and DoD sovereign clouds from the page hostname.
+ */
+function getTeamsBaseUrl(): string {
+  const host = window.location.hostname.toLowerCase();
+  if (host.includes('dod.online.us')) return 'https://dod.teams.microsoft.us';
+  if (host.includes('.us')) return 'https://teams.microsoft.us';
+  return 'https://teams.microsoft.com';
+}
+
 export interface IShareSearchDialogProps {
   isOpen: boolean;
   search: ISavedSearch | undefined;
@@ -142,7 +153,7 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
     }
 
     const message = 'Check out this search: ' + search.title + ' - ' + shareUrl;
-    const teamsUrl = 'https://teams.microsoft.com/l/chat/0/0?message=' + encodeURIComponent(message);
+    const teamsUrl = getTeamsBaseUrl() + '/l/chat/0/0?message=' + encodeURIComponent(message);
     window.open(teamsUrl, '_blank');
     setTeamsSent(true);
   }
