@@ -753,7 +753,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             sort={sort}
             sortableProperties={sortableProperties}
             showResultCount={showResultCount}
-            showSortDropdown={showSortDropdown}
+            showSortDropdown={showSortDropdown && ['list', 'compact', 'grid'].indexOf(activeLayoutKey) >= 0}
             onLayoutChange={handleLayoutChange}
             onSortChange={handleSortChange}
             onPreloadLayout={handlePreloadLayout}
