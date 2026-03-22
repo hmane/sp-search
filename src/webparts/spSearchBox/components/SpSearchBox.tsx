@@ -117,8 +117,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [kqlCompletions, setKqlCompletions] = React.useState<IKqlCompletion[]>([]);
   const [kqlContext, setKqlContext] = React.useState<IKqlCompletionContext | undefined>(undefined);
   const [showKqlCompletions, setShowKqlCompletions] = React.useState<boolean>(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_kqlValidation, setKqlValidation] = React.useState<IKqlValidation>({ isValid: true, severity: 'valid', message: '' });
+  const [kqlValidation, setKqlValidation] = React.useState<IKqlValidation>({ isValid: true, severity: 'valid', message: '' });
 
   // ─── Refs ───────────────────────────────────────────────────────
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -843,6 +842,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
           onRemove={handleSuggestionRemove}
           onDismiss={function (): void { setShowSuggestions(false); }}
         />
+      )}
+
+      {/* KQL mode: Validation error display */}
+      {isKqlActive && kqlValidation && !kqlValidation.isValid && kqlValidation.message && (
+        <div className={styles.kqlValidationError} role="alert">
+          {kqlValidation.message}
+        </div>
       )}
 
       {/* KQL mode: Completion dropdown */}
