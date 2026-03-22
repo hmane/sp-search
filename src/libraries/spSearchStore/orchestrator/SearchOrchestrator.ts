@@ -73,6 +73,7 @@ export class SearchOrchestrator {
     // triggers a false-positive change detection and aborts in-flight searches.
     let prevFilterConfigJson = JSON.stringify(this._store.getState().filterConfig);
     let prevOperatorBetweenFilters = this._store.getState().operatorBetweenFilters;
+    let prevQueryInputTransformation = this._store.getState().queryInputTransformation;
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
@@ -92,6 +93,7 @@ export class SearchOrchestrator {
       const currentFilterConfigJson = JSON.stringify(state.filterConfig);
       const filterConfigChanged = currentFilterConfigJson !== prevFilterConfigJson;
       const operatorChanged = state.operatorBetweenFilters !== prevOperatorBetweenFilters;
+      const transformationChanged = state.queryInputTransformation !== prevQueryInputTransformation;
 
       prevQueryText = state.queryText;
       prevQueryTemplate = state.queryTemplate;
@@ -109,6 +111,7 @@ export class SearchOrchestrator {
       prevRefinementFilters = state.refinementFilters;
       prevFilterConfigJson = currentFilterConfigJson;
       prevOperatorBetweenFilters = state.operatorBetweenFilters;
+      prevQueryInputTransformation = state.queryInputTransformation;
 
       // Auto-switch to the vertical's configured defaultLayout when the vertical changes.
       // Deferred via setTimeout to avoid Zustand subscriber re-entry during state propagation.
@@ -139,7 +142,8 @@ export class SearchOrchestrator {
         collapseChanged ||
         refinementFiltersChanged ||
         filterConfigChanged ||
-        operatorChanged
+        operatorChanged ||
+        transformationChanged
       ) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
         this._debouncedSearch();
