@@ -34,6 +34,7 @@ export interface IRefinerValue {
 
 export type FilterType =
   | 'checkbox'
+  | 'dropdown'
   | 'daterange'
   | 'text'
   | 'people'
@@ -80,10 +81,20 @@ export interface IFilterConfig {
   termSetId?: string;
   /** Optional: taxonomy selection includes children */
   includeChildren?: boolean;
+  /** Optional: parent filter managed property for dependent-filter scenarios */
+  dependsOn?: string;
+  /** Optional: hide this filter until the parent has a selected value */
+  showWhenParentHasValue?: boolean;
+  /** Optional: hide zero-count values from the rendered filter choices */
+  hideZeroCountValues?: boolean;
+  /** Optional: clear this filter when the parent filter changes */
+  resetWhenParentChanges?: boolean;
   /** Optional: boolean true label */
   trueLabel?: string;
   /** Optional: boolean false label */
   falseLabel?: string;
+  /** Optional: invert boolean semantics for UI labels against the stored raw value */
+  invertBoolean?: boolean;
 }
 
 /**

@@ -53,6 +53,13 @@ interface IFilterCollectionItem {
   sortBy: string;
   sortDirection: string;
   multiValues: boolean;
+  dependsOn?: string;
+  showWhenParentHasValue?: boolean;
+  hideZeroCountValues?: boolean;
+  resetWhenParentChanges?: boolean;
+  trueLabel?: string;
+  falseLabel?: string;
+  invertBoolean?: boolean;
 }
 
 function normalizeFiltersCollectionValue(
@@ -162,7 +169,14 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         showCount: item.showCount !== false,
         sortBy: (item.sortBy || 'count') as IFilterConfig['sortBy'],
         sortDirection: (item.sortDirection || 'desc') as IFilterConfig['sortDirection'],
-        multiValues: item.multiValues !== false
+        multiValues: item.multiValues !== false,
+        dependsOn: item.dependsOn || undefined,
+        showWhenParentHasValue: item.showWhenParentHasValue === true,
+        hideZeroCountValues: item.hideZeroCountValues === true,
+        resetWhenParentChanges: item.resetWhenParentChanges === true,
+        trueLabel: item.trueLabel || undefined,
+        falseLabel: item.falseLabel || undefined,
+        invertBoolean: item.invertBoolean === true
       };
     });
 
@@ -270,6 +284,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                       required: true,
                       options: [
                         { key: 'checkbox', text: strings.FilterTypeCheckbox },
+                        { key: 'dropdown', text: strings.FilterTypeDropdown },
                         { key: 'daterange', text: strings.FilterTypeDateRange },
                         { key: 'text', text: strings.FilterTypeText },
                         { key: 'people', text: strings.FilterTypePeople },
@@ -336,6 +351,55 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                       type: CustomCollectionFieldType.boolean,
                       required: false,
                       defaultValue: true
+                    },
+                    {
+                      id: 'dependsOn',
+                      title: strings.FilterDependsOnColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'ContentType'
+                    },
+                    {
+                      id: 'showWhenParentHasValue',
+                      title: strings.FilterShowWhenParentHasValueColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: false
+                    },
+                    {
+                      id: 'hideZeroCountValues',
+                      title: strings.FilterHideZeroCountValuesColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: false
+                    },
+                    {
+                      id: 'resetWhenParentChanges',
+                      title: strings.FilterResetWhenParentChangesColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: false
+                    },
+                    {
+                      id: 'trueLabel',
+                      title: strings.FilterTrueLabelColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'Yes'
+                    },
+                    {
+                      id: 'falseLabel',
+                      title: strings.FilterFalseLabelColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: 'No'
+                    },
+                    {
+                      id: 'invertBoolean',
+                      title: strings.FilterInvertBooleanColumn,
+                      type: CustomCollectionFieldType.boolean,
+                      required: false,
+                      defaultValue: false
                     }
                   ]
                 }),

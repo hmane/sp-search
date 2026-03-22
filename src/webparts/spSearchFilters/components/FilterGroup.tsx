@@ -17,6 +17,7 @@ const LazySliderFilter = React.lazy(function () { return import('./SliderFilter'
 const LazyTagBoxFilter = React.lazy(function () { return import('./TagBoxFilter'); });
 const LazyTaxonomyTreeFilter = React.lazy(function () { return import('./TaxonomyTreeFilter'); });
 const LazyPeoplePickerFilter = React.lazy(function () { return import('./PeoplePickerFilter'); });
+const LazyDropdownFilter = React.lazy(function () { return import('./DropdownFilter'); });
 
 export interface IFilterGroupProps {
   refiner: IRefiner;
@@ -63,6 +64,12 @@ function renderFilterComponent(
   };
 
   switch (filterType) {
+    case 'dropdown':
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyDropdownFilter, commonProps)
+      );
     case 'daterange':
       return React.createElement(DateRangeFilter, commonProps);
     case 'text':

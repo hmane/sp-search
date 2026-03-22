@@ -1,6 +1,8 @@
 # SP Search — Admin Configuration Guide
 
-This guide documents the current SharePoint search solution as shipped after the product cleanup and Sprint 4 work. The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
+This guide documents the current SharePoint search solution as shipped through Sprint 4 (audit fixes). The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
+
+**Sprint 4 highlights:** operatorBetweenFilters now functional, queryInputTransformation triggers re-search, Clear All Filters button, XLSX export in DataGrid, scope collection editor in property pane, accessibility improvements, sovereign cloud Teams sharing.
 
 ## Core Setup Rule
 

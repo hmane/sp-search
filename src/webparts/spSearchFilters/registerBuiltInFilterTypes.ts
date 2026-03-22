@@ -33,6 +33,30 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     }
   });
 
+  // ── Dropdown ─────────────────────────────────────────────
+  registry.register({
+    id: 'dropdown',
+    displayName: 'Dropdown',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    component: createLazyComponent(
+      function () { return import('./components/DropdownFilter') as any; },
+      { errorMessage: 'Failed to load dropdown filter' }
+    ),
+    serializeValue: function (value: unknown): string {
+      return encodeURIComponent(String(value));
+    },
+    deserializeValue: function (raw: string): unknown {
+      return decodeURIComponent(raw);
+    },
+    buildRefinementToken: function (value: unknown, _managedProperty: string): string {
+      const v: string = String(value);
+      if (v.charAt(0) !== '"') {
+        return '"' + v + '"';
+      }
+      return v;
+    }
+  });
+
   // ── Date Range ───────────────────────────────────────────
   registry.register({
     id: 'daterange',
