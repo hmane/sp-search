@@ -192,6 +192,19 @@ function buildHistoryTitle(
 }
 
 /**
+ * Stable hash of a collection name to produce a deterministic numeric ID.
+ * Avoids fragile dependency on the first list item's SharePoint ID.
+ */
+function _hashCollectionName(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+/**
  * Maps raw SharePoint list items to ISearchCollection[].
  * Groups by CollectionName and includes real list item IDs.
  */
@@ -263,7 +276,7 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
     collectionItems.sort((a, b) => a.sortOrder - b.sortOrder);
 
     collections.push({
-      id: firstExt.number('Id', 0),
+      id: _hashCollectionName(collectionName),
       collectionName,
       items: collectionItems,
       sharedWith: extractSharedWith(first),
@@ -899,41 +912,93 @@ export class SearchManagerService {
 
       const fullSelectFields = coreSelectFields + ',SharedWith/Id,SharedWith/Title,SharedWith/EMail';
 
-      // Query 1: Items owned by current user
+      // Query 1: Items owned by current user (paginated via Id gt pattern)
       // Try with SharedWith expand first; fall back without if it fails
-      let ownedItems: Array<Record<string, unknown>>;
-      try {
-        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(fullSelectFields)
-          .expand('Author', 'SharedWith')
-          .filter('Author/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(500)() as Array<Record<string, unknown>>;
-      } catch {
-        console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
-        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(coreSelectFields)
-          .expand('Author')
-          .filter('Author/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(500)() as Array<Record<string, unknown>>;
+      const PAGE_SIZE = 500;
+      let ownedItems: Array<Record<string, unknown>> = [];
+      let useSharedWithExpand = true;
+
+      {
+        let lastId = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const ownedFilter = lastId === 0
+            ? 'Author/Id eq ' + this._currentUserId
+            : 'Author/Id eq ' + this._currentUserId + ' and Id gt ' + lastId;
+
+          let batch: Array<Record<string, unknown>>;
+          try {
+            if (useSharedWithExpand) {
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(fullSelectFields)
+                .expand('Author', 'SharedWith')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            } else {
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(coreSelectFields)
+                .expand('Author')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            }
+          } catch {
+            if (useSharedWithExpand && lastId === 0) {
+              console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
+              useSharedWithExpand = false;
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(coreSelectFields)
+                .expand('Author')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            } else {
+              throw new Error('Failed to load owned collection items');
+            }
+          }
+
+          ownedItems = ownedItems.concat(batch);
+          hasMore = batch.length === PAGE_SIZE;
+          if (batch.length > 0) {
+            const lastItem = createSPExtractor(batch[batch.length - 1]);
+            lastId = lastItem.number('Id', 0);
+          }
+        }
       }
 
-      // Query 2: Items shared with current user (non-fatal)
+      // Query 2: Items shared with current user (paginated, non-fatal)
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
-        sharedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(fullSelectFields)
-          .expand('Author', 'SharedWith')
-          .filter('SharedWith/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(200)() as Array<Record<string, unknown>>;
+        let lastId = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const sharedFilter = lastId === 0
+            ? 'SharedWith/Id eq ' + this._currentUserId
+            : 'SharedWith/Id eq ' + this._currentUserId + ' and Id gt ' + lastId;
+
+          const batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+            .items
+            .using(CacheNever())
+            .select(fullSelectFields)
+            .expand('Author', 'SharedWith')
+            .filter(sharedFilter)
+            .orderBy('Id', true)
+            .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+
+          sharedItems = sharedItems.concat(batch);
+          hasMore = batch.length === PAGE_SIZE;
+          if (batch.length > 0) {
+            const lastItem = createSPExtractor(batch[batch.length - 1]);
+            lastId = lastItem.number('Id', 0);
+          }
+        }
       } catch {
         // SharedWith field query may fail if not indexed
       }
@@ -951,6 +1016,13 @@ export class SearchManagerService {
           seenIds.add(itemId);
         }
       }
+
+      // Re-sort by CollectionName since pagination used Id ordering
+      allItems.sort(function (a: Record<string, unknown>, b: Record<string, unknown>): number {
+        const nameA = ((a.CollectionName as string) || '').toLowerCase();
+        const nameB = ((b.CollectionName as string) || '').toLowerCase();
+        return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
+      });
 
       console.log('[SP Search] loadCollections: loaded ' + allItems.length + ' items');
       return mapToCollection(allItems);
