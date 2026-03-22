@@ -122,6 +122,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const containerRef = React.useRef<HTMLDivElement>(undefined as unknown as HTMLDivElement);
   const suggestionRequestIdRef = React.useRef<number>(0);
   const latestSuggestionQueryRef = React.useRef<string>('');
+  const suggestionAbortRef = React.useRef<AbortController | undefined>(undefined);
 
   // ─── Subscribe to store changes ─────────────────────────────────
   React.useEffect(() => {
@@ -165,12 +166,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     };
   }, []);
 
-  // ─── Cleanup debounce timer on unmount ──────────────────────────
+  // ─── Cleanup debounce timer and abort suggestions on unmount ────
   React.useEffect(() => {
     return function cleanup(): void {
       if (debounceTimerRef.current !== undefined) {
         clearTimeout(debounceTimerRef.current);
       }
+      suggestionAbortRef.current?.abort();
     };
   }, []);
 
@@ -214,6 +216,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     }
 
     const run = function (): void {
+      suggestionAbortRef.current?.abort();
+      suggestionAbortRef.current = new AbortController();
+
       const requestId = suggestionRequestIdRef.current + 1;
       suggestionRequestIdRef.current = requestId;
       latestSuggestionQueryRef.current = value;
@@ -255,6 +260,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
           }
         })
       ).then(function (entries): void {
+        if (suggestionAbortRef.current?.signal.aborted) {
+          return;
+        }
         if (
           suggestionRequestIdRef.current !== requestId ||
           latestSuggestionQueryRef.current !== value
