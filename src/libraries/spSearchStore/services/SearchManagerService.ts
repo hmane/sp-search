@@ -1181,9 +1181,14 @@ export class SearchManagerService {
    * Share a saved search with specific users.
    * Updates SharedWith field and sets item-level read permissions.
    */
-  public async shareToUsers(savedSearchId: number, userEmails: string[]): Promise<void> {
+  public async shareToUsers(
+    savedSearchId: number,
+    userEmails: string[]
+  ): Promise<{ succeeded: string[]; failed: string[] }> {
+    const result: { succeeded: string[]; failed: string[] } = { succeeded: [], failed: [] };
+
     if (userEmails.length === 0) {
-      return;
+      return result;
     }
     if (!this.isReady) {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
@@ -1194,21 +1199,26 @@ export class SearchManagerService {
     const list = SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST);
     const item = list.items.getById(savedSearchId);
 
-    // Resolve user IDs
+    // Resolve user IDs — track which emails succeeded and which failed
     const userIds: number[] = [];
     for (let i = 0; i < userEmails.length; i++) {
       try {
         const user = await SPContext.sp.web.ensureUser(userEmails[i]);
         if (user.data && user.data.Id) {
           userIds.push(user.data.Id);
+          result.succeeded.push(userEmails[i]);
+        } else {
+          result.failed.push(userEmails[i]);
+          SPContext.logger.warn('SearchManagerService: Could not resolve user', { email: userEmails[i] });
         }
       } catch {
+        result.failed.push(userEmails[i]);
         SPContext.logger.warn('SearchManagerService: Could not resolve user', { email: userEmails[i] });
       }
     }
 
     if (userIds.length === 0) {
-      return;
+      return result;
     }
 
     // Update SharedWith field
@@ -1229,6 +1239,8 @@ export class SearchManagerService {
       // Permission operations may fail; SharedWith update still succeeded
       SPContext.logger.warn('SearchManagerService: Could not set item-level permissions', { savedSearchId });
     }
+
+    return result;
   }
 
   // ─── History Cleanup ────────────────────────────────────────

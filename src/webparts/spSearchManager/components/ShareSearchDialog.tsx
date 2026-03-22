@@ -170,9 +170,16 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
     setShareSuccess(false);
 
     service.shareToUsers(search.id, selectedUsers)
-      .then(function (): void {
+      .then(function (result: { succeeded: string[]; failed: string[] }): void {
         setIsSharing(false);
-        setShareSuccess(true);
+        if (result.failed.length > 0 && result.succeeded.length > 0) {
+          setShareSuccess(true);
+          setShareError('Could not resolve the following users: ' + result.failed.join(', '));
+        } else if (result.failed.length > 0 && result.succeeded.length === 0) {
+          setShareError('Could not resolve any of the selected users: ' + result.failed.join(', '));
+        } else {
+          setShareSuccess(true);
+        }
         setSelectedUsers([]);
         if (onShareComplete) {
           onShareComplete();
@@ -279,7 +286,7 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
           {enableUserSharing !== false && (
             <PivotItem headerText="Users" itemIcon="People">
               <div className={styles.shareUserContainer}>
-                {shareSuccess && (
+                {shareSuccess && !shareError && (
                   <MessageBar
                     messageBarType={MessageBarType.success}
                     onDismiss={function (): void { setShareSuccess(false); }}
@@ -289,7 +296,17 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
                   </MessageBar>
                 )}
 
-                {shareError && (
+                {shareSuccess && shareError && (
+                  <MessageBar
+                    messageBarType={MessageBarType.warning}
+                    onDismiss={function (): void { setShareSuccess(false); setShareError(undefined); }}
+                    dismissButtonAriaLabel="Close"
+                  >
+                    Search shared, but some users could not be resolved. {shareError}
+                  </MessageBar>
+                )}
+
+                {!shareSuccess && shareError && (
                   <MessageBar
                     messageBarType={MessageBarType.error}
                     onDismiss={function (): void { setShareError(undefined); }}
