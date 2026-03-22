@@ -269,6 +269,16 @@
   gap: 8px;
 }
 
+.dropdownFilterContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dropdownFilter {
+  width: 100%;
+}
+
 .textFilterInputRow {
   display: flex;
   align-items: center;
@@ -305,6 +315,35 @@
   font-size: 12px;
   line-height: 20px;
   padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+    color: "[theme:themeDarkAlt, default: #106ebe]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 1px;
+  }
+}
+
+/* ── Clear All button ────────────────────────────────────── */
+
+.clearAllBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 4px;
+}
+
+.clearAllButton {
+  border: none;
+  background: transparent;
+  color: "[theme:themePrimary, default: #0078d4]";
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 2px 4px;
+  text-decoration: none;
 
   &:hover {
     text-decoration: underline;

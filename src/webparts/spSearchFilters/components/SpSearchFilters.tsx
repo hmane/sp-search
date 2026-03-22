@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as strings from 'SpSearchFiltersWebPartStrings';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
@@ -71,6 +72,87 @@ function isSingleValueFilter(config: IFilterConfig | undefined): boolean {
     config.filterType === 'slider' ||
     config.filterType === 'toggle' ||
     config.filterType === 'text';
+}
+
+function hasActiveSelection(filterName: string, filters: IActiveFilter[]): boolean {
+  for (let i = 0; i < filters.length; i++) {
+    if (filters[i].filterName === filterName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearDependentFilters(
+  current: IActiveFilter[],
+  changedFilterName: string,
+  configs: IFilterConfig[]
+): IActiveFilter[] {
+  const dependentNames = new Set<string>();
+  const queue: string[] = [changedFilterName];
+
+  while (queue.length > 0) {
+    const parent = queue.shift() as string;
+    for (let i = 0; i < configs.length; i++) {
+      const config = configs[i];
+      if (config.dependsOn === parent && config.resetWhenParentChanges === true && !dependentNames.has(config.managedProperty)) {
+        dependentNames.add(config.managedProperty);
+        queue.push(config.managedProperty);
+      }
+    }
+  }
+
+  if (dependentNames.size === 0) {
+    return current;
+  }
+
+  return current.filter(function (filter: IActiveFilter): boolean {
+    return !dependentNames.has(filter.filterName);
+  });
+}
+
+function buildRenderableRefiner(
+  refiner: IRefiner,
+  config: IFilterConfig | undefined,
+  activeFilters: IActiveFilter[]
+): IRefiner | undefined {
+  if (!config) {
+    return refiner;
+  }
+
+  if (config.dependsOn && config.showWhenParentHasValue && !hasActiveSelection(config.dependsOn, activeFilters)) {
+    return undefined;
+  }
+
+  if (config.hideZeroCountValues !== true) {
+    return refiner;
+  }
+
+  const visibleValues = refiner.values.filter(function (value): boolean {
+    if (value.count > 0) {
+      return true;
+    }
+
+    const candidate: IActiveFilter = {
+      filterName: refiner.filterName,
+      value: value.value,
+      displayValue: value.name || undefined,
+      operator: config.operator
+    };
+
+    for (let i = 0; i < activeFilters.length; i++) {
+      if (areFiltersEquivalent(activeFilters[i], candidate)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+
+  return {
+    filterName: refiner.filterName,
+    values: visibleValues
+  };
 }
 
 function areFiltersEqual(a: IActiveFilter[], b: IActiveFilter[]): boolean {
@@ -151,7 +233,7 @@ function useStoreState<T>(
 }
 
 const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFiltersProps): React.ReactElement => {
-  const { store, applyMode, enableVisualFilterBuilder } = props;
+  const { store, applyMode, showClearAll, enableVisualFilterBuilder } = props;
 
   // Stable selectors to avoid re-subscriptions
   const selectRefiners = React.useCallback(function (s: ISearchStore): IRefiner[] {
@@ -202,6 +284,21 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     },
     [refiners, configs]
   );
+  const renderableRefiners: IRefiner[] = React.useMemo(
+    function (): IRefiner[] {
+      const next: IRefiner[] = [];
+      for (let i = 0; i < displayRefiners.length; i++) {
+        const refiner = displayRefiners[i];
+        const config = findFilterConfig(refiner.filterName, configs);
+        const renderable = buildRenderableRefiner(refiner, config, displayFilters);
+        if (renderable) {
+          next.push(renderable);
+        }
+      }
+      return next;
+    },
+    [configs, displayFilters, displayRefiners]
+  );
 
   // Sync pending filters when store filters change (manual mode)
   React.useEffect(function (): void {
@@ -219,14 +316,22 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     const config = findFilterConfig(filter.filterName, configs);
 
     if (applyMode === 'instant') {
-      const nextFilters = buildNextFilters(filters, filter, config);
+      const nextFilters = clearDependentFilters(
+        buildNextFilters(filters, filter, config),
+        filter.filterName,
+        configs
+      );
       store.setState({
         activeFilters: nextFilters,
         currentPage: 1
       });
     } else {
       const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
-      const updated = buildNextFilters(current, filter, config);
+      const updated = clearDependentFilters(
+        buildNextFilters(current, filter, config),
+        filter.filterName,
+        configs
+      );
       setPendingFilters(updated);
       setHasPendingChanges(!areFiltersEqual(updated, filters));
     }
@@ -265,6 +370,20 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     setHasPendingChanges(false);
   }
 
+  /** Clear all active filters. Respects apply mode: instant dispatches to store, manual clears pending. */
+  function handleClearAll(): void {
+    if (!store) {
+      return;
+    }
+
+    if (applyMode === 'instant') {
+      store.getState().clearAllFilters();
+    } else {
+      setPendingFilters([]);
+      setHasPendingChanges(!areFiltersEqual([], filters));
+    }
+  }
+
   if (!store) {
     return (
       <div className={styles.spSearchFilters}>
@@ -275,7 +394,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  if (displayRefiners.length === 0 && !isLoading) {
+  if (renderableRefiners.length === 0 && !isLoading) {
     return (
       <div className={styles.spSearchFilters}>
         <div className={styles.emptyState} role="status">
@@ -285,7 +404,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  if (displayRefiners.length === 0 && isLoading) {
+  if (renderableRefiners.length === 0 && isLoading) {
     return (
       <div className={styles.spSearchFilters}>
         {[0, 1, 2].map(function (i: number): React.ReactElement {
@@ -352,8 +471,22 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
         />
       )}
 
+      {/* Clear All button */}
+      {showClearAll && displayFilters.length > 0 && (
+        <div className={styles.clearAllBar}>
+          <button
+            type="button"
+            className={styles.clearAllButton}
+            onClick={handleClearAll}
+            aria-label={strings.ClearAllFiltersLabel}
+          >
+            {strings.ClearAllFiltersLabel}
+          </button>
+        </div>
+      )}
+
       {/* Filter groups */}
-      {displayRefiners.map(function (refiner: IRefiner): React.ReactElement {
+      {renderableRefiners.map(function (refiner: IRefiner): React.ReactElement {
         const config: IFilterConfig | undefined = findFilterConfig(refiner.filterName, configs);
         return (
           <FilterGroup

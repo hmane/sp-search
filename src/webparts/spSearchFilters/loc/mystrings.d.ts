@@ -19,6 +19,7 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterUrlAliasColumn: string;
   FilterTypeColumn: string;
   FilterTypeCheckbox: string;
+  FilterTypeDropdown: string;
   FilterTypeDateRange: string;
   FilterTypeText: string;
   FilterTypeSlider: string;
@@ -37,11 +38,19 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterSortDescending: string;
   FilterSortAscending: string;
   FilterMultiValuesColumn: string;
+  FilterDependsOnColumn: string;
+  FilterShowWhenParentHasValueColumn: string;
+  FilterHideZeroCountValuesColumn: string;
+  FilterResetWhenParentChangesColumn: string;
+  FilterTrueLabelColumn: string;
+  FilterFalseLabelColumn: string;
+  FilterInvertBooleanColumn: string;
   ApplyModeLabel: string;
   ApplyModeInstant: string;
   ApplyModeManual: string;
   OperatorLabel: string;
   ShowClearAllLabel: string;
+  ClearAllFiltersLabel: string;
   EnableVisualFilterBuilderLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
