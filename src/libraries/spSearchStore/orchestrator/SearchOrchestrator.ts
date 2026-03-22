@@ -114,13 +114,17 @@ export class SearchOrchestrator {
       prevQueryInputTransformation = state.queryInputTransformation;
 
       // Auto-switch to the vertical's configured defaultLayout when the vertical changes.
-      // Deferred via setTimeout to avoid Zustand subscriber re-entry during state propagation.
       if (verticalChanged && state.currentVerticalKey) {
         const newVertical = state.verticals.find((v) => v.key === state.currentVerticalKey);
         const targetLayout = newVertical?.defaultLayout;
         if (targetLayout &&
             state.availableLayouts.indexOf(targetLayout) >= 0 &&
             state.activeLayoutKey !== targetLayout) {
+          // setTimeout(0) is REQUIRED here — do not change to queueMicrotask().
+          // setLayout() triggers a Zustand setState inside a subscription callback.
+          // setTimeout defers to the next macro task, breaking the re-entry cycle.
+          // queueMicrotask would run within the same subscription call stack, causing
+          // infinite re-entry. The one-frame flicker is an acceptable trade-off.
           setTimeout((): void => {
             this._store.getState().setLayout(targetLayout);
           }, 0);
