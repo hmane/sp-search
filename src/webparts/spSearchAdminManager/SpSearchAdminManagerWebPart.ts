@@ -1,1 +1,18 @@
-export { default } from '../spSearchManager/SpSearchManagerWebPart';
+import SpSearchManagerWebPart from '../spSearchManager/SpSearchManagerWebPart';
+
+/**
+ * SpSearchAdminManagerWebPart — standalone admin-only web part for search
+ * health, freshness, coverage monitoring, and insights dashboards.
+ *
+ * Extends the base SpSearchManagerWebPart which already enforces
+ * ManageWeb permission checks and renders with variant='admin'.
+ * This subclass exists so that the Admin Manager has its own web part
+ * identity (manifest ID, preconfigured properties) while reusing all
+ * base-class logic. The manifest defaults disable user-facing tabs
+ * (saved, shared, collections, history) and enable admin tabs
+ * (coverage, health, insights).
+ */
+export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart {
+  // All behavior is inherited from SpSearchManagerWebPart.
+  // The admin-specific defaults are set in the manifest's preconfiguredEntries.
+}
