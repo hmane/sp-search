@@ -151,27 +151,36 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
     async function resolveValues(): Promise<void> {
       const current = displayMapRef.current;
       const pending = new Map(current);
-      let changed = false;
-      for (let i = 0; i < activeFilters.length; i++) {
-        const filter = activeFilters[i];
-        const key = filter.filterName + '|' + filter.value;
-        if (pending.has(key)) {
-          continue;
-        }
-        const config = getFilterConfig(filter.filterName, filterConfig);
-        const formatter = getFilterValueFormatter(config.filterType);
-        try {
-          const formatted = await Promise.resolve(
-            formatter.formatForDisplay(filter.value, config)
-          );
-          pending.set(key, formatted || filter.value);
-          changed = true;
-        } catch {
-          pending.set(key, filter.value);
-          changed = true;
-        }
+
+      const unresolvedFilters = activeFilters.filter(function (f: IActiveFilter): boolean {
+        return !pending.has(f.filterName + '|' + f.value);
+      });
+
+      if (unresolvedFilters.length === 0) {
+        return;
       }
-      if (!cancelled && changed) {
+
+      const results = await Promise.all(
+        unresolvedFilters.map(async function (filter: IActiveFilter): Promise<{ key: string; value: string }> {
+          const key = filter.filterName + '|' + filter.value;
+          const cfg = getFilterConfig(filter.filterName, filterConfig);
+          const formatter = getFilterValueFormatter(cfg.filterType);
+          try {
+            const formatted = await Promise.resolve(
+              formatter.formatForDisplay(filter.value, cfg)
+            );
+            return { key, value: formatted || filter.value };
+          } catch {
+            return { key, value: filter.value };
+          }
+        })
+      );
+
+      results.forEach(function (r: { key: string; value: string }): void {
+        pending.set(r.key, r.value);
+      });
+
+      if (!cancelled) {
         setDisplayMap(new Map(pending));
       }
     }
