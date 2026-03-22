@@ -109,6 +109,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [schemaLoading, setSchemaLoading] = React.useState<boolean>(false);
   const [schemaError, setSchemaError] = React.useState<string | undefined>(undefined);
 
+  // ─── Scope persistence ─────────────────────────────────────────
+  const SCOPE_STORAGE_KEY = 'sp-search-scope-' + searchContextId;
+
   // ─── KQL mode state ─────────────────────────────────────────────
   const { value: isKqlMode, setValue: setIsKqlMode } = useLocalStorage<boolean>('sp-search-kql-mode', false);
   const [kqlCompletions, setKqlCompletions] = React.useState<IKqlCompletion[]>([]);
@@ -138,6 +141,26 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       unsubscribe();
     };
   }, [store]);
+
+  // Restore persisted scope on mount
+  React.useEffect(() => {
+    if (!enableScopeSelector || !searchScopes || searchScopes.length === 0) {
+      return;
+    }
+    try {
+      const savedScopeId = localStorage.getItem(SCOPE_STORAGE_KEY);
+      if (savedScopeId) {
+        for (let i = 0; i < searchScopes.length; i++) {
+          if (searchScopes[i].id === savedScopeId) {
+            store.getState().setScope(searchScopes[i]);
+            break;
+          }
+        }
+      }
+    } catch {
+      // localStorage may be unavailable
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync inputValue when store queryText changes externally
   React.useEffect(() => {
@@ -404,6 +427,11 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     }
     if (selectedScope) {
       store.getState().setScope(selectedScope);
+      try {
+        localStorage.setItem(SCOPE_STORAGE_KEY, selectedScope.id);
+      } catch {
+        // localStorage may be unavailable
+      }
     }
   }
 
