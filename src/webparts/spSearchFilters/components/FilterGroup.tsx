@@ -13,11 +13,11 @@ import type {
 } from '@interfaces/index';
 
 // Lazy-load heavy filter components (DevExtreme RangeSlider, TagBox, TreeView; PnP PeoplePicker)
-const LazySliderFilter = React.lazy(function () { return import('./SliderFilter'); });
-const LazyTagBoxFilter = React.lazy(function () { return import('./TagBoxFilter'); });
-const LazyTaxonomyTreeFilter = React.lazy(function () { return import('./TaxonomyTreeFilter'); });
-const LazyPeoplePickerFilter = React.lazy(function () { return import('./PeoplePickerFilter'); });
-const LazyDropdownFilter = React.lazy(function () { return import('./DropdownFilter'); });
+const LazySliderFilter = React.lazy(function () { return import(/* webpackChunkName: 'SliderFilter' */ './SliderFilter'); });
+const LazyTagBoxFilter = React.lazy(function () { return import(/* webpackChunkName: 'TagBoxFilter' */ './TagBoxFilter'); });
+const LazyTaxonomyTreeFilter = React.lazy(function () { return import(/* webpackChunkName: 'TaxonomyTreeFilter' */ './TaxonomyTreeFilter'); });
+const LazyPeoplePickerFilter = React.lazy(function () { return import(/* webpackChunkName: 'PeoplePickerFilter' */ './PeoplePickerFilter'); });
+const LazyDropdownFilter = React.lazy(function () { return import(/* webpackChunkName: 'DropdownFilter' */ './DropdownFilter'); });
 
 export interface IFilterGroupProps {
   refiner: IRefiner;

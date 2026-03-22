@@ -16,10 +16,25 @@ import {
 } from '@interfaces/index';
 import ResultToolbar from './ResultToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
-import ListLayout from './ListLayout';
-import CompactLayout from './CompactLayout';
-import DataGridLayout from './DataGridLayout';
 import Pagination from './Pagination';
+
+// ─── Lazy-loaded layouts (code-split per layout) ─────────
+// Type assertions needed due to @types/react mismatch between sp-search and spfx-toolkit
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ListLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'ListLayout' */ './ListLayout') as any,
+  { errorMessage: 'Failed to load list layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CompactLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'CompactLayout' */ './CompactLayout') as any,
+  { errorMessage: 'Failed to load compact layout' }
+);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const DataGridLayout: any = createLazyComponent(
+  () => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout') as any,
+  { errorMessage: 'Failed to load data grid layout' }
+);
 import styles from './SpSearchResults.module.scss';
 import { validateWebPartConfig, IConfigWarning, ConfigWarningLevel } from './configValidation';
 
@@ -28,9 +43,11 @@ import { validateWebPartConfig, IConfigWarning, ConfigWarningLevel } from './con
 // chunk before the user actually clicks. No-ops on subsequent calls because
 // webpack deduplicates dynamic imports after the first load.
 const LAYOUT_PRELOADERS: Record<string, () => void> = {
+  list:    (): void => { import(/* webpackChunkName: 'ListLayout' */    './ListLayout')    .catch((): void => { /* ignore preload error */ }); },
+  compact: (): void => { import(/* webpackChunkName: 'CompactLayout' */ './CompactLayout') .catch((): void => { /* ignore preload error */ }); },
   card:    (): void => { import(/* webpackChunkName: 'CardLayout' */    './CardLayout')    .catch((): void => { /* ignore preload error */ }); },
   people:  (): void => { import(/* webpackChunkName: 'PeopleLayout' */  './PeopleLayout')  .catch((): void => { /* ignore preload error */ }); },
-  grid:    (): void => { /* DataGridLayout is bundled eagerly to avoid runtime chunk-load failures. */ },
+  grid:    (): void => { import(/* webpackChunkName: 'DataGridLayout' */'./DataGridLayout') .catch((): void => { /* ignore preload error */ }); },
   gallery: (): void => { import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout') .catch((): void => { /* ignore preload error */ }); },
 };
 

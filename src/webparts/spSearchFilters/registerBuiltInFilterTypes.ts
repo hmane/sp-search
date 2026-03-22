@@ -15,7 +15,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Checkbox List',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/CheckboxFilter') as any; },
+      function () { return import(/* webpackChunkName: 'CheckboxFilter' */ './components/CheckboxFilter') as any; },
       { errorMessage: 'Failed to load checkbox filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -39,7 +39,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Dropdown',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/DropdownFilter') as any; },
+      function () { return import(/* webpackChunkName: 'DropdownFilter' */ './components/DropdownFilter') as any; },
       { errorMessage: 'Failed to load dropdown filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -63,7 +63,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Date Range',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/DateRangeFilter') as any; },
+      function () { return import(/* webpackChunkName: 'DateRangeFilter' */ './components/DateRangeFilter') as any; },
       { errorMessage: 'Failed to load date range filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -84,7 +84,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Text Query',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/TextFilter') as any; },
+      function () { return import(/* webpackChunkName: 'TextFilter' */ './components/TextFilter') as any; },
       { errorMessage: 'Failed to load text filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -105,7 +105,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Toggle',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/ToggleFilter') as any; },
+      function () { return import(/* webpackChunkName: 'ToggleFilter' */ './components/ToggleFilter') as any; },
       { errorMessage: 'Failed to load toggle filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -126,7 +126,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Tag Box',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/TagBoxFilter') as any; },
+      function () { return import(/* webpackChunkName: 'TagBoxFilter' */ './components/TagBoxFilter') as any; },
       { errorMessage: 'Failed to load tag box filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -150,7 +150,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Slider',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/SliderFilter') as any; },
+      function () { return import(/* webpackChunkName: 'SliderFilter' */ './components/SliderFilter') as any; },
       { errorMessage: 'Failed to load slider filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -184,7 +184,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'Taxonomy Tree',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/TaxonomyTreeFilter') as any; },
+      function () { return import(/* webpackChunkName: 'TaxonomyTreeFilter' */ './components/TaxonomyTreeFilter') as any; },
       { errorMessage: 'Failed to load taxonomy filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -213,7 +213,7 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
     displayName: 'People Picker',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: createLazyComponent(
-      function () { return import('./components/PeoplePickerFilter') as any; },
+      function () { return import(/* webpackChunkName: 'PeoplePickerFilter' */ './components/PeoplePickerFilter') as any; },
       { errorMessage: 'Failed to load people picker filter' }
     ),
     serializeValue: function (value: unknown): string {

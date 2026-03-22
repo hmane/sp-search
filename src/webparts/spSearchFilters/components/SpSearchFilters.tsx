@@ -16,7 +16,7 @@ import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VisualFilterBuilder: any = createLazyComponent(
-  () => import('./VisualFilterBuilder') as any,
+  () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as any,
   { errorMessage: 'Failed to load visual filter builder' }
 );
 
