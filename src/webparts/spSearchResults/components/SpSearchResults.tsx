@@ -424,6 +424,10 @@ const EmptyState: React.FC<IEmptyStateProps> = (emptyProps) => {
   );
 };
 
+/** Delay (ms) before showing the loading overlay. Sub-threshold searches complete
+ *  without ever displaying the spinner, avoiding a distracting flash. */
+const LOADING_OVERLAY_DELAY_MS = 300;
+
 /**
  * SPSearchResults — main container component.
  * Subscribes to the shared Zustand store and orchestrates the display of
@@ -551,9 +555,9 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
       setShowOverlay(false);
       return (): void => { /* noop */ };
     }
-    // Only reveal the overlay after 300ms — sub-300ms searches complete before
-    // it ever appears, so the user sees no flash.
-    const timer = setTimeout((): void => { setShowOverlay(true); }, 300);
+    // Only reveal the overlay after LOADING_OVERLAY_DELAY_MS — sub-threshold
+    // searches complete before it ever appears, so the user sees no flash.
+    const timer = setTimeout((): void => { setShowOverlay(true); }, LOADING_OVERLAY_DELAY_MS);
     return (): void => { clearTimeout(timer); };
   }, [isLoading, items.length]);
 

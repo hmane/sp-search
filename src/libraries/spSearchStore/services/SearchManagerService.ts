@@ -1044,6 +1044,9 @@ export class SearchManagerService {
     if (!this.isReady) {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
     }
+    if (name.length > 200) {
+      throw new Error('Collection name must not exceed 200 characters');
+    }
     await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .items.add({
         Title: name,

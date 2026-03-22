@@ -145,6 +145,9 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     if (managerService) {
       const suggestions = this._store.getState().registries.suggestions;
       const dataProviders = this._store.getState().registries.dataProviders;
+      // Safe to register after initializeSearchContext — suggestion providers are
+      // UI-only (not involved in search execution) so the suggestion registry is
+      // intentionally NOT frozen by SearchOrchestrator.freezeRegistries().
       registerBuiltInSuggestions(suggestions, managerService, dataProviders);
     }
 
