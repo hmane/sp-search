@@ -635,7 +635,7 @@ export class SearchOrchestrator {
   ): string {
     const rawQuery = state.queryText;
     const transformation = state.queryInputTransformation || '{searchTerms}';
-    let queryText = rawQuery
+    const queryText = rawQuery
       ? transformation.replace(/\{searchTerms\}/gi, rawQuery)
       : '*';
 

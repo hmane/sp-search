@@ -29,7 +29,8 @@ import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 require('devextreme/dist/css/dx.common.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('devextreme/dist/css/dx.light.css');
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchFiltersWebPartProps {
   searchContextId: string;

@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as strings from 'SpSearchFiltersWebPartStrings';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
 import styles from './SpSearchFilters.module.scss';
 import type { ISpSearchFiltersProps } from './ISpSearchFiltersProps';
 import FilterGroup from './FilterGroup';
@@ -14,9 +14,8 @@ import type {
 } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VisualFilterBuilder: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as any,
+const VisualFilterBuilder = lazyBridge(
+  () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load visual filter builder' }
 );
 

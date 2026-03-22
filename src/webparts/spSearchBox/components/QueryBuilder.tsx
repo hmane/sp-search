@@ -1,19 +1,18 @@
 import * as React from 'react';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
 import type { IManagedProperty } from '@interfaces/index';
 import styles from './SpSearchBox.module.scss';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FilterBuilder: any = createLazyComponent(
-  () => import('devextreme-react/filter-builder').then((module) => ({
-    default: module.FilterBuilder,
-  })) as any,
+const FilterBuilder = lazyBridge(
+  () => import(/* webpackChunkName: 'QueryBuilderFilterBuilder' */ 'devextreme-react/filter-builder').then((module) => ({
+    default: module.FilterBuilder as unknown as React.ComponentType<Record<string, unknown>>,
+  })),
   { errorMessage: 'Failed to load query builder' }
 );
 
-type FilterBuilderValue = any;
+type FilterBuilderValue = unknown;
 
 type FieldType = 'string' | 'number' | 'date' | 'boolean';
 
@@ -89,7 +88,7 @@ function escapeString(value: string): string {
   return value.replace(/"/g, '""');
 }
 
-function formatValue(value: any, dataType: FieldType): string {
+function formatValue(value: unknown, dataType: FieldType): string {
   if (value === null || value === undefined) {
     return '""';
   }
@@ -100,7 +99,7 @@ function formatValue(value: any, dataType: FieldType): string {
     return value ? 'true' : 'false';
   }
   if (dataType === 'date') {
-    const dateValue = value instanceof Date ? value : new Date(value);
+    const dateValue = value instanceof Date ? value : new Date(value as string | number);
     if (!isNaN(dateValue.getTime())) {
       return 'datetime("' + dateValue.toISOString() + '")';
     }
@@ -108,7 +107,7 @@ function formatValue(value: any, dataType: FieldType): string {
   return '"' + escapeString(String(value)) + '"';
 }
 
-function formatValueList(values: any[], dataType: FieldType): string[] {
+function formatValueList(values: unknown[], dataType: FieldType): string[] {
   const formatted: string[] = [];
   for (let i = 0; i < values.length; i++) {
     formatted.push(formatValue(values[i], dataType));
@@ -116,7 +115,7 @@ function formatValueList(values: any[], dataType: FieldType): string[] {
   return formatted;
 }
 
-function buildCondition(field: string, operator: string, value: any, dataType: FieldType): string {
+function buildCondition(field: string, operator: string, value: unknown, dataType: FieldType): string {
   const op = operator.toLowerCase();
 
   if (op === 'isblank') {
@@ -259,7 +258,7 @@ const QueryBuilder: React.FC<IQueryBuilderProps> = (props: IQueryBuilderProps): 
       )}
       {!isLoading && fields.length > 0 && (
         <FilterBuilder
-          fields={fields as any}
+          fields={fields as unknown as Record<string, unknown>[]}
           value={builderValue}
           onValueChanged={(e: { value?: FilterBuilderValue }): void => {
             setBuilderValue(e.value || null);

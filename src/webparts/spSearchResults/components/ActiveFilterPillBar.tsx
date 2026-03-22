@@ -185,7 +185,7 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
       }
     }
 
-    void resolveValues();
+    resolveValues().catch(() => { /* fire-and-forget */ });
 
     return () => {
       cancelled = true;

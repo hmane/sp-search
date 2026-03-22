@@ -10,8 +10,7 @@ export interface IFilterTypeDefinition {
   id: string;
   displayName: string;
   /** Lazy-loaded filter UI component (createLazyComponent or React.lazy) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: React.ComponentType<any>;
+  component: React.ComponentType<Record<string, unknown>>;
   /** Convert filter value to URL-safe string for deep linking */
   serializeValue: (value: unknown) => string;
   /** Restore filter value from URL param */

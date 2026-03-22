@@ -36,11 +36,17 @@ function extractEmbeddedLabel(token: string): string | undefined {
  * Resolve a taxonomy term GUID to its label via PnP Taxonomy API.
  * Returns the GUID as fallback if resolution fails.
  */
+/** Typed shape for PnP taxonomy term store API */
+interface IPnPTermStoreApi {
+  getTermById(id: string): () => Promise<{
+    labels?: Array<{ name: string; isDefault: boolean }>;
+  } | undefined>;
+}
+
 async function resolveTermLabel(guid: string): Promise<string> {
   try {
-    // Use any cast since PnP taxonomy typings may not expose getTermById directly
-    const termStore = SPContext.sp.termStore as any;
-    const termInfo = await termStore.getTermById(guid)();
+    const termStoreApi = (SPContext.sp as unknown as { termStore: IPnPTermStoreApi }).termStore;
+    const termInfo = await termStoreApi.getTermById(guid)();
     if (termInfo && termInfo.labels && termInfo.labels.length > 0) {
       const defaultLabel = termInfo.labels.find((l: { isDefault: boolean }) => l.isDefault);
       return defaultLabel ? defaultLabel.name : termInfo.labels[0].name;

@@ -23,7 +23,8 @@ import { getStore, initializeSearchContext, getManagerService } from '@store/sto
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchBoxWebPartProps {
   searchContextId: string;

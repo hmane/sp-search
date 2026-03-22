@@ -17,7 +17,6 @@ import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spf
 
 import * as strings from 'SpSearchManagerWebPartStrings';
 import SpSearchManager from './components/SpSearchManager';
-import { ISpSearchManagerProps } from './components/ISpSearchManagerProps';
 import styles from './components/SpSearchManager.module.scss';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore } from '@interfaces/index';
@@ -26,7 +25,8 @@ import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchManagerWebPartProps {
   searchContextId: string;
@@ -69,51 +69,47 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
   private _hasAdminAccess: boolean = true;
 
   public render(): void {
+    let element: React.ReactElement;
+
     if (!this._hasAdminAccess) {
-      ReactDom.render(
-        React.createElement(
-          'div',
-          { className: styles.accessDenied },
-          React.createElement(Icon, { iconName: 'Lock', className: styles.accessDeniedIcon }),
-          React.createElement('h2', { className: styles.accessDeniedTitle }, strings.AccessDeniedTitle),
-          React.createElement('p', { className: styles.accessDeniedDescription }, strings.AccessDeniedDescription)
-        ),
-        this.domElement
+      element = React.createElement(
+        'div',
+        { className: styles.accessDenied },
+        React.createElement(Icon, { iconName: 'Lock', className: styles.accessDeniedIcon }),
+        React.createElement('h2', { className: styles.accessDeniedTitle }, strings.AccessDeniedTitle),
+        React.createElement('p', { className: styles.accessDeniedDescription }, strings.AccessDeniedDescription)
       );
+    } else if (!this._store || !this._service) {
       return;
+    } else {
+      element = React.createElement(
+        SpSearchManager,
+        {
+          store: this._store,
+          service: this._service,
+          theme: this._theme,
+          variant: 'admin',
+          searchContextId: this.properties.searchContextId || 'default',
+          mode: 'standalone',
+          defaultTab: this.properties.defaultTab || 'coverage',
+          headerTitle: 'Admin Search Manager',
+          context: this.context,
+          enableSavedSearches: false,
+          enableSharedSearches: false,
+          enableCollections: false,
+          enableHistory: false,
+          enableCoverage: this.properties.enableCoverage !== false,
+          coverageSourcePageUrl: this.properties.coverageSourcePageUrl || '',
+          coverageProfiles: this._normalizeCoverageProfiles(),
+          enableHealth: this.properties.enableHealth !== false,
+          enableInsights: this.properties.enableInsights !== false,
+          enableAnnotations: false,
+          maxHistoryItems: 0,
+          showResetAction: false,
+          showSaveAction: false
+        }
+      );
     }
-
-    if (!this._store || !this._service) {
-      return;
-    }
-
-    const element: React.ReactElement<ISpSearchManagerProps> = React.createElement(
-      SpSearchManager,
-      {
-        store: this._store,
-        service: this._service,
-        theme: this._theme,
-        variant: 'admin',
-        searchContextId: this.properties.searchContextId || 'default',
-        mode: 'standalone',
-        defaultTab: this.properties.defaultTab || 'coverage',
-        headerTitle: 'Admin Search Manager',
-        context: this.context,
-        enableSavedSearches: false,
-        enableSharedSearches: false,
-        enableCollections: false,
-        enableHistory: false,
-        enableCoverage: this.properties.enableCoverage !== false,
-        coverageSourcePageUrl: this.properties.coverageSourcePageUrl || '',
-        coverageProfiles: this._normalizeCoverageProfiles(),
-        enableHealth: this.properties.enableHealth !== false,
-        enableInsights: this.properties.enableInsights !== false,
-        enableAnnotations: false,
-        maxHistoryItems: 0,
-        showResetAction: false,
-        showSaveAction: false
-      }
-    );
 
     ReactDom.render(element, this.domElement);
   }

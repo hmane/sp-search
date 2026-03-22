@@ -33,8 +33,9 @@ export async function resolveUserGroupIds(): Promise<string[]> {
     // SPContext.http.get does NOT throw on non-2xx — check response.ok
     if (!response.ok) {
       SPContext.logger.warn('AudienceService: Graph API returned HTTP ' + String(response.status));
-      cachedGroupIds = [];
-      return [];
+      const empty: string[] = [];
+      cachedGroupIds = empty; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+      return empty;
     }
 
     const groupIds: string[] = [];
@@ -51,15 +52,17 @@ export async function resolveUserGroupIds(): Promise<string[]> {
       }
     }
 
-    cachedGroupIds = groupIds;
-    SPContext.logger.info('AudienceService: Resolved user groups', { count: groupIds.length });
-    return groupIds;
+    const result = groupIds;
+    cachedGroupIds = result; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+    SPContext.logger.info('AudienceService: Resolved user groups', { count: result.length });
+    return result;
   } catch (error) {
     SPContext.logger.warn('AudienceService: Failed to resolve user groups', { error });
     // On failure, return empty — all audience-targeted items will be hidden
     // This is safer than showing everything (fail-closed)
-    cachedGroupIds = [];
-    return [];
+    const fallback: string[] = [];
+    cachedGroupIds = fallback; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+    return fallback;
   }
 }
 

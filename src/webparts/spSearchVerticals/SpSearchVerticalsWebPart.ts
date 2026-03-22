@@ -24,7 +24,8 @@ import { getStore, initializeSearchContext } from '@store/store';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
 
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchVerticalsWebPartProps {
   searchContextId: string;
@@ -189,8 +190,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     return Version.parse('1.0');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any): void {
+  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: unknown, newValue: unknown): void {
     super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
     if (this._store) {
       const contextId: string = this.properties.searchContextId || 'default';
@@ -206,7 +206,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
     // PropertyFieldCollectionData field configs have a broad union type; build them in steps
     // so TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
-    const verticalFields: any[] = [
+    const verticalFields: Array<Record<string, unknown>> = [
       {
         id: 'key',
         title: strings.VerticalKeyColumn,

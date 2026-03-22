@@ -2,6 +2,22 @@ import 'spfx-toolkit/lib/utilities/context/pnpImports/taxonomy';
 import type { IFilterConfig, IFilterValueFormatter } from '@interfaces/index';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
+/** Typed shape for PnP taxonomy term store API */
+interface IPnPTermStoreApi {
+  getTermById(id: string): () => Promise<{
+    labels?: Array<{ name: string; isDefault: boolean }>;
+    parent?: { id?: string };
+  } | undefined>;
+}
+
+/** Typed shape for PnP user profiles API */
+interface IPnPProfilesApi {
+  getPropertiesFor(loginName: string): Promise<{
+    DisplayName?: string;
+    UserProfileProperties?: Array<{ Key: string; Value: string }>;
+  } | undefined>;
+}
+
 interface ITaxonomyLabel {
   label: string;
   path: string;
@@ -68,7 +84,8 @@ async function resolveTaxonomyLabel(termId: string): Promise<ITaxonomyLabel> {
 
   const promise = (async (): Promise<ITaxonomyLabel> => {
     try {
-      const term = await (SPContext.sp as any).termStore.getTermById(termId)();
+      const termStoreApi = (SPContext.sp as unknown as { termStore: IPnPTermStoreApi }).termStore;
+      const term = await termStoreApi.getTermById(termId)();
       const label = getDefaultLabel(term?.labels);
       if (term && term.parent && term.parent.id) {
         const parentLabel = await resolveTaxonomyLabel(term.parent.id as string);
@@ -102,11 +119,12 @@ async function resolvePeopleDisplayName(claim: string): Promise<string> {
 
   const promise = (async (): Promise<string> => {
     try {
-      const profile = await (SPContext.sp as any).profiles.getPropertiesFor(claim);
+      const profilesApi = (SPContext.sp as unknown as { profiles: IPnPProfilesApi }).profiles;
+      const profile = await profilesApi.getPropertiesFor(claim);
       if (profile && profile.DisplayName) {
-        return profile.DisplayName as string;
+        return profile.DisplayName;
       }
-      const properties = profile?.UserProfileProperties as Array<{ Key: string; Value: string }> | undefined;
+      const properties = profile?.UserProfileProperties;
       if (properties) {
         const preferred = properties.find((prop) => prop.Key === 'PreferredName');
         if (preferred && preferred.Value) {

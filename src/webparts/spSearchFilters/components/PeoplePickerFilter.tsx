@@ -12,7 +12,15 @@ export interface IPeoplePickerFilterProps {
   onToggleRefiner: (filter: IActiveFilter) => void;
 }
 
-function extractClaimFromItem(item: any): string | undefined {
+interface IPeoplePickerItem {
+  loginName?: string;
+  id?: string;
+  secondaryText?: string;
+  text?: string;
+  email?: string;
+}
+
+function extractClaimFromItem(item: IPeoplePickerItem | undefined): string | undefined {
   const loginName = item && (item.loginName || item.id);
   if (typeof loginName === 'string' && loginName.length > 0) {
     return loginName;
@@ -52,7 +60,7 @@ const PeoplePickerFilter: React.FC<IPeoplePickerFilterProps> = (props: IPeoplePi
     return selectedClaims.map(extractEmailFromClaim);
   }, [selectedClaims]);
 
-  function handleChange(items: any[]): void {
+  function handleChange(items: IPeoplePickerItem[]): void {
     const nextClaims: string[] = [];
     const claimDisplayMap = new Map<string, string>();
     for (let i = 0; i < items.length; i++) {

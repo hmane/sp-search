@@ -9,7 +9,7 @@ import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
 import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
@@ -19,9 +19,8 @@ import SuggestionDropdown from './SuggestionDropdown';
 import KqlInput from './KqlInput';
 import KqlCompletionDropdown from './KqlCompletionDropdown';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const UserSearchManager: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as any,
+const UserSearchManager = lazyBridge(
+  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load search manager' }
 );
 

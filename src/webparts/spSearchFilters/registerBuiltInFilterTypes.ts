@@ -1,6 +1,7 @@
+import * as React from 'react';
 import type { IRegistry } from '@interfaces/index';
 import type { IFilterTypeDefinition } from '@interfaces/index';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../utilities/lazyBridge';
 
 /**
  * Register all built-in filter types into the given FilterTypeRegistry.
@@ -13,9 +14,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'checkbox',
     displayName: 'Checkbox List',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'CheckboxFilter' */ './components/CheckboxFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'CheckboxFilter' */ './components/CheckboxFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load checkbox filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -37,9 +37,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'dropdown',
     displayName: 'Dropdown',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'DropdownFilter' */ './components/DropdownFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'DropdownFilter' */ './components/DropdownFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load dropdown filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -61,9 +60,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'daterange',
     displayName: 'Date Range',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'DateRangeFilter' */ './components/DateRangeFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'DateRangeFilter' */ './components/DateRangeFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load date range filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -82,9 +80,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'text',
     displayName: 'Text Query',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'TextFilter' */ './components/TextFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'TextFilter' */ './components/TextFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load text filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -103,9 +100,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'toggle',
     displayName: 'Toggle',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'ToggleFilter' */ './components/ToggleFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'ToggleFilter' */ './components/ToggleFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load toggle filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -124,9 +120,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'tagbox',
     displayName: 'Tag Box',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'TagBoxFilter' */ './components/TagBoxFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'TagBoxFilter' */ './components/TagBoxFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load tag box filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -148,9 +143,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'slider',
     displayName: 'Slider',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'SliderFilter' */ './components/SliderFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'SliderFilter' */ './components/SliderFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load slider filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -182,9 +176,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'taxonomy',
     displayName: 'Taxonomy Tree',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'TaxonomyTreeFilter' */ './components/TaxonomyTreeFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'TaxonomyTreeFilter' */ './components/TaxonomyTreeFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load taxonomy filter' }
     ),
     serializeValue: function (value: unknown): string {
@@ -211,9 +204,8 @@ export function registerBuiltInFilterTypes(registry: IRegistry<IFilterTypeDefini
   registry.register({
     id: 'people',
     displayName: 'People Picker',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    component: createLazyComponent(
-      function () { return import(/* webpackChunkName: 'PeoplePickerFilter' */ './components/PeoplePickerFilter') as any; },
+        component: lazyBridge(
+      function () { return import(/* webpackChunkName: 'PeoplePickerFilter' */ './components/PeoplePickerFilter') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>; },
       { errorMessage: 'Failed to load people picker filter' }
     ),
     serializeValue: function (value: unknown): string {

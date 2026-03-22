@@ -4,7 +4,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
 import type { ISpSearchResultsProps } from './ISpSearchResultsProps';
 import {
   ISearchResult,
@@ -19,20 +19,16 @@ import ActiveFilterPillBar from './ActiveFilterPillBar';
 import Pagination from './Pagination';
 
 // ─── Lazy-loaded layouts (code-split per layout) ─────────
-// Type assertions needed due to @types/react mismatch between sp-search and spfx-toolkit
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ListLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'ListLayout' */ './ListLayout') as any,
+const ListLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'ListLayout' */ './ListLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load list layout' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CompactLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'CompactLayout' */ './CompactLayout') as any,
+const CompactLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'CompactLayout' */ './CompactLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load compact layout' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DataGridLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout') as any,
+const DataGridLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'DataGridLayout' */ './DataGridLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load data grid layout' }
 );
 import styles from './SpSearchResults.module.scss';
@@ -52,25 +48,20 @@ const LAYOUT_PRELOADERS: Record<string, () => void> = {
 };
 
 // ─── Lazy-loaded layouts and panels ──────────────────────
-// Type assertions needed due to @types/react mismatch between sp-search and spfx-toolkit
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CardLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'CardLayout' */ './CardLayout') as any,
+const CardLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'CardLayout' */ './CardLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load card layout' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const PeopleLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'PeopleLayout' */ './PeopleLayout') as any,
+const PeopleLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'PeopleLayout' */ './PeopleLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load people layout' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GalleryLayout: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout') as any,
+const GalleryLayout = lazyBridge(
+  () => import(/* webpackChunkName: 'GalleryLayout' */ './GalleryLayout') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load gallery layout' }
 );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ResultDetailPanel: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel') as any,
+const ResultDetailPanel = lazyBridge(
+  () => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load detail panel' }
 );
 /**

@@ -1,19 +1,18 @@
 import * as React from 'react';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
 import styles from './SpSearchFilters.module.scss';
 import type { IActiveFilter, IFilterConfig, IRefiner, IRefinerValue } from '@interfaces/index';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FilterBuilder: any = createLazyComponent(
-  () => import('devextreme-react/filter-builder').then((module) => ({
-    default: module.FilterBuilder,
-  })) as any,
+const FilterBuilder = lazyBridge(
+  () => import(/* webpackChunkName: 'VisualFilterBuilder_DX' */ 'devextreme-react/filter-builder').then((module) => ({
+    default: module.FilterBuilder as unknown as React.ComponentType<Record<string, unknown>>,
+  })),
   { errorMessage: 'Failed to load filter builder' }
 );
 
-type FilterBuilderValue = any;
+type FilterBuilderValue = unknown;
 type FieldType = 'string' | 'number' | 'date' | 'boolean';
 
 interface IVisualFilterBuilderField {
@@ -424,7 +423,7 @@ function buildExpressionFromActiveFilters(
 function conditionToFilter(
   field: string,
   operator: string,
-  value: any,
+  value: unknown,
   dataType: FieldType,
   fieldLookupTextMap: Map<string, Map<string, string>>
 ): IActiveFilter | undefined {
@@ -442,8 +441,8 @@ function conditionToFilter(
     displayValue = value ? 'Yes' : 'No';
   } else if (dataType === 'date') {
     if (op === 'between' && Array.isArray(value) && value.length >= 2) {
-      const start = value[0] instanceof Date ? value[0] : new Date(value[0]);
-      const end = value[1] instanceof Date ? value[1] : new Date(value[1]);
+      const start = value[0] instanceof Date ? value[0] : new Date(value[0] as string | number);
+      const end = value[1] instanceof Date ? value[1] : new Date(value[1] as string | number);
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         refinementValue = buildDateRangeToken(start, end);
         displayValue = start.toLocaleDateString() + ' - ' + end.toLocaleDateString();
@@ -451,7 +450,7 @@ function conditionToFilter(
         return undefined;
       }
     } else {
-      const dateValue = value instanceof Date ? value : new Date(value);
+      const dateValue = value instanceof Date ? value : new Date(value as string | number);
       if (isNaN(dateValue.getTime())) {
         return undefined;
       }
@@ -780,7 +779,7 @@ const VisualFilterBuilder: React.FC<IVisualFilterBuilderProps> = (props: IVisual
       </div>
       <div className={styles.visualFilterBuilderBody}>
         <FilterBuilder
-          fields={fields as any}
+          fields={fields as unknown as Record<string, unknown>[]}
           value={builderValue}
           onValueChanged={(e: { value?: FilterBuilderValue }): void => {
             setBuilderValue(e.value || null);
