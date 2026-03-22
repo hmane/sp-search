@@ -1,6 +1,6 @@
 require('@rushstack/eslint-config/patch/modern-module-resolution');
 module.exports = {
-  extends: ['@microsoft/eslint-config-spfx/lib/profiles/react'],
+  extends: ['@rushstack/eslint-config/profile/web-app'],
   parserOptions: { tsconfigRootDir: __dirname },
   overrides: [
     {
@@ -288,9 +288,9 @@ module.exports = {
         // ====================================================================
         // @microsoft/eslint-plugin-spfx
         // ====================================================================
-        '@microsoft/spfx/import-requires-chunk-name': 1,
-        '@microsoft/spfx/no-require-ensure': 2,
-        '@microsoft/spfx/pair-react-dom-render-unmount': 1
+        '@rushstack/import-requires-chunk-name': 1,
+        '@rushstack/no-require-ensure': 2,
+        '@rushstack/pair-react-dom-render-unmount': 1
       }
     },
     {
