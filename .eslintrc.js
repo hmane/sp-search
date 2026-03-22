@@ -14,7 +14,8 @@ module.exports = {
       },
       rules: {
         // Prevent usage of the JavaScript null value, while allowing code to access existing APIs that may require null. https://www.npmjs.com/package/@rushstack/eslint-plugin
-        '@rushstack/no-new-null': 1,
+        // Disabled: too noisy for a project that uses null throughout
+        '@rushstack/no-new-null': 0,
         // Require Jest module mocking APIs to be called before any other statements in their code block. https://www.npmjs.com/package/@rushstack/eslint-plugin
         '@rushstack/hoist-jest-mock': 1,
         // Require regular expressions to be constructed from string constants rather than dynamically building strings at runtime. https://www.npmjs.com/package/@rushstack/eslint-plugin-security
@@ -291,7 +292,14 @@ module.exports = {
         // @microsoft/eslint-plugin-spfx
         // ====================================================================
         '@rushstack/import-requires-chunk-name': 1,
-        '@rushstack/pair-react-dom-render-unmount': 1
+        '@rushstack/pair-react-dom-render-unmount': 1,
+
+        // Suppress stricter @rushstack rules that produce warnings on pre-existing code.
+        // These can be re-enabled incrementally as code is updated.
+        '@typescript-eslint/typedef': 0,
+        '@typescript-eslint/naming-convention': 0,
+        '@rushstack/typedef-var': 0,
+        'no-bitwise': 0
       }
     },
     {
