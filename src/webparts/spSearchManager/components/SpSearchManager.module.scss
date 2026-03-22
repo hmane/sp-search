@@ -13,23 +13,115 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
+  padding: 12px 0;
   margin-bottom: 4px;
   border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  gap: 12px;
 }
 
 .headerTitle {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 24px;
   color: "[theme:bodyText, default: #323130]";
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.headerActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-radius: 6px;
+  background: "[theme:white, default: #ffffff]";
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  line-height: 20px;
+
+  i {
+    font-size: 14px;
+    color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  &:hover:not(:disabled) {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+    border-color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active:not(:disabled) {
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+
+    i {
+      color: "[theme:neutralTertiary, default: #a19f9d]";
+    }
+  }
+}
+
+.headerActionBtnPrimary {
+  composes: headerActionBtn;
+  background: "[theme:themePrimary, default: #0078d4]";
+  border-color: "[theme:themePrimary, default: #0078d4]";
+  color: "[theme:white, default: #ffffff]";
+
+  i {
+    color: "[theme:white, default: #ffffff]";
+  }
+
+  &:hover:not(:disabled) {
+    background: "[theme:themeDarkAlt, default: #106ebe]";
+    border-color: "[theme:themeDarkAlt, default: #106ebe]";
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active:not(:disabled) {
+    background: "[theme:themeDark, default: #005a9e]";
+    border-color: "[theme:themeDark, default: #005a9e]";
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+
+    i {
+      color: "[theme:white, default: #ffffff]";
+    }
+  }
+}
+
+// At narrow widths, collapse button labels — show only icons
+@media (max-width: 480px) {
+  .headerActionBtn,
+  .headerActionBtnPrimary {
+    padding: 6px 8px;
+
+    .headerActionLabel {
+      display: none;
+    }
+  }
 }
 
 // ─── Pivot Tabs ────────────────────────────────────────────

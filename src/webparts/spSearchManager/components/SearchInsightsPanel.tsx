@@ -11,7 +11,7 @@ import styles from './SpSearchManager.module.scss';
 export interface ISearchInsightsPanelProps {
   service: SearchManagerService;
   /** Called when user clicks a top query to run it */
-  onRunQuery: (queryText: string, vertical: string, scope: string) => void;
+  onRunQuery: (queryText: string, vertical: string) => void;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ interface IInsightMetrics {
   clickedSearchCount: number;
   clickThroughRate: number;
   avgResultCount: number;
-  topQueries: Array<{ queryText: string; count: number; vertical: string; scope: string }>;
+  topQueries: Array<{ queryText: string; count: number; vertical: string }>;
   topClickedItems: Array<{ url: string; title: string; clicks: number }>;
   volumeByDay: Array<{ dateLabel: string; count: number }>;
 }
@@ -52,7 +52,7 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
   let resultCountSum = 0;
 
   // ── Query frequency map ───────────────────────────────────
-  const queryMap = new Map<string, { count: number; vertical: string; scope: string }>();
+  const queryMap = new Map<string, { count: number; vertical: string }>();
 
   // ── Clicked item frequency map ────────────────────────────
   const clickMap = new Map<string, { title: string; clicks: number }>();
@@ -77,7 +77,7 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
       if (existing) {
         existing.count++;
       } else {
-        queryMap.set(qKey, { count: 1, vertical: e.vertical || '', scope: e.scope || '' });
+        queryMap.set(qKey, { count: 1, vertical: e.vertical || '' });
       }
     }
 
@@ -104,7 +104,7 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
 
   // ── Top 10 queries ────────────────────────────────────────
   const topQueries = Array.from(queryMap.entries())
-    .map(([queryText, val]) => ({ queryText, count: val.count, vertical: val.vertical, scope: val.scope }))
+    .map(([queryText, val]) => ({ queryText, count: val.count, vertical: val.vertical }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
@@ -402,7 +402,7 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
                   label={q.queryText}
                   count={q.count}
                   max={topQueryMax}
-                  onClick={(): void => onRunQuery(q.queryText, q.vertical, q.scope)}
+                  onClick={(): void => onRunQuery(q.queryText, q.vertical)}
                 />
               ))}
             </div>

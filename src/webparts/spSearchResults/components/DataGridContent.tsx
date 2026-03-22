@@ -3,6 +3,7 @@ import * as ReactDom from 'react-dom';
 import DataGrid, { Column, Scrolling, Sorting, StateStoring, Toolbar, Item, Paging, Pager, LoadPanel } from 'devextreme-react/data-grid';
 import { IconButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { confirm } from 'spfx-toolkit/lib/utilities/dialogService';
 import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index';
@@ -10,7 +11,7 @@ import { PermissionKind } from '@pnp/sp/security';
 import { hasPermissions } from '@pnp/sp/security/funcs';
 import { buildDownloadUrl, copyTextToClipboard } from '@providers/actions/actionUtils';
 import { formatRelativeDate, formatDateTime, formatFileSize, getResultAnchorProps, buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
 import Pagination from './Pagination';
@@ -870,7 +871,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         {(handleClick): React.ReactNode => (
           <div className={styles.gridTitleCell}>
             <span className={styles.gridTitleIcon}>
-              <FileTypeIcon type={IconType.image} path={matchingItem.url} size={ImageSize.small} />
+              <Icon {...getFileTypeIconProps({ extension: matchingItem.fileType || '', size: 16 })} />
             </span>
             <div className={styles.gridTitleMain}>
               <a
@@ -1104,21 +1105,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       {/* Toolbar — fullscreen toggle, column chooser, and XLSX export */}
       <Toolbar>
         <Item
-          location="before"
-          render={(): React.ReactElement => (
-            <button
-              className={styles.gridToolbarButton}
-              onClick={(): void => setIsFullscreen((prev) => !prev)}
-              title={isFullscreen ? 'Exit full view' : 'Open grid in full view'}
-              type="button"
-            >
-              <span className={styles.gridToolbarIcon} aria-hidden="true">{isFullscreen ? '⤢' : '⤢'}</span>
-              {isFullscreen ? 'Exit full view' : 'Full view'}
-            </button>
-          )}
-        />
-        <Item
-          location="before"
+          location="after"
           render={(): React.ReactElement => (
             <DefaultButton
               iconProps={{ iconName: 'BulletedList' }}
@@ -1131,15 +1118,29 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
           )}
         />
         <Item
-          location="before"
+          location="after"
           render={(): React.ReactElement => (
-            <IconButton
-              iconProps={{ iconName: 'ExcelDocument' }}
-              title="Export to Excel"
-              ariaLabel="Export to Excel"
-              className={styles.gridToolbarButton}
-              onClick={handleExportXlsx}
-            />
+            <TooltipHost content="Export to Excel">
+              <IconButton
+                iconProps={{ iconName: 'ExcelDocument' }}
+                ariaLabel="Export to Excel"
+                className={styles.gridToolbarIconBtn}
+                onClick={handleExportXlsx}
+              />
+            </TooltipHost>
+          )}
+        />
+        <Item
+          location="after"
+          render={(): React.ReactElement => (
+            <TooltipHost content={isFullscreen ? 'Exit full view' : 'Expand to full view'}>
+              <IconButton
+                iconProps={{ iconName: isFullscreen ? 'BackToWindow' : 'FullScreen' }}
+                ariaLabel={isFullscreen ? 'Exit full view' : 'Expand to full view'}
+                onClick={(): void => setIsFullscreen((prev) => !prev)}
+                className={styles.gridToolbarIconBtn}
+              />
+            </TooltipHost>
           )}
         />
       </Toolbar>

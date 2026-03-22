@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { Icon } from '@fluentui/react/lib/Icon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
 import { formatFileSize, formatShortDate, stripHtml, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
@@ -162,7 +163,7 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
             style={{ gridTemplateColumns: layoutTemplate }}
           >
             <div className={styles.compactIcon} role="cell">
-              <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.small} />
+              <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 16 })} />
             </div>
             <div className={styles.compactTitle} role="cell">
               <div className={styles.compactTitleInner}>

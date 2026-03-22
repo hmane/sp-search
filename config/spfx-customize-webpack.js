@@ -171,6 +171,7 @@ module.exports = function (webpackConfig) {
           const ruleLabel = idx + '.oneOf[' + innerIdx + ']';
           excludePaths(inner, [dxCssDir], ruleLabel, 'devextreme CSS');
           excludePaths(inner, toolkitCssDirs, ruleLabel, 'spfx-toolkit CSS');
+          excludePaths(inner, [pnpControlsFileTypeIconCss], ruleLabel, '@pnp/spfx-controls-react CSS');
         }
       });
     }

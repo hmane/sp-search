@@ -720,16 +720,16 @@ export class SearchOrchestrator {
       activeFilters: state.activeFilters,
       currentVerticalKey: state.currentVerticalKey,
       sort: state.sort,
-      scope: state.scope,
-      activeLayoutKey: state.activeLayoutKey,
     });
+
+    const searchPageUrl = typeof window !== 'undefined' ? window.location.pathname : '';
 
     // Log async - don't await, don't block
     this._historyService
       .logSearch(
         state.queryText,
         state.currentVerticalKey,
-        state.scope.id,
+        searchPageUrl,
         searchState,
         resultCount,
         resultCount === 0

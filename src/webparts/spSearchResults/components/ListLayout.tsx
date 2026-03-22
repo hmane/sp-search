@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UserPersona: any = _UserPersona;
@@ -30,7 +30,7 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
           <li key={item.key} className={styles.resultCard} role="listitem">
 
             <div className={styles.resultIcon}>
-              <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.medium} />
+              <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 32 })} />
             </div>
 
             <div className={styles.resultBody}>

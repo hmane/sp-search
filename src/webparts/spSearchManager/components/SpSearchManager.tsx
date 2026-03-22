@@ -599,7 +599,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   }
 
   // ─── Health panel: re-run zero-result query ───────────────
-  function handleRunZeroResultQuery(queryText: string, vertical: string, scope: string): void {
+  function handleRunZeroResultQuery(queryText: string, vertical: string): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const update: Record<string, any> = {
       queryText,
@@ -608,9 +608,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     };
     if (vertical) {
       update.currentVerticalKey = vertical;
-    }
-    if (scope) {
-      update.scope = { id: scope, label: scope };
     }
     store.setState(update);
 
@@ -646,8 +643,9 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   }
 
   // ─── Determine if save button should be enabled ───────────
-  const canSave = config.enableSavedSearches && config.showSaveAction && normalizedQueryText.length > 0;
-  const canOpenShare = config.enableSavedSearches && config.enableSharedSearches && normalizedQueryText.length > 0;
+  const hasSearchState = normalizedQueryText.length > 0 || activeFilters.length > 0;
+  const canSave = config.enableSavedSearches && config.showSaveAction && hasSearchState;
+  const canOpenShare = config.enableSavedSearches && config.enableSharedSearches && hasSearchState;
 
   // ─── Render content ───────────────────────────────────────
   let content: React.ReactElement;
@@ -697,20 +695,32 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 </TooltipHost>
               )}
               {config.enableSavedSearches && config.showSaveAction && (
-                <PrimaryButton
-                  iconProps={{ iconName: 'Save' }}
-                  text="Save Current Search"
-                  onClick={handleOpenSaveDialog}
-                  disabled={!canSave}
-                />
+                <TooltipHost content="Save the current query and filters">
+                  <button
+                    type="button"
+                    className={styles.headerActionBtnPrimary}
+                    onClick={handleOpenSaveDialog}
+                    disabled={!canSave}
+                    aria-label="Save current search"
+                  >
+                    <Icon iconName="Save" />
+                    <span className={styles.headerActionLabel}>Save</span>
+                  </button>
+                </TooltipHost>
               )}
               {config.enableSavedSearches && config.enableSharedSearches && (
-                <DefaultButton
-                  iconProps={{ iconName: 'Share' }}
-                  text="Share Current Search"
-                  onClick={handleShareCurrentSearch}
-                  disabled={!canOpenShare}
-                />
+                <TooltipHost content="Share the current search with others">
+                  <button
+                    type="button"
+                    className={styles.headerActionBtn}
+                    onClick={handleShareCurrentSearch}
+                    disabled={!canOpenShare}
+                    aria-label="Share current search"
+                  >
+                    <Icon iconName="Share" />
+                    <span className={styles.headerActionLabel}>Share</span>
+                  </button>
+                </TooltipHost>
               )}
             </div>
           </div>

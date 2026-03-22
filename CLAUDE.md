@@ -167,14 +167,13 @@ const store = getStore(this.properties.searchContextId);
 | Param | Slice Property | Example |
 |-------|---------------|---------|
 | q | querySlice.queryText | ?q=annual+report |
-| f | filterSlice.activeFilters | &f=FileType:docx,pptx |
 | v | verticalSlice.activeVertical | &v=documents |
 | s | resultSlice.sort | &s=LastModifiedTime:desc |
 | p | resultSlice.currentPage | &p=3 |
-| sc | querySlice.scope | &sc=currentsite |
 | l | uiSlice.activeLayout | &l=grid |
-| sv | state version | &sv=1 |
-| sid | state ID (fallback) | ?sid=42 |
+| x | state version | &x=1 |
+| i | state ID (fallback) | ?i=42 |
+| \<alias\> | filter values (per filterConfig) | &ft=docx,pptx |
 
 Multi-context pages namespace params: `?ctx1.q=budget&ctx2.q=john`
 

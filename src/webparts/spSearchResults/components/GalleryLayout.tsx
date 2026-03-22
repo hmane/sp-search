@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { IContextualMenuProps, IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
 import { formatFileSize, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
@@ -123,7 +123,7 @@ const GalleryItem: React.FC<{
           />
         ) : (
           <div className={styles.galleryThumbnailFallback}>
-            <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.large} />
+            <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 48 })} />
           </div>
         )}
         {/* Hover overlay */}

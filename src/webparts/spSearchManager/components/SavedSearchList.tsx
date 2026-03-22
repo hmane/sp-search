@@ -160,8 +160,6 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
         activeFilters?: IActiveFilter[];
         currentVerticalKey?: string;
         sort?: { property: string; direction: 'Ascending' | 'Descending' };
-        scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
-        activeLayoutKey?: string;
       } = JSON.parse(search.searchState);
 
       // Set ALL state atomically via store.setState() so the orchestrator
@@ -182,12 +180,6 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
       }
       if (state.sort !== undefined) {
         update.sort = state.sort;
-      }
-      if (state.scope !== undefined) {
-        update.scope = state.scope;
-      }
-      if (state.activeLayoutKey !== undefined) {
-        update.activeLayoutKey = state.activeLayoutKey;
       }
       store.setState(update);
     } catch {

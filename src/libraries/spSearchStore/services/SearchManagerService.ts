@@ -138,7 +138,7 @@ function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
     queryHash: ext.string('QueryHash', ''),
     queryText: ext.string('Title', '') || ext.string('QueryText', ''),
     vertical: ext.string('Vertical', ''),
-    scope: ext.string('Scope', ''),
+    searchPageUrl: ext.string('SearchPageUrl', ''),
     searchState: ext.string('SearchState', '{}'),
     useCount: Math.max(1, ext.number('UseCount', 1)),
     resultCount: ext.number('ResultCount', 0),
@@ -328,6 +328,7 @@ export class SearchManagerService {
         this._historySupportsUseCount = await this._detectHistoryUseCountField();
         SPContext.logger.info('SearchManagerService: Initialized', { userId: this._currentUserId });
         this._maybeAutoCleanupHistory().catch(function noop(): void { /* non-critical */ });
+        this._maybeAutoCleanupSnapshots().catch(function noop(): void { /* non-critical */ });
       }
     } catch (error) {
       this._initFailed = true;
@@ -583,7 +584,7 @@ export class SearchManagerService {
             <FieldRef Name="Title" />
             <FieldRef Name="QueryHash" />
             <FieldRef Name="Vertical" />
-            <FieldRef Name="Scope" />
+            <FieldRef Name="SearchPageUrl" />
             <FieldRef Name="SearchState" />
             ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
@@ -615,7 +616,7 @@ export class SearchManagerService {
   public async logSearch(
     queryText: string,
     vertical: string,
-    scope: string,
+    searchPageUrl: string,
     searchState: string,
     resultCount: number,
     isZeroResult?: boolean
@@ -662,7 +663,7 @@ export class SearchManagerService {
           Title: historyTitle,
           QueryText: queryText,
           Vertical: vertical,
-          Scope: scope,
+          SearchPageUrl: searchPageUrl,
           SearchState: searchState,
           ResultCount: resultCount,
           IsZeroResult: isZeroResult === true,
@@ -680,7 +681,7 @@ export class SearchManagerService {
           QueryText: queryText,
           QueryHash: queryHash,
           Vertical: vertical,
-          Scope: scope,
+          SearchPageUrl: searchPageUrl,
           SearchState: searchState,
           ResultCount: resultCount,
           IsZeroResult: isZeroResult === true,
@@ -733,6 +734,75 @@ export class SearchManagerService {
         deleted,
         ttlDays: HISTORY_RETENTION_DAYS
       });
+    }
+  }
+
+  private async _maybeAutoCleanupSnapshots(): Promise<void> {
+    if (!this.isReady) {
+      return;
+    }
+
+    const cleanupKey = 'sp-search-snapshot-cleanup:' + SPContext.webAbsoluteUrl;
+    let lastRun = 0;
+
+    try {
+      lastRun = parseInt(localStorage.getItem(cleanupKey) || '0', 10) || 0;
+    } catch {
+      lastRun = 0;
+    }
+
+    const now = Date.now();
+    if (now - lastRun < HISTORY_CLEANUP_INTERVAL_MS) {
+      return;
+    }
+
+    try {
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <And>
+                <Eq>
+                  <FieldRef Name="EntryType" />
+                  <Value Type="Choice">StateSnapshot</Value>
+                </Eq>
+                <Lt>
+                  <FieldRef Name="ExpiresAt" />
+                  <Value Type="DateTime" IncludeTimeValue="TRUE">${new Date().toISOString()}</Value>
+                </Lt>
+              </And>
+            </Where>
+          </Query>
+          <RowLimit>100</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      if (items && items.length > 0) {
+        const batch = new BatchBuilder(SPContext.sp);
+        const listOps = batch.list(SAVED_QUERIES_LIST);
+        for (let i = 0; i < items.length; i++) {
+          listOps.delete((items[i] as Record<string, unknown>).Id as number);
+        }
+        await batch.execute();
+
+        SPContext.logger.info('SearchManagerService: Auto-cleaned expired snapshots', {
+          deleted: items.length
+        });
+      }
+    } catch {
+      // Non-critical — swallow errors
+    }
+
+    try {
+      localStorage.setItem(cleanupKey, String(now));
+    } catch {
+      // ignore
     }
   }
 
@@ -1441,7 +1511,7 @@ export class SearchManagerService {
             <FieldRef Name="Title" />
             <FieldRef Name="QueryHash" />
             <FieldRef Name="Vertical" />
-            <FieldRef Name="Scope" />
+            <FieldRef Name="SearchPageUrl" />
             <FieldRef Name="SearchState" />
             ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />

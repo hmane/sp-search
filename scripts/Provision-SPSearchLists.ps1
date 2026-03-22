@@ -203,7 +203,7 @@ Ensure-HiddenList -ListName "SearchHistory" -Description "SP Search: User search
 Ensure-Field -ListName "SearchHistory" -FieldName "QueryText" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "QueryHash" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Vertical" -FieldType "Text"
-Ensure-Field -ListName "SearchHistory" -FieldName "Scope" -FieldType "Text"
+Ensure-Field -ListName "SearchHistory" -FieldName "SearchPageUrl" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "SearchState" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "UseCount" -FieldType "Number"
 Ensure-Field -ListName "SearchHistory" -FieldName "ResultCount" -FieldType "Number"

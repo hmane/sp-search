@@ -75,8 +75,6 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
         activeFilters?: Array<{ filterName: string; value: string; displayValue?: string; operator: 'AND' | 'OR' }>;
         currentVerticalKey?: string;
         sort?: { property: string; direction: 'Ascending' | 'Descending' };
-        scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
-        activeLayoutKey?: string;
       } = JSON.parse(entry.searchState || '{}');
       const hasSavedQueryText = Object.prototype.hasOwnProperty.call(savedState, 'queryText');
       const restoredQueryText = hasSavedQueryText ? (savedState.queryText || '') : '';
@@ -96,14 +94,6 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
       if (savedState.sort) {
         update.sort = savedState.sort;
       }
-      if (savedState.scope) {
-        update.scope = savedState.scope;
-      } else if (entry.scope) {
-        update.scope = { id: entry.scope, label: entry.scope };
-      }
-      if (savedState.activeLayoutKey) {
-        update.activeLayoutKey = savedState.activeLayoutKey;
-      }
       store.setState(update);
     } catch {
       // Fallback: just set query text atomically
@@ -115,9 +105,6 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
       };
       if (entry.vertical) {
         update.currentVerticalKey = entry.vertical;
-      }
-      if (entry.scope) {
-        update.scope = { id: entry.scope, label: entry.scope };
       }
       store.setState(update);
     }

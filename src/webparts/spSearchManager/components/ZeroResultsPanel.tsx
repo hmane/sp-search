@@ -11,7 +11,7 @@ import styles from './SpSearchManager.module.scss';
 export interface IZeroResultsPanelProps {
   service: SearchManagerService;
   /** Called when the user clicks "Try it" on a zero-result query */
-  onRunQuery: (queryText: string, vertical: string, scope: string) => void;
+  onRunQuery: (queryText: string, vertical: string) => void;
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -20,7 +20,6 @@ interface IZeroResultSummary {
   queryText: string;
   count: number;
   verticals: string[];
-  scope: string;
   lastSeen: Date;
 }
 
@@ -52,7 +51,6 @@ function aggregateEntries(entries: ISearchHistoryEntry[]): IZeroResultSummary[] 
         queryText: entry.queryText.trim(),
         count: 1,
         verticals: entry.vertical ? [entry.vertical] : [],
-        scope: entry.scope || '',
         lastSeen: entry.searchTimestamp,
       });
     }
@@ -131,7 +129,7 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
   }
 
   function handleTryQuery(summary: IZeroResultSummary): void {
-    onRunQuery(summary.queryText, summary.verticals[0] || '', summary.scope);
+    onRunQuery(summary.queryText, summary.verticals[0] || '');
   }
 
   // ─── Loading ────────────────────────────────────────────────────────────────

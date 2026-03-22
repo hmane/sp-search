@@ -4,7 +4,6 @@ import {
   IActiveFilter,
   IFilterConfig,
   ISortField,
-  ISearchScope,
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
 import { getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
@@ -23,7 +22,6 @@ interface IUrlState {
   currentVerticalKey?: string;
   sort?: ISortField;
   currentPage?: number;
-  scope?: ISearchScope;
   activeLayoutKey?: string;
   /** If set, a ?sid= was found — caller should load the snapshot and apply it */
   stateId?: number;
@@ -38,17 +36,12 @@ interface IUrlFilterParam {
 
 /** Short parameter names kept terse for readable URLs. */
 const PARAM_QUERY = 'q';
-const PARAM_FILTERS = 'f';
 const PARAM_VERTICAL = 'v';
 const PARAM_SORT = 's';
 const PARAM_PAGE = 'p';
-const PARAM_SCOPE = 'c';
 const PARAM_LAYOUT = 'l';
 const PARAM_STATE_VERSION = 'x';
 const PARAM_STATE_ID = 'i';
-const LEGACY_PARAM_SCOPE = 'sc';
-const LEGACY_PARAM_STATE_VERSION = 'sv';
-const LEGACY_PARAM_STATE_ID = 'sid';
 
 /** Maximum URL length before falling back to ?sid= deep link. */
 const MAX_URL_LENGTH = 2000;
@@ -86,27 +79,18 @@ function prefixKey(key: string, prefix?: string): string {
   return prefix ? `${prefix}.${key}` : key;
 }
 
-function getParam(params: URLSearchParams, key: string, prefix?: string, legacyKey?: string): string | null {
-  const currentValue = params.get(prefixKey(key, prefix));
-  if (currentValue !== null) {
-    return currentValue;
-  }
-  return legacyKey ? params.get(prefixKey(legacyKey, prefix)) : null;
+function getParam(params: URLSearchParams, key: string, prefix?: string): string | null {
+  return params.get(prefixKey(key, prefix));
 }
 
 const RESERVED_PARAM_KEYS = new Set([
   PARAM_QUERY,
-  PARAM_FILTERS,
   PARAM_VERTICAL,
   PARAM_SORT,
   PARAM_PAGE,
-  PARAM_SCOPE,
   PARAM_LAYOUT,
   PARAM_STATE_VERSION,
   PARAM_STATE_ID,
-  LEGACY_PARAM_SCOPE,
-  LEGACY_PARAM_STATE_VERSION,
-  LEGACY_PARAM_STATE_ID,
 ]);
 
 function getFilterParamKey(urlKey: string, prefix?: string): string {
@@ -179,14 +163,6 @@ function decodeUrlComponentSafely(value: string): string {
   }
 }
 
-function fromBase64(encoded: string): string {
-  try {
-    return decodeURIComponent(escape(atob(encoded)));
-  } catch {
-    return '';
-  }
-}
-
 function stripWrappingQuotes(value: string): string {
   if (value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
     return value.substring(1, value.length - 1);
@@ -216,41 +192,6 @@ function decodeHexRefinementToken(value: string): string {
 
 function compactUrlFilterValue(value: string): string {
   return decodeHexRefinementToken(stripWrappingQuotes(value));
-}
-
-function parseLegacyFiltersParam(filtersRaw: string): IActiveFilter[] | undefined {
-  try {
-    const decoded = fromBase64(filtersRaw);
-    if (!decoded) {
-      return undefined;
-    }
-
-    const parsed: unknown = JSON.parse(decoded);
-    if (!Array.isArray(parsed)) {
-      return undefined;
-    }
-
-    const filters: IActiveFilter[] = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const item = parsed[i] as Record<string, unknown>;
-      if (
-        typeof item.filterName === 'string' &&
-        typeof item.value === 'string' &&
-        (item.operator === 'AND' || item.operator === 'OR')
-      ) {
-        filters.push({
-          filterName: item.filterName,
-          value: item.value,
-          displayValue: typeof item.displayValue === 'string' ? item.displayValue : undefined,
-          operator: item.operator
-        });
-      }
-    }
-
-    return filters.length > 0 ? filters : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function serializeActiveFilterForUrl(
@@ -499,26 +440,6 @@ export function serializeToUrl(
     params.delete(prefixKey(PARAM_PAGE, prefix));
   }
 
-  // ── sc = scope id ──
-  // Only serialize scope when it's a user-facing change (not the web part
-  // property pane default). The scope is re-synced from property pane settings
-  // on every page load, so persisting the default to the URL is unnecessary
-  // and causes issues when the URL sync overwrites the scope before the
-  // Results web part can set the full scope object (including kqlPath).
-  // Scope is serialized only when it differs from common defaults.
-  if (state.scope && state.scope.id !== 'all' && state.scope.id !== 'currentsite') {
-    const scopeJson = JSON.stringify({
-      id: state.scope.id,
-      label: state.scope.label,
-      kqlPath: state.scope.kqlPath,
-      resultSourceId: state.scope.resultSourceId,
-    });
-    // Unicode-safe base64 encoding (btoa fails on non-ASCII)
-    params.set(prefixKey(PARAM_SCOPE, prefix), btoa(unescape(encodeURIComponent(scopeJson))));
-  } else {
-    params.delete(prefixKey(PARAM_SCOPE, prefix));
-  }
-
   // ── l = activeLayoutKey (only when not 'list') ──
   if (state.activeLayoutKey && state.activeLayoutKey !== 'list') {
     params.set(prefixKey(PARAM_LAYOUT, prefix), state.activeLayoutKey);
@@ -548,7 +469,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const state: IUrlState = {};
 
   // Check for ?sid= (StateId fallback) first
-  const stateIdRaw = getParam(params, PARAM_STATE_ID, prefix, LEGACY_PARAM_STATE_ID);
+  const stateIdRaw = getParam(params, PARAM_STATE_ID, prefix);
   if (stateIdRaw) {
     const stateId = parseInt(stateIdRaw, 10);
     if (!isNaN(stateId) && stateId > 0) {
@@ -561,12 +482,6 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const queryText = params.get(prefixKey(PARAM_QUERY, prefix));
   if (queryText) {
     state.queryText = queryText;
-  }
-
-  // ── legacy f = base64(JSON) activeFilters ──
-  const legacyFilters = params.get(prefixKey(PARAM_FILTERS, prefix));
-  if (legacyFilters) {
-    state.activeFilters = parseLegacyFiltersParam(legacyFilters);
   }
 
   // ── <alias> / <managedProperty> filter params ──
@@ -619,18 +534,6 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
     const page = parseInt(pageRaw, 10);
     if (!isNaN(page) && page >= 1) {
       state.currentPage = page;
-    }
-  }
-
-  // ── sc ──
-  const scopeParam = getParam(params, PARAM_SCOPE, prefix, LEGACY_PARAM_SCOPE);
-  if (scopeParam) {
-    try {
-      const decoded = JSON.parse(decodeURIComponent(escape(atob(scopeParam))));
-      state.scope = decoded as ISearchScope;
-    } catch {
-      // Legacy format: plain scope ID string
-      state.scope = { id: scopeParam, label: scopeParam };
     }
   }
 
@@ -700,7 +603,6 @@ function pushStateToUrl(
         currentVerticalKey: state.currentVerticalKey,
         sort: state.sort,
         currentPage: state.currentPage,
-        scope: state.scope,
         activeLayoutKey: state.activeLayoutKey,
       });
 
@@ -929,15 +831,6 @@ function applyUrlStateToStore(
     patch.currentPage = urlState.currentPage;
   }
 
-  if (urlState.scope !== undefined) {
-    const currentScope = store.getState().scope;
-    if (currentScope && currentScope.id === urlState.scope.id) {
-      // Already matches — no need to update
-    } else {
-      patch.scope = urlState.scope;
-    }
-  }
-
   if (urlState.activeLayoutKey !== undefined) {
     // availableLayouts wins — coerce if the URL requests a disabled layout.
     const availableLayouts: string[] = store.getState().availableLayouts;
@@ -991,7 +884,6 @@ interface IUrlSnapshot {
   currentVerticalKey: string;
   sort: ISortField | undefined;
   currentPage: number;
-  scopeId: string;
   activeLayoutKey: string;
 }
 
@@ -1002,7 +894,6 @@ function takeSnapshot(state: IUrlSyncStoreSlice): IUrlSnapshot {
     currentVerticalKey: state.currentVerticalKey,
     sort: state.sort,
     currentPage: state.currentPage,
-    scopeId: state.scope.id,
     activeLayoutKey: state.activeLayoutKey
   };
 }
@@ -1019,7 +910,6 @@ function shallowEqualSnapshot(a: IUrlSnapshot, b: IUrlSnapshot): boolean {
     a.currentVerticalKey === b.currentVerticalKey &&
     a.sort === b.sort &&
     a.currentPage === b.currentPage &&
-    a.scopeId === b.scopeId &&
     a.activeLayoutKey === b.activeLayoutKey
   );
 }

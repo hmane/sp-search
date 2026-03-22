@@ -195,7 +195,7 @@ export interface ISearchHistoryEntry {
   queryHash: string;
   queryText: string;
   vertical: string;
-  scope: string;
+  searchPageUrl: string;
   /** JSON-serialized full search state for restore */
   searchState: string;
   useCount: number;

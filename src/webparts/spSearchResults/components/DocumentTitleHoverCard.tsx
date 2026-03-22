@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { HoverCard, HoverCardType } from '@fluentui/react/lib/HoverCard';
 import { Modal } from '@fluentui/react/lib/Modal';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 import { LazyVersionHistory as _LazyVersionHistory } from './LazyVersionHistory';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,7 +66,7 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
         {/* Header: file icon + title + size */}
         <div className={styles.hoverCardHeader}>
           <div className={styles.hoverCardFileIcon}>
-            <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.small} />
+            <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 16 })} />
           </div>
           <div className={styles.hoverCardTitleInfo}>
             <p className={styles.hoverCardTitle}>{item.title}</p>
@@ -221,11 +222,20 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
         >
           <div className={styles.previewModalHeader}>
             <span className={styles.previewModalTitle}>{previewItem.title}</span>
-            <IconButton
-              iconProps={{ iconName: 'Cancel' }}
-              ariaLabel="Close preview"
-              onClick={handleDismissPreview}
-            />
+            <div className={styles.previewModalActions}>
+              <TooltipHost content="Open in new tab">
+                <IconButton
+                  iconProps={{ iconName: 'OpenInNewTab' }}
+                  ariaLabel="Open in new tab"
+                  onClick={(): void => { window.open(previewItem.url, '_blank', 'noopener,noreferrer'); }}
+                />
+              </TooltipHost>
+              <IconButton
+                iconProps={{ iconName: 'Cancel' }}
+                ariaLabel="Close preview"
+                onClick={handleDismissPreview}
+              />
+            </div>
           </div>
           <div className={styles.previewModalFrame}>
             <iframe

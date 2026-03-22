@@ -27,14 +27,9 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
     const next = incomingMap.get(prev.filterName);
 
     if (!next) {
-      // Refiner no longer returned — keep previous values with 0 counts
-      const zeroed: IRefinerValue[] = prev.values.map((v) => ({
-        name: v.name,
-        value: v.value,
-        count: 0,
-        isSelected: v.isSelected,
-      }));
-      merged.push({ filterName: prev.filterName, values: zeroed });
+      // Refiner no longer returned in filtered results — preserve previous
+      // counts so filter options remain visible and informative.
+      merged.push({ filterName: prev.filterName, values: [...prev.values] });
     } else {
       // Build value lookup from new results
       const nextValueMap = new Map<string, IRefinerValue>();
@@ -55,11 +50,14 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
           // Value exists in new results — use new count
           mergedValues.push(nextVal);
         } else {
-          // Value no longer in results — keep with 0 count
+          // Value no longer in filtered results — preserve previous count
+          // so users can see how many results each option would add.
+          // SharePoint omits zero-count refiners from filtered responses,
+          // but the previous count (from base or prior search) is still valid.
           mergedValues.push({
             name: prevVal.name,
             value: prevVal.value,
-            count: 0,
+            count: prevVal.count,
             isSelected: prevVal.isSelected,
           });
         }

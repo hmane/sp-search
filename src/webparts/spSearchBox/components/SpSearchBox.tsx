@@ -790,6 +790,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 onBlur={handleBlur}
                 disableAnimation={false}
                 underlined={false}
+                autoComplete="off"
               />
             </div>
           )}

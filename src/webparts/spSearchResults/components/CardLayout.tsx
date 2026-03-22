@@ -6,7 +6,8 @@ import {
   DocumentCardType,
 } from '@fluentui/react/lib/DocumentCard';
 import { ImageFit } from '@fluentui/react/lib/Image';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { Icon } from '@fluentui/react/lib/Icon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
 import { formatRelativeDate, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
@@ -35,10 +36,10 @@ function getUserPhotoUrl(email: string): string {
 /**
  * Renders the file type icon as an image element for the preview fallback.
  */
-const FileTypeIconPreview: React.FC<{ url: string }> = (iconProps) => {
+const FileTypeIconPreview: React.FC<{ extension: string }> = (iconProps) => {
   return (
     <div className={styles.docCardIconPreview}>
-      <FileTypeIcon type={IconType.image} path={iconProps.url} size={ImageSize.large} />
+      <Icon {...getFileTypeIconProps({ extension: iconProps.extension || '', size: 48 })} />
     </div>
   );
 };
@@ -96,7 +97,7 @@ const CardItem: React.FC<{
             ]}
           />
         ) : (
-          <FileTypeIconPreview url={item.url} />
+          <FileTypeIconPreview extension={item.fileType || ''} />
         )}
 
         {/* Document title with HoverCard */}

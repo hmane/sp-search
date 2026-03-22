@@ -10,6 +10,7 @@ import {
   setStateSnapshotLoader
 } from './middleware';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { initializeFileTypeIcons } from '@fluentui/react-file-type-icons';
 
 /**
  * Context instance that holds the store, orchestrator, and services.
@@ -105,6 +106,9 @@ export async function initializeSearchContext(
   if (spfxContext && !SPContext.isReady()) {
     await SPContext.basic(spfxContext, 'SpSearchStore');
   }
+
+  // Register Fluent UI file type icons (SVGs from Office CDN). Idempotent.
+  initializeFileTypeIcons();
 
   // Skip if already initialized
   if (context.isInitialized) {

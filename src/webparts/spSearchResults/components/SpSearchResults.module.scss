@@ -679,6 +679,13 @@
   flex-shrink: 0;
 }
 
+.previewModalActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 .previewModalTitle {
   font-size: 16px;
   font-weight: 600;
@@ -958,7 +965,7 @@
 
 .compactRow {
   display: grid;
-  align-items: center;
+  align-items: start;
   padding: 7px 12px;
   border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 13px;
@@ -989,9 +996,11 @@
   width: 20px;
   height: 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .compactTitle {
@@ -1676,8 +1685,19 @@
 
 .detailPanelNav {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 4px;
   padding: 8px 12px;
+}
+
+.detailPanelNavAction {
+  color: "[theme:neutralSecondary, default: #605e5c]";
+
+  &:hover {
+    color: "[theme:themePrimary, default: #0078d4]";
+    background: "[theme:themeLighterAlt, default: #eff6fc]";
+  }
 }
 
 .detailPanelShimmer {
@@ -2077,7 +2097,7 @@
 
 .gridTitleCell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
 }
@@ -2255,9 +2275,18 @@
   }
 }
 
-.gridToolbarIcon {
-  font-style: normal;
-  font-size: 12px;
+.gridToolbarIconBtn {
+  width: 30px;
+  height: 30px;
+
+  :global(.ms-Button-icon) {
+    font-size: 14px;
+    color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  &:hover {
+    background: "[theme:themeLighter, default: #deecf9]";
+  }
 }
 
 :global(.ms-ContextualMenu-list .ms-ContextualMenu-linkText) {
