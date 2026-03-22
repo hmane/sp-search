@@ -382,33 +382,44 @@ interface IEmptyStateProps {
  */
 const EmptyState: React.FC<IEmptyStateProps> = (emptyProps) => {
   const { queryText, hasActiveFilters, onClearFilters, onReset } = emptyProps;
+
+  // Context-aware empty state messaging
+  let title: React.ReactNode;
+  let description: string;
+
+  if (queryText && hasActiveFilters) {
+    title = <>No results for <span className={styles.emptyQuery}>&#x201C;{queryText}&#x201D;</span></>;
+    description = 'No results match your search and filters.';
+  } else if (queryText && !hasActiveFilters) {
+    title = <>No results for <span className={styles.emptyQuery}>&#x201C;{queryText}&#x201D;</span></>;
+    description = 'No results found. Check your spelling or try broader search terms.';
+  } else if (!queryText && hasActiveFilters) {
+    title = 'No results found';
+    description = 'Your filters might be too specific.';
+  } else {
+    title = 'Search';
+    description = 'Enter a search term to get started.';
+  }
+
   return (
     <div className={styles.emptyState} role="status">
       <div className={styles.emptyIcon}>
         <Icon iconName="SearchIssue" />
       </div>
-      <h3 className={styles.emptyTitle}>
-        {queryText
-          ? <>No results for <span className={styles.emptyQuery}>&#x201C;{queryText}&#x201D;</span></>
-          : 'No results found'}
-      </h3>
-      {hasActiveFilters ? (
+      <h3 className={styles.emptyTitle}>{title}</h3>
+      <p className={styles.emptyDescription}>{description}</p>
+      {hasActiveFilters && (
         <div className={styles.emptyRecovery}>
-          <p className={styles.emptyDescription}>
-            Your active filters may be narrowing results too much.
-          </p>
           <button className={styles.emptyRecoveryButton} onClick={onClearFilters} type="button">
             Clear all filters
           </button>
         </div>
-      ) : (
-        <p className={styles.emptyDescription}>
-          Check your spelling or try broader search terms.
-        </p>
       )}
-      <button className={styles.emptyResetLink} onClick={onReset} type="button">
-        Start over
-      </button>
+      {(queryText || hasActiveFilters) && (
+        <button className={styles.emptyResetLink} onClick={onReset} type="button">
+          Start over
+        </button>
+      )}
     </div>
   );
 };
