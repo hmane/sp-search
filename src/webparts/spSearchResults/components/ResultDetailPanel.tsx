@@ -271,12 +271,15 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                 />
               </div>
             )}
+            {/* allow-scripts + allow-same-origin: required for WOPI preview (Office Online).
+                allow-popups: required for "Open in app" links within WOPI.
+                allow-forms intentionally omitted — preview is read-only. */}
             <iframe
               className={styles.previewFrame}
               src={previewUrl}
               title={'Preview: ' + item.title}
               onLoad={handleIframeLoad}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              sandbox="allow-scripts allow-same-origin allow-popups"
               style={{ display: isPreviewLoaded ? 'block' : 'none' }}
             />
           </div>
