@@ -750,6 +750,16 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       }));
   }, [columnConfigs, columnVisibility, handleToggleColumnVisibility]);
 
+  const handleExportXlsx = React.useCallback((): void => {
+    import(/* webpackChunkName: 'xlsxExport' */ './exportXlsx')
+      .then((m): void => {
+        m.triggerXlsxDownload(gridData, columnConfigs, 'search-results.xlsx');
+      })
+      .catch((): void => {
+        console.error('[SP Search] Failed to load XLSX export module');
+      });
+  }, [gridData, columnConfigs]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const titleCellRender = React.useCallback((cellData: { value: unknown; data: IGridRow; rowIndex?: number }): React.ReactElement => {
     const matchingItem = cellData.data.__item;
@@ -1091,7 +1101,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       {/* Scrolling — virtual mode when there are multiple pages of results */}
       <Scrolling mode={useVirtualScrolling ? 'virtual' : 'standard'} />
 
-      {/* Toolbar — fullscreen toggle and column chooser */}
+      {/* Toolbar — fullscreen toggle, column chooser, and XLSX export */}
       <Toolbar>
         <Item
           location="before"
@@ -1117,6 +1127,18 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
               ariaLabel="Choose visible columns"
               className={styles.gridToolbarButton}
               menuProps={{ items: columnMenuItems }}
+            />
+          )}
+        />
+        <Item
+          location="before"
+          render={(): React.ReactElement => (
+            <IconButton
+              iconProps={{ iconName: 'ExcelDocument' }}
+              title="Export to Excel"
+              ariaLabel="Export to Excel"
+              className={styles.gridToolbarButton}
+              onClick={handleExportXlsx}
             />
           )}
         />
