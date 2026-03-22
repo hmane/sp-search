@@ -30,7 +30,11 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
     registries,
 
     reset: (): void => {
-      const [set] = a;
+      const [set, get] = a;
+      const currentAbort = get().abortController;
+      if (currentAbort) {
+        currentAbort.abort();
+      }
       set({
         // Query slice defaults
         queryText: '',
