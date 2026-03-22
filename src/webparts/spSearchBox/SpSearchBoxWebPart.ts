@@ -261,6 +261,10 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                       if (!value || value.trim() === '') {
                         return strings.NewPageUrlRequiredMessage;
                       }
+                      const trimmed = value.trim();
+                      if (!trimmed.startsWith('/') && !trimmed.startsWith('https://') && !trimmed.startsWith('http://')) {
+                        return 'URL must start with /, https://, or http://';
+                      }
                       return '';
                     }
                   }),

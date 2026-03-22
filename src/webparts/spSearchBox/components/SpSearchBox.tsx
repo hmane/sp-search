@@ -304,6 +304,15 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
     // Navigate to another page if configured
     if (searchInNewPage && newPageUrl) {
+      // Validate URL to prevent XSS via javascript: protocol
+      const isValidUrl = newPageUrl.startsWith('/') ||
+        newPageUrl.startsWith('https://') ||
+        newPageUrl.startsWith('http://');
+      if (!isValidUrl) {
+        console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+        return;
+      }
+
       const paramName = (newPageQueryParameter || 'q').trim() || 'q';
       let targetUrl = newPageUrl;
       if (newPageParameterLocation === 'hash') {
