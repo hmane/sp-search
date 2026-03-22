@@ -195,6 +195,8 @@ export class SearchOrchestrator {
     if (this._debounceTimer !== undefined) {
       clearTimeout(this._debounceTimer);
     }
+    // _executeSearch() reads fresh state via this._store.getState()
+    // at call time, so state changes during debounce window are captured.
     this._debounceTimer = setTimeout(() => {
       this._debounceTimer = undefined;
       this._executeSearch().catch(() => { /* handled in _executeSearch */ });
