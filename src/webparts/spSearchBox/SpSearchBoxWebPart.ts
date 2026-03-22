@@ -6,9 +6,9 @@ import {
   PropertyPaneTextField,
   PropertyPaneSlider,
   PropertyPaneChoiceGroup,
-  PropertyPaneLabel,
   PropertyPaneToggle
 } from '@microsoft/sp-property-pane';
+import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
@@ -372,8 +372,36 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                   offText: strings.ToggleOffText
                 }),
                 ...(this.properties.enableScopeSelector ? [
-                  PropertyPaneLabel('scopeInfo', {
-                    text: strings.ScopeInfoLabel
+                  PropertyFieldCollectionData('searchScopes', {
+                    key: 'searchScopes',
+                    label: 'Search scopes',
+                    panelHeader: 'Configure search scopes',
+                    panelDescription: 'Define the scopes available in the scope selector dropdown. Each scope needs a unique ID, a display label, and an optional KQL path filter.',
+                    manageBtnLabel: 'Manage scopes',
+                    value: this.properties.searchScopes as unknown as Array<Record<string, unknown>>,
+                    fields: [
+                      {
+                        id: 'id',
+                        title: 'ID',
+                        type: CustomCollectionFieldType.string,
+                        required: true,
+                        placeholder: 'e.g. allsites'
+                      },
+                      {
+                        id: 'label',
+                        title: 'Label',
+                        type: CustomCollectionFieldType.string,
+                        required: true,
+                        placeholder: 'e.g. All sites'
+                      },
+                      {
+                        id: 'kqlPath',
+                        title: 'KQL Path',
+                        type: CustomCollectionFieldType.string,
+                        required: false,
+                        placeholder: 'e.g. path:"https://tenant.sharepoint.com/sites/hr"'
+                      }
+                    ]
                   })
                 ] : [])
               ]
