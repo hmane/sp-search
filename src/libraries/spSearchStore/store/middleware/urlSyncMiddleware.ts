@@ -56,6 +56,9 @@ const MAX_URL_LENGTH = 2000;
 /** Debounce delay (ms) for URL pushes to avoid excessive history entries. */
 const DEBOUNCE_MS = 300;
 
+/** Maximum time (ms) to wait for filterConfig before abandoning pending URL filters. */
+const URL_FILTER_RESTORE_TIMEOUT_MS = 5000;
+
 // ─── Store Type ─────────────────────────────────────────────────
 
 /**
@@ -754,6 +757,7 @@ export function createUrlSyncSubscription(
   // ─── 1. Hydrate store from URL on init ──────────────────────
   const initial = deserializeFromUrl(prefix);
   let pendingUrlFilters: IUrlFilterParam[] | undefined;
+  let pendingFilterTimeout: ReturnType<typeof setTimeout> | undefined;
 
   // Handle ?sid= fallback: load state snapshot from list
   if (initial.stateId && _loadSnapshotHandler) {
@@ -777,6 +781,19 @@ export function createUrlSyncSubscription(
     pendingUrlFilters = applyUrlStateToStore(store, initial, prefix).unresolvedUrlFilters;
   }
 
+  // Start a timeout to abandon pending URL filters if filterConfig never arrives
+  if (pendingUrlFilters && pendingUrlFilters.length > 0) {
+    pendingFilterTimeout = setTimeout((): void => {
+      if (pendingUrlFilters && pendingUrlFilters.length > 0) {
+        console.warn(
+          '[SP Search] URL filter restoration timed out after ' + URL_FILTER_RESTORE_TIMEOUT_MS + 'ms. ' +
+          'Unresolved filters:', pendingUrlFilters.map(function (f) { return f.key; }).join(', ')
+        );
+        pendingUrlFilters = undefined;
+      }
+    }, URL_FILTER_RESTORE_TIMEOUT_MS);
+  }
+
   // ─── 2. Store → URL subscription ───────────────────────────
   /**
    * Zustand subscribe returns an unsubscribe function.
@@ -789,6 +806,10 @@ export function createUrlSyncSubscription(
     if (pendingUrlFilters && pendingUrlFilters.length > 0) {
       if (state.activeFilters.length > 0) {
         pendingUrlFilters = undefined;
+        if (pendingFilterTimeout) {
+          clearTimeout(pendingFilterTimeout);
+          pendingFilterTimeout = undefined;
+        }
       } else if (state.filterConfig.length > 0) {
         const replayResult = applyUrlStateToStore(
           store,
@@ -796,6 +817,12 @@ export function createUrlSyncSubscription(
           prefix
         );
         pendingUrlFilters = replayResult.unresolvedUrlFilters;
+        if (!pendingUrlFilters || pendingUrlFilters.length === 0) {
+          if (pendingFilterTimeout) {
+            clearTimeout(pendingFilterTimeout);
+            pendingFilterTimeout = undefined;
+          }
+        }
         if (replayResult.didUpdate) {
           return;
         }
@@ -821,6 +848,12 @@ export function createUrlSyncSubscription(
   return (): void => {
     unsubStore();
     window.removeEventListener('popstate', onPopState);
+
+    // Clear pending URL filter restoration timeout
+    if (pendingFilterTimeout) {
+      clearTimeout(pendingFilterTimeout);
+      pendingFilterTimeout = undefined;
+    }
 
     // Clear any pending debounce timer
     const timerKey = prefix || '__default__';
