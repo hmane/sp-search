@@ -330,7 +330,7 @@ export class SearchOrchestrator {
             filters: [],             // No filters — get full refiner set
             sort: undefined,
             page: 1,
-            pageSize: 1,             // Minimal results — we only need refiners
+            pageSize: 0,             // No results needed — we only need refiners
             selectedProperties: ['Title'],
             refiners: query.refiners,
             resultSourceId: query.resultSourceId,
