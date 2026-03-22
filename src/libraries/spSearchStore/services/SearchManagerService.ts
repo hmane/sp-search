@@ -769,6 +769,11 @@ export class SearchManagerService {
         }
       }
 
+      const MAX_CLICKED_ITEMS = 10;
+      if (existing.length >= MAX_CLICKED_ITEMS) {
+        existing.splice(0, existing.length - MAX_CLICKED_ITEMS + 1);
+      }
+
       existing.push({
         url: clickedUrl,
         title: clickedTitle,
