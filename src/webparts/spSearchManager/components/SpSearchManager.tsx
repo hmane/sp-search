@@ -219,7 +219,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       return props.context;
     }
     try {
-      return SPContext.context.context as WebPartContext;
+      // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+      return SPContext.context.context as unknown as WebPartContext;
     } catch {
       return undefined;
     }

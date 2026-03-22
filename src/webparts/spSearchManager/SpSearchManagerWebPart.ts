@@ -120,14 +120,16 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
 
   protected async onInit(): Promise<void> {
     const webPermissions = this.context.pageContext.web.permissions;
-    this._hasAdminAccess = !!(webPermissions && webPermissions.hasPermission(SPPermission.manageWeb));
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    this._hasAdminAccess = !!(webPermissions && (webPermissions as unknown as { hasPermission(perm: unknown): boolean }).hasPermission(SPPermission.manageWeb));
 
     if (!this._hasAdminAccess) {
       return;
     }
 
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchManager');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchManager');
 
     // Get or create the shared Zustand store
     const contextId: string = this.properties.searchContextId || 'default';

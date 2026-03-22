@@ -117,7 +117,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
 
   protected async onInit(): Promise<void> {
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchBox');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchBox');
 
     // Get or create the shared Zustand store
     const contextId = this.properties.searchContextId || 'default';

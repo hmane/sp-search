@@ -178,7 +178,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
   protected async onInit(): Promise<void> {
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchResults');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchResults');
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
