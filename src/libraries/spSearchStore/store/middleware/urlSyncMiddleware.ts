@@ -23,7 +23,7 @@ interface IUrlState {
   currentVerticalKey?: string;
   sort?: ISortField;
   currentPage?: number;
-  scope?: string;
+  scope?: ISearchScope;
   activeLayoutKey?: string;
   /** If set, a ?sid= was found — caller should load the snapshot and apply it */
   stateId?: number;
@@ -507,7 +507,14 @@ export function serializeToUrl(
   // Results web part can set the full scope object (including kqlPath).
   // Scope is serialized only when it differs from common defaults.
   if (state.scope && state.scope.id !== 'all' && state.scope.id !== 'currentsite') {
-    params.set(prefixKey(PARAM_SCOPE, prefix), state.scope.id);
+    const scopeJson = JSON.stringify({
+      id: state.scope.id,
+      label: state.scope.label,
+      kqlPath: state.scope.kqlPath,
+      resultSourceId: state.scope.resultSourceId,
+    });
+    // Unicode-safe base64 encoding (btoa fails on non-ASCII)
+    params.set(prefixKey(PARAM_SCOPE, prefix), btoa(unescape(encodeURIComponent(scopeJson))));
   } else {
     params.delete(prefixKey(PARAM_SCOPE, prefix));
   }
@@ -616,9 +623,15 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   }
 
   // ── sc ──
-  const scopeId = getParam(params, PARAM_SCOPE, prefix, LEGACY_PARAM_SCOPE);
-  if (scopeId) {
-    state.scope = scopeId;
+  const scopeParam = getParam(params, PARAM_SCOPE, prefix, LEGACY_PARAM_SCOPE);
+  if (scopeParam) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(scopeParam))));
+      state.scope = decoded as ISearchScope;
+    } catch {
+      // Legacy format: plain scope ID string
+      state.scope = { id: scopeParam, label: scopeParam };
+    }
   }
 
   // ── l ──
@@ -917,13 +930,11 @@ function applyUrlStateToStore(
   }
 
   if (urlState.scope !== undefined) {
-    // The store expects a full ISearchScope. We can only restore the id
-    // from the URL; the consuming code should resolve the label later.
     const currentScope = store.getState().scope;
-    if (currentScope && currentScope.id === urlState.scope) {
+    if (currentScope && currentScope.id === urlState.scope.id) {
       // Already matches — no need to update
     } else {
-      patch.scope = { id: urlState.scope, label: urlState.scope } as ISearchScope;
+      patch.scope = urlState.scope;
     }
   }
 
