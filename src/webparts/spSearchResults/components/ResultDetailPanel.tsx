@@ -358,12 +358,15 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
               // allow-popups: "Open in app" links within WOPI.
               // allow-top-navigation deliberately omitted so WopiFrame can't
               // break out of the side panel.
+              // allow-forms intentionally omitted — preview is read-only;
+              // narrowing the sandbox closes a form-POST XSS surface that
+              // a malicious previewable document could otherwise exploit.
               <iframe
                 className={styles.previewFrame}
                 src={previewUrl}
                 title={'Preview: ' + item.title}
                 onLoad={handleIframeLoad}
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                sandbox="allow-scripts allow-same-origin allow-popups"
                 style={{ display: isPreviewLoaded ? 'block' : 'none' }}
               />
             )}
