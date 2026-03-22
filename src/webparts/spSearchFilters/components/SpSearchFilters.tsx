@@ -307,6 +307,16 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     }
   }, [filters, applyMode, hasPendingChanges]);
 
+  // Detect when activeFilters changes externally to match pending state (manual mode)
+  React.useEffect(function (): void {
+    if (applyMode === 'manual' && hasPendingChanges) {
+      const pendingMatchesStore = areFiltersEqual(pendingFilters, filters);
+      if (pendingMatchesStore) {
+        setHasPendingChanges(false);
+      }
+    }
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** Handle toggling a refiner checkbox. */
   function handleToggleRefiner(filter: IActiveFilter): void {
     if (!store) {
