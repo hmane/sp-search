@@ -20,6 +20,8 @@ interface ISearchContext {
   managerService: SearchManagerService | undefined;
   urlSyncUnsubscribe: (() => void) | undefined;
   isInitialized: boolean;
+  /** Stable URL prefix computed at context creation time (before initialization). */
+  urlPrefix: string;
 }
 
 /**
@@ -166,10 +168,10 @@ async function _doInitializeContext(
 
   // Create the URL sync subscription.
   // Prefer clean unprefixed URLs for the common single-search-page case.
-  // If multiple independent search contexts exist, fall back to a stable prefix.
-  const urlPrefix = getContextMap().size > 1 ? _buildStableUrlPrefix(searchContextId) : undefined;
+  // If multiple independent search contexts exist, use the stored prefix.
+  const urlPrefix = getContextMap().size > 1 ? context.urlPrefix : undefined;
   context.urlSyncUnsubscribe = createUrlSyncSubscription(
-    context.store as StoreApi<ISearchStore>,
+    context.store,
     urlPrefix
   );
 
@@ -208,8 +210,24 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
       managerService: undefined,
       urlSyncUnsubscribe: undefined,
       isInitialized: false,
+      urlPrefix: _buildStableUrlPrefix(searchContextId),
     };
     map.set(searchContextId, context);
+
+    // When a second context arrives (map.size transitions from 1 → 2+), the
+    // first context was initialized without a URL prefix. Re-subscribe ALL
+    // previously-initialized contexts so they pick up their stored prefix.
+    if (map.size === 2) {
+      map.forEach(function (existingCtx: ISearchContext, _existingId: string): void {
+        if (existingCtx.isInitialized && existingCtx.urlSyncUnsubscribe) {
+          existingCtx.urlSyncUnsubscribe();
+          existingCtx.urlSyncUnsubscribe = createUrlSyncSubscription(
+            existingCtx.store,
+            existingCtx.urlPrefix
+          );
+        }
+      });
+    }
   } else {
     console.log('[SP Search] v1.0.12 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
   }
