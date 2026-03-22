@@ -19,6 +19,7 @@ export interface IKqlInputProps {
   schema: IManagedProperty[];
   refiners: IRefiner[];
   disabled?: boolean;
+  completionsVisible?: boolean;
 }
 
 /**
@@ -206,7 +207,7 @@ const KqlInput: React.FC<IKqlInputProps> = (props) => {
         autoComplete="off"
         spellCheck={false}
         role="combobox"
-        aria-expanded={false}
+        aria-expanded={!!props.completionsVisible}
         aria-autocomplete="list"
         aria-label="KQL query input"
       />

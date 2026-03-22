@@ -106,8 +106,10 @@ const GalleryItem: React.FC<{
         onClick={handleImageClick}
         role="button"
         tabIndex={0}
+        aria-label={'View ' + item.title}
         onKeyDown={(e: React.KeyboardEvent): void => {
           if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             handleImageClick();
           }
         }}

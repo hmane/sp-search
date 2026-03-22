@@ -742,6 +742,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               schema={schemaProperties}
               refiners={displayRefiners}
               disabled={isSearching}
+              completionsVisible={showKqlCompletions && kqlCompletions.length > 0}
             />
           ) : (
             <div className={styles.searchInput}>

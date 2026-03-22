@@ -117,6 +117,12 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
       } else if (e.key === 'Enter' && activeIndex >= 0 && activeIndex < flatItems.length) {
         e.preventDefault();
         onSelect(flatItems[activeIndex]);
+      } else if (e.key === 'Delete' && activeIndex >= 0 && activeIndex < flatItems.length) {
+        const activeSuggestion = flatItems[activeIndex];
+        if (activeSuggestion.removeAction) {
+          e.preventDefault();
+          onRemove(activeSuggestion);
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         onDismiss();
@@ -180,6 +186,7 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
       ref={listRef}
       role="listbox"
       aria-label="Search suggestions"
+      aria-activedescendant={activeIndex >= 0 ? 'suggestion-' + activeIndex : undefined}
     >
       {groups.map(function (group): React.ReactElement {
         const groupDisplay = getGroupDisplay(group.groupName);
@@ -203,6 +210,7 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
               return (
                 <div
                   key={group.groupName + '-' + String(currentIndex)}
+                  id={'suggestion-' + currentIndex}
                   className={
                     isActive
                       ? styles.suggestionItem + ' ' + styles.suggestionItemActive
