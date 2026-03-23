@@ -35,12 +35,11 @@ All 4 queries run in parallel on dashboard load. Single refresh button re-runs a
 
 #### Gap Analysis Data Sources
 
-**Expected sites (two sources combined):**
-- Auto-discover: `/_api/web/webs` (current site collection's direct child subsites — shallow, not recursive). For most SharePoint Online tenancies deep nesting is rare; this provides sufficient coverage.
-- Manual overrides: admin adds/removes URLs in property pane (`expectedSiteUrls` string array) — covers nested subsites or external sites not auto-discovered.
+**Expected sites:**
+- Admin enters site URLs in the property pane (`expectedSiteUrls` string array). No auto-discovery — organizations typically use flat site collections under `/sites/`, not subsites.
 
 **Actual sites:**
-- `SPWebUrl` refiner from the `*` coverage query (subsite-level granularity, not site collection level)
+- `SPWebUrl` refiner from the `*` coverage query (site-level granularity)
 
 **Display:**
 - Each expected site shown with status badge: "Found" (green) or "Missing" (red)
@@ -114,8 +113,7 @@ Dashboard Load
   │   ├── Item count query (*, RowLimit: 1, read TotalRows)
   │   ├── Freshness query (*, sorted LastModifiedTime, RowLimit: 1 x2)
   │   ├── File type refiner query (*, Refiners: FileType)
-  │   ├── Site refiner query (*, Refiners: SPWebUrl)
-  │   └── Subsite discovery (/_api/web/webs, shallow)
+  │   └── Site refiner query (*, Refiners: SPWebUrl)
   │
   └── Quality Queries (via existing SearchManagerService)
       ├── loadAllHistoryForInsights(daysBack, 500)
@@ -140,7 +138,6 @@ class CoverageService {
   getFreshness(signal: AbortSignal): Promise<{ newest: Date | undefined; oldest: Date | undefined }>
   getFileTypeBreakdown(signal: AbortSignal): Promise<Array<{ type: string; count: number }>>
   getSiteDistribution(signal: AbortSignal): Promise<Array<{ url: string; count: number }>>
-  discoverExpectedSites(signal: AbortSignal): Promise<string[]>
   runAll(signal: AbortSignal): Promise<ICoverageResult>  // parallel execution of all above
 }
 
@@ -186,7 +183,7 @@ interface ICoverageResult {
 - Each dashboard section loads independently. If one section fails, it shows an inline error message while other sections continue to display data.
 - Coverage query failures show "Unable to load coverage data" with a retry button per section.
 - Quality data failures show "Unable to load search history" — covers both stat cards and zero-result table since they share the data source.
-- Gap analysis gracefully handles `/_api/web/webs` failure by showing only manual overrides (with a note that auto-discovery failed).
+- Gap analysis shows "No expected sites configured" with a link to property pane if `expectedSiteUrls` is empty.
 
 ## UI Design
 
@@ -204,6 +201,6 @@ interface ICoverageResult {
 - Coverage queries run in parallel via `Promise.all`, all with AbortSignal
 - Coverage results cached in component state — only re-fetched on manual refresh
 - Quality data uses existing service methods (no new API calls)
-- Subsite discovery (`/_api/web/webs`) cached — typically < 50 subsites
+- Expected site URLs read from property pane config (no discovery API calls)
 - No additional list queries beyond what Health + Insights already do
 - AbortController cancels in-flight coverage queries on unmount or refresh
