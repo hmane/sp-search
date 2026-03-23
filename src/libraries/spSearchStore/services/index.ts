@@ -6,3 +6,5 @@ export { evaluatePromotedResults } from './PromotedResultsService';
 export { resolveUserGroupIds, isInAudience } from './AudienceService';
 export { fetchManagedProperties, getCachedSchema } from './SchemaService';
 export type { ISchemaResult } from './SchemaService';
+export { CoverageStatsService } from './CoverageStatsService';
+export type { ICoverageConfig, ICoverageStatsResult } from './CoverageStatsService';
