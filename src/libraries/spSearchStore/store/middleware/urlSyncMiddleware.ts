@@ -7,6 +7,7 @@ import {
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
 import { getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { DebugCollector } from '../../debug';
 
 // ─── URL State Shape ────────────────────────────────────────────
 
@@ -595,6 +596,7 @@ function pushStateToUrl(
       ? `${window.location.pathname}?${qs}${window.location.hash}`
       : `${window.location.pathname}${window.location.hash}`;
 
+    DebugCollector.logEvent('URL', { action: 'push', params: qs });
     // Check if URL exceeds max length — fall back to ?sid= if handler available
     if (newUrl.length > MAX_URL_LENGTH && _saveSnapshotHandler) {
       const stateJson = JSON.stringify({
@@ -754,6 +756,7 @@ export function createUrlSyncSubscription(
   // ─── 3. URL → Store (popstate) ─────────────────────────────
   const onPopState = (): void => {
     const urlState = deserializeFromUrl(prefix);
+    DebugCollector.logEvent('URL', { action: 'popstate', params: window.location.search });
     pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
   };
 

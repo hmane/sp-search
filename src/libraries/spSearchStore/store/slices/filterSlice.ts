@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import { ISearchStore, IFilterSlice, IActiveFilter, IRefiner, IRefinerValue } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
+import { DebugCollector } from '../../debug';
 
 /**
  * Merge new refiners from a search response with existing display refiners.
@@ -133,6 +134,7 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
         set({ activeFilters: [...current, filter], currentPage: 1 });
       }
     }
+    DebugCollector.logEvent('FILTER', { action: 'set', filterName: filter.filterName, value: filter.value });
   },
 
   removeRefiner: (filterKey: string, value?: string): void => {
@@ -141,10 +143,12 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
       ? current.filter((f) => !(f.filterName === filterKey && f.value === value))
       : current.filter((f) => f.filterName !== filterKey);
     set({ activeFilters: updated, currentPage: 1 });
+    DebugCollector.logEvent('FILTER', { action: 'remove', filterName: filterKey, value: value || '*' });
   },
 
   clearAllFilters: (): void => {
     set({ activeFilters: [], currentPage: 1, displayRefiners: [] });
+    DebugCollector.logEvent('FILTER', { action: 'clearAll' });
   },
 
   setOperatorBetweenFilters: (operator: 'AND' | 'OR'): void => {
