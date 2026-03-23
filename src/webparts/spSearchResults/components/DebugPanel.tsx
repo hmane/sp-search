@@ -174,6 +174,18 @@ const QueryTab: React.FC = () => {
           <span className={styles.queryValue} style={{ color: '#ff5050' }}>{query.error}</span>
         </div>
       )}
+      {query.request && (
+        <div className={styles.stateSection}>
+          <div className={styles.stateSectionHeader}>Request (ISearchQuery)</div>
+          <JsonTree data={query.request} defaultExpanded={false} />
+        </div>
+      )}
+      {query.response && (
+        <div className={styles.stateSection}>
+          <div className={styles.stateSectionHeader}>Response Summary</div>
+          <JsonTree data={query.response} defaultExpanded={false} />
+        </div>
+      )}
     </div>
   );
 };

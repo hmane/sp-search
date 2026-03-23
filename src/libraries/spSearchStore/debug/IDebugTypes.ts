@@ -21,6 +21,10 @@ export interface IQueryDebugInfo {
   readonly pageSize: number;
   readonly refiners: Array<{ name: string; values: Array<{ value: string; count: number }> }>;
   readonly error: string | undefined;
+  /** Full normalized request object (ISearchQuery) */
+  readonly request: Record<string, unknown> | undefined;
+  /** Full normalized response object (ISearchResponse summary) */
+  readonly response: Record<string, unknown> | undefined;
 }
 
 export interface IWebPartDebugConfig {

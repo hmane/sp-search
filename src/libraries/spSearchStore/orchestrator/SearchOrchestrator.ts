@@ -324,6 +324,8 @@ export class SearchOrchestrator {
         pageSize: query.pageSize,
         refiners: [],
         error: undefined,
+        request: query as unknown as Record<string, unknown>,
+        response: undefined,
       });
 
       // Detect first search after URL restore with active filters.
@@ -423,6 +425,19 @@ export class SearchOrchestrator {
           values: r.values.map((v) => ({ value: v.value, count: v.count })),
         })),
         error: undefined,
+        request: query as unknown as Record<string, unknown>,
+        response: {
+          totalCount: adjustedTotal,
+          itemCount: response.items.length,
+          refinersCount: response.refiners.length,
+          promotedResultsCount: response.promotedResults.length,
+          querySuggestion: response.querySuggestion || undefined,
+          items: response.items.slice(0, 5).map((item) => ({
+            title: item.title,
+            url: item.url,
+            fileType: item.fileType,
+          })),
+        },
       });
       DebugCollector.logEvent('SEARCH', {
         duration: elapsed,
