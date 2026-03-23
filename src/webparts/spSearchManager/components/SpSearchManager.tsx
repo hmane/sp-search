@@ -27,7 +27,6 @@ import SavedSearchList from './SavedSearchList';
 import SearchHistory from './SearchHistory';
 import SearchCollections from './SearchCollections';
 import ShareSearchDialog from './ShareSearchDialog';
-import CoveragePanel from './CoveragePanel';
 import ZeroResultsPanel from './ZeroResultsPanel';
 import SearchInsightsPanel from './SearchInsightsPanel';
 import styles from './SpSearchManager.module.scss';
@@ -824,11 +823,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   headerText="Coverage"
                   itemIcon="DatabaseSync"
                 >
-                  <CoveragePanel
-                    profiles={config.coverageProfiles}
-                    searchContextId={props.searchContextId}
-                    sourcePageUrl={config.coverageSourcePageUrl}
-                  />
                 </PivotItem>
               )}
               {config.enableHealth && (
