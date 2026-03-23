@@ -64,6 +64,17 @@ const ResultDetailPanel = lazyBridge(
   () => import(/* webpackChunkName: 'ResultDetailPanel' */ './ResultDetailPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load detail panel' }
 );
+
+import { DebugCollector } from '@store/debug';
+
+// Debug panel — only loaded when ?debug=1
+const DebugFab = React.lazy(
+  () => import(/* webpackChunkName: 'DebugPanel' */ './DebugFab') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
+const DebugPanelLazy = React.lazy(
+  () => import(/* webpackChunkName: 'DebugPanel' */ './DebugPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
+
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
  * returns selected state slices. Uses store.subscribe for efficient
@@ -483,6 +494,9 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     pageRange
   } = useStoreState(props);
 
+  const isDebugActive = DebugCollector.isActive();
+  const [debugOpen, setDebugOpen] = React.useState(false);
+
   const effectiveDefaultLayout = React.useMemo((): string => {
     const configured = defaultLayout || 'list';
     return availableLayouts.indexOf(configured) >= 0 ? configured : (availableLayouts[0] || 'list');
@@ -822,6 +836,16 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           />
         )}
       </div>
+        {isDebugActive && (
+          <React.Suspense fallback={null}>
+            {!debugOpen && (
+              <DebugFab onClick={() => setDebugOpen(true)} />
+            )}
+            {debugOpen && (
+              <DebugPanelLazy store={store} onClose={() => setDebugOpen(false)} />
+            )}
+          </React.Suspense>
+        )}
     </ErrorBoundary>
   );
 };
