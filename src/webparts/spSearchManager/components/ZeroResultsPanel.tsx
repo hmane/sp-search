@@ -12,6 +12,8 @@ export interface IZeroResultsPanelProps {
   service: SearchManagerService;
   /** Called when the user clicks "Try it" on a zero-result query */
   onRunQuery: (queryText: string, vertical: string) => void;
+  /** Number of days back to look for zero-result queries. Defaults to 90. */
+  daysBack?: number;
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -84,12 +86,10 @@ function formatShortDate(date: Date): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const DAYS_BACK = 90;
-
 /**
  * ZeroResultsPanel — admin health surface for zero-result query tuning.
  *
- * Loads all zero-result queries from the last 90 days (cross-user, no Author
+ * Loads all zero-result queries from the last N days (cross-user, no Author
  * filter), aggregates them by query text, and displays a ranked table so
  * admins can identify which queries need query rules, synonyms, or content.
  *
@@ -97,6 +97,7 @@ const DAYS_BACK = 90;
  */
 const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
   const { service, onRunQuery } = props;
+  const effectiveDaysBack = props.daysBack || 90;
 
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -106,7 +107,7 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
   const load = React.useCallback(function (): void {
     setIsLoading(true);
     setError(undefined);
-    service.loadZeroResultQueries(DAYS_BACK, 200)
+    service.loadZeroResultQueries(effectiveDaysBack, 200)
       .then(function (entries): void {
         setRawCount(entries.length);
         setSummaries(aggregateEntries(entries));
@@ -116,13 +117,11 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
         setError(err instanceof Error ? err.message : 'Failed to load zero-result data');
         setIsLoading(false);
       });
-  }, [service]);
+  }, [service, effectiveDaysBack]);
 
-  // Load on first mount only
   React.useEffect(function (): void {
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   function handleRefresh(): void {
     load();
@@ -174,7 +173,7 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
           </div>
           <h3 className={styles.emptyTitle}>All clear</h3>
           <p className={styles.emptyDescription}>
-            No zero-result queries in the last {DAYS_BACK} days.
+            No zero-result queries in the last {effectiveDaysBack} days.
             Your search experience looks healthy.
           </p>
         </div>
@@ -191,7 +190,7 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
         <p className={styles.healthSummary}>
           <Icon iconName="Warning" className={styles.healthSummaryIcon} />
           <strong>{String(summaries.length)}</strong> unique {'quer' + (summaries.length === 1 ? 'y' : 'ies')} returned
-          no results across <strong>{String(rawCount)}</strong> searches in the last {DAYS_BACK} days.
+          no results across <strong>{String(rawCount)}</strong> searches in the last {effectiveDaysBack} days.
         </p>
         <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Refresh" onClick={handleRefresh} />
       </div>
