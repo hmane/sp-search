@@ -24,6 +24,7 @@ import { getStore, initializeSearchContext } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
+import { DebugCollector } from '@store/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -145,6 +146,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     // Create and initialize the SearchManagerService (uses SPContext.sp internally)
     this._service = new SearchManagerService();
     await this._service.initialize();
+    DebugCollector.registerWebPart('SPSearchManagerWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {

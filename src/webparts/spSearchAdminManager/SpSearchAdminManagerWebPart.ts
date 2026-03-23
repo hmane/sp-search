@@ -1,4 +1,5 @@
 import SpSearchManagerWebPart from '../spSearchManager/SpSearchManagerWebPart';
+import { DebugCollector } from '@store/debug';
 
 /**
  * SpSearchAdminManagerWebPart — standalone admin-only web part for search
@@ -13,6 +14,8 @@ import SpSearchManagerWebPart from '../spSearchManager/SpSearchManagerWebPart';
  * (coverage, health, insights).
  */
 export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart {
-  // All behavior is inherited from SpSearchManagerWebPart.
-  // The admin-specific defaults are set in the manifest's preconfiguredEntries.
+  protected async onInit(): Promise<void> {
+    await super.onInit();
+    DebugCollector.registerWebPart('SPSearchAdminManagerWebPart', this.properties as unknown as Record<string, unknown>);
+  }
 }

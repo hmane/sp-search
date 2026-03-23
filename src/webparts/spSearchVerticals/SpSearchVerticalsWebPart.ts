@@ -23,6 +23,7 @@ import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
 import { getStore, initializeSearchContext } from '@store/store';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
+import { DebugCollector } from '@store/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -104,6 +105,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     // Initialize the shared search context (ensures library bundle's SPContext is ready)
     // Idempotent — if already initialized by another web part, this is a no-op
     await initializeSearchContext(contextId, this.context);
+    DebugCollector.registerWebPart('SPSearchVerticalsWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   private _migrateJsonToCollection(): void {

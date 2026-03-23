@@ -23,6 +23,7 @@ import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { DebugCollector } from '@store/debug';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -135,6 +136,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       // Initialize the shared search context (ensures library bundle's SPContext is ready)
       // Idempotent — if already initialized by another web part, this is a no-op
       await initializeSearchContext(contextId, this.context);
+      DebugCollector.registerWebPart('SPSearchFiltersWebPart', this.properties as unknown as Record<string, unknown>);
     } catch (err) {
       console.error('[SPSearchFilters] onInit failed:', err);
       throw err;

@@ -35,6 +35,7 @@ import { PropertyPaneSchemaHelper } from '../../propertyPaneControls/PropertyPan
 import { SCENARIO_PRESETS } from './presets/searchPresets';
 import { GraphOrgService } from './components/GraphOrgService';
 import { TitleDisplayMode } from './components/documentTitleUtils';
+import { DebugCollector } from '@store/debug';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -289,6 +290,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     if (this._orchestrator) {
       this._orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
     }
+    DebugCollector.registerWebPart('SPSearchResultsWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   private _getSelectedPropertyColumns(): ISelectedPropertyColumn[] {

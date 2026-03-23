@@ -22,6 +22,7 @@ import { ISearchStore, ISearchScope } from '@interfaces/index';
 import { getStore, initializeSearchContext, getManagerService } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
+import { DebugCollector } from '@store/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -154,6 +155,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     }
 
     this.properties.searchScopes = normalizeSearchScopes(this.properties.searchScopes);
+    DebugCollector.registerWebPart('SPSearchBoxWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
