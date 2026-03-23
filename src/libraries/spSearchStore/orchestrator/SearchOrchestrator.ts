@@ -419,7 +419,7 @@ export class SearchOrchestrator {
         currentPage: query.page,
         pageSize: query.pageSize,
         refiners: response.refiners.map((r) => ({
-          name: r.refinerName,
+          name: r.filterName,
           values: r.values.map((v) => ({ value: v.value, count: v.count })),
         })),
         error: undefined,

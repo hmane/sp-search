@@ -10,7 +10,8 @@ import styles from './DebugPanel.module.scss';
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  const ms = String(d.getMilliseconds());
+  return d.toLocaleTimeString([], { hour12: false }) + '.' + ('000' + ms).slice(-3);
 }
 
 function timingClass(ms: number): string {
@@ -73,20 +74,21 @@ const JsonTree: React.FC<IJsonTreeProps> = ({ data, depth = 0, defaultExpanded =
   }
 
   if (typeof data === 'object') {
-    const entries = Object.entries(data as Record<string, unknown>);
-    if (entries.length === 0) {
+    const keys = Object.keys(data as Record<string, unknown>);
+    if (keys.length === 0) {
       return <span className={styles.jsonBracket}>{'{}'}</span>;
     }
+    const obj = data as Record<string, unknown>;
     return (
       <span>
         <span className={styles.jsonToggle} onClick={() => setExpanded(!expanded)}>
           {expanded ? '\u25BC' : '\u25B6'}
         </span>
-        <span className={styles.jsonBracket}>{'{'}{entries.length}{'}'}</span>
-        {expanded && entries.map(([key, val]) => (
+        <span className={styles.jsonBracket}>{'{'}{keys.length}{'}'}</span>
+        {expanded && keys.map((key: string) => (
           <div key={key} className={styles.jsonRow}>
             <span className={styles.jsonKey}>{key}: </span>
-            <JsonTree data={val} depth={depth + 1} defaultExpanded={depth < 1} />
+            <JsonTree data={obj[key]} depth={depth + 1} defaultExpanded={depth < 1} />
           </div>
         ))}
       </span>
@@ -223,8 +225,8 @@ const StateTab: React.FC<IStateTabProps> = ({ store }) => {
         registries: {
           dataProviders: s.registries.dataProviders.getAll().map((p) => p.id),
           actions: s.registries.actions.getAll().map((a) => a.id),
-          layouts: s.registries.layouts.getAll().map((l) => l.key),
-          filterTypes: s.registries.filterTypes.getAll().map((f) => f.key),
+          layouts: s.registries.layouts.getAll().map((l) => l.id),
+          filterTypes: s.registries.filterTypes.getAll().map((f) => f.id),
           suggestions: s.registries.suggestions.getAll().map((sp) => sp.id),
         },
       };
@@ -251,12 +253,12 @@ const StateTab: React.FC<IStateTabProps> = ({ store }) => {
 
   return (
     <div>
-      {Object.entries(snapshot).map(([key, value]) => (
+      {Object.keys(snapshot).map((key: string) => (
         <div
           key={key}
           className={`${styles.stateSection}${changedKeys.has(key) ? ' ' + styles.jsonHighlight : ''}`}
         >
-          <JsonTree data={{ [key]: value }} defaultExpanded={true} />
+          <JsonTree data={{ [key]: snapshot[key] }} defaultExpanded={true} />
         </div>
       ))}
     </div>
