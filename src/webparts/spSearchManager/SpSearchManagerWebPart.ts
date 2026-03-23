@@ -42,7 +42,9 @@ export interface ISpSearchManagerWebPartProps {
   coverageProfilesCollection: ICoverageProfileCollectionItem[];
   enableHealth: boolean;
   enableInsights: boolean;
+  enableDashboard: boolean;
   enableAnnotations: boolean;
+  expectedSiteUrls: string;
   maxHistoryItems: number;
   showResetAction: boolean;
   showSaveAction: boolean;
@@ -104,6 +106,8 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
           coverageProfiles: this._normalizeCoverageProfiles(),
           enableHealth: this.properties.enableHealth !== false,
           enableInsights: this.properties.enableInsights !== false,
+          enableDashboard: this.properties.enableDashboard,
+          expectedSiteUrls: (this.properties.expectedSiteUrls || '').split('\n').map(function (s: string) { return s.trim(); }).filter(Boolean),
           enableAnnotations: false,
           maxHistoryItems: 0,
           showResetAction: false,
@@ -222,6 +226,9 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.SectionsGroupName,
               groupFields: [
+                PropertyPaneToggle('enableDashboard', {
+                  label: 'Enable Admin Dashboard',
+                }),
                 PropertyPaneToggle('enableCoverage', {
                   label: strings.EnableCoverageLabel,
                   onText: strings.ToggleOnText,
@@ -236,6 +243,17 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.EnableInsightsLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
+                })
+              ]
+            },
+            {
+              groupName: 'Gap Analysis',
+              groupFields: [
+                PropertyPaneTextField('expectedSiteUrls', {
+                  label: 'Expected Site URLs (one per line)',
+                  multiline: true,
+                  rows: 5,
+                  description: 'Enter site URLs to monitor for content coverage. One URL per line.',
                 })
               ]
             },
