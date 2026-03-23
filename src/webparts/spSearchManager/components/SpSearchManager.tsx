@@ -32,6 +32,10 @@ import ZeroResultsPanel from './ZeroResultsPanel';
 import SearchInsightsPanel from './SearchInsightsPanel';
 import styles from './SpSearchManager.module.scss';
 
+const AdminDashboard = React.lazy(
+  () => import(/* webpackChunkName: 'AdminDashboard' */ './AdminDashboard') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
+
 // ─── Category options for save dialog ───────────────────────
 const CATEGORY_OPTIONS: IDropdownOption[] = [
   { key: 'General', text: 'General' },
@@ -44,7 +48,7 @@ const CATEGORY_OPTIONS: IDropdownOption[] = [
 ];
 const OTHER_CATEGORY_KEY = 'Other';
 
-type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights';
+type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights' | 'dashboard';
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -146,6 +150,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     'enableHealth' |
     'enableInsights' |
     'enableAnnotations' |
+    'enableDashboard' |
     'maxHistoryItems' |
     'showResetAction' |
     'showSaveAction'
@@ -166,6 +171,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       enableHealth: props.enableHealth !== false,
       enableInsights: props.enableInsights !== false,
       enableAnnotations: !!props.enableAnnotations,
+      enableDashboard: !!props.enableDashboard,
       maxHistoryItems: props.maxHistoryItems || 50,
       showResetAction: props.showResetAction !== false,
       showSaveAction: props.showSaveAction !== false
@@ -175,6 +181,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     props.enableAnnotations,
     props.enableCollections,
     props.enableCoverage,
+    props.enableDashboard,
     props.enableHealth,
     props.enableHistory,
     props.enableInsights,
@@ -195,13 +202,22 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       return baseConfig;
     }
 
+    let adminDefaultTab: typeof baseConfig.defaultTab = 'coverage';
+    if (
+      baseConfig.defaultTab === 'coverage' ||
+      baseConfig.defaultTab === 'health' ||
+      baseConfig.defaultTab === 'insights' ||
+      baseConfig.defaultTab === 'dashboard'
+    ) {
+      adminDefaultTab = baseConfig.defaultTab;
+    }
+    if (props.enableDashboard) {
+      adminDefaultTab = 'dashboard';
+    }
+
     return {
       ...baseConfig,
-      defaultTab: (
-        baseConfig.defaultTab === 'coverage' ||
-        baseConfig.defaultTab === 'health' ||
-        baseConfig.defaultTab === 'insights'
-      ) ? baseConfig.defaultTab : 'coverage',
+      defaultTab: adminDefaultTab,
       headerTitle: props.headerTitle || 'Admin Search Manager',
       enableSavedSearches: false,
       enableSharedSearches: false,
@@ -275,11 +291,15 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (config.enableInsights) {
       tabs.push('insights');
     }
+    if (config.enableDashboard) {
+      tabs.push('dashboard');
+    }
 
     return tabs;
   }, [
     config.enableCollections,
     config.enableCoverage,
+    config.enableDashboard,
     config.enableHealth,
     config.enableHistory,
     config.enableInsights,
@@ -833,6 +853,22 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                     service={service}
                     onRunQuery={handleRunZeroResultQuery}
                   />
+                </PivotItem>
+              )}
+              {config.enableDashboard && (
+                <PivotItem
+                  itemKey="dashboard"
+                  headerText="Dashboard"
+                  itemIcon="ViewDashboard"
+                >
+                  <React.Suspense fallback={<Spinner size={SpinnerSize.medium} label="Loading dashboard..." />}>
+                    <AdminDashboard
+                      store={props.store}
+                      service={props.service}
+                      expectedSiteUrls={props.expectedSiteUrls || []}
+                      onRunQuery={handleRunZeroResultQuery}
+                    />
+                  </React.Suspense>
                 </PivotItem>
               )}
             </Pivot>

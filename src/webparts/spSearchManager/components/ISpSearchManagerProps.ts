@@ -12,7 +12,7 @@ export interface ISpSearchManagerProps {
   variant?: 'user' | 'admin';
   searchContextId?: string;
   mode: 'standalone' | 'panel';
-  defaultTab?: 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights';
+  defaultTab?: 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights' | 'dashboard';
   headerTitle?: string;
   hideHeader?: boolean;
   /** Optional — when omitted, SPContext.context.context is used as fallback */
@@ -27,6 +27,8 @@ export interface ISpSearchManagerProps {
   enableHealth?: boolean;
   enableInsights?: boolean;
   enableAnnotations?: boolean;
+  enableDashboard?: boolean;
+  expectedSiteUrls?: string[];
   maxHistoryItems?: number;
   showResetAction?: boolean;
   showSaveAction?: boolean;
