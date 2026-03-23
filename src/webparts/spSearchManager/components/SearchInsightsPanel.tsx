@@ -12,6 +12,10 @@ export interface ISearchInsightsPanelProps {
   service: SearchManagerService;
   /** Called when user clicks a top query to run it */
   onRunQuery: (queryText: string, vertical: string) => void;
+  /** Override the default 30-day lookback window */
+  daysBack?: number;
+  /** Hide the built-in time range ChoiceGroup (when parent controls daysBack) */
+  hideTimeRange?: boolean;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +30,8 @@ interface IInsightMetrics {
   topQueries: Array<{ queryText: string; count: number; vertical: string }>;
   topClickedItems: Array<{ url: string; title: string; clicks: number }>;
   volumeByDay: Array<{ dateLabel: string; count: number }>;
+  repeatQueries: Array<{ queryText: string; totalSearches: number; lastSeen: Date }>;
+  verticalUsage: Array<{ vertical: string; count: number }>;
 }
 
 // ─── Computation ──────────────────────────────────────────────────────────────
@@ -43,6 +49,8 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
       topQueries: [],
       topClickedItems: [],
       volumeByDay: [],
+      repeatQueries: [],
+      verticalUsage: [],
     };
   }
 
@@ -126,6 +134,41 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
       return { dateLabel, count };
     });
 
+  // ── Repeat queries: entries where UseCount > 2 ──────────
+  const repeatMap = new Map<string, { totalSearches: number; lastSeen: Date }>();
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.useCount > 2) {
+      const key = e.queryText.toLowerCase();
+      const existing = repeatMap.get(key);
+      if (existing) {
+        existing.totalSearches += e.useCount;
+        if (e.searchTimestamp > existing.lastSeen) {
+          existing.lastSeen = e.searchTimestamp;
+        }
+      } else {
+        repeatMap.set(key, { totalSearches: e.useCount, lastSeen: e.searchTimestamp });
+      }
+    }
+  }
+  const repeatQueries: Array<{ queryText: string; totalSearches: number; lastSeen: Date }> = [];
+  repeatMap.forEach(function (val, key): void {
+    repeatQueries.push({ queryText: key, totalSearches: val.totalSearches, lastSeen: val.lastSeen });
+  });
+  repeatQueries.sort(function (a, b): number { return b.totalSearches - a.totalSearches; });
+
+  // ── Vertical usage ─────────────────────────────────────
+  const verticalMap = new Map<string, number>();
+  for (let i = 0; i < entries.length; i++) {
+    const v = entries[i].vertical || 'All';
+    verticalMap.set(v, (verticalMap.get(v) || 0) + 1);
+  }
+  const verticalUsage: Array<{ vertical: string; count: number }> = [];
+  verticalMap.forEach(function (count, vertical): void {
+    verticalUsage.push({ vertical, count });
+  });
+  verticalUsage.sort(function (a, b): number { return b.count - a.count; });
+
   return {
     totalSearches: total,
     zeroResultCount: zeroCount,
@@ -136,6 +179,8 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
     topQueries,
     topClickedItems,
     volumeByDay,
+    repeatQueries,
+    verticalUsage,
   };
 }
 
@@ -257,7 +302,7 @@ const RANGE_OPTIONS: IChoiceGroupOption[] = [
 const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
   const { service, onRunQuery } = props;
 
-  const [daysBack, setDaysBack] = React.useState<number>(30);
+  const [daysBack, setDaysBack] = React.useState<number>(props.daysBack || 30);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [metrics, setMetrics] = React.useState<IInsightMetrics | undefined>(undefined);
@@ -281,6 +326,16 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
     load(daysBack);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync when parent changes daysBack prop
+  const prevDaysBackRef = React.useRef<number | undefined>(props.daysBack);
+  React.useEffect(function (): void {
+    if (props.daysBack !== undefined && props.daysBack !== prevDaysBackRef.current) {
+      prevDaysBackRef.current = props.daysBack;
+      setDaysBack(props.daysBack);
+      load(props.daysBack);
+    }
+  }, [props.daysBack, load]);
 
   function handleRangeChange(_: unknown, option?: IChoiceGroupOption): void {
     if (!option) {
@@ -321,12 +376,14 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
     return (
       <div className={styles.insightsPanel}>
         <div className={styles.insightsToolbar}>
-          <ChoiceGroup
-            options={RANGE_OPTIONS}
-            selectedKey={String(daysBack)}
-            onChange={handleRangeChange}
-            styles={{ flexContainer: { display: 'flex', gap: 12 } }}
-          />
+          {!props.hideTimeRange && (
+            <ChoiceGroup
+              options={RANGE_OPTIONS}
+              selectedKey={String(daysBack)}
+              onChange={handleRangeChange}
+              styles={{ flexContainer: { display: 'flex', gap: 12 } }}
+            />
+          )}
           <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Refresh" onClick={handleRefresh} />
         </div>
         <div className={styles.emptyState}>
@@ -347,13 +404,15 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
     <div className={styles.insightsPanel}>
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className={styles.insightsToolbar}>
-        <ChoiceGroup
-          options={RANGE_OPTIONS}
-          selectedKey={String(daysBack)}
-          onChange={handleRangeChange}
-          styles={{ flexContainer: { display: 'flex', gap: 12 }, label: { display: 'none' } }}
-          label=""
-        />
+        {!props.hideTimeRange && (
+          <ChoiceGroup
+            options={RANGE_OPTIONS}
+            selectedKey={String(daysBack)}
+            onChange={handleRangeChange}
+            styles={{ flexContainer: { display: 'flex', gap: 12 }, label: { display: 'none' } }}
+            label=""
+          />
+        )}
         <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Refresh" onClick={handleRefresh} />
       </div>
 
@@ -443,6 +502,56 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
         </h3>
         <VolumeChart days={metrics.volumeByDay} />
       </div>
+
+      {/* ── Vertical usage ──────────────────────────────────── */}
+      {metrics.verticalUsage.length > 0 && (
+        <div className={styles.insightSection}>
+          <h3 className={styles.insightSectionTitle}>
+            <Icon iconName="TabCenter" className={styles.insightSectionIcon} />
+            Vertical Usage
+          </h3>
+          <div className={styles.insightBarList}>
+            {metrics.verticalUsage.map(function (v) {
+              const maxCount = metrics.verticalUsage[0].count;
+              return (
+                <BarRow
+                  key={v.vertical}
+                  label={v.vertical}
+                  count={v.count}
+                  max={maxCount}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Repeat queries ──────────────────────────────────── */}
+      {metrics.repeatQueries.length > 0 && (
+        <div className={styles.insightSection}>
+          <h3 className={styles.insightSectionTitle}>
+            <Icon iconName="Sync" className={styles.insightSectionIcon} />
+            Repeat Queries
+          </h3>
+          <p className={styles.insightNoData}>
+            Queries searched 3+ times by the same user (candidates for promoted results)
+          </p>
+          <div className={styles.insightBarList}>
+            {metrics.repeatQueries.slice(0, 10).map(function (rq) {
+              const maxCount = metrics.repeatQueries[0].totalSearches;
+              return (
+                <BarRow
+                  key={rq.queryText}
+                  label={rq.queryText}
+                  count={rq.totalSearches}
+                  max={maxCount}
+                  onClick={function () { onRunQuery(rq.queryText, ''); }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
