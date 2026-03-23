@@ -69,6 +69,21 @@ function extractSharedWith(item: Record<string, unknown>): IPersonaInfo[] {
 }
 
 /**
+ * Extract the Url string from a SharePoint URL field value.
+ * URL fields return { Url: string, Description: string }, not a plain string.
+ */
+function extractUrlFieldValue(item: Record<string, unknown>, fieldName: string): string {
+  const raw = item[fieldName];
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (raw && typeof raw === 'object') {
+    return (raw as Record<string, unknown>).Url as string || '';
+  }
+  return '';
+}
+
+/**
  * Extract author IPersonaInfo from Author expand field.
  */
 function extractAuthor(item: Record<string, unknown>): IPersonaInfo {
@@ -95,7 +110,7 @@ function mapToSavedSearch(item: Record<string, unknown>): ISavedSearch {
     title: ext.string('Title', ''),
     queryText: ext.string('QueryText', ''),
     searchState: ext.string('SearchState', '{}'),
-    searchUrl: ext.string('SearchUrl', ''),
+    searchUrl: extractUrlFieldValue(item, 'SearchUrl'),
     entryType: (ext.string('EntryType', 'SavedSearch') as 'SavedSearch' | 'SharedSearch'),
     category: ext.string('Category', ''),
     sharedWith: extractSharedWith(item),
@@ -257,7 +272,7 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
 
       collectionItems.push({
         id: giExt.number('Id', 0),
-        url: giExt.string('ItemUrl', ''),
+        url: extractUrlFieldValue(groupItems[i], 'ItemUrl'),
         title: giExt.string('ItemTitle', '') || giExt.string('Title', ''),
         metadata: (() => {
           try {
@@ -479,7 +494,7 @@ export class SearchManagerService {
         Title: title,
         QueryText: queryText,
         SearchState: searchState,
-        SearchUrl: searchUrl,
+        SearchUrl: { Url: searchUrl || '', Description: title || 'Saved Search' },
         EntryType: 'SavedSearch',
         Category: category,
         ResultCount: resultCount,
@@ -514,7 +529,7 @@ export class SearchManagerService {
       payload.SearchState = updates.searchState;
     }
     if (updates.searchUrl !== undefined) {
-      payload.SearchUrl = updates.searchUrl;
+      payload.SearchUrl = { Url: updates.searchUrl || '', Description: updates.title || 'Saved Search' };
     }
     if (updates.category !== undefined) {
       payload.Category = updates.category;
@@ -1121,7 +1136,7 @@ export class SearchManagerService {
       .items.add({
         Title: name,
         CollectionName: name,
-        ItemUrl: '',
+        ItemUrl: { Url: '', Description: '' },
         ItemTitle: '',
         SortOrder: 0,
         Tags: '[]',
@@ -1180,7 +1195,7 @@ export class SearchManagerService {
       .items.add({
         Title: itemTitle,
         CollectionName: collectionName,
-        ItemUrl: itemUrl,
+        ItemUrl: { Url: itemUrl || '', Description: itemTitle || '' },
         ItemTitle: itemTitle,
         ItemMetadata: JSON.stringify(metadata),
         SortOrder: maxOrder,
@@ -1611,7 +1626,7 @@ export class SearchManagerService {
         Title: 'StateSnapshot-' + new Date().getTime(),
         EntryType: 'StateSnapshot',
         SearchState: stateJson,
-        SearchUrl: '',
+        SearchUrl: { Url: '', Description: '' },
         QueryText: '',
         Category: '',
         ResultCount: 0,

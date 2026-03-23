@@ -18,6 +18,7 @@ import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
@@ -179,6 +180,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchResults');

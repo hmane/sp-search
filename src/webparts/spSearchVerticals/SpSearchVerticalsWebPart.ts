@@ -23,6 +23,7 @@ import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
 import { getStore, initializeSearchContext } from '@store/store';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { DebugCollector } from '@store/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -81,6 +82,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchVerticals');

@@ -139,12 +139,21 @@ module.exports = function (webpackConfig) {
     ])
   );
 
-  // Helper: does this rule's test match .css files?
+  // Helper: does this rule's test match plain .css files (NOT .module.css)?
   function ruleMatchesCss(r) {
     if (!r || !r.test) return false;
     try {
       if (r.test instanceof RegExp) return r.test.test('dummy.css');
       if (typeof r.test === 'string') return r.test === '.css' || r.test.indexOf('css') >= 0;
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
+  // Helper: does this rule's test match .module.css files?
+  function ruleMatchesModuleCss(r) {
+    if (!r || !r.test) return false;
+    try {
+      if (r.test instanceof RegExp) return r.test.test('dummy.module.css');
     } catch (e) { /* ignore */ }
     return false;
   }
@@ -159,6 +168,7 @@ module.exports = function (webpackConfig) {
   }
 
   // Patch every CSS rule at the top level
+  const pnpDir = path.resolve(projectRoot, 'node_modules/@pnp');
   (webpackConfig.module.rules || []).forEach((r, idx) => {
     if (ruleMatchesCss(r)) {
       excludePaths(r, [dxCssDir], idx, 'devextreme CSS');
@@ -171,11 +181,46 @@ module.exports = function (webpackConfig) {
           const ruleLabel = idx + '.oneOf[' + innerIdx + ']';
           excludePaths(inner, [dxCssDir], ruleLabel, 'devextreme CSS');
           excludePaths(inner, toolkitCssDirs, ruleLabel, 'spfx-toolkit CSS');
-          excludePaths(inner, [pnpControlsFileTypeIconCss], ruleLabel, '@pnp/spfx-controls-react CSS');
         }
       });
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Fix @pnp/spfx-property-controls & @pnp/spfx-controls-react .module.css
+  //
+  // SPFx 1.22's sp-css-loader applies postcss-modules-scope to .module.css,
+  // re-hashing class names. PnP packages ship pre-compiled .module.css with
+  // baked-in class names (e.g. table_f8375039) and hardcoded JS mappings.
+  // Re-hashing breaks the mapping → display:table-cell never applies →
+  // PropertyFieldCollectionData renders fields vertically instead of as a table.
+  //
+  // Fix: exclude @pnp from the module CSS rule and add a plain CSS rule that
+  // injects their CSS without class name re-generation.
+  // ---------------------------------------------------------------------------
+  const moduleCssRule = (webpackConfig.module.rules || []).find(function (r) {
+    return ruleMatchesModuleCss(r) && !ruleMatchesCss(r);
+  });
+  if (moduleCssRule) {
+    excludePaths(moduleCssRule, [pnpDir], 'module-css', '@pnp module CSS');
+
+    // Clone the loaders but strip generateCssClassName to prevent re-hashing
+    const plainModuleLoaders = (moduleCssRule.use || []).map(function (loader) {
+      if (typeof loader === 'object' && loader.options && loader.options.generateCssClassName) {
+        var restOptions = Object.assign({}, loader.options);
+        delete restOptions.generateCssClassName;
+        return Object.assign({}, loader, { options: restOptions });
+      }
+      return loader;
+    });
+
+    webpackConfig.module.rules.push({
+      test: /\.module(?:\.scss)?\.css$/i,
+      include: [pnpDir],
+      use: plainModuleLoaders,
+    });
+    console.log('[SP Search] Added plain CSS rule for @pnp .module.css files');
+  }
 
   // ---------------------------------------------------------------------------
   // DevExtreme icon font rule — webpack 5 asset/resource (replaces file-loader)

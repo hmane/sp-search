@@ -23,6 +23,7 @@ import { getStore, initializeSearchContext, getManagerService } from '@store/sto
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -118,6 +119,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchBox');

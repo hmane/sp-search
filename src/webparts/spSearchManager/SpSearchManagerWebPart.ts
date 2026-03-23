@@ -23,6 +23,7 @@ import { ISearchStore } from '@interfaces/index';
 import { getStore, initializeSearchContext } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 import { DebugCollector } from '@store/debug';
 
@@ -120,6 +121,8 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     const webPermissions = this.context.pageContext.web.permissions;
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     this._hasAdminAccess = !!(webPermissions && (webPermissions as unknown as { hasPermission(perm: unknown): boolean }).hasPermission(SPPermission.manageWeb));
