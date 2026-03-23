@@ -6,6 +6,7 @@ import {
   ISearchDataProvider
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { DebugCollector } from '../debug';
 
 /**
  * SearchOrchestrator — subscribes to store changes and triggers
@@ -308,6 +309,23 @@ export class SearchOrchestrator {
       // Build the search query
       const query = this._buildQuery(state);
 
+      // Debug: capture query info before execution
+      DebugCollector.setLastQuery({
+        kql: query.queryText,
+        queryTemplate: query.queryTemplate,
+        resultSourceId: query.resultSourceId,
+        refinementFilters: query.filters.map((f) => f.filterName + ':' + f.value),
+        providerId: provider.id,
+        startTime: searchStart,
+        duration: undefined,
+        totalCount: undefined,
+        itemsReturned: undefined,
+        currentPage: query.page,
+        pageSize: query.pageSize,
+        refiners: [],
+        error: undefined,
+      });
+
       // Detect first search after URL restore with active filters.
       // displayRefiners is empty on page load, so the merge in filterSlice has
       // nothing to merge with. Fire a parallel lightweight search WITHOUT filters
@@ -386,6 +404,34 @@ export class SearchOrchestrator {
       state.setLoading(false);
 
       const elapsed = Math.round(performance.now() - searchStart);
+
+      // Debug: update query info with results + log SEARCH event
+      DebugCollector.setLastQuery({
+        kql: query.queryText,
+        queryTemplate: query.queryTemplate,
+        resultSourceId: query.resultSourceId,
+        refinementFilters: query.filters.map((f) => f.filterName + ':' + f.value),
+        providerId: provider.id,
+        startTime: searchStart,
+        duration: elapsed,
+        totalCount: adjustedTotal,
+        itemsReturned: response.items.length,
+        currentPage: query.page,
+        pageSize: query.pageSize,
+        refiners: response.refiners.map((r) => ({
+          name: r.refinerName,
+          values: r.values.map((v) => ({ value: v.value, count: v.count })),
+        })),
+        error: undefined,
+      });
+      DebugCollector.logEvent('SEARCH', {
+        duration: elapsed,
+        resultCount: response.items.length,
+        totalCount: adjustedTotal,
+        providerId: provider.id,
+        query: query.queryText,
+      });
+
       if (!this._firstSearchCompleted) {
         this._firstSearchCompleted = true;
         console.log(
@@ -434,6 +480,12 @@ export class SearchOrchestrator {
       );
       const message = error instanceof Error ? error.message : 'Search failed';
       state.setError(message);
+      DebugCollector.logEvent('ERROR', {
+        message,
+        providerId: provider.id,
+        query: state.queryText || '*',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       state.setLoading(false);
     }
   }
