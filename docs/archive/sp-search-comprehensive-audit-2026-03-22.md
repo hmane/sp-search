@@ -1,3 +1,7 @@
+> **ARCHIVED — 2026-05-02.** This audit has been superseded by `docs/sp-search-launch-readiness-audit.md`. See Appendix A of the new audit for per-finding reconciliation status.
+
+---
+
 # SP Search Comprehensive Audit Report
 
 **Date:** 2026-03-22
