@@ -29,7 +29,7 @@ This audit will:
 2. Reconcile every finding from the 2026-03-22 audit (Closed / Still-Open / Obsolete / Changed-Form) with code-level evidence.
 3. Frame all findings against five user-selected differentiators: **Modern UI Quality, End-User Productivity, Multi-Instance / Multi-Context, Admin Experience, Observable & Diagnosable**.
 4. Surface the friction an unaccompanied admin or end-user would hit on Day 1, via two end-to-end journey walkthroughs.
-5. Produce an executable roadmap matrix: every deliverable tagged with effort (S/M/L/XL), priority (P0/P1/P2/Defer), differentiator(s), and dependencies.
+5. Produce an executable roadmap matrix: every deliverable tagged with effort (S/M/L/XL), priority (P0/P1/P2/Defer), differentiator(s), dependencies, source, and acceptance signal.
 6. Lay the foundation for **per-track implementation plans** (one Foundations + one per differentiator) to follow via the writing-plans skill.
 
 ## 3. Non-Goals
@@ -38,6 +38,28 @@ This audit will:
 - **Not a re-spec of requirements.** The requirements doc remains authoritative for *what* SP Search is supposed to do. The audit is about gaps between current state and launch-ready state.
 - **No exhaustive line-by-line review.** Targeted reads guided by the differentiator and journey lenses. We will not catalogue stylistic nits or dead code unless it affects launch readiness.
 - **Not a unilateral PnP v4 feature copy.** PnP v4 parity scorecard informs *positioning*, not a forced parity backlog. Missing PnP features are deliverables only if they tie to a stated differentiator.
+- **Not a live tenant certification.** The audit can inspect scripts, manifests, package output, and documentation, but it does not prove behavior in every tenant topology without a later smoke run in a real SharePoint tenant.
+
+## 3.1 Launch-Ready Bar
+
+For this audit, "launch-ready" means an unknown SPFx-capable tenant can install, configure, diagnose, and operate SP Search from the published package and docs without author intervention. A launch blocker is any issue that would likely cause one of these outcomes:
+
+- The package cannot be built, packaged, uploaded, or added to a site using documented steps.
+- A default or documented configuration exposes a security, privacy, or data integrity risk.
+- A core Day 1 admin or end-user journey dead-ends without a clear recovery path.
+- A differentiator is presented as a product promise but is missing, fragile, or too hard to discover.
+- A failure mode cannot be diagnosed from UI, docs, logs, or an exportable support artifact.
+
+## 3.2 Audit Inputs
+
+The audit should explicitly record the exact inputs used:
+
+- Current branch and commit SHA
+- `package.json` version, SPFx package versions, and `spfx-toolkit` dependency source/version
+- Relevant generated package artifacts under `sharepoint/solution/` or `release/`, if present
+- Prior docs read: requirements, March 22 audit, deployment/admin/provisioning guides, PnP alignment notes
+- Commands run and whether they passed, failed, or were skipped with reason
+- External docs consulted for PnP Modern Search v4 parity, with links and access date
 
 ## 4. Audit Document Structure
 
@@ -46,6 +68,8 @@ Single document at `docs/sp-search-launch-readiness-audit.md`. The 2026-03-22 au
 ### 4.1 Front Matter
 
 - Date, scope, audience profile ("any SPFx tenant, self-serve, no hand-holding")
+- Repo snapshot: branch, commit SHA, `package.json` version, SPFx version family, toolkit source/version
+- Verification snapshot: type-check/test/package command results, or explicit skip reasons
 - Stated differentiator priorities (the 5 the project is investing in)
 - Reconciliation summary: count of March 22 findings closed vs. still-open vs. obsolete vs. changed-form (full table in Appendix A)
 - Reading guide: how P0/P1/P2/Defer are defined; how to use the Roadmap Matrix
@@ -71,7 +95,13 @@ Walk every step a tenant admin takes from .sppkg in hand to working search exper
 11. Publish the page
 12. Hand off to end users
 
-Friction is logged inline with severity (Blocker / Confusion / Polish) and cross-referenced into the relevant differentiator track. Each friction point names the file or experience that produced it.
+Friction is logged inline with severity (Blocker / Confusion / Polish) and cross-referenced into the relevant differentiator track. Each friction point names the file or experience that produced it, plus a suggested owner track.
+
+**Journey severity definitions:**
+
+- **Blocker** — the user cannot complete the journey step safely or reliably.
+- **Confusion** — the step is technically possible but requires guessing, prior author knowledge, or source-code reading.
+- **Polish** — the step works but weakens trust, product quality, accessibility, or perceived maturity.
 
 **Journey B: Day 1 End-User Search**
 
@@ -115,6 +145,13 @@ Saved searches, collections / pinboards, sharing, history, annotations, keyboard
 
 `searchContextId` correctness, URL parameter namespacing (`?ctx1.q=...`), per-vertical `dataProviderId` routing, cross-context coordination patterns, sample multi-context pages, isolation guarantees under stress, library-component singleton backing (the `window.__sp_search_context_map__` pattern), regression risks when admins reuse context IDs across pages.
 
+This track must include at least one explicit collision scenario and one explicit isolation scenario:
+
+- Two independent search experiences on the same page with different context IDs.
+- Two web parts accidentally sharing a context ID when the admin expected isolation.
+- URL deep-link parameters for two contexts on the same page.
+- Navigation away/back behavior and store cleanup expectations.
+
 #### T4. Admin Experience
 
 Property pane discoverability, scenario presets (`general`/`documents`/`news`/`people`/`media`/`custom` shipped; `knowledgeBase`/`hubSearch`/`policySearch` pending), schema picker UX, edit-mode validation/lint, provisioning script robustness, Admin Dashboard depth (Coverage Stats / Quality Metrics / Health / Insights), property pane error handling, default value sanity for unknown tenants.
@@ -122,6 +159,11 @@ Property pane discoverability, scenario presets (`general`/`documents`/`news`/`p
 #### T5. Observable & Diagnosable
 
 Debug FAB feature completeness (Query / Network / State / Logs / Errors tabs), error surfacing patterns (toasts vs panels vs inline), "why no results" panel, telemetry hook strategy (opt-in, anonymous, what fields), Admin Dashboard analytics (Health + Insights), exportable support bundle (state snapshot + recent network calls + config), logging discipline (avoid PII).
+
+This track must distinguish local diagnostics from product telemetry:
+
+- **Local diagnostics**: user/admin-visible debug state, support bundle, recent network/search calls, config snapshot. Available without sending data anywhere.
+- **Telemetry**: optional aggregate product signals. Opt-in only, disabled by default, never captures query text, user identity, result titles, URLs, tenant names, or list item content.
 
 ### 4.4 Part 3 — Foundations Track
 
@@ -139,10 +181,10 @@ Cross-cutting work that doesn't sit cleanly in any single differentiator but blo
 
 Single sortable table. One row per deliverable. Columns:
 
-| ID | Deliverable | Track(s) | Effort | Priority | Depends on | Source |
-|----|-------------|----------|--------|----------|------------|--------|
+| ID | Deliverable | Track(s) | Effort | Priority | Depends on | Source | Acceptance Signal |
+|----|-------------|----------|--------|----------|------------|--------|-------------------|
 
-`Source` references either a journey step (e.g., "Journey A step 4") or an audit finding (e.g., "T2.D7", "Foundations.S2"). This page is the executable artifact — what someone opens to pick the next thing to do.
+`Source` references either a journey step (e.g., "Journey A step 4") or an audit finding (e.g., "T2.D7", "Foundations.S2"). `Acceptance Signal` is the smallest observable proof that the deliverable is done, such as "unit test covers URL namespace collision" or "admin guide has runnable tenant app catalog install path." This page is the executable artifact — what someone opens to pick the next thing to do.
 
 ### 4.6 Part 5 — Recommended Sprint Sequencing
 
@@ -160,6 +202,7 @@ Each sprint lists 8–12 deliverables drawn from the matrix. P2 / Defer items li
 - **Appendix B — spfx-toolkit Integration Map**: each new toolkit capability matched to a deliverable in this audit (or marked "no fit")
 - **Appendix C — PnP Modern Search v4 Parity Scorecard**: feature-by-feature grading (Better / Parity / Worse / Missing); informs positioning, not forced parity
 - **Appendix D — Rejected Ideas**: ideas considered and dropped, one-line rationale each, so they don't keep coming back
+- **Appendix E — Evidence and Command Log**: repo snapshot, commands run, command results, skipped checks, external sources consulted
 
 ## 5. Methodology
 
@@ -175,6 +218,42 @@ The audit will be produced in **a single sitting** at the user's request, with t
 8. **No fixes.** This is purely diagnostic. Fixes belong to the per-track plans.
 
 To keep the document navigable despite size, prose is kept tight; code references use `[file.ts:42](file.ts#L42)` markdown links; tables are used wherever a list of similar items repeats.
+
+### 5.1 Evidence Standard
+
+Each finding and deliverable should include:
+
+- **Observed evidence**: file path + line number, command output summary, generated artifact path, or documentation URL.
+- **Impact**: who is affected and how the issue appears in the Day 1 journey.
+- **Recommendation**: one concrete next action, not a broad theme.
+- **Acceptance signal**: what future implementation can prove without re-litigating the finding.
+
+Avoid unsupported wording such as "probably", "seems", or "may be" unless the uncertainty itself is recorded as the finding and the next action is to verify it.
+
+### 5.2 Recommended Verification Commands
+
+Run these when feasible and record results in Appendix E. If any command is skipped, record the reason.
+
+```bash
+git status --short
+git rev-parse --short HEAD
+npm run type-check
+npm test
+npm run package
+```
+
+The audit remains "no code changes"; generated output from verification commands is evidence, not implementation. If generated files change during verification, note that in Appendix E and do not mix those generated changes with audit document edits unless the user explicitly approves.
+
+### 5.3 Self-Review Pass
+
+Before the audit is considered complete:
+
+- Every P0 must cite the P0 admission rule category it satisfies.
+- Every roadmap row must have a source and acceptance signal.
+- Every journey blocker must map to at least one roadmap row.
+- Every March 22 finding must be reconciled exactly once.
+- Every toolkit capability in Appendix B must be marked Adopt / Consider / No Fit, with rationale.
+- The final sprint sequencing must contain only roadmap IDs, not newly invented work.
 
 ## 6. Prioritization Framework
 
@@ -200,6 +279,7 @@ Each deliverable is tagged with two attributes.
 - (b) Security
 - (c) Data integrity
 - (d) A "would prevent install" issue
+- (e) A journey Blocker with no documented workaround
 
 This rule keeps the P0 list honest and forces clear justification for anything blocking launch.
 
@@ -209,7 +289,7 @@ This rule keeps the P0 list honest and forces clear justification for anything b
 
 1. `docs/sp-search-launch-readiness-audit.md` — the full document above
 2. `docs/archive/sp-search-comprehensive-audit-2026-03-22.md` — moved with header redirect note
-3. No code changes
+3. No runtime source code changes
 
 **Follow-up plan deliverables** (separate session via writing-plans skill, after audit acceptance):
 
@@ -241,20 +321,25 @@ Each plan, when produced, will:
 | Findings drift from current code due to stale reading | All findings cite file + line; spot-check during self-review |
 | Per-track plans duplicate work across tracks | Roadmap Matrix is single source of truth; per-track plans reference matrix IDs, not invent new ones |
 | Audit blocks on perfectionism | Single-sitting production by user request; explicit "publish then iterate" stance — Appendix A and the matrix can be amended after launch |
+| "No code changes" conflicts with moving the old audit | Treat documentation movement as an audit artifact; no source/runtime implementation changes |
+| Generated artifacts change during verification | Record generated diffs in Appendix E and keep them out of the audit commit unless separately approved |
+| External PnP docs drift after audit | Record source links and access date in Appendix E |
 
 ## 9. Acceptance Criteria
 
-- [ ] `docs/sp-search-launch-readiness-audit.md` exists and contains all six Parts and four Appendices
+- [ ] `docs/sp-search-launch-readiness-audit.md` exists and contains all six Parts and Appendices A-E
 - [ ] Every March 22 audit finding appears in Appendix A with a status
-- [ ] Roadmap Matrix has at least one entry per track and every entry is sized + prioritized
+- [ ] Roadmap Matrix has at least one entry per track and every entry is sized, prioritized, sourced, and assigned an acceptance signal
 - [ ] No P0 deliverable lacks a justification under the admission rule
+- [ ] Every journey Blocker maps to at least one P0/P1 roadmap row or an explicit documented workaround
+- [ ] Appendix E records repo snapshot, commands run, command results, skipped checks, and external sources
 - [ ] Old audit moved to `docs/archive/` with header redirect
 - [ ] User has reviewed and approved the audit before per-track plans are produced
 
 ## 10. Out of Scope (Explicit)
 
 - Producing the per-track implementation plans (separate skill invocation)
-- Any code changes
+- Any runtime source code changes
 - Re-writing the requirements document
 - A full PnP v4 feature parity push not tied to differentiators
 - Production rollout planning, marketing, or naming/branding decisions

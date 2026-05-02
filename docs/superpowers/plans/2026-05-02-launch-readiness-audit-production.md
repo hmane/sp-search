@@ -65,7 +65,7 @@ Record output. Goes into Appendix B (toolkit integration map source) and Appendi
 
 - [ ] **Step 4: Hold scratch notes in context for use in Phase 9**
 
-Do NOT write Appendix E yet. Carry the captured strings in conversation memory or a temp file so Task 9.3 can render them into Appendix E with the verification command results from Task 0.2.
+Do NOT write Appendix E yet. Carry the captured strings in conversation memory or a local scratch file outside the repo (for example `/tmp/sp-search-launch-audit-notes.md`) so Task 9.3 can render them into Appendix E with the verification command results from Task 0.2. Do not create tracked scratch files inside the repository.
 
 ### Task 0.2: Run verification commands and capture results
 
@@ -88,7 +88,7 @@ Run:
 npm test 2>&1 | tail -50
 ```
 
-Record: pass/fail/skip, exit code, summary. If Jest harness still broken (see MEMORY.md), record "skipped — Jest harness blocker, see Sprint 4 backlog" and link to the Foundations track entry.
+Record: pass/fail/skip, exit code, summary. If the Jest harness fails before running tests, record the failure as evidence and link it to the Foundations track entry; do not rely on uncommitted memory files as evidence.
 
 - [ ] **Step 3: Run package and capture result**
 
@@ -333,7 +333,7 @@ Hold the enumeration in scratch notes; do not write to the audit file yet.
 
 - [ ] **Step 3: Verify count**
 
-Confirm count matches the executive summary (53 total: 7 critical + 10 high + 26 medium + 20 low). If counts differ, record the discrepancy in scratch notes — this becomes a row in Appendix A "Notes on the prior audit."
+Do not assume the prior audit's count is internally consistent. The executive summary says "12 critical/high issues, 23 medium issues, and 18 low-priority items" while the category table totals 7 critical + 10 high + 26 medium + 20 low. Enumerate the actual findings from headings/tables in document order, record the final enumerated count, and add a short "Prior audit count note" in Appendix A if it differs from either summary number.
 
 ### Task 1.2: Reconcile each finding against current code
 
@@ -429,7 +429,7 @@ Run:
 cd /Users/hemantmane/Development/spfx-toolkit && ls src/components/ && git log --since='2026-01-01' --oneline | head -50
 ```
 
-Capture component list and commit list. From CLAUDE.md / MEMORY.md and the commit log, identify NEW capabilities since SP Search last integrated: Comments, ManageAccess (improvements), browser storage utilities, HTML sanitization, FormContext fixes, CssLoader compat aliases, plus any others surfaced.
+Capture component list and commit list. Use committed repo evidence (`CLAUDE.md` if present, package exports, component folders, and commit log) to identify NEW capabilities since SP Search last integrated: Comments, ManageAccess (improvements), browser storage utilities, HTML sanitization, FormContext fixes, CssLoader compat aliases, plus any others surfaced.
 
 - [ ] **Step 2: Read each new capability's exported surface**
 
@@ -574,7 +574,7 @@ Read both provisioning scripts. For each:
 - Quality of error messages
 - Whether the docs explain prerequisites (PnP.PowerShell version, app registration, etc.)
 
-Log friction with severity. The known PnP 3.x gotchas in MEMORY.md are evidence of past breakage — confirm the scripts handle them; if not, that's a finding.
+Log friction with severity. Confirm whether the scripts handle PnP.PowerShell version differences, deprecated cmdlet parameters, authentication mode changes, and idempotent reruns; cite script/docs evidence rather than uncommitted memory files.
 
 - [ ] **Step 3: Walk step 6 (add web parts in edit mode)**
 
@@ -624,7 +624,7 @@ Inspect what happens when an admin types a query in edit mode:
 
 Read `SearchManager` configuration paths. Inspect:
 - Provisioned-list dependency story (`SearchSavedQueries`, `SearchHistory` lists from `Provision-SPSearchLists.ps1`)
-- Permission/role inheritance (item-level perms per CLAUDE.md)
+- Permission/role inheritance and any item-level permission behavior documented in committed source/docs
 - What an admin sees on the page after publish (admin dashboard?)
 
 - [ ] **Step 5: Hold findings for Task 4.3**
@@ -731,8 +731,7 @@ Read SearchFilters and a representative filter type (CheckboxFilter, DateRangeFi
 **Files:**
 - Read: `src/webparts/spSearchResults/components/*.tsx` (layouts, detail panel, bulk actions)
 - Read: `src/webparts/spSearchManager/components/*.tsx` (saved searches, share)
-- Read: `src/libraries/spSearchStore/utils/urlEncoder.ts` (deep link)
-- Read: `src/libraries/spSearchStore/store/middleware/urlSyncMiddleware.ts` (deep link restoration)
+- Read: `src/libraries/spSearchStore/store/middleware/urlSyncMiddleware.ts` and `src/libraries/spSearchStore/utils/filterUrlAliases.ts` (deep link + URL alias handling)
 - Read: relevant SCSS modules for mobile/responsive behavior
 
 - [ ] **Step 1: Walk step 7 (switches layouts)**
@@ -769,7 +768,7 @@ Read ShareSearchDialog + permission paths. Note:
 
 - [ ] **Step 5: Walk step 11 (returns via deep link)**
 
-Read urlSyncMiddleware and urlEncoder. Note:
+Read urlSyncMiddleware and filter URL alias handling. Note:
 - Which state survives the URL round-trip
 - BUG-003 status (pending URL filters timeout) — confirm fixed or still open via Phase 1 reconciliation
 - Multi-context URL namespacing under real navigation
@@ -778,7 +777,7 @@ Read urlSyncMiddleware and urlEncoder. Note:
 - [ ] **Step 6: Walk step 12 (mobile)**
 
 Read mobile-relevant SCSS + responsive logic. Note:
-- Layout adaptation per viewport (gallery single-column at 399px per MEMORY.md)
+- Layout adaptation per viewport (derive breakpoints from SCSS/source, not memory notes)
 - Touch target sizing
 - Filter access on mobile (panel? collapsed?)
 - DataGrid behaviour on small viewports (iOS momentum scroll)
@@ -830,7 +829,7 @@ Each track follows the spec §4.3 sub-structure: Current State / Gap to "Amazing
 ### Task 6.1: T1 Modern UI Quality
 
 **Files:**
-- Read: `src/webparts/spSearchResults/layouts/*.tsx`
+- Read: `src/webparts/spSearchResults/components/*Layout.tsx`
 - Read: `src/webparts/spSearchResults/components/*.tsx`
 - Read: `src/styles/`, all `*.module.scss` in webparts
 - Read: any theme tokens / Fluent theme integration
@@ -850,7 +849,7 @@ Replace the T1 placeholder with the four-part structure:
 
 - [ ] **Step 3: Verify deliverable count and shape**
 
-Each deliverable must include all six fields (description, why, effort, priority, depends-on, source, acceptance signal). Count check: 5–15 deliverables.
+Each deliverable must include all seven fields (description, why, effort, priority, depends-on, source, acceptance signal). Count check: 5–15 deliverables.
 
 - [ ] **Step 4: Commit**
 
@@ -873,7 +872,7 @@ EOF
 **Files:**
 - Read: `src/webparts/spSearchManager/components/*.tsx` (saved, collections, history, share, annotations)
 - Read: `src/libraries/spSearchStore/services/SearchManagerService.ts`
-- Read: `src/libraries/spSearchStore/providers/suggestions/*.ts`
+- Read: `src/libraries/spSearchStore/providers/*SuggestionProvider.ts`, `RecentSearchProvider.ts`, and `TrendingQueryProvider.ts`
 - Read: keyboard handlers in SearchBox + Results
 - Read: bulk actions toolbar + export paths
 - Read: spfx-toolkit Comments component (`/Users/hemantmane/Development/spfx-toolkit/src/components/Comments/`)
@@ -911,7 +910,7 @@ EOF
 **Files:**
 - Read: `src/libraries/spSearchStore/store/storeRegistry.ts` (window-backed singleton)
 - Read: `src/libraries/spSearchStore/store/middleware/urlSyncMiddleware.ts`
-- Read: `src/libraries/spSearchStore/utils/urlEncoder.ts`
+- Read: `src/libraries/spSearchStore/utils/filterUrlAliases.ts`
 - Read: each web part class for `searchContextId` property handling
 - Read: per-vertical `dataProviderId` routing in vertical slice + orchestrator
 - Modify: `docs/sp-search-launch-readiness-audit.md` (Part 2 → T3)
@@ -1044,7 +1043,7 @@ EOF
 - Read: `gulpfile.js`, `tsconfig.json`, `config/config.json`, `package.json` scripts (build/CI)
 - Read: any existing accessibility code (focus management, ARIA roles, motion-reduction respect)
 - Read: README.md (if present), `docs/admin-guide.md`, `docs/deployment-guide.md`, `docs/provisioning-guide.md`, `docs/extensibility-guide.md`
-- Read: bundle size evidence (`gulp bundle --ship` output if available, otherwise document as gap)
+- Read: bundle size evidence (`npm run stats` or `npm run stats:json` output if available, otherwise document as gap)
 - Read: SPFx 1.22 / Heft migration evidence (current branch, commits since migration started)
 
 - [ ] **Step 1: Security sweep**
@@ -1067,7 +1066,7 @@ git log --oneline feat/spfx-1.22-heft-migration ^main | head -30
 git diff main...feat/spfx-1.22-heft-migration --stat | tail -20
 ```
 
-Capture: scope of unmerged changes, any obvious gaps (test failures noted in MEMORY.md, lint warnings suppressed, etc.).
+Capture: scope of unmerged changes and any obvious gaps from committed evidence or command output (test failures, lint warnings, package output, etc.).
 
 - [ ] **Step 3: Accessibility baseline scan**
 
@@ -1106,7 +1105,7 @@ For each Foundations deliverable, if marked P0, confirm it ties to (a)–(e) per
 
 - [ ] **Step 1: Write Foundations section**
 
-Replace the Part 3 placeholder. Structure: brief intro paragraph, then one subsection per subject area (Security, 1.22 migration, Accessibility, CI/release, Documentation, Telemetry, Performance budgets). Each subsection: short current-state paragraph + numbered deliverables (each with the six fields).
+Replace the Part 3 placeholder. Structure: brief intro paragraph, then one subsection per subject area (Security, 1.22 migration, Accessibility, CI/release, Documentation, Telemetry, Performance budgets). Each subsection: short current-state paragraph + numbered deliverables. Each deliverable must include all seven fields from the spec evidence standard: description, why-it-matters, effort, priority, depends-on, source, and acceptance signal.
 
 - [ ] **Step 2: Verify**
 
@@ -1240,7 +1239,7 @@ EOF
 
 - [ ] **Step 1: List rejected ideas**
 
-Capture ideas considered during the audit (from journeys, tracks, foundations) and consciously dropped. Each gets a one-line rationale. Examples likely to appear: "third-party search integrations (e.g., M365 Search APIs not currently used) — out of scope for any-tenant install", "redesign of Zustand store — not required for launch", "Excel export beyond CSV — already deferred to Sprint 4 backlog per MEMORY.md".
+Capture ideas considered during the audit (from journeys, tracks, foundations) and consciously dropped. Each gets a one-line rationale. Examples likely to appear: "third-party search integrations (e.g., M365 Search APIs not currently used) — out of scope for any-tenant install", "redesign of Zustand store — not required for launch", "Excel export beyond CSV — defer unless the current source proves it is already supported and launch-critical".
 
 If no rejected ideas surfaced (unlikely), write a single line: "No ideas were formally rejected during this audit." But this is a smell — most audits surface at least 3–5 deferrals.
 
