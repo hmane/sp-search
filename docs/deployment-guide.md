@@ -7,7 +7,6 @@ This guide covers build, package, deployment, provisioning, permissions, and fir
 | Requirement | Details |
 |-------------|---------|
 | Node.js | `>=22.14.0 <23.0.0` |
-| Gulp CLI | `npm install -g gulp-cli` |
 | PnP.PowerShell | `Install-Module PnP.PowerShell -Scope CurrentUser` |
 | SharePoint permissions | Site Collection Admin on the target site |
 | App Catalog | Tenant-level or site-level App Catalog |
@@ -17,9 +16,8 @@ This guide covers build, package, deployment, provisioning, permissions, and fir
 ```bash
 npm install
 npm run type-check
-npm test -- --runInBand
-gulp bundle --ship
-gulp package-solution --ship
+npm test
+npm run package
 ```
 
 Package output:
@@ -161,7 +159,7 @@ Run this after deployment:
 | Author people filter returns nothing | Use `AuthorOWSUSER`, not `Author` |
 | Graph people results missing | Verify Graph permission approval and per-vertical `dataProviderId` |
 | History/Health/Insights empty | Ensure provisioning script completed and hidden lists exist |
-| DevExtreme font or CSS issues in local serve | Use the current `gulpfile.js` and `fast-serve/webpack.extend.js` overrides, then restart `npm run serve` |
+| DevExtreme font or CSS issues in local serve | Verify the `fast-serve/webpack.extend.js` overrides, then restart `npm run start` |
 
 ## Related Docs
 

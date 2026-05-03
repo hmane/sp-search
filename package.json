@@ -26,7 +26,7 @@
     "check:bundles": "node scripts/check-bundle-sizes.js",
     "stats": "ANALYZE=1 heft build --clean --production",
     "stats:json": "heft build --clean --production --emit-stats",
-    "type-check": "heft build --clean --lite",
+    "type-check": "tsc --noEmit -p tsconfig.json",
     "test": "heft test",
     "test:watch": "heft test --watch",
     "test:coverage": "heft test --coverage"
