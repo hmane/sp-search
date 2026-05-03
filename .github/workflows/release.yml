@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for changelog extraction
+
+      - name: Setup Node.js 22.14.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production
+        run: npm run package
+
+      - name: Bundle size gate
+        run: npm run check:bundles
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          NOTES=$(awk "/^## \\[$TAG\\]/,/^## \\[/" CHANGELOG.md | sed '$d')
+          if [ -z "$NOTES" ]; then
+            echo "No CHANGELOG entry for $TAG; using tag message"
+            NOTES=$(git tag -n99 -l "v$TAG" | sed "s/^v$TAG[[:space:]]*//")
+          fi
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.notes }}
+          files: sharepoint/solution/sp-search.sppkg
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

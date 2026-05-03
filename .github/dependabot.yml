@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'America/Los_Angeles'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'devDependencies-only'
+    allow:
+      - dependency-type: 'development'
+    groups:
+      heft-rushstack:
+        patterns:
+          - '@rushstack/*'
+          - '@microsoft/spfx-heft-*'
+          - '@microsoft/spfx-web-build-rig'
+      jest:
+        patterns:
+          - 'jest'
+          - 'jest-*'
+          - 'ts-jest'
+      types:
+        patterns:
+          - '@types/*'
+    commit-message:
+      prefix: 'chore(deps-dev)'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    commit-message:
+      prefix: 'chore(ci)'
