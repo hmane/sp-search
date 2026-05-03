@@ -43,7 +43,122 @@ Of the 54 findings enumerated from `docs/archive/sp-search-comprehensive-audit-2
 ## Part 1 — The Two Journeys
 
 ### Journey A: Day 1 Admin Install
-_(populated in Phase 4 — see plan Tasks 4.1–4.3)_
+
+The 12 steps below trace what an unaccompanied tenant admin does, in order, from `.sppkg` in hand to working search experience. Friction is logged inline with severity ([Blocker] / [Confusion] / [Polish] per spec §4.2) and an owning-track pointer (T1–T5 or Foundations).
+
+#### Step 1 — Download / receive `.sppkg`
+
+The admin obtains the packaged `.sppkg`. There is no published release artifact in the repo, no GitHub Releases entry, and no pinned download link in `docs/deployment-guide.md`. The documented path to produce the artifact yourself is `npm install && npm run type-check && npm test -- --runInBand && gulp bundle --ship && gulp package-solution --ship` (`docs/deployment-guide.md:17-23`).
+
+**Friction:**
+- **[Blocker]** No `gulpfile.js` exists in the repo (verified at HEAD), but `docs/deployment-guide.md:21-22` and `scripts/Setup-SPSearchSite.ps1:7,135` both prescribe `gulp bundle --ship && gulp package-solution --ship`. SPFx 1.22 / Heft migration replaced gulp with `heft build` / `heft package-solution` (per `package.json:21,22` `"package": "heft build --clean --production && heft package-solution --production"`), but no doc was updated. An admin following the docs verbatim will hit "command not found: gulp". → owning track: Foundations
+- **[Blocker]** `npm run type-check` resolves to `heft build --clean --lite` (`package.json:28`), but `--lite` is not a documented Heft CLI flag in current Heft releases. The script either fails or produces no useful output. (See Foundations finding F-2.) → owning track: Foundations
+- **[Blocker]** `npm test` (which the deployment guide tells the admin to run before packaging at `docs/deployment-guide.md:20`) fails because `src/styles/pnpPropertyControlsFix.ts:33` references the constant `PNP_COLLECTION_DATA_CSS` before its declaration on `:42`, tripping a `no-use-before-define` lint error that Heft elevates to a build failure. (See Foundations finding F-1.) `npm run package` is similarly blocked. → owning track: Foundations
+- **[Confusion]** `docs/deployment-guide.md:164` references "the current `gulpfile.js`" and `npm run serve` — neither exists in the repo (no `serve` script in `package.json:17-33`; `start` exists). → owning track: Foundations
+- **[Polish]** No `webApiPermissionRequests` declared in `config/package-solution.json` (verified — array absent), so the Graph People vertical (which `docs/admin-guide.md:240-242` says requires `People.Read`) silently no-ops on Day 1 because the API access page in SharePoint admin center has nothing to approve. The admin must know to add the permission request manually. → owning track: T4 (Admin Experience) / Foundations
+
+#### Step 2 — Upload to tenant or site app catalog
+
+With a built `.sppkg` in hand, the admin uploads to a tenant or site app catalog. `docs/deployment-guide.md:33-43` documents both paths in two short sub-sections; `scripts/Setup-SPSearchSite.ps1:142-208` automates the site-collection app catalog path end-to-end (enables catalog, polls for readiness, uploads via REST to bypass the PnP 200-second `Add-PnPApp` timeout, deploys, installs).
+
+**Friction:**
+- **[Polish]** Tenant app catalog upload has no automation script in `scripts/`. Only the site-collection catalog path is automated (`Setup-SPSearchSite.ps1:142-208`). Multi-site rollouts must use ad-hoc PowerShell or the SharePoint admin UI. → owning track: T4
+- **[Polish]** `solution.developer.mpnId` is `"Undefined-1.21.1"` (`config/package-solution.json:15`) — a generator default that displays in the admin "Apps you can add" pane. It signals "experimental scaffold" rather than "shipping product" to admins reviewing third-party packages. → owning track: T4
+
+#### Step 3 — Add app to a site
+
+After deployment, the admin opens the target site's `Site contents` and adds the SP Search app. With `skipFeatureDeployment: true` (`config/package-solution.json:8`) the web parts become available tenant-wide once deployed, so the explicit add-app step is effectively a no-op for tenant-catalog deployments — but `docs/deployment-guide.md:47` still instructs the admin to do it.
+
+**Friction:**
+- **[Confusion]** `docs/deployment-guide.md:47` says "After deployment, add the SP Search app to the target site from **Site contents**" without explaining that `skipFeatureDeployment: true` (`config/package-solution.json:8`) makes the add-app step optional for tenant-catalog deployments and required for site-catalog deployments. The admin who skips it on a site-catalog deploy will see no web parts in the toolbox and not understand why. → owning track: Foundations (docs)
+
+#### Step 4 — Run provisioning script (`Setup-SPSearchSite.ps1`)
+
+The admin runs `scripts/Setup-SPSearchSite.ps1 -SiteUrl ... -ClientId ...` — a 557-line one-shot orchestrator that connects, deploys the `.sppkg` (Phase 2), provisions the three hidden lists `SearchSavedQueries` / `SearchHistory` / `SearchCollections` (Phase 3, lines 253-364), creates a Search page with five web parts wired together (Phase 4, lines 369-492), and publishes it (Phase 5, line 499). Required parameters are `-SiteUrl` and `-ClientId` (mandatory at `:23-27`).
+
+**Friction:**
+- **[Blocker]** `-ClientId` is `Mandatory = $true` at `Setup-SPSearchSite.ps1:26-27` with no fallback to the environment-variable convention (`ENTRAID_APP_ID` / `ENTRAID_CLIENT_ID` / `AZURE_CLIENT_ID`) used by the standalone scripts (e.g. `Provision-SPSearchLists.ps1:39-62`, `Search-ScenarioPresets.ps1:393-411`). An admin who has not pre-registered an Entra app cannot run the one-shot script at all — and the prerequisites table in `docs/deployment-guide.md:7-13` does not mention the Entra app registration requirement. → owning track: T4
+- **[Blocker]** `Setup-SPSearchSite.ps1:373-377` unconditionally **deletes any existing page** named `Search` (the default `-PageName` value at `:33`) via `Remove-PnPPage -Identity $PageName -Force` before recreating it. There is no confirmation prompt, no `-WhatIf` support on the script as a whole (only `Search-ScenarioPresets.ps1:528` adds `[CmdletBinding(SupportsShouldProcess)]`). A second run silently destroys page customisations. → owning track: T4
+- **[Confusion]** `Setup-SPSearchSite.ps1:488` calls `Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl` which returns coverage profiles pointing at 10 hardcoded document libraries (`CorporatePolicies`, `SalesMaterials`, …, lines 50-61) plus 10 hardcoded custom lists (`Projects`, `Contacts`, …, lines 63-74). On any tenant that has not separately run `scripts/Provision-TestData.ps1`, every coverage profile points at non-existent URLs and the Admin Search Manager's Coverage tab opens to broken stat cards on first view. → owning track: T4
+- **[Confusion]** `Setup-SPSearchSite.ps1:243` does `Start-Sleep -Seconds 5` after install with the comment "Allow app to register", but the next phase (list provisioning) does not depend on web part registration — only Phase 4 does. The fixed sleep adds latency without addressing the actual race documented elsewhere in the codebase (e.g. `Add-PnPApp` / `Get-PnPTerm` timing notes in MEMORY.md). → owning track: Foundations
+- **[Polish]** `Setup-SPSearchSite.ps1:46-48` defines web part component names as string literals: `WP_SEARCH_BOX = "SP Search Box"`, `WP_SEARCH_FILTERS = "SPSearchFilters"`, `WP_SEARCH_VERTICALS = "SPSearchVerticals"`. The Filters and Verticals strings differ from the manifest `preconfiguredEntries[].title.default` (`SP Search Filters` at `SpSearchFiltersWebPart.manifest.json:21`, `SP Search Verticals` at `SpSearchVerticalsWebPart.manifest.json:21`). PnP `Add-PnPPageWebPart -Component` matches by display name — these will silently insert blank web parts in some PnP versions, per the `MEMORY.md` "PnP.PowerShell 3.x Gotchas" note. → owning track: Foundations
+
+#### Step 5 — Run scenario presets script (`Search-ScenarioPresets.ps1`)
+
+Optional. The admin dot-sources `scripts/Search-ScenarioPresets.ps1` and calls `Invoke-SearchScenarioPage -SiteUrl ... -PageName ... -ScenarioName ...` to create a fully-configured page for a built-in scenario (`general`, `documents`, `people`, `news`, `media`, `hub-search`, `knowledge-base`, `policy-search`, `account-documents` — verified at `Search-ScenarioPresets.ps1:39-358` and the TS registry at `src/webparts/spSearchResults/presets/searchPresets.ts:424-434`).
+
+**Friction:**
+- **[Confusion]** Both `Setup-SPSearchSite.ps1` (Step 4) and `Invoke-SearchScenarioPage` (this step) create a search page with the same five web parts but with **different defaults**: Setup uses `-PageName "Search"` and provisions Verticals + Filters explicitly with hardcoded JSON (`Setup-SPSearchSite.ps1:389-411`); Invoke uses preset-driven configuration (`Search-ScenarioPresets.ps1:587-657`). Running both on the same site produces two pages with subtly different filter sets, sort options, and page sizes (Setup uses `pageSize=25` at `:459`; Invoke uses `pageSize=10` at `:599`). The admin has no signal that "you should pick one of these, not both." → owning track: T4
+- **[Confusion]** `Invoke-SearchScenarioPage:629-634` writes `filterCollection` and `Search-ScenarioPresets.ps1:653-657` writes `verticalCollection` as the property name, but `SpSearchFiltersWebPart.manifest.json:30` and `SpSearchVerticalsWebPart.manifest.json:27` use `filtersCollection` (plural) and `verticalsCollection` (plural) respectively. Filters and Verticals will fall back to manifest defaults instead of the preset's curated set, silently. → owning track: T4
+- **[Confusion]** `docs/deployment-guide.md:79-87` lists the 8 built-in presets but `docs/admin-guide.md:111-120` lists 9 (adds `custom`); neither doc lists `account-documents` (`searchPresets.ts:333,433`). → owning track: Foundations (docs)
+- **[Polish]** `Search-ScenarioPresets.ps1` is not a runnable script — it is a function library that requires the admin to know to dot-source it (`. .\scripts\Search-ScenarioPresets.ps1`) before calling `Invoke-SearchScenarioPage`. This convention is not documented in `docs/deployment-guide.md:71-87`. → owning track: Foundations (docs)
+
+#### Step 6 — Open a page in edit mode, add Search Box / Verticals / Filters / Results / Manager
+
+If the admin chose not to use Steps 4 or 5's automated page creation, they edit a SharePoint page and add five web parts from the toolbox. Each ships with an icon (`SpSearchBoxWebPart.manifest.json:23` `Search`, `SpSearchResultsWebPart.manifest.json:23` `Search`, `SpSearchFiltersWebPart.manifest.json:23` `Filter`, `SpSearchVerticalsWebPart.manifest.json:23` `SortLines`, `SpSearchManagerWebPart.manifest.json:23` `SearchAndApps`) and a one-line description (`*.manifest.json:22`).
+
+**Friction:**
+- **[Confusion]** Two admin-manager web parts ship in the same package: `SpSearchManagerWebPart` titled "SP Search Manager (Legacy)" with description "Legacy admin manager entry. Use SP Search Admin Manager for new admin pages." (`SpSearchManagerWebPart.manifest.json:21-22`), and `SpSearchAdminManagerWebPart` titled "SP Search Admin Manager" (`SpSearchAdminManagerWebPart.manifest.json:14`). Both share the icon `SearchAndApps`. A first-time admin sees two near-identical entries in the toolbox with no other differentiation. (See INC-007 in Appendix A — Changed-Form: behavior is 100% inherited; only manifest defaults differ plus the DebugCollector hook in `onInit`.) → owning track: T4
+- **[Confusion]** Three of the five web parts use `Search` or `SearchAndApps` as their Fluent icon (`SpSearchBoxWebPart.manifest.json:23`, `SpSearchResultsWebPart.manifest.json:23`, `SpSearchManagerWebPart.manifest.json:23`, `SpSearchAdminManagerWebPart.manifest.json:16`). In the SPFx toolbox preview, four of six tiles look identical at a glance. → owning track: T1
+- **[Polish]** Web part icons are Fluent v8 icon-font glyphs (`officeFabricIconFontName`), not custom SVG/PNGs — so the toolbox preview is always monochrome 16×16. PnP Modern Search ships with custom illustrative icons that read as branded entries. → owning track: T1
+- **[Polish]** `SpSearchBox` defaults `enableSearchManager: true` (`SpSearchBoxWebPart.manifest.json:41`), which adds a Search Manager button inside the search box. If the admin also adds a separate Search Manager web part to the page, the user sees two manager entry points. → owning track: T2
+
+#### Step 7 — Configure searchContextId across web parts
+
+The admin opens each of the five web parts' property panes and verifies the `searchContextId` matches. The default value is `default` on every manifest (`SpSearchBoxWebPart.manifest.json:25`, `SpSearchResultsWebPart.manifest.json:25`, `SpSearchFiltersWebPart.manifest.json:25`, `SpSearchVerticalsWebPart.manifest.json:25`, `SpSearchManagerWebPart.manifest.json:25`, `SpSearchAdminManagerWebPart.manifest.json:18`), so a single search experience per page works without action. For multi-context pages or when the admin wants meaningful IDs (e.g. `hr-search`), they must edit each web part.
+
+**Friction:**
+- **[Blocker]** `searchContextId` is buried at the bottom of the property pane in every web part: page 3 (Connections) of 4 in Search Box (`SpSearchBoxWebPart.ts:362-375`); page 3 (Connections) of 4 in Search Results (`SpSearchResultsWebPart.ts:1207-1228`); page 2 (Connections) of 3 in Search Filters (`SpSearchFiltersWebPart.ts:443-463`); page 1 group 1 of 2 in Verticals (`SpSearchVerticalsWebPart.ts:317-330`, the only one with it on top); page 1 group 1 in Manager (`SpSearchManagerWebPart.ts:201-215`). For a setting that **must** match across five web parts, the admin has to navigate to a different pane location in each. → owning track: T3 (Multi-Instance / Multi-Context)
+- **[Confusion]** When two web parts have **different** IDs by accident, there is no edit-mode warning anywhere. `SpSearchResults.tsx:716-720` only emits an info bar when `searchContextId === 'default'`, advising to set a unique ID for multi-context pages. There is no detection of "Box uses `default`, Results uses `hr-search`, no shared store". → owning track: T3
+- **[Confusion]** Required-field error messages diverge across web parts. Search Box says "Required — must match the Search Context ID set on the Search Results web part." (`SpSearchBoxWebPart.ts:369`); Search Results says "Required — enter an ID to connect search web parts on this page (e.g. \"hr-search\")." (`SpSearchResultsWebPart.ts:1218-1220`); Filters has no `onGetErrorMessage` (`SpSearchFiltersWebPart.ts:450-462`); Verticals/Manager likewise lack validation. → owning track: T3
+- **[Polish]** Description text differs across web parts: Box says "Web parts with the same context ID share search state. Leave blank for 'default'." (`spSearchBox/loc/en-us.js:17`); Results says "Identifier to connect this web part with other search web parts (search box, filters, verticals)." (`spSearchResults/loc/en-us.js:17`); Filters says "Links this filter web part to a search results web part that shares the same context ID" (`spSearchFilters/loc/en-us.js:14`). Same setting, three different mental models. → owning track: T3
+
+#### Step 8 — Open property panes, configure scope / filters / columns / layout
+
+The admin tunes the Results scope and query (`SpSearchResultsWebPart.ts:944-1000`, page 1), columns (`:976-999`, `:1129-1145`, `:1151-1167`), layout preset and toggles (`:1078-1124`, page 2), filters (`SpSearchFiltersWebPart.ts:255-415`, page 1), and verticals (`SpSearchVerticalsWebPart.ts:331-356`).
+
+**Friction:**
+- **[Confusion]** The Search Results property pane has 4 pages with 11 collapsible groups (`SpSearchResultsWebPart.ts:946,1003,1042,1076,1107,1127,1149,1171,1212,1235,1250` — `DataGroupName`, `SortGroupName`, `PaginationGroupName`, `MainLayoutsGroupName`, `AdvancedLayoutsGroupName`, `CompactViewGroupName`, `GridViewGroupName`, `BehaviorGroupName`, `ConnectionsGroupName`, `QuerySettingsGroupName`, `AdvancedGroupName`). The scenario preset picker (`PropertyPaneChoiceGroup('layoutPreset')` at `:1078`) is on **page 2** ("Display") inside the `MainLayoutsGroupName`, not on page 1 — admins who never reach page 2 miss the curated starter that would set query template, columns, sort, and filters atomically. → owning track: T4
+- **[Confusion]** Changing the scenario preset only updates the Results web part; it does **not** push the matching `filterSuggestions` or `verticalSuggestions` from `searchPresets.ts:60-66, 92-104, 130-137` into the Filters and Verticals web parts. The admin must manually re-key those settings on the other web parts to get the preset's intended behaviour. → owning track: T4
+- **[Confusion]** Edit-mode validation in `SpSearchResults.tsx:722-750` warns about default-layout-not-enabled, grid-with-no-columns, and similar property-level misconfigurations, but there is **no** validation that the chosen managed property names (`selectedPropertiesCollection.property`, `refinementFiltersCollection.property`, `sortablePropertiesCollection.property`) actually exist in the tenant search schema. `PropertyPaneSchemaHelper` only assists for `queryTemplate` (`SpSearchResultsWebPart.ts:965-971`); column pickers fall back to free-text strings (`:984-996`). A typo like `LastModifedTime` results in a silently empty column at runtime. → owning track: T4
+- **[Confusion]** `SpSearchResultsWebPart.ts:268-270` resets `layoutPreset` to `'custom'` if it isn't set, and `:888-890` reverts to `'custom'` whenever the admin toggles any layout-related property. The admin who picks `documents`, then enables `showCardLayout` to add Card view, silently demotes the preset to `custom` — and any subsequent prop changes will no longer track the `documents` defaults. → owning track: T4
+- **[Polish]** Coverage Profiles in the Admin Manager pane (`SpSearchManagerWebPart.ts:266-345`) is a 10-column `PropertyFieldCollectionData` that requires the admin to type comma-separated URLs, content type IDs (e.g. `0x0101`), and refinement filters (`FileType:or("docx","pdf")`) into free-text cells. No autocomplete, no validation, no schema picker. → owning track: T4
+
+#### Step 9 — Run a test query
+
+In edit mode the admin types a query in the Search Box. The orchestrator triggers a search, and Results renders matching rows or one of four `EmptyState` messages (`SpSearchResults.tsx:402-421`).
+
+**Friction:**
+- **[Confusion]** Until the admin has run `scripts/Map-CrawledProperties.ps1` (`Map-CrawledProperties.ps1:1-68`) and waited for a re-index, custom managed properties referenced in starter filters or columns return zero buckets. The deployment guide does not mention this dependency in its "Smoke Test Checklist" (`docs/deployment-guide.md:140-153`). → owning track: T4
+- **[Confusion]** Map-CrawledProperties hardcodes 13 specific `ows_SPS*` crawled properties (`Map-CrawledProperties.ps1:54-68`) — properties that only exist on tenants that have provisioned the test-data site columns. There is no in-product guidance for an admin whose tenant has different custom columns (e.g. `ows_Contoso_*`). → owning track: T4
+- **[Polish]** When `searchContextId === 'default'` the Results web part shows an info `MessageBar` in edit mode ("Using the default search context...", `SpSearchResults.tsx:716-720`) but does not render in view mode. End users on a published page won't see the warning. The signal that a developer-default ID is still in use disappears at exactly the moment it would matter for downstream multi-page collisions. → owning track: T3
+
+#### Step 10 — Configure saved searches, sharing, history retention
+
+The admin enables Search Manager features: saved searches, shared searches, history, collections. The Manager web part exposes `enableSavedSearches` / `enableSharedSearches` / `enableCollections` / `enableHistory` toggles plus `maxHistoryItems` (`SpSearchManagerWebPart.manifest.json:30-40`). History retention is not configured here.
+
+**Friction:**
+- **[Confusion]** **Documented defaults disagree with shipped defaults.** `docs/admin-guide.md:221-226` says `enableSavedSearches=true`, `enableSharedSearches=true`, `enableCollections=true`, `enableHistory=true`. Both manifests ship with all four set to `false` (`SpSearchManagerWebPart.manifest.json:30-33`, `SpSearchAdminManagerWebPart.manifest.json:25-26,29`). An admin who reads the docs and adds the web part will see an empty manager with every tab disabled. → owning track: Foundations (docs)
+- **[Blocker]** No history-retention UI exists. Cleanup is documented as "Call `cleanupHistory(ttlDays)` via the SearchManagerService API" (`docs/provisioning-guide.md:131-132`) — i.e. a code-only entry point. There is no property pane field, no scheduled job, and no admin UI tab for setting "delete entries older than N days". The `SearchHistory` list will grow unbounded, with the only ceiling being the manual `MAX_CLICKED_ITEMS = 10` (`SearchManagerService.ts:857-860`, see INC-008 Closed in Appendix A) on a single field within each item. → owning track: T2 / T4
+- **[Confusion]** Item-level permission behaviour is documented for `SearchHistory` (`Provision-SPSearchLists.ps1:230-234` sets `ReadSecurity=2 WriteSecurity=2`) but the admin has no in-product confirmation that this was applied. If the lists were created manually or by a partial script run, the admin can leak other users' history. → owning track: T4
+- **[Polish]** Saved-search JSON is parsed without schema validation (`SavedSearchList.tsx:76,163`, see SEC-004 Still-Open in Appendix A). An admin sharing a tampered saved search to colleagues can poison their stores. → owning track: Foundations
+
+#### Step 11 — Publish the page
+
+The admin clicks Publish in the SharePoint editor. Both `Setup-SPSearchSite.ps1:499` and `Search-ScenarioPresets.ps1:706` automate this when the scripts are used; manual edits require the admin to publish themselves.
+
+**Friction:**
+- **[Polish]** The Admin Search Manager's Coverage tab pulls live coverage stats on first view (`AdminDashboard.tsx:88-90`). If the seeded coverage profiles still point at the test-data hardcoded URLs (see Step 4 friction), the published page renders a "broken stats" panel as the very first thing the admin or end user sees post-publish. → owning track: T4
+- **[Polish]** No published-page smoke check is automated. The "Smoke Test Checklist" at `docs/deployment-guide.md:140-153` is a manual 8-row table (Type a query, Switch verticals, Apply author filter, Switch to Grid, Export CSV/XLSX, Open Health, Open Insights, Open a People result). On a fresh tenant with no crawled content, six of the eight will produce empty output and the admin has no way to distinguish "feature works, no data" from "feature broken". → owning track: T5 (Observable & Diagnosable)
+
+#### Step 12 — Hand off to end users
+
+The admin publishes the URL and (typically) sends an email or Teams message to end users. There is no in-product onboarding tour, in-page help link, or admin-configurable banner.
+
+**Friction:**
+- **[Confusion]** No end-user documentation ships in `docs/`. The available docs are admin-facing (`docs/admin-guide.md`, `docs/deployment-guide.md`, `docs/provisioning-guide.md`, `docs/extensibility-guide.md`, `docs/pnp-modern-search-alignment.md`). End users have nothing to read about saved searches, KQL mode, scope selector, layout switching, or sharing. → owning track: T2 / Foundations (docs)
+- **[Polish]** The branch carrying the current SPFx 1.22 / Heft migration (`feat/spfx-1.22-heft-migration`) is unmerged at handoff time (74 commits ahead of `main` per `git log --oneline main..HEAD | wc -l`). Admins who clone and build from `main` will get the prior SPFx 1.21 build chain; admins who clone the feature branch get the un-shipped Heft path. There is no published versioning policy or release tag to point them at. (Foundations finding — the unmerged-branch concern is captured for Foundations Track per spec §4.4 "SPFx 1.22 / Heft migration completion".) → owning track: Foundations
+- **[Polish]** No admin telemetry surface. The product has a Debug FAB and Admin Dashboard (`AdminDashboard.tsx:1-280`), but no "send a support bundle" / "export current state" path that an admin can give a user to attach to a ticket. (Per spec §4.3 T5: "exportable support bundle".) → owning track: T5
 
 ### Journey B: Day 1 End-User Search
 _(populated in Phase 5 — see plan Tasks 5.1–5.3)_
