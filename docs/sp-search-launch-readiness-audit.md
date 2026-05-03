@@ -849,7 +849,7 @@ The audience profile is "any SPFx-capable tenant, self-serve, no SI hand-holding
    - **Why it matters:** Ties to (a) T4 differentiator and (e) Journey A Step 6 [Confusion] (two near-identical "Manager" tiles in the toolbox with no other differentiation, no documented workaround). The "(Legacy)" copy actively misleads — it implies SpSearchManagerWebPart is deprecated when in fact every Admin Manager call still goes through it via inheritance. This is the most concrete in-product lie in the audit. Path B closes the lookalike issue and removes the "(Legacy)" copy without breaking existing tenant pages.
    - **Effort:** L
    - **Priority:** P1
-   - **Depends on:** none
+   - **Depends on:** none. T5.D8 takes a downstream cross-track dep — Admin Manager fork is the natural home for the telemetry opt-in property pane group; coordinate sequencing in Sprint 5.
    - **Source:** Appendix A INC-007 (Changed-Form); Journey A Step 6 [Confusion]
    - **Acceptance signal:** SPFx toolbox shows two "SP Search Manager" tiles with distinct icons + distinct property pane shapes (User-facing Manager: SearchAndApps icon, user-tab toggles only; Admin Manager: Diagnostic/BIDashboard icon, admin-only property page with Coverage Profiles + Expected Sites). `grep -rn 'Legacy' src/webparts/spSearchManager` returns 0 hits. Existing tenant pages with `SpSearchAdminManagerWebPart` instances continue to render after package upgrade. INC-007 row in Appendix A flips Closed in the next audit cycle.
 
@@ -858,7 +858,7 @@ The audience profile is "any SPFx-capable tenant, self-serve, no SI hand-holding
    - **Why it matters:** Ties to (a) T4 differentiator. The dashboard is one of three explicit T4 scope items in spec §4.3 ("Admin Dashboard depth — Coverage Stats / Quality Metrics / Health / Insights"). Closes three Still-Open audit items (UX-005, UX-006, UX-007) in one push targeting one surface. Without these, the dashboard ships looking like an MVP per spec §4.3 wording.
    - **Effort:** L (bundle effort = max sub-item; sub-items can land in separate PRs as M / M / S / S if scope tightens)
    - **Priority:** P1
-   - **Depends on:** Deliverable 4 (Coverage default fix removes the "broken first paint" failure mode that obscures the polish work in this deliverable)
+   - **Depends on:** Deliverable 4 (Coverage default fix removes the "broken first paint" failure mode that obscures the polish work in this deliverable). T5.D9 takes a downstream cross-track dep — telemetry-aggregate ChoiceGroup lands inside this dashboard surface; coordinate sequencing.
    - **Source:** Appendix A UX-005 (Changed-Form), UX-006 (Still-Open), UX-007 (Still-Open); spec §4.3 T4 explicit scope item ("Admin Dashboard depth — Coverage Stats / Quality Metrics / Health / Insights")
    - **Acceptance signal:** Zero-Results panel updates without manual refresh within 60s of a new zero-result query landing. Quality panel shows a per-vertical zero-result-rate table sortable by rate descending. Insights panel shows a 7-day rolling CTR sparkline alongside the window-wide number. Configuring the Admin Manager on a fresh tenant with no coverage profiles renders the empty-state CTA, not broken cards. Three Appendix A rows (UX-005/006/007) flip to Closed in next audit cycle.
 
