@@ -1,5 +1,7 @@
 # Jest config — deferred test suites
 
+> Inline JSON commentary (e.g. a `_comment_*` sibling key on `testPathIgnorePatterns`) is NOT supported — Jest's schema validator emits a `Validation Warning: Unknown option …` on startup for any unrecognised top-level key. Capture rationale in this README and reference it from PR descriptions / commit messages instead.
+
 Per Found.D13 follow-up: `testPathIgnorePatterns` in `jest.config.json` excludes 9 pre-existing test suites that fail to load due to `scope` field schema drift (the `scope` field was removed from `ISearchHistoryEntry` and `IUrlState` after these tests were written).
 
 These suites are NOT broken specs — they are pre-existing test rot uncovered by the now-working Heft Jest harness. Real fixes belong to:

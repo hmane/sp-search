@@ -17,7 +17,6 @@
     "<rootDir>/tests/**/*.test.tsx"
   ],
 
-  "_comment_testPathIgnorePatterns": "See config/jest.config.README.md. 9 pre-existing suites deferred via Found.D13 follow-up; re-enable per T3.D9 (slice/lifecycle/middleware) and T5.D2 (TokenService/SearchService).",
   "testPathIgnorePatterns": [
     "/node_modules/",
     "/lib/",

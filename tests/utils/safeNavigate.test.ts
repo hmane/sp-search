@@ -52,6 +52,17 @@ describe('safeNavigate (Found.D4)', () => {
     expect(assignedTo).toBeNull();
   });
 
+  it('rejects vbscript: URLs', () => {
+    expect(safeNavigate('vbscript:msgbox(1)')).toBe(false);
+    expect(safeNavigate('VBScript:msgbox(1)')).toBe(false);
+    expect(assignedTo).toBeNull();
+  });
+
+  it('rejects protocol-relative URLs', () => {
+    expect(safeNavigate('//evil.example.com/steal')).toBe(false);
+    expect(assignedTo).toBeNull();
+  });
+
   it('rejects empty / null / undefined', () => {
     expect(safeNavigate('')).toBe(false);
     expect(safeNavigate(null as unknown as string)).toBe(false);
