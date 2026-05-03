@@ -16,25 +16,6 @@ const STYLE_TAG_ID = 'sp-search-pnp-property-controls-fix';
 
 let injected = false;
 
-export function ensurePnpPropertyControlStyles(): void {
-  if (injected) {
-    return;
-  }
-  if (typeof document === 'undefined') {
-    return;
-  }
-  if (document.getElementById(STYLE_TAG_ID)) {
-    injected = true;
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = STYLE_TAG_ID;
-  style.textContent = PNP_COLLECTION_DATA_CSS;
-  document.head.appendChild(style);
-  injected = true;
-}
-
 /**
  * Critical CSS from @pnp/spfx-property-controls PropertyFieldCollectionDataHost.module.css.
  * These rules use the baked-in hash suffix _f8375039 that matches the JS class name mapping.
@@ -173,3 +154,22 @@ const PNP_COLLECTION_DATA_CSS = `
   border-bottom: 1px solid #a19f9d;
 }
 `;
+
+export function ensurePnpPropertyControlStyles(): void {
+  if (injected) {
+    return;
+  }
+  if (typeof document === 'undefined') {
+    return;
+  }
+  if (document.getElementById(STYLE_TAG_ID)) {
+    injected = true;
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = STYLE_TAG_ID;
+  style.textContent = PNP_COLLECTION_DATA_CSS;
+  document.head.appendChild(style);
+  injected = true;
+}
