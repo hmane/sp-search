@@ -139,6 +139,8 @@ Recommended starter page behavior:
 
 Run this after deployment:
 
+- After uploading the `.sppkg`, the SharePoint admin center "API access" page surfaces a pending `People.Read` request for Microsoft Graph (declared in `webApiPermissionRequests` per Found.D10). Approve it before deploying the People vertical (Graph-backed search results).
+
 | Test | Expected result |
 |------|-----------------|
 | Type a query | Results load and no false empty state flashes |

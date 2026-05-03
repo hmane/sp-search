@@ -27,6 +27,8 @@ npm run package
 
 The latest released `.sppkg` is also attached to each [GitHub Release](../../releases) so you can skip the local build.
 
+> After deploying, approve the `Microsoft Graph: People.Read` API access request in the SharePoint admin center for the People vertical to function (declared in `webApiPermissionRequests` per Found.D10).
+
 ## Documentation
 
 - **Admin install + configuration:** [`docs/admin-guide.md`](docs/admin-guide.md)
