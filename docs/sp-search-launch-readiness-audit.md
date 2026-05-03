@@ -329,21 +329,21 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
 #### Deliverables
 
 1. **Filters web part responsive collapse**
-   - **Description:** Add phone- and tablet-width media queries to `src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` (currently 0 `@media` queries across 867 lines). Below ~640px, render filters as a collapsed accordion or off-canvas drawer with a "Show filters" toggle button; below ~399px, single-column. Adopt the Results breakpoint set (1023 / 639 / 399) so the system has one consistent ladder.
+   - **Description:** Add phone- and tablet-width media queries to `src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` (currently 0 `@media` queries across 867 lines). Below ~640px, render filters as a collapsed accordion or off-canvas drawer with a "Show filters" toggle button; below ~399px, single-column. Adopt the Results breakpoint set (1023 / 639 / 399) so the system has one consistent ladder. Off-canvas drawer must implement keyboard focus trap (Fluent `FocusTrapZone` or equivalent) with Escape-to-close so a11y conformance is preserved alongside the visual collapse.
    - **Why it matters:** T1 visual quality promise; today on a phone the filter panel consumes the entire screen height above the results, forcing the user to scroll past every filter option to see a single result. Highest single-issue mobile blocker in the journey audit.
-   - **Effort:** L
+   - **Effort:** XL
    - **Priority:** P0
    - **Depends on:** Deliverable 2 (breakpoint normalization) — start in parallel, land together.
-   - **Source:** Journey B Step 12 [Blocker]; Journey A Step 12 implicit via mobile preview.
-   - **Acceptance signal:** Phone-width screenshot (375px) of a search page with Filters web part shows a collapsed accordion or drawer with a single "Show filters" affordance; results occupy the primary viewport. `grep -c '@media' src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` returns ≥3.
+   - **Source:** Journey B Step 12 [Blocker]
+   - **Acceptance signal:** Phone-width screenshot (375px) of a search page with Filters web part shows a collapsed accordion or drawer with a single "Show filters" affordance; results occupy the primary viewport. `grep -c '@media' src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` returns ≥3. axe-core scan on the drawer-open state returns zero focus-trap or keyboard-trap violations.
 
 2. **Cross-web-part responsive breakpoint normalization**
    - **Description:** Define a shared SCSS breakpoint variable set (e.g. `$bp-phone: 399px; $bp-tablet: 639px; $bp-desktop: 1023px;`) in `src/styles/` and refactor each web part's `.module.scss` to consume them. Today: Box uses 480px; Verticals 640px; Results uses 1023/639/399; Manager uses 480/640/768/900. Pick the Results ladder (1023 / 639 / 399) as canonical and align all five web parts.
-   - **Why it matters:** T1 consistency; without a shared ladder, a 481-px viewport renders Box in desktop mode and Manager already collapsed — the page reads as five disconnected products. Foundational to every other responsive deliverable in this track.
+   - **Why it matters:** T1 consistency; without a shared ladder, a 481-px viewport renders Box in desktop mode and Manager already collapsed — the page reads as five disconnected products. Foundational to every other responsive deliverable in this track. P0 because it ties to a stated T1 differentiator AND blocks Deliverable 1 (also P0); shipping D1 without a shared ladder either forks the canonical breakpoint set or strands D1 behind a P1 dependency.
    - **Effort:** M
-   - **Priority:** P1
+   - **Priority:** P0
    - **Depends on:** none
-   - **Source:** Journey B Step 12 [Confusion].
+   - **Source:** Journey B Step 12 [Confusion]
    - **Acceptance signal:** A single SCSS partial (e.g. `src/styles/breakpoints.scss`) is imported by every web part's main SCSS module; `grep -rE '@media \(max-width:\s*(480|640|768|900)px\)' src/webparts | wc -l` returns 0.
 
 3. **Loading state visual rhythm parity**
@@ -352,7 +352,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** M
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Journey B Step 1 [Polish].
+   - **Source:** Journey B Step 1 [Polish]
    - **Acceptance signal:** Side-by-side screenshot comparison of Box / Verticals / Filters / Results / Manager during initial load shows identical shimmer shape language; inspect of `SpSearchManager.tsx:672` shows the Spinner replaced with a Shimmer composition.
 
 4. **Idle-state pre-search rendering for Results web part**
@@ -361,7 +361,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** S
    - **Priority:** P0
    - **Depends on:** none
-   - **Source:** Journey B Step 1 [Confusion].
+   - **Source:** Journey B Step 1 [Confusion]
    - **Acceptance signal:** Open a fresh search page, type nothing — the Results pane shows the idle "Search" heading plus prompt copy, no shimmer. Existing UX-002 EmptyState branches still render correctly post-search.
 
 5. **Layout-specific empty states**
@@ -370,16 +370,19 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** M
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Journey B Step 4 [Confusion]; Appendix A UX-002 (Closed) residual.
+   - **Source:** Journey B Step 4 [Confusion]; Appendix A UX-002 (Closed)
    - **Acceptance signal:** Six screenshot tests (one per layout) of `items=[]` show layout-shaped empty placeholders, none using `SearchIssue`. Visual regression diff confirms shape parity with populated state.
 
-6. **Detail panel polish — close button, preview-unavailable state, author fallback**
-   - **Description:** (a) Restore standard Fluent close button by removing `hasCloseButton={false}` and the custom navigation override (`ResultDetailPanel.tsx:215`); (b) when WOPI fails or file type is outside the allow-list (`:48-56`), show a richer placeholder with file-type icon, file size, "Open in browser" + "Download" buttons in a centered card layout instead of an inline message; (c) replace the literal "Unknown" + Contact icon for missing authors (`:313-317`) with metadata-only rendering or graceful "Author not indexed" copy.
+6. **Detail panel polish bundle**
+   - **Description:** Three independent polish items grouped because they all live in `ResultDetailPanel.tsx` and share a screenshot-acceptance gate:
+     - (a) **close button: S** — Restore standard Fluent close button by removing `hasCloseButton={false}` and the custom navigation override (`ResultDetailPanel.tsx:215`).
+     - (b) **preview-unavailable card: M** — When WOPI fails or file type is outside the allow-list (`:48-56`), show a richer placeholder with file-type icon, file size, "Open in browser" + "Download" buttons in a centered card layout instead of an inline message.
+     - (c) **author fallback: S** — Replace the literal "Unknown" + Contact icon for missing authors (`:313-317`) with metadata-only rendering or graceful "Author not indexed" copy.
    - **Why it matters:** T1 perceived quality — the panel is the highest-stakes single surface in the product (users land on it after every result click); current state shows three "this is broken" signals (non-standard close, sparse preview-unavailable pane, "Unknown" author).
-   - **Effort:** M
+   - **Effort:** M (bundle effort = max sub-item; sub-items can land in separate PRs as S/M/S)
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Journey B Step 8 [Confusion] (close button, preview-unavailable, "Unknown" author).
+   - **Source:** Journey B Step 8 [Confusion]
    - **Acceptance signal:** Screenshot of detail panel for a `.zip` file shows the new file-type-icon placeholder card; standard Fluent X close button visible top-right; result with no author shows clean metadata pane with no "Unknown" string. axe-core scan returns zero new violations.
 
 7. **Custom illustrative web part icons (toolbox + page)**
@@ -388,7 +391,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** M
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Journey A Step 6 [Confusion] + [Polish].
+   - **Source:** Journey A Step 6 [Confusion]; Journey A Step 6 [Polish]
    - **Acceptance signal:** Screenshot of SPFx toolbox in a SharePoint page shows five visually distinct illustrative tiles for SP Search web parts; no two share the same glyph.
 
 8. **Empty / dimmed vertical tooltips and pending-count indicators**
@@ -397,7 +400,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** S
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Journey B Step 5 [Confusion] + Step 6 [Confusion]; Appendix A INC-001 (Changed-Form).
+   - **Source:** Journey B Step 5 [Confusion]; Journey B Step 6 [Confusion]; Appendix A INC-001 (Changed-Form)
    - **Acceptance signal:** Hovering a dimmed vertical tab shows the tooltip; toggling 3 filters in manual mode renders "Apply 3 changes" on the Apply bar.
 
 9. **`prefers-reduced-motion` and dark-mode story**
@@ -406,7 +409,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
    - **Effort:** M
    - **Priority:** P1
    - **Depends on:** none
-   - **Source:** Phase 6.1 discovery — `grep -rn 'prefers-color-scheme\|prefers-reduced-motion' src` returns 0; Appendix C "Theming (Office UI Fabric / Fluent integration)" Parity row.
+   - **Source:** Phase 6.1 discovery: `grep -rn 'prefers-color-scheme\|prefers-reduced-motion' src` returns 0 hits across the repo
    - **Acceptance signal:** OS-level reduced-motion preference disables all transitions and `pillFadeIn`/`overlayFadeIn` keyframes (verified via DevTools "Emulate reduced motion"); a `docs/theming.md` section documents the dark-mode inheritance with three before/after screenshots (light / dark / high-contrast SharePoint sections).
 
 10. **Search Box mobile layout — inline button collapse**
@@ -415,7 +418,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
     - **Effort:** S
     - **Priority:** P1
     - **Depends on:** Deliverable 2 (shared breakpoint set).
-    - **Source:** Journey B Step 12 [Polish] × 2 (input width + iOS zoom).
+    - **Source:** Journey B Step 12 [Polish]
     - **Acceptance signal:** iPhone-13-sized screenshot (390×844) shows Search Box input at ≥260px wide; tapping the input on a real iOS device does not zoom the viewport; overflow menu hides KQL / Manager / Query Builder behind one icon.
 
 11. **Layout-switch scroll preservation + ChoiceGroup tooltips**
@@ -424,7 +427,7 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
     - **Effort:** S
     - **Priority:** P2
     - **Depends on:** none
-    - **Source:** Journey B Step 7 [Confusion] (scroll loss) + [Polish] (no tooltips).
+    - **Source:** Journey B Step 7 [Confusion]; Journey B Step 7 [Polish]
     - **Acceptance signal:** Manual: scroll to result row 15, switch layouts — view stays at row 15 of the new layout. Hovering each layout icon for ~500ms shows a Fluent tooltip with a layout description.
 
 12. **Consolidated style guide + visual regression suite**
@@ -433,11 +436,12 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
     - **Effort:** L
     - **Priority:** P2
     - **Depends on:** Deliverables 1, 2, 3, 5, 9.
-    - **Source:** Phase 6.1 discovery — derived from drift patterns visible across `*.module.scss` files.
+    - **Source:** Phase 6.1 discovery: `grep '@media' src/webparts/*/components/*.module.scss` returns 0 matches in Filters and inconsistent breakpoint values (480 / 640 / 768 / 900 / 1023) across the other four web parts, with no shared SCSS partial documenting the canonical ladder
     - **Acceptance signal:** `docs/styleguide.md` exists and links from the top-level README; a CI job runs the visual regression suite on every PR and fails on uncalibrated diffs.
 
 #### Out of scope for v1.0
 
+- **Dedicated typography hierarchy + color-token sweep.** Rationale: Fluent v8 token defaults are accepted as the v1.0 baseline; per-surface typography and color adjustments are handled inside Deliverable 5 (layout-specific empty states), Deliverable 6 (detail panel polish bundle), and Deliverable 11 (layout-icon tooltips and ChoiceGroup labels) as they arise. A dedicated cross-web-part typography/color audit is deferred to v1.1.
 - **Custom dark-mode theme palette beyond Fluent inheritance.** Rationale: SharePoint already provides dark sections; building a separate dark palette duplicates work and breaks tenant theme governance. Captured in deliverable 9.
 - **Brand illustrations (Lottie, Spot illustrations, hero artwork).** Rationale: SVG icons cover toolbox + empty-state quality bar at a fraction of the design effort. Lottie introduces motion accessibility complexity for marginal lift.
 - **Storybook/Ladle as a long-lived design surface.** Rationale: per-component Storybook is heavy for a 6-web-part SPFx solution; deliverable 12 covers the visual regression intent without committing to a separate deploy target.
