@@ -8,10 +8,26 @@
 ## Front Matter
 
 ### Repo Snapshot
-_(populated in Phase 9 — see plan Task 9.3)_
+
+- **Branch:** `feat/spfx-1.22-heft-migration`
+- **HEAD SHA at audit start:** `ecef16d` (after spec/plan tightening: `ac36fdc`)
+- **HEAD SHA at audit completion:** `52f552f` (Appendix E adds one more commit)
+- **Audit commits produced:** 29 (see Appendix E for full list)
+- **`sp-search` package version:** `0.0.1` (per `package.json`; see Appendix E for SPFx + key dep versions)
+- **`spfx-toolkit` source:** `file:../spfx-toolkit` local link, version `1.0.0-alpha.1`
 
 ### Verification Snapshot
-_(populated in Phase 9 — see plan Task 9.3)_
+
+| Command | Result |
+|---|---|
+| `git status --short` (pre-audit) | OK — clean after spec/plan tightening |
+| `git rev-parse --short HEAD` | `ac36fdc` (start) → `52f552f` (end) |
+| `npm run type-check` | **FAILED** — script invokes `heft build --clean --lite`; Heft does not recognize `--lite` (Foundations finding F-2 / Found.D3 P1) |
+| `npx tsc --noEmit` (fallback) | **PASS** — no type errors |
+| `npm test` | **FAILED at lint step** — `src/styles/pnpPropertyControlsFix.ts:33` references `PNP_COLLECTION_DATA_CSS` before declaration at `:42` (Foundations finding F-1 / Found.D1 P0) |
+| `npm run package` | **SKIPPED** — same lint gate as `npm test` would block; finding logged as Found.D1 |
+
+Working tree post-verification: clean. No build artifacts produced (lint halted). Detail in Appendix E.
 
 ### Differentiator Priorities
 1. Modern UI Quality
@@ -1624,4 +1640,126 @@ Ideas considered during the audit and consciously dropped, each with a one-line 
 - **Handlebars templating + Adaptive Cards extensibility surfaces (Appendix C "Missing")** — SP Search's React + cell renderer + registry model is a deliberate paradigm divergence, not a gap to close; admins extend via `ILayoutDefinition` and typed cell renderers, and Adaptive Cards would introduce a new render pipeline for marginal lift.
 
 ### Appendix E — Evidence and Command Log
-_(populated in Phase 9 — see plan Task 9.3)_
+**Purpose:** Repeatability. Every input that shaped this audit's findings is recorded here so a future auditor can re-run the same checks against a different commit and tell what changed.
+
+#### 1. Repo snapshot
+
+- **Repo:** `/Users/hemantmane/Development/sp-search`
+- **Branch:** `feat/spfx-1.22-heft-migration`
+- **HEAD SHA at audit start:** `ecef16d` (advanced to `ac36fdc` after spec/plan tightening)
+- **HEAD SHA at audit completion:** `52f552f` (this Appendix E commit advances to next SHA)
+- **Date captured:** 2026-05-02
+- **Commits since prior audit (2026-03-22):** 26 fix-and-feature commits on `feat/spfx-1.22-heft-migration` plus all subsequent — see `git log --since='2026-03-22' --oneline --all`
+
+#### 2. Package versions
+
+- **`sp-search`** `0.0.1` (per `package.json`)
+- **`@microsoft/sp-component-base`** `^1.22.2`
+- **`@microsoft/sp-core-library`** `^1.22.2`
+- **`@microsoft/sp-http`** `^1.22.2`
+- **`@microsoft/sp-lodash-subset`** `^1.22.2`
+- **`@microsoft/sp-office-ui-fabric-core`** `^1.22.2`
+- **`@microsoft/sp-property-pane`** `^1.22.2`
+- **`@microsoft/sp-webpart-base`** `^1.22.2`
+- **`@fluentui/react`** `^8.106.4`
+- **`devextreme`** + **`devextreme-react`** `^22.2.3`
+- **`react`** `17.0.1`
+- **`zustand`** `^4.3.9`
+- **`spfx-toolkit`** `file:../spfx-toolkit` (local link, not a published version) — version `1.0.0-alpha.1` per toolkit `package.json`
+
+The `spfx-toolkit` `file:../` link is itself a Foundations finding: the "any SPFx tenant can install" launch profile requires this to become a real published version (npm registry or scoped tarball) before launch. Captured in Foundations track Out-of-scope as `spfx-toolkit npm publication migration`.
+
+#### 3. spfx-toolkit inspection range
+
+- **Path:** `/Users/hemantmane/Development/spfx-toolkit`
+- **Version:** `1.0.0-alpha.1`
+- **Commit range inspected:** `1edde9d..920cddb` (2026-01-03 → 2026-04-09 — see Appendix B "Toolkit version inspected" line)
+- **Method:** `git log --since='2026-01-01' --oneline | head -50` plus `ls src/components/`
+- **Capabilities mapped in Appendix B:** 13 (6 Adopt / 4 Consider / 3 No Fit)
+
+#### 4. Verification commands
+
+| # | Command | Exit code | Result | Linked finding |
+|---|---|---|---|---|
+| 1 | `git status --short` (pre-audit) | 0 | Clean after spec/plan tightening commit `ac36fdc` | — |
+| 2 | `git rev-parse --short HEAD` | 0 | `ac36fdc` (start) | — |
+| 3 | `npm run type-check` | 1 | **FAILED** — `heft build: error: Unrecognized arguments: --lite` | Found.D3 P1 (broken script invokes `heft build --clean --lite`) |
+| 4 | `npx tsc --noEmit` (fallback) | 0 | **PASS** — no output, types are clean | — (script-config bug, not a code bug) |
+| 5 | `npm test` | 1 | **FAILED at lint** — `src/styles/pnpPropertyControlsFix.ts:33:23 - 'PNP_COLLECTION_DATA_CSS' was used before it was defined.` Build duration 13.852s before failure. | Found.D1 P0 (would-prevent-install lint blocker) |
+| 6 | `npm run package` | (skipped) | **SKIPPED** — same lint gate as `npm test` would block the production build identically; production `.sppkg` does not produce | Found.D1 P0 |
+
+#### 5. Generated artifacts during verification
+
+Working tree post-verification: clean (`git status --short` returned empty after every run). No build artifacts under `lib/`, `dist/`, `temp/`, or `sharepoint/solution/` were produced because the build halted at the lint stage before TypeScript compile or Webpack run. No `.sppkg` was produced. Nothing to add to `.gitignore` exclusions; nothing to keep out of audit commits.
+
+#### 6. External sources consulted
+
+PnP Modern Search v4 docs site, accessed **2026-05-02**:
+
+- `https://microsoft-search.github.io/pnp-modern-search/` — root navigation tree
+- `https://microsoft-search.github.io/pnp-modern-search/configuration/` — configuration reference
+- `https://microsoft-search.github.io/pnp-modern-search/extensibility/` — extensibility surface (consumed for Appendix C "Missing" claims)
+- `https://microsoft-search.github.io/pnp-modern-search/extensibility/custom-event-handlers/` — Adaptive Cards / custom event handlers (Appendix C row)
+- `https://github.com/microsoft-search/pnp-modern-search` — README + release metadata (latest stable: `v4.21.0`, 2026-04-16)
+- `https://github.com/microsoft-search/pnp-modern-search-extensibility-samples` — extensibility samples reference
+
+In-repo prior alignment notes consulted: `docs/pnp-modern-search-alignment.md`.
+
+#### 7. Skipped checks
+
+- **`npm run package` skipped** with explicit reason: same lint gate as `npm test` blocks production build identically before any `.sppkg` is produced. Logged as Found.D1 P0; first execution after Found.D1 fix is the launch validation gate.
+- **WCAG 2.1 AA exhaustive component-level audit not performed** — out of scope for a documentation audit. Top-10 baseline + axe-core CI gate is the v1.0 ship target (Found.D6 P1). Full conformance statement deferred to post-Sprint-6 polish per Foundations Out-of-scope.
+- **Per-component bundle reduction beyond 1.5× current sizes not attempted** in Phase 7 verification. Current sizes captured (7.96–14.75 MB per web part) as evidence; reduction work scoped as Found.D12 XL P0.
+
+#### 8. Audit production commit log
+
+29 commits produced during audit production (`git log ac36fdc..HEAD --oneline`):
+
+| Commit | Subject |
+|---|---|
+| `0c06136` | scaffold launch-readiness audit document |
+| `c3de76e` | archive 2026-03-22 comprehensive audit |
+| `7bf349d` | reconcile March 22 audit findings (Appendix A) |
+| `d1f2b71` | fix Phase 1 review findings (Appendix A polish) |
+| `e1a590e` | map spfx-toolkit capabilities to SP Search (Appendix B) |
+| `9c39ac5` | grade PnP Modern Search v4 parity (Appendix C) |
+| `2b2bc4b` | write Journey A — Day 1 admin install (Part 1) |
+| `60744d2` | correct Journey A Step 10 history-retention friction |
+| `1619acb` | write Journey B — Day 1 end-user search (Part 1) |
+| `f1131fe` | T1 Modern UI Quality track |
+| `e88faca` | apply T1 review fixes (template-shaping for T2-T5) |
+| `ee47bb4` | T2 End-User Productivity track |
+| `7c39699` | T2 spec-compliance fixes (Source grammar + D10 bundle) |
+| `28523ec` | T2 critical+important fixes (template + correctness) |
+| `b5dd62a` | T3 Multi-Instance / Multi-Context track |
+| `31cbcdb` | T3 important+minor fixes |
+| `a00699a` | T4 Admin Experience track |
+| `ea04c4e` | T4 fix Coverage walk preset count (9 + custom = 10 options) |
+| `e89974c` | T4 important fixes (effort, dep graph, bundling) |
+| `393c0ff` | T5 Observable & Diagnosable track |
+| `1552471` | T4.D6 + T4.D7 reciprocate T5.D8 + T5.D9 cross-track deps |
+| `4f1de68` | T5 important+minor fixes (effort, telemetry, scope) |
+| `9c58f09` | Foundations track (Part 3) |
+| `9e02d48` | Foundations correct branch commit count 74 → 91 |
+| `b2792e3` | Foundations critical+important fixes |
+| `d157d87` | Roadmap Matrix (Part 4) — 70 deliverables |
+| `3099631` | Appendix A cross-refs → concrete Roadmap IDs (Phase 8.1 step 3) |
+| `699798a` | Recommended Sprint Sequencing (Part 5) |
+| `52f552f` | Rejected Ideas (Appendix D) |
+
+The Appendix E commit immediately follows.
+
+#### 9. Methodology summary
+
+Per spec §5 the audit followed an 8-pass methodology:
+
+1. **Code-grounded** — every finding cites file:line or commit SHA. Memory files consulted as starting points but not treated as truth.
+2. **March 22 reconciliation first** (Phase 1) — every prior finding categorised before any new findings added. Output: Appendix A (54 findings reconciled).
+3. **spfx-toolkit comparison pass** (Phase 2) — Appendix B (13 capabilities mapped Adopt/Consider/No Fit).
+4. **Journey simulation** (Phases 4-5) — Journey A (12 admin steps, 42 friction items after fix) + Journey B (12 end-user steps, 63 friction items).
+5. **PnP v4 parity scorecard** (Phase 3) — Appendix C (40 features graded Better/Parity/Worse/Missing).
+6. **Differentiator track passes** (Phase 6.1-6.5) — T1-T5 (57 deliverables across 5 differentiators).
+7. **Foundations sweep** (Phase 7) — 13 cross-cutting deliverables.
+8. **No fixes** — purely diagnostic. Implementation lives in per-track plans that follow this audit.
+
+Each phase produced one or more commits; review passes (spec compliance + code quality) caught and corrected template, evidence, and dependency-graph issues across all five differentiator tracks.
