@@ -4,7 +4,9 @@
 
 **Goal:** Land all 13 Foundations track deliverables (Found.D1–Found.D13) so SP Search can ship a self-serve `.sppkg` against a tagged main commit, with budgets enforced, tests running, accessibility/security baselines in place, and the SPFx 1.22 / Heft migration merged.
 
-**Architecture:** Two execution tranches inside one plan. **Tranche 1 (P0 ship-blockers, ~Sprint 4)**: Found.D1 → Found.D13 → Found.D7 → Found.D2 → Found.D12 — unblocks the build, the test gate, the bundle budget, the 1.22 merge with manual release tag, and the bundle reduction sweep. **Tranche 2 (P1/P2 polish + spillover, ~Sprint 4 tail → Sprint 6)**: Found.D3 → Found.D5 → Found.D8 → Found.D6 → Found.D4 → Found.D10 → Found.D9 → Found.D11. Cross-track bidirectional dependencies declared in the audit Roadmap Matrix (T1.D9, T3.D9, T4.D6/D9/D10, T5.D8/D9) are preserved verbatim.
+**Architecture:** Two execution tranches inside one plan. **Tranche 1 (P0 ship-blockers, ~Sprint 4)**: Found.D1 → Found.D13 → Found.D7 (+ Task 3.5 amendment) → Found.D2 (Phase A only). **Tranche 2 (P1/P2 polish + spillover, ~Sprint 4 tail → Sprint 6)**: Found.D3 → Found.D5 → Found.D8 → Found.D6 → Found.D4 → Found.D10 → Found.D9 → Found.D11. Cross-track bidirectional dependencies declared in the audit Roadmap Matrix (T1.D9, T3.D9, T4.D6/D9/D10, T5.D8/D9) are preserved verbatim.
+
+**Found.D12 reclassified to Defer (post Task 3.5).** The original Foundations plan placed D12 (Bundle reduction sweep, XL P0) as the final Tranche 1 task. Task 3.5 (Found.D7 amendment, commit `63b4cc1`) discovered that the audit's Phase 7 bundle inventory captured non-production sizes (~7.96–14.75 MB unhashed), but actual `heft build --production` minified output is 470K–862K — already at 22-43% of SPFx informal 1–2 MB guidance. The "install-blocking, 4–7× over guidance" framing that motivated D12 P0 was based on stale numbers. With Task 3.5's hash-aware gate enforcing the production budget, D12's active reduction work is no longer needed at v1.0. Reclassified to **Defer** (re-evaluate at v1.1+ if a sub-1 MB ceiling becomes a goal). The original Task 5 body is preserved below as a SUPERSEDED stub for audit-trail integrity.
 
 **Tech Stack:** SPFx 1.22.2 + Heft 1.2.7 + React 17.0.1 + TypeScript 5.3.3 + Jest 29.7 + ts-jest 29.4.6 + GitHub Actions + axe-core + webpack-bundle-analyzer + DevExtreme 22.2.x + Fluent UI v8.106 + spfx-toolkit (file:../spfx-toolkit).
 
@@ -792,7 +794,19 @@ Expected: each file listed appears in the squash commit's file-change list. If a
 
 ---
 
-## Task 5: Found.D12 — Bundle reduction sweep (Filters / Results / Manager toward ≤ 1.5× current)
+## Task 5: Found.D12 — Bundle reduction sweep — **SUPERSEDED by Task 3.5; reclassified to Defer**
+
+> **Status:** SUPERSEDED. Do not execute.
+>
+> **Reclassification:** Task 3.5 (Found.D7 amendment, commit `63b4cc1`) re-anchored the bundle baseline against actual `heft build --production` output and discovered that the original "install-blocking, 4–7× over SPFx guidance" framing was based on cached non-production bundle sizes (~7.96–14.75 MB unhashed) rather than the actual minified hashed production output (470K–862K). All 6 production bundles ship at 22–43% of SPFx informal 1–2 MB guidance. With Task 3.5's hash-aware gate enforcing the corrected production budget, the active reduction sweep originally scoped here is **not needed at v1.0**.
+>
+> **New status: Defer.** Re-evaluate at v1.1+ if a sub-1 MB ceiling or sub-200K aspirational target becomes a goal. The audit doc was patched in lockstep — see `docs/sp-search-launch-readiness-audit.md` Part 3 Foundations Current state amendment note + Part 4 Roadmap Matrix Found.D7/D12 rows.
+>
+> **Audit-trail preservation:** The original task body is retained below verbatim so future contributors can understand why D12 was originally P0 XL and what the reduction sweep would have looked like if executed. Do NOT execute these steps — Task 3.5's hash-aware gate already enforces production budgets.
+
+---
+
+### Original Task 5 body (SUPERSEDED, retained for audit trail)
 
 **Why (P0 rule: (d) prevents install/build):** D7 ships only the budget definition + CI gate; without active reduction, the install-blocking sizes freeze in place. A relaxed 1.5× ceiling is still ~6× over SPFx informal guidance for the smallest bundle and ~10× for the largest. Constrained-network tenants block on first-paint at the current sizes; only an active sweep brings them toward the 1–2 MB guidance. Audit Found.D12.
 
