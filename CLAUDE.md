@@ -55,7 +55,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 | Library | Version | Usage |
 |---------|---------|-------|
-| spfx-toolkit | Latest | Card, VersionHistory, DocumentLink, ErrorBoundary, Toast, UserPersona, FormContainer, hooks, utilities |
+| spfx-toolkit | Latest | Card, VersionHistory, DocumentLink, ErrorBoundary, UserPersona, FormContainer, hooks, utilities |
 | DevExtreme | 22.2.x | DataGrid, FilterBuilder, TagBox, TreeView, DateRangeBox |
 | devextreme-react | 22.2.x | React wrappers for DevExtreme |
 | Fluent UI v8 | 8.106.x | Panel, CommandBar, Persona, Shimmer, Icons, Theme |
@@ -431,12 +431,9 @@ sp-search/
 - Mobile hardening: gallery single-column at 399px, overlay backdrop-filter, iOS DataGrid momentum scroll, layout chunk preloading on hover
 
 ### Phase 5: Sprint 4 Backlog
-- Fix Jest harness (`ts-jest`/`jest-util` resolution failure) and add smoke tests
-- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied)
-- Implement `operatorBetweenFilters` in filter execution path or remove from property pane
-- Excel (XLSX) export for DataGrid
-- Knowledge Base, Hub Search, Policy Search provisioning presets
-- Admin-time property validation in edit mode
+- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied) — MISS-001
+- Implement `operatorBetweenFilters` in filter execution path or remove from property pane — MISS-002
+- Admin-time property validation in edit mode — T4.D5
 
 ---
 
@@ -461,7 +458,6 @@ sp-search/
 | DocumentLink | All layouts, Detail Panel | File type-aware document links |
 | UserPersona | People Layout, Detail Panel | User profile with photo, presence |
 | ErrorBoundary | All web parts | Root-level error wrapping |
-| Toast / ToastProvider | All web parts | Save/share/export notifications |
 | FormContainer / FormItem | Detail Panel, Search Manager | Metadata display, config forms |
 | WorkflowStepper | Detail Panel | Workflow status display |
 

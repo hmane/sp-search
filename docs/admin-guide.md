@@ -218,10 +218,10 @@ The Search Manager is not a PnP parity feature. It is a product extension that c
 |----------|---------|-------|
 | `searchContextId` | `default` | Must match Results |
 | `mode` | `panel` | `panel` or `standalone` |
-| `enableSavedSearches` | `true` | Saved searches tab |
-| `enableSharedSearches` | `true` | Shared searches tab |
-| `enableCollections` | `true` | Collections tab |
-| `enableHistory` | `true` | History tab |
+| `enableSavedSearches` | `false` | Saved searches tab |
+| `enableSharedSearches` | `false` | Shared searches tab |
+| `enableCollections` | `false` | Collections tab |
+| `enableHistory` | `false` | History tab |
 | `enableAnnotations` | `false` | Extra annotations surface |
 | `maxHistoryItems` | `50` | History page size |
 

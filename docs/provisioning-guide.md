@@ -129,7 +129,7 @@ The script is **fully safe to re-run**:
 
 4. **Configure history cleanup (optional)**
    - Call `cleanupHistory(ttlDays)` via the SearchManagerService API to delete entries older than the specified TTL
-   - This is a manual operation — there is no automatic background cleanup
+   - SearchManagerService runs an automatic 24-hour cleanup sweep retaining the last 90 days of history per `HISTORY_RETENTION_DAYS = 90` (`src/libraries/spSearchStore/services/SearchManagerService.ts:735-739`). The manual `cleanupHistory` call is supplemental and can shorten the retention window for one-off purges.
 
 5. **Provision scenario pages (optional)**
    - Use `scripts/Search-ScenarioPresets.ps1` to create fully-configured starter pages for built-in scenarios such as `documents`, `knowledge-base`, or `policy-search`
