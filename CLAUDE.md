@@ -4,7 +4,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 ## Quick Reference
 
-1. **SPFx 1.21.1 solution** — 5 web parts + 1 library component in a single .sppkg
+1. **SPFx 1.22.2 solution** — 5 web parts + 1 library component in a single .sppkg
 2. **React 17 + TypeScript 4.7+** — Functional components only, strict mode
 3. **Zustand store via Library Component** — Shared state across web parts, NOT SPFx Dynamic Data
 4. **Multi-instance isolation** — `searchContextId` property on every web part; same ID = shared store
@@ -45,7 +45,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| SharePoint Framework | 1.21.1 | SPFx web part platform |
+| SharePoint Framework | 1.22.2 | SPFx web part platform |
 | React | 17.0.1 | UI framework |
 | TypeScript | 4.7+ | Type safety |
 | PnPjs (SP) | 3.x | SharePoint Search API (default provider) |
@@ -112,7 +112,7 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 7. **Lazy load heavy components** — DataGrid, Preview Panel, Search Manager panel
 8. **Code split per layout** — Each layout is a separate chunk via `React.lazy()`
 9. **External CSS from node_modules must exclude sp-css-loader** — SPFx registers an `sp-css-loader` rule that matches all non-module `.css` files. `sp-css-loader` uses css-loader's `urlParser` internally and will try to import binary font files (woff2 etc.) as webpack modules. Any external CSS library (DevExtreme, etc.) must be excluded from the sp-css-loader rule in `gulpfile.js`, then handled by a dedicated `css-loader { url: false, import: false }` rule. See `gulpfile.js` `additionalConfiguration` for the pattern. Failing to do this produces `Module parse failed: Unexpected character` errors on binary font files.
-10. **Stale webpack filesystem cache causes phantom `ENOENT` errors** — When `npm install` changes a package's entry point, the dev-mode filesystem cache (`node_modules/.cache/webpack`) retains the old path. Run `gulp clean-cache` (or `rm -rf node_modules/.cache/webpack`) whenever `@pnp/*` or other dependency packages are updated.
+10. **Stale webpack filesystem cache causes phantom `ENOENT` errors** — When `npm install` changes a package's entry point, the dev-mode filesystem cache (`node_modules/.cache/webpack`) retains the old path. Run `npm run clean:cache` (which invokes `rimraf node_modules/.cache`) whenever `@pnp/*` or other dependency packages are updated.
 
 ### Data Rules
 
