@@ -33,6 +33,9 @@ coverage/
 # Jest cache
 .jest/
 
+# Heft Jest output (regenerated each run)
+jest-output/
+
 # Cache directories
 .cache/
 

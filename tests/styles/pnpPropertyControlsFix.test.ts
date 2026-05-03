@@ -20,12 +20,13 @@ describe('pnpPropertyControlsFix', () => {
     expect(document.querySelectorAll('#sp-search-pnp-property-controls-fix')).toHaveLength(1);
   });
 
-  it('re-injects after a fresh module load (proves module-level injected flag is what guards repeats)', async () => {
+  it('re-injects after jest.resetModules() (no cross-module-instance leak)', async () => {
     const first = await import('../../src/styles/pnpPropertyControlsFix');
     first.ensurePnpPropertyControlStyles();
     document.head.querySelectorAll('#sp-search-pnp-property-controls-fix').forEach(n => n.remove());
     jest.resetModules();
     const second = await import('../../src/styles/pnpPropertyControlsFix');
+    expect(second.ensurePnpPropertyControlStyles).not.toBe(first.ensurePnpPropertyControlStyles);
     second.ensurePnpPropertyControlStyles();
     expect(document.getElementById('sp-search-pnp-property-controls-fix')).not.toBeNull();
   });

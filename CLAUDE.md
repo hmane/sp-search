@@ -489,12 +489,13 @@ sp-search/
 
 ```bash
 # Development
-gulp serve                                    # Start local workbench
-gulp bundle --ship && gulp package-solution --ship  # Production build
+npm start                                     # heft start --clean (local workbench)
+npm run package                               # heft build --clean --production && heft package-solution --production
 
 # Testing
-npx jest                                      # Run unit tests
-npx jest --watch                              # Watch mode
+npm test                                      # heft test (Heft-managed Jest invocation)
+npm test -- --watch                           # watch mode
+npm test -- --test-path-pattern <pattern>     # filtered run
 
 # spfx-toolkit (in toolkit directory)
 cd /Users/hemantmane/Development/spfx-toolkit && npm run build
