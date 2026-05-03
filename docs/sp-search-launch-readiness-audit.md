@@ -511,7 +511,7 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
    - **Effort:** XL
    - **Priority:** P1
    - **Depends on:** Provisioning script extension (covered inside the deliverable scope; no separate dependency).
-   - **Source:** Appendix B Comments component (Adopt); Phase 6.2 discovery: `grep -rn 'spfx-toolkit/lib/components/Comments' src` returns 0 hits
+   - **Source:** Appendix B Comments (Adopt); Phase 6.2 discovery: `grep -rn 'spfx-toolkit/lib/components/Comments' src` returns 0 hits
    - **Acceptance signal:** Comment thread renders under a saved search row; posting a comment with `@user` resolves and persists; reload preserves the thread; `grep -rn 'spfx-toolkit/lib/components/Comments' src/webparts/spSearchManager` returns ≥2 hits. axe-core scan returns zero new violations. Provisioning script idempotently adds the `Comments` field.
 
 5. **ManageAccess panel replaces ad-hoc Share-to-Users tab**
@@ -520,7 +520,7 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
    - **Effort:** L
    - **Priority:** P1
    - **Depends on:** Deliverable 1 (notification fires when ManageAccess adds a principal); Deliverable 6 (Owned vs Shared-with-me filter consumes the per-row sharedWith data).
-   - **Source:** Appendix B ManageAccess panel (Adopt); Appendix A BUG-012 (Closed); Journey B Step 10 [Polish]
+   - **Source:** Appendix B ManageAccess (Adopt); Appendix A BUG-012 (Closed); Journey B Step 10 [Polish]
    - **Acceptance signal:** Opening Share on a saved search and selecting the Users tab now renders `ManageAccessPanel` showing the existing 3 sharees with role badges; clicking the trash icon removes a principal and the SharePoint role assignment in one step; a new `unshareFromUsers` unit test covers add+remove round-trip.
 
 6. **Personal vs Shared-with-me library boundary**
@@ -529,7 +529,7 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
    - **Effort:** M
    - **Priority:** P1
    - **Depends on:** none (data already present at `:114`)
-   - **Source:** Phase 6.2 discovery: `grep -n 'owned\|shared\|isOwner' src/webparts/spSearchManager/components/SavedSearchList.tsx` returns 0 hits; spec §4.3 T2 explicit scope item "personal vs shared library boundaries"
+   - **Source:** Phase 6.2 discovery: spec §4.3 T2 lists "personal vs shared library boundaries" as scope; current code in SavedSearchList.tsx and CollectionService has no Owned/Shared filter or sharing-state column
    - **Acceptance signal:** A user with 5 owned + 3 shared-with-me searches opens Manager and sees the toggle; selecting "Shared with me" filters to the 3 shared rows each with "Shared by <Name>" badge; selecting "Owned" hides them; "All" returns the union; Collections tab carries the same toggle.
 
 7. **Detail-panel next / previous result navigation**
@@ -559,16 +559,13 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
    - **Source:** Phase 6.2 discovery: `grep -rn 'onKeyDown\|onKeyPress' src/webparts` shows only per-component handlers; no global shortcut layer exists
    - **Acceptance signal:** From any focus state outside a text input, `/` focuses the search box; `?` opens the shortcut help modal listing all six shortcuts; `j`/`k` advances row focus visibly; `aria-keyshortcuts` present on each affected control; axe-core scan returns zero new violations.
 
-10. **Save-flow polish: completeness preview, smart entry-point, unsaved-share path**
-    - **Description:** Three independent polish items grouped because they all live in the Save / Share entry-point flow and share a screenshot-acceptance gate:
-      - (a) **Save preview completeness: S** — Extend "What will be saved" preview at `SpSearchManager.tsx:914-953` to enumerate scope, layout, and pagination state alongside the existing query / filters / vertical / sort. Drives off the same persistence path at `:538-545`.
-      - (b) **Save IconButton labelling + disabled-state tooltip: S** — Replace `iconName="SearchBookmark"` + `title="My searches"` (`SpSearchBox.tsx:811-818`) with a labelled `CompoundButton` "Save search"; replace the disabled-state tooltip on `SpSearchManager.tsx:717-722` with context-specific copy ("Type a query or apply a filter to enable Save").
-      - (c) **Unsaved-search Share path: M** — When `ShareSearchDialog` opens for an unsaved search (`search.id <= 0`), auto-save first with a generated title ("Untitled search — <short date>"), then open the share dialog on the saved row, replacing the placeholder text at `ShareSearchDialog.tsx:361-367`.
+10. **Save-flow polish bundle**
+    - **Description:** Single PR refactoring the Save / Share entry-point flow to close three Journey B Step 9 confusion sub-items in one consistent change. The bundled refactor (a) extends the "What will be saved" preview at `SpSearchManager.tsx:914-953` to enumerate scope, layout, and pagination state alongside the existing query / filters / vertical / sort (driven off the same persistence path at `:538-545`); (b) replaces `iconName="SearchBookmark"` + `title="My searches"` (`SpSearchBox.tsx:811-818`) with a labelled `CompoundButton` "Save search" and replaces the disabled-state tooltip on `SpSearchManager.tsx:717-722` with context-specific copy ("Type a query or apply a filter to enable Save"); (c) when `ShareSearchDialog` opens for an unsaved search (`search.id <= 0`), auto-saves first with a generated title ("Untitled search — <short date>") then opens the share dialog on the saved row, replacing the placeholder text at `ShareSearchDialog.tsx:361-367`. All three touch the same Save-flow surface and share a single screenshot-acceptance gate, so they ship as one PR-shaped change rather than three independent PRs.
     - **Why it matters:** Ties to (a) T2 differentiator. Journey B Step 9 logged three separate confusion items in the save flow; bundling lets one PR close them with consistent copy.
-    - **Effort:** M (bundle effort = max sub-item; sub-items can ship in separate PRs as S/S/M)
+    - **Effort:** M (bundle effort = max sub-item)
     - **Priority:** P2
     - **Depends on:** none
-    - **Source:** Journey B Step 9 [Confusion] × 3; Journey B Step 10 [Confusion]
+    - **Source:** Journey B Step 9 [Confusion]; Journey B Step 10 [Confusion]
     - **Acceptance signal:** Save dialog preview lists scope/layout/page; Search Box save button reads "Save search" with full label; opening Share on an unsaved query auto-creates a "Untitled search — May 2 2026" row and proceeds to the user-share tab without the back-out-and-resave loop.
 
 11. **Layout-agnostic export and CSV/XLSX action exposure**
@@ -577,7 +574,7 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
     - **Effort:** M
     - **Priority:** P2
     - **Depends on:** Deliverable 2 (for "Export selection" submenu)
-    - **Source:** Spec §4.3 T2 scope; Phase 6.2 discovery: `grep -rn 'exportXlsx\|exportCsv' src/webparts/spSearchResults` shows export wired only at `DataGridContent.tsx:755,1105`
+    - **Source:** Phase 6.2 discovery: spec §4.3 T2 explicit scope item "export (CSV today, XLSX deferred)"; CSV implemented at exportCsv.ts and XLSX at exportXlsx.ts
     - **Acceptance signal:** ResultToolbar shows Export → CSV / Export → XLSX in all six layouts; clicking on List layout exports the current page of results with the configured selectedProperties; with three rows multi-selected (D2), Export → "Selection only (3 rows)" appears.
 
 12. **End-user documentation page**
@@ -586,7 +583,7 @@ The audience profile is "any SPFx tenant, self-serve, no author hand-holding" �
     - **Effort:** S
     - **Priority:** P2
     - **Depends on:** Deliverables 1, 2, 4, 5, 6, 9, 11 (documents what they ship)
-    - **Source:** Journey A Step 12 [Confusion]; spec §4.3 T2 audience-profile rule
+    - **Source:** Journey A Step 12 [Confusion]; Phase 6.2 discovery: spec §4.3 T2 + audience-profile mismatch — current saved-search prompts assume admin author context, not first-time end-user context
     - **Acceptance signal:** `docs/end-user-guide.md` exists and is linked from `README.md`; covers six numbered tasks each with screenshot + 2-line copy; `wc -l docs/end-user-guide.md` returns ≥150.
 
 ##### Coverage walk (spec §4.3 T2 scope item → mapping)
