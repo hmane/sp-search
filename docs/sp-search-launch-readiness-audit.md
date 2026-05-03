@@ -1348,7 +1348,84 @@ The audience profile is "any SPFx-capable tenant, self-serve, no SI hand-holding
 ---
 
 ## Part 5 — Recommended Sprint Sequencing
-_(populated in Phase 8 — see plan Task 8.2)_
+
+Three suggested 2-week sprints, solo developer assumed. Deliverables are referenced **by Roadmap ID only** (per spec §5.3 self-review rule — no new work invented in this section). Effort heuristic for sprint totals: **S = 0.5d, M = 1d, L = 2d, XL = 4d**. Dependencies (from Part 4 "Depends on" column) are respected: every prerequisite ships in the same sprint or earlier. P2 / Defer items are not slotted; they are listed at the end without bodies. Total = 36 items in sprints + 34 items in P2 / Defer = **70** (matches Roadmap Matrix).
+
+#### Sprint 4 — Foundations + Critical UX
+
+**Theme:** Unblock the build, merge the SPFx 1.22 / Heft branch, ship the security + provisioning safety blockers, and land the WCAG 2.1 AA baseline so every later sprint can pass `axe-core` CI.
+
+| ID | Deliverable | Effort | Priority | Rationale-for-this-sprint |
+|----|-------------|:------:|:--------:|---------------------------|
+| Found.D1 | Fix `pnpPropertyControlsFix.ts` lint blocker so `npm run package` produces `.sppkg` | S | P0 | Hard prereq for Found.D2; blocks every Day-1 admin install today |
+| Found.D3 | Fix `npm run type-check` script (`heft build --clean --lite` non-existent flag) | S | P1 | Bundled with the F-1/F-2 build-script triad; prereq for Found.D2 smoke checklist |
+| Found.D5 | Stale docs sweep (README + CLAUDE.md gulp/1.21 + admin-guide + provisioning-guide + Toast/preset claims) | M | P0 | Prereq for Found.D2 release tag; closes Journey A Steps 1/10/12 [Confusion] before any new admin runs the docs |
+| Found.D7 | Per-web-part bundle size budget + CI breach gate + attribution dashboard | L | P0 | Prereq for Found.D12; gives Sprint 5/6 a non-negotiable size ceiling to design against |
+| Found.D8 | CI/release engineering — GitHub Actions + semver + CHANGELOG + release artifact | XL | P1 | Prereq for Found.D2, Found.D5, Found.D7 — the release plumbing that makes "merge 1.22 + tag rc.1" mean something |
+| Found.D2 | Merge SPFx 1.22 / Heft migration branch with smoke checklist + release tag | L | P0 | The 91-commit unmerged branch is the single largest launch risk; nothing else ships from `feat/spfx-1.22-heft-migration` until this lands |
+| Found.D12 | Bundle reduction sweep (Filters/Results/Manager toward ≤1.5× current) | XL | P0 | Once Found.D7 enforces the gate, this is the sweep that gets us under it; all per-web-part bundles are 4-7× SPFx guidance today |
+| Found.D13 | Fix Jest harness `ts-jest`/`jest-util` resolution failure for `npm test` | M | P0 | Without a working test harness, every track's "unit test passes" acceptance signal is unverifiable in CI; prereq for T3.D9 (Sprint 6) |
+| T2.D3 | Saved-search JSON schema validation on restore (closes SEC-004) | M | P0 | The only Still-Open security finding; pairs naturally with the Foundations security pass |
+| T4.D1 | Provisioning script safety (`-WhatIf` + confirm + `-Force` across 4 destructive scripts) | L | P0 | Journey A Step 4 [Blocker] — silent page deletion on re-run is the worst Day-1 surprise in the audit; prereq for T4.D4 (Sprint 6) |
+| T1.D4 | Idle-state pre-search rendering for Results web part | S | P0 | Smallest possible Critical-UX win; closes Journey B Step 1 [Confusion] for every fresh page in the tenant |
+| Found.D6 | WCAG 2.1 AA top-10 baseline + axe-core CI gate + accessibility.md | L | P1 | The "accessibility quick wins" theme item; once axe is in CI, every Sprint 5/6 deliverable inherits an a11y gate at zero per-PR cost |
+
+**Effort total:** 0.5 + 0.5 + 1 + 2 + 4 + 1 + 2 + 4 + 1 + 2 + 0.5 + 2 = **20.5 dev-days** (12 deliverables; aggressive but bounded — XL items Found.D8 / Found.D12 carry the bulk, all other slots are S/M/L)
+
+#### Sprint 5 — Differentiator Depth
+
+**Theme:** Ship the bulk of the T1–T5 P0 differentiator surface — responsive Filters, share-back-channel, browser-history integration, multi-context property-pane promotion, scenario presets, schema helper, and the Network/Logging spine of the Debug Panel.
+
+| ID | Deliverable | Effort | Priority | Rationale-for-this-sprint |
+|----|-------------|:------:|:--------:|---------------------------|
+| T1.D2 | Cross-web-part responsive breakpoint normalization | M | P0 | Hard prereq for T1.D1; one shared SCSS partial first, then the drawer |
+| T1.D1 | Filters web part responsive collapse (drawer + focus trap) | XL | P0 | Journey B Step 12 [Blocker]; the single largest T1 (Modern UI Quality) win |
+| T2.D1 | Recipient notification on share-to-users | L | P0 | Journey B Step 10 [Blocker]; prereq for T2.D5 (deferred); the share feature is a no-op without it |
+| T2.D2 | Wire BulkActionsToolbar to DataGrid + List + Compact layouts | XL | P0 | Closes 462 lines of dead code that already ship in the bundle; immediate T2 (End-User Productivity) jump |
+| T2.D8 | Browser Back / Forward integration via pushState | M | P0 | Journey B Step 11 [Blocker]; without it the URL-sync investment is invisible to users |
+| T3.D4 | Promote `searchContextId` to property pane page 1 group 1 in all 6 web parts | M | P0 | Prereq for T3.D5 (Sprint 6 docs page); Required scenario S1 cannot be authored today |
+| T3.D2 | Cross-web-part `searchContextId` mismatch warning in edit mode | L | P0 | Prereq for T3.D5; closes the silent-failure mode behind every Required scenario S2 incident |
+| T3.D3 | Filter URL alias uniqueness validation + collision warning | M | P0 | Prereq for T3.D5; deep-link round-trip stability for any Author + AuthorOWSUSER co-installation |
+| T4.D2 | Scenario preset picker promotion to page 1 + completeness (account-documents + people-gate) | M | P0 | Prereq for T4.D4 (Sprint 6) and T4.D12 (deferred); Journey A Step 8 [Confusion] core win |
+| T4.D3 | Wire `PropertyPaneSchemaHelper` to all managed-property fields | L | P0 | Closes the largest single source of admin-time silent failures (typos in managed property names); only 1 of 10 fields wired today |
+| T5.D2 | Network tab + per-call timing across all DebugCollector consumers | L | P0 | Prereq for T5.D3 + T5.D5 (Sprint 6) and T5.D7 (deferred); the foundation Debug Panel feature |
+| T5.D6 | Logging discipline sweep (central `spLog` shim with PII redaction + production gate) | L | P0 | The only T5 P0 with no upstream deps; pairs with T5.D2 because they touch overlapping call sites |
+
+**Effort total:** 1 + 4 + 2 + 4 + 1 + 1 + 2 + 1 + 1 + 2 + 2 + 2 = **23 dev-days** (12 deliverables; densest sprint by design — three XL slots T1.D1 / T2.D2 plus the L-heavy T3 + T5 spines)
+
+#### Sprint 6 — Polish + Docs
+
+**Theme:** Close the remaining P0 surface (lifecycle, multi-context docs, coverage defaults, Errors / Why-no-results panels), then add the highest-leverage P1 polish items (DebugFab portal, detail-panel polish, regression test, Personal vs Shared toggle, sanitizer, People.Read declaration).
+
+| ID | Deliverable | Effort | Priority | Rationale-for-this-sprint |
+|----|-------------|:------:|:--------:|---------------------------|
+| T3.D1 | Wire `disposeStore` into every web part `onDispose` with refcounting | L | P0 | Required scenario S4; prereq for T3.D9; only deferable until v1.0-RC because the leak is silent in steady-state |
+| T3.D5 | Multi-context admin documentation page with worked example | L | P0 | Deps T3.D2/D3/D4 (all Sprint 5); the docs page that turns the multi-context infra into a usable feature |
+| T4.D4 | Coverage Profile sane defaults (tenant-aware seeding, `-UseTestData` opt-in) | M | P0 | Deps T4.D1 (Sprint 4); closes Journey A Step 4 [Confusion] broken-cards-on-clean-tenant |
+| T5.D3 | Errors tab with stack-trace formatting + group-by-class aggregation | M | P0 | Deps T5.D2 (Sprint 5); the smaller half of the Debug Panel completion |
+| T5.D5 | "Why no results" diagnostic panel (counterfactual + token + provider + refiner traces) | L | P0 | Deps T5.D2 (Sprint 5); the most user-visible T5 deliverable — every empty result becomes self-diagnosing |
+| Found.D10 | Declare `webApiPermissionRequests` for `People.Read` | S | P1 | Smallest possible win that turns the People vertical from "silent no-op on Day 1" into "one-click admin approval" |
+| Found.D4 | HTML sanitizer adoption + `window.location.href` security review (`safeNavigate`) | M | P1 | Pairs with the security pass started in Sprint 4 (T2.D3); 7 unhardened nav sites is a finite, completable sweep |
+| T1.D6 | Detail panel polish bundle (close button + preview-unavailable card + author fallback) | M | P1 | Highest-leverage T1 polish slot remaining; prereq for T2.D7 (deferred) so it parks with a downstream consumer |
+| T1.D8 | Empty/dimmed vertical tooltips + pending-count Apply button (closes INC-001 residual) | S | P1 | Tiny but closes a Changed-Form Appendix A item; pairs naturally with T4.D2 (Sprint 5) preset polish |
+| T3.D9 | `disposeStore` regression test + lifecycle smoke harness | M | P1 | Deps T3.D1 (this sprint) + Found.D13 (Sprint 4); locks in the lifecycle fix so it cannot regress silently |
+| T5.D1 | Mount DebugFab on every user-facing web part with portal-shared singleton | M | P1 | Highest-leverage T5 P1; turns the Debug Panel from "Results-only" into a genuine cross-web-part diagnostic surface |
+| T2.D6 | Personal vs Shared-with-me library boundary (Owned/Shared-with-me/All toggle) | M | P1 | Data already exists at `SearchManagerService.ts:114`; pure UI deliverable that closes the spec §4.3 T2 explicit scope item |
+
+**Effort total:** 2 + 2 + 1 + 1 + 2 + 0.5 + 1 + 1 + 0.5 + 1 + 1 + 1 = **14 dev-days** (12 deliverables; lighter to leave headroom for docs polish, RC stabilization, and unexpected regressions surfacing post-Sprint 5)
+
+#### P2 / Defer (not slotted in v1.0 sprint plan)
+
+The following 34 IDs (22 P1 + 12 P2) are not slotted into Sprints 4-6 and ship in v1.1+ unless promoted by re-sequencing review. They live in the Roadmap Matrix (Part 4) with full bodies; only IDs are listed here.
+
+- **T1:** T1.D3, T1.D5, T1.D7, T1.D9, T1.D10, T1.D11, T1.D12
+- **T2:** T2.D4, T2.D5, T2.D7, T2.D9, T2.D10, T2.D11, T2.D12, T2.D13
+- **T3:** T3.D6, T3.D7, T3.D8, T3.D10, T3.D11
+- **T4:** T4.D5, T4.D6, T4.D7, T4.D8, T4.D9, T4.D10, T4.D11, T4.D12
+- **T5:** T5.D4, T5.D7, T5.D8, T5.D9
+- **Foundations:** Found.D9, Found.D11
+
+**Note on uncovered Appendix A findings:** Per Phase 8.1 step 3, **12 uncovered Appendix A findings** were identified that do not have Roadmap IDs and are therefore **not slotted** in this section. Address them via Sprint 4 backlog grooming or explicit out-of-scope documentation in v1.1+ planning.
 
 ---
 
