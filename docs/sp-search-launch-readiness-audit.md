@@ -1599,7 +1599,29 @@ This appendix grades SP Search feature-by-feature against PnP Modern Search v4 (
 - In-repo alignment notes — `docs/pnp-modern-search-alignment.md` (extended by this scorecard, not duplicated)
 
 ### Appendix D — Rejected Ideas
-_(populated in Phase 8 — see plan Task 8.3)_
+
+Ideas considered during the audit and consciously dropped, each with a one-line rationale so they don't keep coming back. Sources span track Out-of-scope sub-sections, Appendix B No-Fit / Consider rows, Appendix C Missing PnP v4 features, spec §3 Non-Goals, and brainstorming-phase rejections.
+
+- **Severity-first audit framing (brainstorming "Approach A")** — Severity-only ranking surfaces blockers but loses the differentiator + journey lenses the spec demands; rejected in favor of the hybrid journeys + tracks + foundations structure adopted in §4.2–§4.4.
+- **Differentiator-first-only audit framing (brainstorming "Approach B")** — Pure differentiator framing buries journey blockers and foundations gaps that don't ladder to T1–T5; rejected in favor of the hybrid structure that promotes Foundations to a parallel track.
+- **Forced PnP Modern Search v4 feature parity backlog** — Spec §3 Non-Goals explicitly rejects this; Appendix C parity scorecard informs positioning, missing PnP features become deliverables only when they tie to a stated differentiator.
+- **Folding `SpSearchAdminManagerWebPart` into Manager via `mode: 'user'|'admin'` ChoiceGroup (T4.D6 Path A)** — SPFx tenant-app-catalog upgrade migration story unvalidated; package upgrade would silently break any page already hosting the admin web part. Defer to v1.1+ pending a manifest-redirect / alias plumbing test.
+- **Custom dark-mode theme palette + brand illustrations / Lottie (T1)** — SharePoint already provides dark sections and SVG icons cover the empty-state quality bar; a separate dark palette duplicates tenant theme governance and Lottie introduces motion-accessibility complexity for marginal lift.
+- **Layout A/B testing or in-product admin theming UI (T1, repeated in T4)** — Out of audience-profile scope ("self-serve any tenant"); admins use SharePoint section themes, not in-product theme editors.
+- **Graph mail send + Activity Feed posts on share (T2)** — Adds `Mail.Send` consent and tenant-configured Activity Feed plumbing; T2.D1 ships the in-product notification (the actual Blocker fix) without the Graph permission overhead.
+- **End-user-defined query templates (T2)** — Net-new feature with no shipped surface and no journey friction; saved searches already cover the common parameterized-query case. Defer to v1.1 after observing real saved-search usage.
+- **Shareable search "rooms" / multi-user collaborative sessions (T2)** — Different product shape entirely (real-time presence + conflict resolution + tenant-shared backend); out of audience-profile scope.
+- **Cross-context publish/subscribe API (T3)** — Re-creates the PnP Dynamic Data coupling failure mode SP Search exists to avoid; isolation is the only contract until user research demonstrates real "one search drives another" demand.
+- **Cross-page state propagation via tenant-shared backend (T3)** — Same `searchContextId` on two pages intentionally produces independent stores; cross-tab sync would need BroadcastChannel (no SharePoint guarantee) or per-state-change list writes (perf disaster).
+- **In-product admin onboarding tour / guided first-time-config wizard (T4)** — Adds runtime overlay management + per-step skip/recall persistence that exceeds the audience-profile bar; T4.D9 pre-flight tab + T4.D11 docs links serve the same intent at v1.0.
+- **Visual property pane editor / drag-and-drop layout designer (T4)** — Different product from a typed SPFx property pane; PnP v4 has none either, so not a parity-driven gap. Reject.
+- **External telemetry transport wire to Application Insights / Splunk / fixed endpoint (T5 + Foundations)** — Audience profile "any tenant, self-serve" forbids assuming a destination; Foundations.D9 ships an admin-configured endpoint instead, and T5.D8's emit() calls are no-ops by design until that wire lands.
+- **Source-mapped production stack traces in DebugPanel Errors tab (T5 + Foundations)** — SPFx production builds ship without sourcemaps to keep `.sppkg` size down; chasing sourcemap delivery would reopen the bundle-budget conversation. Document the limitation; revisit at v1.1.
+- **Recording / replay of search sessions + telemetry-driven A/B testing (T5)** — IndexedDB capture + replay UI and bucketing/significance infrastructure are different product shapes; State-tab change highlight + Log-tab ring buffer + aggregate signals cover the v1.0 intent at a fraction of the cost.
+- **Exhaustive WCAG 2.1 AA audit beyond the top-10 surface gaps (Foundations)** — Manual screen-reader sweep of every component / focus path / error-recovery flow is XL+; D6's top-10 close + axe-core CI gate + scoped conformance statement satisfies the audience-profile bar, exhaustive audit is v1.1+.
+- **Public docs site (Docusaurus / VitePress) replacing `docs/*.md` (Foundations)** — Adds deploy target + per-PR preview infrastructure that exceeds the audience-profile bar at v1.0; D5's README + existing `docs/*.md` covers the spec docs scope item.
+- **`spfx-toolkit` published-version migration (replace `file:../spfx-toolkit` link) (Foundations)** — Requires the toolkit to publish a stable 1.0 first, which is its own gating event; the local file link is what makes T2.D4 Comments and T2.D5 ManageAccess shippable in a single release cycle. Defer to v1.1.
+- **Handlebars templating + Adaptive Cards extensibility surfaces (Appendix C "Missing")** — SP Search's React + cell renderer + registry model is a deliberate paradigm divergence, not a gap to close; admins extend via `ILayoutDefinition` and typed cell renderers, and Adaptive Cards would introduce a new render pipeline for marginal lift.
 
 ### Appendix E — Evidence and Command Log
 _(populated in Phase 9 — see plan Task 9.3)_
