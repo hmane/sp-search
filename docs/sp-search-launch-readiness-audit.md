@@ -450,7 +450,169 @@ The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an ad
 - **Per-layout icon set (different glyph for People rows vs. Document rows).** Rationale: the existing file-type icon system and persona avatars already differentiate row types; expanding to a fully bespoke set is post-launch polish.
 
 ### T2. End-User Productivity
-_(populated in Phase 6 — see plan Task 6.2)_
+
+#### Current state
+
+T2 is the differentiator where SP Search has no PnP Modern Search v4 equivalent — saved searches, sharing, collections, history, and annotations are net-new (Appendix C `sp-search-launch-readiness-audit.md:621` "PnP v4 has no equivalent — entirely missing on PnP side"). The implementation is real, but uneven: the Search Manager web part hosts six sub-features at ~6,500 LOC across components + service, several advertised capabilities are not wired, sharing has a Blocker-class miss, and the spfx-toolkit Comments / ManageAccess components scoped for adoption (Appendix B `:571-572`) are not yet integrated.
+
+The actual T2 surface, by file:
+
+- **Saved searches.** CRUD via `SearchManagerService.ts:378-1340` against the `SearchSavedQueries` hidden list. UI in `SavedSearchList.tsx` (479 lines) groups by category (`:58-68`) and shows relative dates (`:30-53`). State serialized to a `searchState` JSON column; restore parses with `JSON.parse` + typed cast + try/catch only (`SavedSearchList.tsx:76,163`, see SEC-004 Still-Open in Appendix A). The save-dialog "What will be saved" preview enumerates query / filters / vertical / sort but omits scope, layout, and pagination state that are also persisted (`SpSearchManager.tsx:914-953` vs persist path at `:538-545`, Journey B Step 9 [Polish]).
+- **Collections / pinboards.** `SearchCollections.tsx` (567 lines) backs to `SearchCollections` + `SearchCollectionItems` lists via `SearchManagerService.ts:223-1340`. Per-item tag editor lives in `ResultAnnotations.tsx` (219 lines, wired at `SearchCollections.tsx:427`). One annotation surface today: tags. No comments, no notes, no @mentions despite `spfx-toolkit/lib/components/Comments` shipping as Adopt in Appendix B `:571`.
+- **Sharing.** `ShareSearchDialog.tsx` (382 lines) ships four tabs: Copy Link / Email (mailto:) / Teams (/l/chat/0/0?message=… draft) / Share to Users (PeoplePicker → `service.shareToUsers`). `shareToUsers` (`SearchManagerService.ts:1349-1408`) calls `breakRoleInheritance` + `roleAssignments.add` per user. **No notification of any kind reaches recipients** — no email, no Activity Feed, no Teams chat (Journey B Step 10 [Blocker]). Sharing requires `search.id > 0` (`ShareSearchDialog.tsx:42`) so the user must Save first then re-open Share. The dialog says "Search shared successfully" (`:306`) which the sharer reads as "they got a notification."
+- **History.** `SearchHistory.tsx` (243 lines) reads `SearchHistory` list filtered by Author. Background cleanup runs every 24h trimming entries older than 90 days (`SearchManagerService.ts:735-739, 1417-1465`, `HISTORY_RETENTION_DAYS = 90`, `HISTORY_CLEANUP_INTERVAL_MS = 24h`); `MAX_CLICKED_ITEMS = 10` per row (`:857-860`). End users see no "back/next result" navigation in the detail panel (Journey B Step 8 [Polish]); browser Back doesn't traverse query history because URL writes always use `replaceState` (Journey B Step 11 [Blocker], owning track T2).
+- **Annotations.** Tags only (`ResultAnnotations.tsx:24` "ResultAnnotations — inline tag editor"). Stored as JSON arrays per collection item (`SearchManagerService.ts:259-280`).
+- **Keyboard shortcuts.** Per-component handlers only — `KqlInput.tsx:158`, `SuggestionDropdown.tsx:117-126`, `VerticalTab.tsx:41`, `ResultAnnotations.tsx:110`, etc. **No global shortcuts** — no `/` to focus search, no `?` to show shortcut help, no `Esc` to close detail panel from anywhere, no `j`/`k` to navigate result rows. PnP v4 ships no global shortcuts either, so neither product is strong here.
+- **Multi-select bulk actions.** `BulkActionsToolbar.tsx` (462 lines, fully implemented) is **never imported anywhere** — `grep -rn 'BulkActionsToolbar' src` returns only its own file. `DataGridContent.tsx` has no `Selection` import or use. The advertised feature in `docs/admin-guide.md:140` ("row selection and bulk actions") and `CLAUDE.md:35,162,282` ships as dead code. Appendix C `:605` claims SP Search bulk actions are "Better" than PnP — that's currently a documentation lie (Journey B Step 7 [Polish], owning track T2).
+- **Export.** CSV ships via DataGrid built-in. XLSX shipped via lazy-loaded `exportXlsx.ts` (106 lines), wired at `DataGridContent.tsx:755` toolbar `:1105` (MISS-003 Closed in Appendix A `:516`). Export is DataGrid-only — not exposed on List / Compact / Card / Gallery / People layouts.
+- **Comments component integration.** Zero references to `spfx-toolkit/lib/components/Comments` in `src/`. Appendix B `:571` marks Adopt L for `ResultAnnotations.tsx` extension (comment thread per saved search / collection item).
+- **Recent + trending suggestions.** Five suggestion providers ship: `RecentSearchProvider.ts` (current user, last 7 days), `TrendingQueryProvider.ts` (also current user only, despite the name — see `:13` "Org-wide trending would require a pre-aggregated list or Flow-based approach" and the always-`Author eq currentUser.id` filter at `:88,94`), `ManagedPropertyProvider.ts`, `QuerySuggestionProvider.ts`, `QuickResultsSuggestionProvider.ts`. Suggestion infrastructure is Better than PnP per Appendix C `:592`; the "trending" misnomer is a per-user surface.
+- **Query templates (end-user).** Not implemented as a user-facing feature. Per-vertical KQL templates exist (`IVerticalDefinition.ts:5,11`) but those are admin-configured. End users cannot define / save / share a parameterized query template.
+- **Personal vs shared library boundaries.** `SavedSearchList.tsx` flattens owned + shared-with-me into one list grouped by category — no Owned / Shared-with-me toggle, no badge on shared rows, no visual ownership indicator (`grep -n 'owned\|shared\|isOwner' SavedSearchList.tsx` returns 0 hits). `entryType: 'SavedSearch' | 'SharedSearch'` is on the data shape (`SearchManagerService.ts:114`) but never surfaces in UI.
+
+Closed/Changed-Form items already in the T2 surface (per Appendix A): BUG-007 (manager panel null guard), BUG-011 (suggestion request cancellation), BUG-012 (`shareToUsers` failed-user reporting), MISS-003 (XLSX export wired), MISS-005 (scope persistence), INC-008 (ClickedItems trim). Still-Open items in T2's path: SEC-004 (saved-search JSON not validated, owning track Foundations but the failure mode lands on T2 users), UX-003 (query builder no apply confirmation).
+
+#### Gap to "amazing"
+
+The audience profile is "any SPFx tenant, self-serve, no author hand-holding" — the end user who lands on a published search page must feel that saving, sharing, and re-finding work the way every other modern web tool teaches them to expect. T2 is where SP Search has the most to gain (PnP ships none of this) and the most to lose (a sharing flow that silently doesn't notify is worse than no sharing at all). Three failure modes are blocking. **First, sharing is a trust break**: `shareToUsers` flips list permissions and announces success without anyone telling the recipient — sharers walk away believing they collaborated, recipients never know, and the next time the sharer asks "did you see what I sent?" the trust is gone. **Second, the bulk-actions feature is a documentation lie**: a fully-implemented 462-line toolbar component is never imported, while the admin guide and CLAUDE.md tell admins to expect it; the user reading the admin's hand-off email expecting to multi-select for share/download finds nothing. **Third, the productivity ceiling is invisible**: the Comments component (Adopt in Appendix B), a global keyboard shortcut layer, the personal-vs-shared library boundary, and a richer detail-panel navigation pattern (next / previous result) are all small individual lifts that compound into "this product respects my time." A self-serve tenant evaluating SP Search compares it to Confluence search, Notion search, GitHub search — all of which ship at least three of those four affordances. The architecture and the data layer are right; the surface area between the user and the data is the gap.
+
+#### Deliverables
+
+1. **Recipient notification on share-to-users**
+   - **Description:** Add a notification path to `SearchManagerService.shareToUsers` (`SearchManagerService.ts:1349-1408`) so each successfully-resolved recipient receives an in-product signal that a search has been shared with them. Two-stage approach: (a) write a row to a new `SearchShareNotifications` hidden list (recipient lookup, sharer lookup, `SavedSearchId`, `SharedAt`, `IsRead` fields) inside the existing role-assignment loop; (b) the Search Manager web part subscribes via `_pollNotifications` (or a property-pane-toggleable polling interval) and renders a Fluent `MessageBar` + `Pivot` badge on the "Shared with me" tab. Sender-side: the dialog success message at `ShareSearchDialog.tsx:306` is replaced with a clear "<N> recipients notified" / "<N> notifications failed" summary derived from the new return type. Out of scope: Graph email send + Activity Feed (those are `Defer` below).
+   - **Why it matters:** Sharing is the one Journey B path that flips permissions silently — the recipient has no signal until they happen to open Manager. Ties to (e) Journey B Step 10 [Blocker] (no recipient notification, no documented workaround) and (a) the T2 differentiator (sharing is one of the four PnP gaps SP Search uniquely fills).
+   - **Effort:** L
+   - **Priority:** P0
+   - **Depends on:** none
+   - **Source:** Journey B Step 10 [Blocker]
+   - **Acceptance signal:** End-to-end: User A shares a saved search to User B; User B's Search Manager loads with a numeric badge on "Shared with me" within one polling interval and a `MessageBar` reading "User A shared 'Q3 budget docs' with you 30 seconds ago"; clicking dismiss flips `IsRead=true`; the dialog success copy after share shows "1 recipient notified."
+
+2. **Wire BulkActionsToolbar to DataGrid + List + Compact layouts**
+   - **Description:** Import the existing 462-line `BulkActionsToolbar.tsx` into `DataGridContent.tsx` and wire DevExtreme `Selection` mode `multiple` with a checkbox column; surface the toolbar above the grid when `selectionCount > 0`. Repeat for `ListLayout.tsx` and `CompactLayout.tsx` using a row-level checkbox + a sticky toolbar. Selection state lives in `uiSlice` (per Appendix C `:605`); ensure the existing slice supports cross-layout selection without re-firing the search. Confirm the four advertised actions in `BulkActionsToolbar.tsx` (Open, Share, Pin to Collection, Download) all execute against the multi-selected items. Update `docs/admin-guide.md:140` and `CLAUDE.md:35,162,282` to match shipped behaviour, or — if any advertised action is descoped — remove the marketing claim.
+   - **Why it matters:** Ties to (a) T2 differentiator (Appendix C lists this as Better than PnP — it isn't, today) and (e) Journey B Step 7 [Polish] elevated to ship-blocking because docs explicitly promise it. Shipping a 462-line component as dead code while admin docs advertise it is the most concrete documentation lie in the audit.
+   - **Effort:** L
+   - **Priority:** P0
+   - **Depends on:** none
+   - **Source:** Journey B Step 7 [Polish]; Phase 6.2 discovery: `grep -rn 'BulkActionsToolbar' src \| grep -v BulkActionsToolbar.tsx` returns 0 hits while `docs/admin-guide.md:140` and `CLAUDE.md:35,162,282` advertise the feature
+   - **Acceptance signal:** Manual: load Search Results in DataGrid layout, tick three rows — `BulkActionsToolbar` slides in at the top with "3 selected" + the four action buttons; switch to List layout, selection persists; clicking "Download" triggers a multi-file download. `grep -rn 'BulkActionsToolbar' src/webparts/spSearchResults/components` returns ≥3 hits across DataGridContent / ListLayout / CompactLayout. Admin guide and CLAUDE.md no longer make claims contradicted by code.
+
+3. **Saved-search JSON schema validation on restore**
+   - **Description:** Replace the bare `JSON.parse` + typed cast in `SavedSearchList.tsx:76,163` (and the same pattern in `SearchCollections.tsx`) with a runtime validator (zod schema or hand-rolled type guard) for `IActiveFilter[]`, `IHistoryStateSummary`, and the persisted `searchState` shape. On validation failure, surface a Fluent `MessageBar` "This saved search uses an unrecognized format and cannot be restored" and skip the apply-to-store step. Centralize the validator in `src/libraries/spSearchStore/utils/searchStateSchema.ts` so the Manager service, the URL sync middleware (which also parses `sid` payload), and the Box's deep-link restore all use the same gate. Closes SEC-004.
+   - **Why it matters:** Ties to (b) security — a tampered saved search shared between users can poison the store with no UI signal (Appendix A SEC-004 Still-Open). Sharing flow (Deliverable 1) makes this exposure broader: every recipient is a victim of a single tampered save. P0 because it falls in the security admission category and the fix is finite.
+   - **Effort:** M
+   - **Priority:** P0
+   - **Depends on:** none (independent of D1 but ships in the same sprint to harden the broadened share path)
+   - **Source:** Appendix A SEC-004 (Still-Open); Journey B Step 9 [Polish]
+   - **Acceptance signal:** Restoring a saved search whose `searchState` JSON has a malformed `activeFilters` member shows the MessageBar and leaves the current store untouched; a unit test in `tests/utils/searchStateSchema.test.ts` covers six malformation shapes (extra prop, wrong type, missing required, wrong enum, nested-array-of-string-instead-of-object, raw `<script>` payload).
+
+4. **Comments component integration on saved searches and collection items**
+   - **Description:** Adopt `spfx-toolkit/lib/components/Comments` per Appendix B `:571`. Add a Comments thread to (a) each saved search row in `SavedSearchList.tsx` (collapsible accordion under the row) and (b) each collection item in `SearchCollections.tsx` next to the existing tag editor. Provision a `Comments` field on `SearchSavedQueries` and `SearchCollectionItems` lists (extend `scripts/Provision-SPSearchLists.ps1`). Use the toolkit's compact layout for inline rows and classic for the saved-search detail. Wire `useComments` hook with the searchContextId-scoped comment thread ID. @mention should resolve via the same Graph PeoplePicker the share dialog uses. Out of scope for this deliverable: notification on @mention (separate D1 path).
+   - **Why it matters:** Ties to (a) T2 differentiator — annotations + collaboration are explicit spec §4.3 T2 scope, and the toolkit shipping a comments component while we ship tag-only annotations is the largest single uncaptured productivity lift in T2. Appendix B classifies this as Adopt L.
+   - **Effort:** XL
+   - **Priority:** P1
+   - **Depends on:** Provisioning script extension (covered inside the deliverable scope; no separate dependency).
+   - **Source:** Appendix B Comments component (Adopt); Phase 6.2 discovery: `grep -rn 'spfx-toolkit/lib/components/Comments' src` returns 0 hits
+   - **Acceptance signal:** Comment thread renders under a saved search row; posting a comment with `@user` resolves and persists; reload preserves the thread; `grep -rn 'spfx-toolkit/lib/components/Comments' src/webparts/spSearchManager` returns ≥2 hits. axe-core scan returns zero new violations. Provisioning script idempotently adds the `Comments` field.
+
+5. **ManageAccess panel replaces ad-hoc Share-to-Users tab**
+   - **Description:** Adopt `spfx-toolkit/lib/components/ManageAccess` (Appendix B `:572`). Replace the entire "Share to Users" tab in `ShareSearchDialog.tsx:251-380` with `ManageAccessPanel` mounted on the `SearchSavedQueries` list item. The panel surfaces existing principal list, current permission level, and supports add / change-level / revoke as a single unit. Keep the Copy Link / Email / Teams tabs unchanged. Update `service.shareToUsers` consumers — the panel's add path supersedes the existing call; revoke path needs a new `service.unshareFromUsers` symmetric to `shareToUsers` (`SearchManagerService.ts:1349-1408`). One PR-shaped change because the panel covers view + modify + revoke as a single panel instance.
+   - **Why it matters:** Ties to (a) T2 differentiator — "personal vs shared library boundaries" is explicit spec §4.3 T2 scope, and the current dialog can grant access but cannot list / change / revoke (Appendix B `:572` "Current dialog only adds users; cannot view/revoke"). Pairs with closed BUG-012 and complements the Sharing notification (Deliverable 1).
+   - **Effort:** L
+   - **Priority:** P1
+   - **Depends on:** Deliverable 1 (notification fires when ManageAccess adds a principal); Deliverable 6 (Owned vs Shared-with-me filter consumes the per-row sharedWith data).
+   - **Source:** Appendix B ManageAccess panel (Adopt); Appendix A BUG-012 (Closed); Journey B Step 10 [Polish]
+   - **Acceptance signal:** Opening Share on a saved search and selecting the Users tab now renders `ManageAccessPanel` showing the existing 3 sharees with role badges; clicking the trash icon removes a principal and the SharePoint role assignment in one step; a new `unshareFromUsers` unit test covers add+remove round-trip.
+
+6. **Personal vs Shared-with-me library boundary**
+   - **Description:** Add an Owned / Shared-with-me / All toggle to `SavedSearchList.tsx` (Fluent `Pivot` or `ChoiceGroup`) above the category groups. Drive filtering off the existing `entryType: 'SavedSearch' | 'SharedSearch'` field already on the data shape (`SearchManagerService.ts:114`). Render a "Shared by <Name>" badge on each Shared-with-me row using the existing `Author` field. Surface the same toggle on `SearchCollections.tsx`. One small UI lift, but covers the spec §4.3 T2 explicit "personal vs shared library boundaries" scope item that today has zero UI presence.
+   - **Why it matters:** Ties to (a) T2 differentiator. Today owned + shared-with-me are flat-merged with no visual ownership cue — users cannot tell whose search they are looking at, which directly undermines the trust model that Deliverable 1 (notification) and Deliverable 5 (ManageAccess) establish.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none (data already present at `:114`)
+   - **Source:** Phase 6.2 discovery: `grep -n 'owned\|shared\|isOwner' src/webparts/spSearchManager/components/SavedSearchList.tsx` returns 0 hits; spec §4.3 T2 explicit scope item "personal vs shared library boundaries"
+   - **Acceptance signal:** A user with 5 owned + 3 shared-with-me searches opens Manager and sees the toggle; selecting "Shared with me" filters to the 3 shared rows each with "Shared by <Name>" badge; selecting "Owned" hides them; "All" returns the union; Collections tab carries the same toggle.
+
+7. **Detail-panel next / previous result navigation**
+   - **Description:** Add Previous / Next IconButtons to `ResultDetailPanel.tsx` header (alongside the close button refactor in T1.D6) that step through the current page of results without closing the panel. Bind `Alt+Left` / `Alt+Right` (or `[` / `]`) keyboard shortcuts on the panel root. Selection state lives in `uiSlice.previewPanel.itemIndex`; clicking next sets the next item's preview and triggers the same lazy-load path. Wraps at page boundaries with a "Load next page →" CTA when `currentIndex === pageSize - 1`.
+   - **Why it matters:** Ties to (a) T2 differentiator. Direct PnP-parity item — PnP v4 supports arrow-key paging (Journey B Step 8 [Polish]). The current "close, click, re-open" loop is the single biggest productivity friction in the result-browsing path.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** T1.D6 (detail panel polish bundle) — share the same panel-header refactor PR or follow it directly.
+   - **Source:** Journey B Step 8 [Polish]
+   - **Acceptance signal:** Open result row 3, click Next — panel updates to row 4 without close animation; pressing `Alt+Right` advances; at row 10 of 10 the "Load next page" CTA appears; axe-core confirms keyboard-only flow works end-to-end.
+
+8. **Browser Back / Forward integration via pushState**
+   - **Description:** In `urlSyncMiddleware.ts:578-862`, route significant state changes (queryText, vertical, sort, page, layout) through `window.history.pushState` instead of always-`replaceState`. Add a `popstate` listener that re-applies URL state to the store — symmetric to the existing init-time `applyUrlStateToStore`. Filter changes within the same query session continue to use `replaceState` to avoid "every checkbox is a history entry." Document the policy in the function header and in `docs/admin-guide.md`.
+   - **Why it matters:** Ties to (a) T2 differentiator and (e) Journey B Step 11 [Blocker] (browser Back leaves the search page entirely — no documented workaround). Breaks the most basic web navigation contract; users notice within their first session and conclude "this isn't a real product."
+   - **Effort:** M
+   - **Priority:** P0
+   - **Depends on:** none
+   - **Source:** Journey B Step 11 [Blocker]
+   - **Acceptance signal:** Run three queries — `back` returns to query 2; `back` again returns to query 1; `forward` advances to query 2. Toggling a single filter does NOT add a history entry. A regression test in `tests/middleware/urlSync.test.ts` covers the pushState-vs-replaceState decision matrix.
+
+9. **Global keyboard shortcuts + shortcut help dialog**
+   - **Description:** Add a top-level `useKeyboardShortcuts` hook (mounted in each web part's root) with a small registry: `/` focuses the SearchBox input, `Esc` closes the detail panel from anywhere, `j` / `k` move selection up/down in result rows, `Enter` opens the detail panel for the focused row, `?` shows a shortcut help dialog (Fluent `Modal` listing all shortcuts). Shortcuts must be disabled when focus is in a text input, contenteditable, or any element with `[role="textbox"]`. Add `aria-keyshortcuts` attributes to the affected controls. Document in a new `docs/end-user-guide.md` (also serves Deliverable 12).
+   - **Why it matters:** Ties to (a) T2 differentiator. Spec §4.3 T2 explicit scope item; Confluence / Notion / GitHub all ship at least four of these. Single largest productivity lift in the browse path.
+   - **Effort:** L
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Phase 6.2 discovery: `grep -rn 'onKeyDown\|onKeyPress' src/webparts` shows only per-component handlers; no global shortcut layer exists
+   - **Acceptance signal:** From any focus state outside a text input, `/` focuses the search box; `?` opens the shortcut help modal listing all six shortcuts; `j`/`k` advances row focus visibly; `aria-keyshortcuts` present on each affected control; axe-core scan returns zero new violations.
+
+10. **Save-flow polish: completeness preview, smart entry-point, unsaved-share path**
+    - **Description:** Three independent polish items grouped because they all live in the Save / Share entry-point flow and share a screenshot-acceptance gate:
+      - (a) **Save preview completeness: S** — Extend "What will be saved" preview at `SpSearchManager.tsx:914-953` to enumerate scope, layout, and pagination state alongside the existing query / filters / vertical / sort. Drives off the same persistence path at `:538-545`.
+      - (b) **Save IconButton labelling + disabled-state tooltip: S** — Replace `iconName="SearchBookmark"` + `title="My searches"` (`SpSearchBox.tsx:811-818`) with a labelled `CompoundButton` "Save search"; replace the disabled-state tooltip on `SpSearchManager.tsx:717-722` with context-specific copy ("Type a query or apply a filter to enable Save").
+      - (c) **Unsaved-search Share path: M** — When `ShareSearchDialog` opens for an unsaved search (`search.id <= 0`), auto-save first with a generated title ("Untitled search — <short date>"), then open the share dialog on the saved row, replacing the placeholder text at `ShareSearchDialog.tsx:361-367`.
+    - **Why it matters:** Ties to (a) T2 differentiator. Journey B Step 9 logged three separate confusion items in the save flow; bundling lets one PR close them with consistent copy.
+    - **Effort:** M (bundle effort = max sub-item; sub-items can ship in separate PRs as S/S/M)
+    - **Priority:** P2
+    - **Depends on:** none
+    - **Source:** Journey B Step 9 [Confusion] × 3; Journey B Step 10 [Confusion]
+    - **Acceptance signal:** Save dialog preview lists scope/layout/page; Search Box save button reads "Save search" with full label; opening Share on an unsaved query auto-creates a "Untitled search — May 2 2026" row and proceeds to the user-share tab without the back-out-and-resave loop.
+
+11. **Layout-agnostic export and CSV/XLSX action exposure**
+    - **Description:** Today CSV/XLSX export is DataGrid-only (toolbar at `DataGridContent.tsx:1105`). Surface the same export actions in `ResultToolbar.tsx` for List / Compact / Card / Gallery / People layouts using a shared `exportResults(items, columns?)` helper extracted from the existing `exportXlsx.ts` and DataGrid CSV path. Columns argument is optional — non-DataGrid layouts export the default selectedProperties set. Add an "Export selection" submenu when a bulk selection is active (consumes Deliverable 2 selection state).
+    - **Why it matters:** Ties to (a) T2 differentiator. Spec §4.3 T2 explicit scope item ("export (CSV today, XLSX deferred)" — XLSX shipped per MISS-003 Closed but only in DataGrid). Five of six layouts cannot export, which forces users to switch to DataGrid even when the chosen layout is the right one for the task.
+    - **Effort:** M
+    - **Priority:** P2
+    - **Depends on:** Deliverable 2 (for "Export selection" submenu)
+    - **Source:** Spec §4.3 T2 scope; Phase 6.2 discovery: `grep -rn 'exportXlsx\|exportCsv' src/webparts/spSearchResults` shows export wired only at `DataGridContent.tsx:755,1105`
+    - **Acceptance signal:** ResultToolbar shows Export → CSV / Export → XLSX in all six layouts; clicking on List layout exports the current page of results with the configured selectedProperties; with three rows multi-selected (D2), Export → "Selection only (3 rows)" appears.
+
+12. **End-user documentation page**
+    - **Description:** Add `docs/end-user-guide.md` covering: how to save / restore / share searches, what the Comments thread does (D4), the keyboard shortcut catalogue (D9), the Owned vs Shared-with-me toggle (D6), the bulk action workflow (D2), and the export options (D11). Today no end-user-facing docs exist — `docs/admin-guide.md`, `docs/deployment-guide.md`, `docs/provisioning-guide.md`, `docs/extensibility-guide.md`, `docs/pnp-modern-search-alignment.md` are all admin-targeted (Journey A Step 12 [Confusion] at `:159`). One markdown file with screenshots; admin can link from their hand-off email.
+    - **Why it matters:** Ties to (a) T2 differentiator. Direct closure of Journey A Step 12 [Confusion] — admins handing off cannot point users at any documentation; the audience-profile rule "self-serve any tenant" requires that an end user can read what they just got.
+    - **Effort:** S
+    - **Priority:** P2
+    - **Depends on:** Deliverables 1, 2, 4, 5, 6, 9, 11 (documents what they ship)
+    - **Source:** Journey A Step 12 [Confusion]; spec §4.3 T2 audience-profile rule
+    - **Acceptance signal:** `docs/end-user-guide.md` exists and is linked from `README.md`; covers six numbered tasks each with screenshot + 2-line copy; `wc -l docs/end-user-guide.md` returns ≥150.
+
+##### Coverage walk (spec §4.3 T2 scope item → mapping)
+
+- **Saved searches** → D3 (validation), D6 (library boundary), D10 (save flow polish)
+- **Collections / pinboards** → D4 (Comments on collection items), D6 (library toggle)
+- **Sharing** → D1 (notification), D5 (ManageAccess), D10c (unsaved-share path)
+- **History** → D8 (Back/Forward integration covers query history); retention TTL config is Out of Scope (admin-track concern)
+- **Annotations** → D4 (Comments extension to existing tag editor)
+- **Keyboard shortcuts** → D9 (global shortcut layer + help dialog)
+- **Multi-select bulk actions** → D2 (wire BulkActionsToolbar)
+- **Export (CSV today, XLSX deferred)** → D11 (layout-agnostic export — XLSX already shipped per MISS-003 Closed)
+- **Comments component integration** → D4
+- **Recent + trending suggestions** → Out of Scope (already shipped, current state is Better than PnP per Appendix C; "trending = current user only" misnomer is below the launch bar)
+- **Query templates** → Out of Scope (defer to v1.1; no shipped surface today)
+- **Personal vs shared library boundaries** → D5 (ManageAccess), D6 (Owned/Shared-with-me toggle)
+
+#### Out of scope for v1.0
+
+- **Graph mail send + Activity Feed posts on share.** Rationale: D1 covers in-product notification (the actual Blocker fix) without the Graph permissions overhead. Mail send adds `Mail.Send` consent + delivery-failure surface; Activity Feed (`/me/insights/used`) requires per-tenant configuration. Capture as v1.1 once D1's notification model proves out.
+- **End-user-defined query templates.** Rationale: Spec §4.3 T2 scope item but no shipped surface today, no journey friction logged, and saved searches already cover the most common parameterized-query use case. Net-new feature work, not productivity polish — defer to v1.1 after observing how saved-search categories are used in the wild.
+- **History retention TTL property pane configuration.** Rationale: Journey A Step 10 [Confusion] tagged this Foundations / T4 (admin-configurable retention) at `:142`. T2 owns the *user-visible* history surface (D8 Back/Forward); the admin-configurable retention window is captured under T4 and Foundations stale-docs deliverables, not T2.
+- **ConflictDetector adoption on saved-search and collection edits.** Rationale: Appendix B `:575` classes ConflictDetector as `Consider` not `Adopt`, and the qualifier "worthwhile only if user research shows real concurrent-edit pain" is explicit. No journey friction logged on concurrent edit. Optimistic-overwrite default is acceptable for v1.0; revisit in v1.1 if user research surfaces the issue.
+- **Real-time history surfaces (replace polling with WebSocket / Graph subscriptions).** Rationale: D1 polling notification is sufficient for v1.0 ship; Microsoft Graph change notifications add tenant-config + AAD subscription overhead that exceeds the "self-serve any tenant" audience profile. Defer to v1.1.
+- **Shareable search "rooms" / multi-user collaborative sessions.** Rationale: out of audience-profile scope ("self-serve any tenant"); requires real-time presence + conflict resolution + a tenant-shared backend. Different product shape entirely; not v1.0 polish.
+- **Drag-and-drop reordering of saved searches and collection items.** Rationale: existing alphabetical / category grouping covers the use case; HTML5 DnD adds keyboard-a11y complexity (custom `aria-grabbed` + screen reader announcements) for marginal lift. Post-launch polish.
 
 ### T3. Multi-Instance / Multi-Context
 _(populated in Phase 6 — see plan Task 6.3)_
