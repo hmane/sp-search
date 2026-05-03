@@ -23,6 +23,7 @@
     "clean": "heft clean",
     "clean:cache": "rimraf node_modules/.cache",
     "clean:all": "heft clean && rimraf release sharepoint/solution",
+    "check:bundles": "node scripts/check-bundle-sizes.js",
     "stats": "ANALYZE=1 heft build --clean --production",
     "stats:json": "heft build --clean --production --emit-stats",
     "type-check": "heft build --clean --lite",

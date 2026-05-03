@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-03T07:13:12.454Z",
+  "webParts": {
+    "sp-search-filters-web-part.js": {
+      "actual": 14752081,
+      "budget": 22128121,
+      "delta": -7376040,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    },
+    "sp-search-results-web-part.js": {
+      "actual": 14503213,
+      "budget": 21754819,
+      "delta": -7251606,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    },
+    "sp-search-admin-manager-web-part.js": {
+      "actual": 11123315,
+      "budget": 16684972,
+      "delta": -5561657,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    },
+    "sp-search-manager-web-part.js": {
+      "actual": 11116954,
+      "budget": 16675431,
+      "delta": -5558477,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    },
+    "sp-search-box-web-part.js": {
+      "actual": 8488976,
+      "budget": 12733464,
+      "delta": -4244488,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    },
+    "sp-search-verticals-web-part.js": {
+      "actual": 7956603,
+      "budget": 11934904,
+      "delta": -3978301,
+      "pctOfBudget": 66.7,
+      "status": "PASS"
+    }
+  }
+}

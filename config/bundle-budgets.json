@@ -1,0 +1,20 @@
+{
+  "policy": "per-web-part-byte-ceiling",
+  "owner": "Foundations.Found.D7",
+  "budgets": {
+    "sp-search-filters-web-part.js": 22128121,
+    "sp-search-results-web-part.js": 21754819,
+    "sp-search-admin-manager-web-part.js": 16684972,
+    "sp-search-manager-web-part.js": 16675431,
+    "sp-search-box-web-part.js": 12733464,
+    "sp-search-verticals-web-part.js": 11934904
+  },
+  "aspirational": {
+    "sp-search-filters-web-part.js": 7376040,
+    "sp-search-results-web-part.js": 7251606,
+    "sp-search-admin-manager-web-part.js": 5561657,
+    "sp-search-manager-web-part.js": 5558477,
+    "sp-search-box-web-part.js": 4244488,
+    "sp-search-verticals-web-part.js": 3978301
+  }
+}
