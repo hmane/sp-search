@@ -722,18 +722,23 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
         <div className={wrapperClassName}>
           {enableScopeSelector && scopeOptions.length > 0 && (
             <div className={styles.scopeSelector}>
+              <span id="sp-search-scope-description" className={styles.visuallyHidden}>
+                Restricts the search to documents within the selected SharePoint scope
+              </span>
               <Dropdown
                 options={scopeOptions}
                 selectedKey={activeScope.id}
                 onChange={handleScopeChange}
                 ariaLabel="Search scope"
+                aria-describedby="sp-search-scope-description"
               />
             </div>
           )}
 
           {/* KQL / Regular mode toggle */}
           {enableKqlMode && (
-            <div className={styles.kqlModeToggle} role="radiogroup" aria-label="Query input mode">
+            <fieldset className={styles.kqlModeToggle}>
+              <legend className={styles.visuallyHidden}>Query input mode</legend>
               <button
                 className={!isKqlMode ? styles.kqlModeButton + ' ' + styles.kqlModeButtonActive : styles.kqlModeButton}
                 onClick={(): void => handleModeSwitch(false)}
@@ -758,7 +763,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 <Icon iconName="Code" />
                 <span>KQL</span>
               </button>
-            </div>
+            </fieldset>
           )}
 
           {/* Input area — conditional on mode */}

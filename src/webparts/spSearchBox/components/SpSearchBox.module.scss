@@ -444,13 +444,29 @@
   margin-top: 12px;
 }
 
+// ─── Visually-hidden helper (used by <legend> + scope-selector aria-describedby span) ─
+// Foundations Found.D6 — A11Y-004 / A11Y-005
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 // ─── KQL Mode Toggle (segmented pill control) ──────────
+// Rendered as <fieldset> for A11Y-004 — reset native fieldset styling so it visually matches the prior <div> shape.
 .kqlModeToggle {
   display: flex;
   align-items: center;
   flex-shrink: 0;
   margin: 0 2px 0 6px;
   padding: 2px;
+  border: 0;
   border-radius: 6px;
   background-color: "[theme:neutralLighter, default: #f3f2f1]";
   background-color: var(--neutralLighter, #f3f2f1);
@@ -458,6 +474,7 @@
   border-right: 1px solid var(--neutralLight, #edebe9);
   margin-right: 4px;
   padding-right: 2px;
+  min-inline-size: auto; // override Chrome default fieldset min-width
 }
 
 .kqlModeButton {
@@ -792,5 +809,19 @@
         font-size: 14px;
       }
     }
+  }
+}
+
+// Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }
