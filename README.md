@@ -38,9 +38,12 @@ The latest released `.sppkg` is also attached to each [GitHub Release](../../rel
 - **PnP Modern Search v4 alignment:** [`docs/pnp-modern-search-alignment.md`](docs/pnp-modern-search-alignment.md)
 - **Performance budgets:** [`docs/performance-budgets.md`](docs/performance-budgets.md)
 - **Release smoke checklist:** [`docs/release-smoke-checklist.md`](docs/release-smoke-checklist.md)
+- **Accessibility statement (WCAG 2.1 AA):** [`docs/accessibility.md`](docs/accessibility.md)
+- **Privacy notice (telemetry):** [`docs/privacy-notice.md`](docs/privacy-notice.md)
+- **Release policy (SemVer + lockstep):** [`docs/release-policy.md`](docs/release-policy.md)
+- **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
+- **Contributing:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - **Architecture / developer reference:** [`CLAUDE.md`](CLAUDE.md)
-
-Additional documents added by Tranche 2 of the launch-readiness audit (after this README ships): `docs/accessibility.md` (Found.D6), `docs/release-policy.md` (Found.D8), `CHANGELOG.md` (Found.D8), `CONTRIBUTING.md` (Found.D8).
 
 ## Tech stack
 

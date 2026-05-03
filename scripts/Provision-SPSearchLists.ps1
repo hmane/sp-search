@@ -255,6 +255,57 @@ Ensure-Index -ListName "SearchCollections" -FieldName "CollectionName"
 Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
 Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
 
+# ============================================================
+# Foundations Found.D9 — Telemetry lists
+# ============================================================
+
+function Add-SearchTelemetryLists {
+    Write-Host "`n[Found.D9] Provisioning SearchTelemetryConfig + SearchTelemetryOptIn..." -ForegroundColor Cyan
+
+    # SearchTelemetryConfig — single-row, hidden, default disabled
+    $configList = Get-PnPList -Identity 'SearchTelemetryConfig' -ErrorAction SilentlyContinue
+    if (-not $configList) {
+        $configList = New-PnPList -Title 'SearchTelemetryConfig' -Template GenericList -Url 'Lists/SearchTelemetryConfig' -OnQuickLaunch:$false
+        Set-PnPList -Identity 'SearchTelemetryConfig' -Hidden:$true
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'IsEnabled' -InternalName 'IsEnabled' -Type Boolean -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'DestinationEndpoint' -InternalName 'DestinationEndpoint' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchIntervalSeconds' -InternalName 'BatchIntervalSeconds' -Type Number -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchSizeMax' -InternalName 'BatchSizeMax' -Type Number -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedBy' -InternalName 'PrivacyAcknowledgedBy' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedAt' -InternalName 'PrivacyAcknowledgedAt' -Type DateTime -AddToDefaultView | Out-Null
+
+        # Single-row default (disabled). Admins toggle IsEnabled to opt in.
+        Add-PnPListItem -List 'SearchTelemetryConfig' -Values @{
+            'Title' = 'SP Search Telemetry Config (single row)'
+            'IsEnabled' = $false
+            'DestinationEndpoint' = ''
+            'BatchIntervalSeconds' = 300
+            'BatchSizeMax' = 50
+        } | Out-Null
+
+        Write-Host "[Found.D9] SearchTelemetryConfig provisioned (disabled, default row)." -ForegroundColor Green
+    }
+    else {
+        Write-Host "[Found.D9] SearchTelemetryConfig already exists; skipping." -ForegroundColor Yellow
+    }
+
+    # SearchTelemetryOptIn — per-user consent, anonymized hash only
+    $optInList = Get-PnPList -Identity 'SearchTelemetryOptIn' -ErrorAction SilentlyContinue
+    if (-not $optInList) {
+        New-PnPList -Title 'SearchTelemetryOptIn' -Template GenericList -Url 'Lists/SearchTelemetryOptIn' -OnQuickLaunch:$false | Out-Null
+        Set-PnPList -Identity 'SearchTelemetryOptIn' -Hidden:$true
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentTimestamp' -InternalName 'ConsentTimestamp' -Type DateTime -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentVersion' -InternalName 'ConsentVersion' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'AnonHash' -InternalName 'AnonHash' -Type Text -AddToDefaultView | Out-Null
+        Write-Host "[Found.D9] SearchTelemetryOptIn provisioned." -ForegroundColor Green
+    }
+    else {
+        Write-Host "[Found.D9] SearchTelemetryOptIn already exists; skipping." -ForegroundColor Yellow
+    }
+}
+
+Add-SearchTelemetryLists
+
 # ─── Summary ──────────────────────────────────────────────
 Write-Host "`n================================================" -ForegroundColor Cyan
 Write-Host " Provisioning Complete!" -ForegroundColor Green
@@ -263,5 +314,7 @@ Write-Host "`nCreated/verified:"
 Write-Host "  - SearchSavedQueries (saved + shared searches)"
 Write-Host "  - SearchHistory (user history, indexed for >5K items)"
 Write-Host "  - SearchCollections (result pinboards)"
+Write-Host "  - SearchTelemetryConfig (single-row, disabled by default — Found.D9)"
+Write-Host "  - SearchTelemetryOptIn (per-user consent, anonymized — Found.D9)"
 
 Disconnect-PnPOnline
