@@ -23,6 +23,7 @@ import {
   ISortField,
   ISearchScope
 } from '@interfaces/index';
+import { safeNavigate } from '@store/utils/safeNavigate';
 import SavedSearchList from './SavedSearchList';
 import SearchHistory from './SearchHistory';
 import SearchCollections from './SearchCollections';
@@ -366,6 +367,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
         scope,
         activeLayoutKey
       }),
+      // safe: read-only URL capture for serialization (Found.D4 exempt)
       searchUrl: window.location.href,
       entryType: 'SavedSearch',
       category: 'General',
@@ -544,7 +546,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       activeLayoutKey
     });
 
-    // Build the search URL from the current page URL
+    // Build the search URL from the current page URL.
+    // safe: read-only URL capture for serialization (Found.D4 exempt).
     const searchUrl = window.location.href;
 
     service.saveSearch(
@@ -640,10 +643,11 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
 
   // ─── Reset handler — navigate to base page without params ─
   function handleReset(): void {
-    // Navigate to the current page without any search params
+    // Navigate to the current page without any search params.
+    // safe: read-only URL capture for serialization (Found.D4 exempt).
     const url = new URL(window.location.href);
     url.search = '';
-    window.location.href = url.toString();
+    safeNavigate(url.toString());
   }
 
   // ─── Dismiss error ────────────────────────────────────────

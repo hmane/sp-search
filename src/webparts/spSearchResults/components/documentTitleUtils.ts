@@ -152,14 +152,6 @@ export function formatUrlBreadcrumb(url: string): string {
 }
 
 /**
- * Sanitizes HitHighlightedSummary HTML from SharePoint Search API.
- * Strips all tags except safe formatting tags used for hit highlighting.
- */
-export function sanitizeSummaryHtml(html: string): string {
-  return html.replace(/<\/?(?!(?:b|strong|em|i|mark|c0|ddd)\b)[^>]*>/gi, '');
-}
-
-/**
  * Strips all HTML tags from a string.
  */
 export function stripHtml(html: string): string {

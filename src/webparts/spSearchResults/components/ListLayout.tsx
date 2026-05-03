@@ -5,7 +5,8 @@ import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPer
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UserPersona: any = _UserPersona;
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, sanitizeSummaryHtml, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
+import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
@@ -66,7 +67,7 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
               {item.summary && (
                 <div
                   className={styles.resultSummary}
-                  dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(item.summary) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.summary) }}
                 />
               )}
               <div className={styles.resultMeta}>

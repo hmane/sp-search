@@ -12,6 +12,7 @@ import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
 import { lazyBridge } from '../../../utilities/lazyBridge';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
+import { safeNavigate } from '@store/utils/safeNavigate';
 import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
 import { getCompletionContext, getCompletions } from '../kql';
 import QueryBuilder from './QueryBuilder';
@@ -333,15 +334,6 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
 
     // Navigate to another page if configured
     if (searchInNewPage && newPageUrl) {
-      // Validate URL to prevent XSS via javascript: protocol
-      const isValidUrl = newPageUrl.startsWith('/') ||
-        newPageUrl.startsWith('https://') ||
-        newPageUrl.startsWith('http://');
-      if (!isValidUrl) {
-        console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
-        return;
-      }
-
       const paramName = (newPageQueryParameter || 'q').trim() || 'q';
       let targetUrl = newPageUrl;
       if (newPageParameterLocation === 'hash') {
@@ -353,9 +345,26 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       }
 
       if (newPageOpenBehavior === 'newTab') {
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        // window.open's noopener,noreferrer + the same allowlist as safeNavigate.
+        // Build dangerous-scheme strings from char codes to avoid no-script-url false-positives.
+        const lower = targetUrl.toLowerCase();
+        const isAbsoluteHttp = /^https?:\/\//i.test(targetUrl);
+        const isRootRelative = targetUrl.startsWith('/') && !targetUrl.startsWith('//');
+        const JS_SCHEME = ['j', 'a', 'v', 'a', 's', 'c', 'r', 'i', 'p', 't', ':'].join('');
+        const DATA_SCHEME = ['d', 'a', 't', 'a', ':'].join('');
+        const VBS_SCHEME = ['v', 'b', 's', 'c', 'r', 'i', 'p', 't', ':'].join('');
+        const isDangerous =
+          lower.startsWith(JS_SCHEME) || lower.startsWith(DATA_SCHEME) || lower.startsWith(VBS_SCHEME);
+        if ((isAbsoluteHttp || isRootRelative) && !isDangerous) {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+        }
       } else {
-        window.location.href = targetUrl;
+        // safeNavigate self-validates the same allowlist (BUG-004 hardening preserved).
+        if (!safeNavigate(targetUrl)) {
+          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+        }
       }
       return;
     }

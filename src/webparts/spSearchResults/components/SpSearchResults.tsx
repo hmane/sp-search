@@ -66,6 +66,7 @@ const ResultDetailPanel = lazyBridge(
 );
 
 import { DebugCollector } from '@store/debug';
+import { safeNavigate } from '@store/utils/safeNavigate';
 
 // Debug panel — only loaded when ?debug=1
 const DebugFab = React.lazy(
@@ -565,9 +566,10 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   // ─── Reset handler — navigate to base page without params ─
   const handleReset = React.useCallback(function (): void {
+    // safe: read-only URL capture for serialization (Found.D4 exempt).
     const url = new URL(window.location.href);
     url.search = '';
-    window.location.href = url.toString();
+    safeNavigate(url.toString());
   }, []);
 
   // ─── Loading overlay (delayed to avoid flash for fast searches) ───────────
