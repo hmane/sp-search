@@ -304,7 +304,146 @@ The user opens the same page on their phone. The five web parts stack vertically
 ## Part 2 — Differentiator Tracks
 
 ### T1. Modern UI Quality
-_(populated in Phase 6 — see plan Task 6.1)_
+
+#### Current state
+
+SP Search ships visual surfaces across six web parts, all built on Fluent UI v8 with theme-token CSS variables wired through `*.module.scss` files. Theming integration is consistent at the token level — every web part uses `"[theme:tokenName, default: #hex]"` plus `var(--tokenName, fallback)` pairs (e.g. `SpSearchResults.module.scss:7-8,31-32,43-44,49-50,67`), so SharePoint section themes propagate without code changes. Loading states use Fluent `Shimmer`. Active-filter pills, layout cards, and the detail-panel overlay carry hand-tuned `transition` (150–200ms ease) and a small set of `@keyframes` (`pillFadeIn`, `overlayFadeIn` at `SpSearchResults.module.scss:197,206,1132,1135`). The Sprint 3 mobile hardening landed gallery single-column at 399px, overlay backdrop-filter, and iOS DataGrid momentum scroll.
+
+The actual T1 surface, by file:
+
+- **Empty states.** Two shapes ship: `EmptyState` in `src/webparts/spSearchResults/components/SpSearchResults.tsx:402-444` (four context-aware messages per UX-002 closed) using the `SearchIssue` icon at `:426`; per-tab empties in Search Manager (`SpSearchManager.tsx:751-756` "No manager sections enabled", `SavedSearchList.tsx:289-294` "No saved searches"). Filters web part renders an inline plain-text empty hint at `SpSearchFilters.tsx:409-411`.
+- **Loading shimmer.** Three idioms in three adjacent web parts: a five-row list-shaped Shimmer in Results (`SpSearchResults.tsx:223-310, 599`); three custom shimmer rows for filter groups in Filters (`SpSearchFilters.tsx:419-451`); a Fluent `Spinner size={SpinnerSize.large}` with text label in Manager (`SpSearchManager.tsx:672-677`) and a smaller Spinner in dashboard tabs (`:858`).
+- **Mobile responsiveness.** Inconsistent breakpoint set: Search Box `@media (max-width: 480px)` only (`SpSearchBox.module.scss:774`); Verticals `@media (max-width: 640px)` only (`SpSearchVerticals.module.scss:195`); Results mixes `1023px / 639px / 399px` (`SpSearchResults.module.scss:1338,1342,1393,2303,2307,2311,2444`); Manager mixes `480px / 640px / 768px / 900px` (`SpSearchManager.module.scss:116,945,1016,1050,1126,1407,1467,1519`). The **Filters web part has zero `@media` queries** (`grep -c '@media' SpSearchFilters.module.scss` = 0; the file is 867 lines of desktop-only styling).
+- **Layouts.** Six layouts implemented (`ListLayout.tsx`, `CompactLayout.tsx`, `CardLayout.tsx`, `GalleryLayout.tsx`, `PeopleLayout.tsx`, `DataGridLayout.tsx`) with code-split lazy chunks and hover-preload (`SpSearchResults.tsx:41-47`). Each layout has its own visual rhythm; none currently render a layout-specific empty state — they bubble up to the shared `EmptyState`.
+- **Detail panel.** Fluent `Panel` of `PanelType.medium` opening from the right (`ResultDetailPanel.tsx:209-217`). Custom close button via `onRenderNavigationContent` with `hasCloseButton={false}` and an `IconButton iconName="ChromeClose"` (`:215`). WOPI preview falls back to "Preview is not available for this file type" + Open-in-browser for non-Office types (`:289-298`).
+- **Dark mode / reduced motion.** No `prefers-color-scheme` or `prefers-reduced-motion` media queries anywhere in source (`grep -rn 'prefers-color-scheme\|prefers-reduced-motion' src` = 0 hits). The product relies entirely on Fluent's theme tokens flipping with the SharePoint section theme.
+- **Iconography.** All web part toolbox tiles use Fluent v8 icon-font glyphs via `officeFabricIconFontName`. Three of six tiles share `Search` / `SearchAndApps` glyphs (`SpSearchBoxWebPart.manifest.json:23`, `SpSearchResultsWebPart.manifest.json:23`, `SpSearchManagerWebPart.manifest.json:23`, `SpSearchAdminManagerWebPart.manifest.json:16`), producing a near-identical monochrome set in the toolbox preview.
+- **Error surfacing.** Each web part is wrapped in spfx-toolkit `ErrorBoundary` per CLAUDE.md, but inline error display (e.g. orchestrator failures, refiner formatter errors) falls through to console — there is no shared toast pattern visible in `src/webparts/spSearchResults/components/SpSearchResults.tsx`.
+
+Closed/Changed-Form items already in the visual surface (per Appendix A): BUG-008 (layout URL coercion), MISS-005 (scope persistence), PERF-001 (parallel filter formatters), MISS-007 (vertical OverflowSet), UX-001 (sort dropdown gating), UX-002 (smart empty state).
+
+#### Gap to "amazing"
+
+The audience profile is "any SPFx tenant, self-serve, no hand-holding" — an admin who installs the package and an end user who lands on the published page must both feel they are using a launched product, not a scaffold. Today's friction breaks that promise in three places. First, **first paint is not credible**: an idle search page renders five list-shaped shimmer cards as if it were already loading something, while the per-web-part loading idioms (Results = list shimmer, Filters = three custom shimmer rows, Manager = Spinner) advertise that nobody picked a single visual rhythm. Second, **the mobile story is unfinished**: the Filters web part is desktop-only at the SCSS level, the breakpoint set is inconsistent across web parts (480/640/768/900/1023), and the Search Box collapses unreadably below 481px. A tenant admin who previews on a phone before publishing will conclude "this isn't shippable on mobile" and they will be correct. Third, **empty and zero-states feel like errors**: the `SearchIssue` icon used in the empty state reads as a warning, layout-specific empties don't exist, dimmed verticals show no tooltip explaining why they're not clickable, and the detail panel's "preview not available" path renders a near-empty pane for very common file types (.eml, .msg, images, video, zip). PnP Modern Search v4 has comparable rough edges, but the launch bar here is "self-serve any tenant," not "as good as PnP" — visual quality is the first thing prospects judge in a 30-second scan, and the gap between the current build and a credible v1.0 is largely polish-shaped, not architecture-shaped.
+
+#### Deliverables
+
+1. **Filters web part responsive collapse**
+   - **Description:** Add phone- and tablet-width media queries to `src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` (currently 0 `@media` queries across 867 lines). Below ~640px, render filters as a collapsed accordion or off-canvas drawer with a "Show filters" toggle button; below ~399px, single-column. Adopt the Results breakpoint set (1023 / 639 / 399) so the system has one consistent ladder.
+   - **Why it matters:** T1 visual quality promise; today on a phone the filter panel consumes the entire screen height above the results, forcing the user to scroll past every filter option to see a single result. Highest single-issue mobile blocker in the journey audit.
+   - **Effort:** L
+   - **Priority:** P0
+   - **Depends on:** Deliverable 2 (breakpoint normalization) — start in parallel, land together.
+   - **Source:** Journey B Step 12 [Blocker]; Journey A Step 12 implicit via mobile preview.
+   - **Acceptance signal:** Phone-width screenshot (375px) of a search page with Filters web part shows a collapsed accordion or drawer with a single "Show filters" affordance; results occupy the primary viewport. `grep -c '@media' src/webparts/spSearchFilters/components/SpSearchFilters.module.scss` returns ≥3.
+
+2. **Cross-web-part responsive breakpoint normalization**
+   - **Description:** Define a shared SCSS breakpoint variable set (e.g. `$bp-phone: 399px; $bp-tablet: 639px; $bp-desktop: 1023px;`) in `src/styles/` and refactor each web part's `.module.scss` to consume them. Today: Box uses 480px; Verticals 640px; Results uses 1023/639/399; Manager uses 480/640/768/900. Pick the Results ladder (1023 / 639 / 399) as canonical and align all five web parts.
+   - **Why it matters:** T1 consistency; without a shared ladder, a 481-px viewport renders Box in desktop mode and Manager already collapsed — the page reads as five disconnected products. Foundational to every other responsive deliverable in this track.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey B Step 12 [Confusion].
+   - **Acceptance signal:** A single SCSS partial (e.g. `src/styles/breakpoints.scss`) is imported by every web part's main SCSS module; `grep -rE '@media \(max-width:\s*(480|640|768|900)px\)' src/webparts | wc -l` returns 0.
+
+3. **Loading state visual rhythm parity**
+   - **Description:** Pick one loading idiom (recommendation: shape-matched Shimmer for layout-bearing surfaces, small inline Spinner for tab content). Replace the Filters web part's three hand-rolled shimmer rows (`SpSearchFilters.tsx:419-451`) with a Fluent `Shimmer` shape that mirrors the actual filter row layout. Replace the Manager `Spinner size={SpinnerSize.large}` "Loading search manager…" (`SpSearchManager.tsx:672-677`) with a list/tab-shape Shimmer at the same proportions as Results. Document the rule in `docs/styleguide.md` (new file or section).
+   - **Why it matters:** T1 visual rhythm — three loading idioms in three adjacent web parts on the same page advertise "no design system."
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey B Step 1 [Polish].
+   - **Acceptance signal:** Side-by-side screenshot comparison of Box / Verticals / Filters / Results / Manager during initial load shows identical shimmer shape language; inspect of `SpSearchManager.tsx:672` shows the Spinner replaced with a Shimmer composition.
+
+4. **Idle-state pre-search rendering for Results web part**
+   - **Description:** When `hasSearched === false` and no query, render a neutral idle/empty pane instead of the five-row LoadingShimmer at `SpSearchResults.tsx:599`. Show the existing `EmptyState` "Search" / "Enter a search term to get started" copy (currently only reached after a search runs and returns zero) on first paint.
+   - **Why it matters:** T1 first-paint credibility; current behaviour falsely advertises "loading" when the system is idle waiting for input. End users wait for nothing.
+   - **Effort:** S
+   - **Priority:** P0
+   - **Depends on:** none
+   - **Source:** Journey B Step 1 [Confusion].
+   - **Acceptance signal:** Open a fresh search page, type nothing — the Results pane shows the idle "Search" heading plus prompt copy, no shimmer. Existing UX-002 EmptyState branches still render correctly post-search.
+
+5. **Layout-specific empty states**
+   - **Description:** Wire each layout (`CardLayout.tsx`, `GalleryLayout.tsx`, `PeopleLayout.tsx`, `DataGridContent.tsx`, `CompactLayout.tsx`) to render a layout-shaped empty placeholder when `items.length === 0` instead of bubbling up to the shared `EmptyState`. People layout shows "No people match this query"; Gallery shows a card-shaped placeholder grid; DataGrid shows the column headers with an empty body row. Replace the `SearchIssue` icon (which reads as warning) with a neutral `Search` or custom illustrative SVG.
+   - **Why it matters:** T1 polish — shared EmptyState with `SearchIssue` icon (`SpSearchResults.tsx:426`) reads as "you broke something" and removes layout context that would help the user pivot. PnP Modern Search v4 ships per-template empties.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey B Step 4 [Confusion]; Appendix A UX-002 (Closed) residual.
+   - **Acceptance signal:** Six screenshot tests (one per layout) of `items=[]` show layout-shaped empty placeholders, none using `SearchIssue`. Visual regression diff confirms shape parity with populated state.
+
+6. **Detail panel polish — close button, preview-unavailable state, author fallback**
+   - **Description:** (a) Restore standard Fluent close button by removing `hasCloseButton={false}` and the custom navigation override (`ResultDetailPanel.tsx:215`); (b) when WOPI fails or file type is outside the allow-list (`:48-56`), show a richer placeholder with file-type icon, file size, "Open in browser" + "Download" buttons in a centered card layout instead of an inline message; (c) replace the literal "Unknown" + Contact icon for missing authors (`:313-317`) with metadata-only rendering or graceful "Author not indexed" copy.
+   - **Why it matters:** T1 perceived quality — the panel is the highest-stakes single surface in the product (users land on it after every result click); current state shows three "this is broken" signals (non-standard close, sparse preview-unavailable pane, "Unknown" author).
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey B Step 8 [Confusion] (close button, preview-unavailable, "Unknown" author).
+   - **Acceptance signal:** Screenshot of detail panel for a `.zip` file shows the new file-type-icon placeholder card; standard Fluent X close button visible top-right; result with no author shows clean metadata pane with no "Unknown" string. axe-core scan returns zero new violations.
+
+7. **Custom illustrative web part icons (toolbox + page)**
+   - **Description:** Replace shared Fluent glyphs (`Search`, `SearchAndApps`) on Box / Results / Manager / Admin Manager (`*.manifest.json:23` × 4) with five distinct custom SVG icons committed under `src/webparts/<wp>/assets/`. Each manifest declares `iconImageUrl` (or equivalent) instead of `officeFabricIconFontName` so the SPFx toolbox preview shows branded tiles, not monochrome glyphs.
+   - **Why it matters:** T1 first impression — the SPFx toolbox is where every admin meets the product; four near-identical monochrome tiles signal "experimental scaffold" instead of shipping product. PnP Modern Search ships custom illustrative icons.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey A Step 6 [Confusion] + [Polish].
+   - **Acceptance signal:** Screenshot of SPFx toolbox in a SharePoint page shows five visually distinct illustrative tiles for SP Search web parts; no two share the same glyph.
+
+8. **Empty / dimmed vertical tooltips and pending-count indicators**
+   - **Description:** (a) Add Fluent `TooltipHost` on dimmed verticals (`VerticalTab.tsx:53`) with copy "No results in this vertical for the current query" so the unclickable state has an explanation; (b) in Filters manual-apply mode, render the pending-change count on the Apply button (e.g. "Apply 3 changes") at `SpSearchFilters.tsx:512-523`. Current state renders just "Apply filters" with no count.
+   - **Why it matters:** T1 micro-interaction quality; closes Appendix A INC-001 Changed-Form residual; addresses Journey B Step 5 [Confusion] (dimmed-tab silence) and Step 6 [Confusion] (no pending count).
+   - **Effort:** S
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Journey B Step 5 [Confusion] + Step 6 [Confusion]; Appendix A INC-001 (Changed-Form).
+   - **Acceptance signal:** Hovering a dimmed vertical tab shows the tooltip; toggling 3 filters in manual mode renders "Apply 3 changes" on the Apply bar.
+
+9. **`prefers-reduced-motion` and dark-mode story**
+   - **Description:** (a) Wrap all `transition` / `animation` / `@keyframes` rules in `@media (prefers-reduced-motion: no-preference)` (or set transitions to `none` in the reduce branch) across `SpSearchResults.module.scss`, `SpSearchManager.module.scss`, `SpSearchFilters.module.scss` (~30 transition rules and 2 keyframes today). (b) Document the dark-mode position: SP Search inherits SharePoint section theme (Fluent v8 token-driven). Verify by switching the SharePoint section to a dark theme and capturing screenshots of all five web parts; file any per-component contrast/visibility regressions as follow-ups in T1's plan rather than as separate deliverables here.
+   - **Why it matters:** T1 + Foundations a11y; reduced-motion is a WCAG 2.3.3 concern that costs ~30 min to implement once and ships forever; dark mode is an audience-profile expectation (PnP v4 inherits the same SharePoint theme story but admins still ask). Closes the "dark mode story" gap from spec §4.3.
+   - **Effort:** M
+   - **Priority:** P1
+   - **Depends on:** none
+   - **Source:** Phase 6.1 discovery — `grep -rn 'prefers-color-scheme\|prefers-reduced-motion' src` returns 0; Appendix C "Theming (Office UI Fabric / Fluent integration)" Parity row.
+   - **Acceptance signal:** OS-level reduced-motion preference disables all transitions and `pillFadeIn`/`overlayFadeIn` keyframes (verified via DevTools "Emulate reduced motion"); a `docs/theming.md` section documents the dark-mode inheritance with three before/after screenshots (light / dark / high-contrast SharePoint sections).
+
+10. **Search Box mobile layout — inline button collapse**
+    - **Description:** At ≤480px (`SpSearchBox.module.scss:774-790`), collapse Search Manager / Query Builder / KQL toggle buttons into a single overflow `IconButton` with menu, keeping the input field at full-width minus 1 button. Set `font-size: 16px` on the input itself to suppress iOS Safari focus-zoom (currently 14px from Fluent default).
+    - **Why it matters:** T1 mobile usability; today on a 375px viewport the input collapses to ~140px wide and the page zooms in on focus. Most common entry point on the most common form factor.
+    - **Effort:** S
+    - **Priority:** P1
+    - **Depends on:** Deliverable 2 (shared breakpoint set).
+    - **Source:** Journey B Step 12 [Polish] × 2 (input width + iOS zoom).
+    - **Acceptance signal:** iPhone-13-sized screenshot (390×844) shows Search Box input at ≥260px wide; tapping the input on a real iOS device does not zoom the viewport; overflow menu hides KQL / Manager / Query Builder behind one icon.
+
+11. **Layout-switch scroll preservation + ChoiceGroup tooltips**
+    - **Description:** (a) Capture `window.scrollY` (or the relevant scroll container offset) before `setLayout` dispatch; restore via `requestAnimationFrame` after the lazy chunk renders. Today, switching layouts drops the user at the top of the results regardless of where they were viewing (`SpSearchResults.tsx:513-515`). (b) Add Fluent `TooltipHost` on each layout-switcher icon in `ResultToolbar` with a one-line description ("Compact view — title-only, dense rows", etc.) so users who haven't seen "Compact" know what they'll get.
+    - **Why it matters:** T1 micro-interaction quality and reading-state preservation; both are direct Journey B Step 7 friction items.
+    - **Effort:** S
+    - **Priority:** P2
+    - **Depends on:** none
+    - **Source:** Journey B Step 7 [Confusion] (scroll loss) + [Polish] (no tooltips).
+    - **Acceptance signal:** Manual: scroll to result row 15, switch layouts — view stays at row 15 of the new layout. Hovering each layout icon for ~500ms shows a Fluent tooltip with a layout description.
+
+12. **Consolidated style guide + visual regression suite**
+    - **Description:** Add `docs/styleguide.md` documenting: shared breakpoint set (deliverable 2), shimmer shape language (deliverable 3), empty-state composition rules (deliverable 5), reduced-motion rules (deliverable 9), iconography conventions (deliverable 7). Stand up a lightweight visual regression test (Playwright + screenshot diff or storybook + Chromatic) covering the four top surfaces — empty state, loading state, populated list layout, populated DataGrid — as the acceptance gate for future T1 changes.
+    - **Why it matters:** T1 durability — without a written style guide and screenshot baselines, the next contributor reintroduces the same drift the current audit logged. Foundational to keeping T1 quality after launch.
+    - **Effort:** L
+    - **Priority:** P2
+    - **Depends on:** Deliverables 1, 2, 3, 5, 9.
+    - **Source:** Phase 6.1 discovery — derived from drift patterns visible across `*.module.scss` files.
+    - **Acceptance signal:** `docs/styleguide.md` exists and links from the top-level README; a CI job runs the visual regression suite on every PR and fails on uncalibrated diffs.
+
+#### Out of scope for v1.0
+
+- **Custom dark-mode theme palette beyond Fluent inheritance.** Rationale: SharePoint already provides dark sections; building a separate dark palette duplicates work and breaks tenant theme governance. Captured in deliverable 9.
+- **Brand illustrations (Lottie, Spot illustrations, hero artwork).** Rationale: SVG icons cover toolbox + empty-state quality bar at a fraction of the design effort. Lottie introduces motion accessibility complexity for marginal lift.
+- **Storybook/Ladle as a long-lived design surface.** Rationale: per-component Storybook is heavy for a 6-web-part SPFx solution; deliverable 12 covers the visual regression intent without committing to a separate deploy target.
+- **Layout-A/B testing or admin theming UI.** Rationale: out of audience-profile scope ("self-serve any tenant"); admins use SharePoint section themes, not in-product theme editors.
+- **Custom motion design system / micro-interaction language overhaul.** Rationale: existing 150–200ms ease transitions are appropriate for SharePoint context. A dedicated motion system is v1.1+ work.
+- **Per-layout icon set (different glyph for People rows vs. Document rows).** Rationale: the existing file-type icon system and persona avatars already differentiate row types; expanding to a fully bespoke set is post-launch polish.
 
 ### T2. End-User Productivity
 _(populated in Phase 6 — see plan Task 6.2)_
