@@ -985,7 +985,7 @@ The sp-search-store library component serves five purposes: it provides the stor
 - `People.Read` (Graph) — required for Graph people search
 - These permissions are only requested when GraphSearchProvider is enabled. SharePointSearchProvider requires no additional permissions.
 
-**Development Note — Library Component Hot-Reload Quirk:** SPFx Library Components do **not** support hot module replacement during `gulp serve`. Changes to sp-search-store code require a full page refresh in the workbench, not just a module replacement. **Mitigation:** Structure store actions, data providers, and all business logic as pure TypeScript classes/functions that are fully testable via Jest outside the SPFx workbench. Only the thin SPFx integration layer (the LibraryComponent class itself) should require workbench testing. This saves hundreds of hours of development time.
+**Development Note — Library Component Hot-Reload Quirk:** SPFx Library Components do **not** support hot module replacement during the local workbench (`npm start` / `heft start`). Changes to sp-search-store code require a full page refresh in the workbench, not just a module replacement. **Mitigation:** Structure store actions, data providers, and all business logic as pure TypeScript classes/functions that are fully testable via Jest outside the SPFx workbench. Only the thin SPFx integration layer (the LibraryComponent class itself) should require workbench testing. This saves hundreds of hours of development time.
 
 ## 4.3 Performance Strategy
 
@@ -1277,7 +1277,7 @@ Hidden lists are provisioned via PnP PowerShell script executed as a post-deploy
 
 ## 7.3 Pipeline Steps
 
-- Build solution: gulp bundle --ship && gulp package-solution --ship
+- Build solution: `npm run package` (heft build --clean --production && heft package-solution --production)
 - Deploy .sppkg to site-level app catalog
 - Run PnP PowerShell provisioning script for hidden lists
 - Verify deployment: check web part availability and list creation
