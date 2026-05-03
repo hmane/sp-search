@@ -4,6 +4,12 @@ All notable changes to SP Search are documented here. Format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Changed
+
+- `package.json:version` aligned to `1.0.0` from generator default `0.0.1`; `config/package-solution.json:solution.version` aligned to `1.0.0.0` (lockstep — Found.D11).
+- `solution.developer.mpnId` cleared from `Undefined-1.21.1` (SPFx generator default) to empty string (Found.D11). Populate with a real Partner Center MPN ID once one is registered.
+- `solution.developer.websiteUrl / privacyUrl / termsOfUseUrl` populated with canonical project URLs derived from `git remote get-url origin` (Found.D11).
+
 ## [1.0.0-rc.1] - 2026-05-DD
 
 ### Added
