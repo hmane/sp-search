@@ -235,18 +235,22 @@ The Search Manager is not a PnP parity feature. It is a product extension that c
 
 ## Graph Requirements
 
-Graph-backed People search and org-chart traversal require Microsoft Graph permissions.
+Graph-backed People search, org-chart traversal, and audience targeting require Microsoft Graph permissions.
 
 | Capability | Requirement |
 |------------|-------------|
 | Graph People vertical | `People.Read` / configured Graph search permission path for `/search/query` |
 | Org chart manager/direct reports | `User.Read.All` |
+| Audience targeting (verticals, refiners, web parts, promoted results) | `User.Read` — least-privilege scope for `/me/memberOf` per [Microsoft Learn](https://learn.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0) |
+
+Approve each permission at **SharePoint admin centre → Advanced → API access**. Pending approval, audience-targeted content stays hidden (fail-closed): verticals / refiners / web parts gated to specific Azure AD groups will be invisible to every user until the scope is approved.
 
 If Graph permission is not approved:
 
 - SharePoint search still works
 - Graph people verticals fall back to registered SharePoint providers where possible
 - org-chart UI hides itself gracefully
+- audience-targeted items hide for all users (fail-closed); non-targeted items remain visible
 
 ## Recommended Authoring Patterns
 

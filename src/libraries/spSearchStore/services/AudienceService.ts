@@ -5,9 +5,16 @@ import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 // Graph reject the request with HTTP 400. It is emitted automatically for the
 // derived types (group / directoryRole / …), so `$select=id` alone keeps the type
 // discriminator below working.
-// NOTE: this call also needs a Graph permission the package does not yet declare
-// (only `People.Read` is in `webApiPermissionRequests`); until that is added +
-// admin-approved this still returns [] (fail-closed). Tracked as a Stream D prereq.
+//
+// Permission: `User.Read` (delegated, work/school) — the documented least-
+// privilege scope for the signed-in user's own direct memberships per
+// learn.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0
+// (table "Permissions for the signed-in user's direct memberships"). Declared
+// in `config/package-solution.json` → `webApiPermissionRequests`. Tenants
+// upgrading from a pre-Stream-D build must approve the added scope at
+// SharePoint admin → "API access"; until approved the call returns 401/403
+// and `resolveUserGroupIds()` resolves to [] (fail-closed: audience-targeted
+// content stays hidden).
 const GRAPH_MEMBER_OF_URL = 'https://graph.microsoft.com/v1.0/me/memberOf?$select=id';
 
 /** Cached group IDs — groups don't change mid-session */

@@ -18,6 +18,10 @@
       {
         "resource": "Microsoft Graph",
         "scope": "People.Read"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "User.Read"
       }
     ],
     "metadata": {
@@ -36,7 +40,7 @@
         "title": "SP Search",
         "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, Search Manager, and Admin Manager web parts with shared Zustand store.",
         "id": "8051ab65-8eae-4408-b5ad-b61c9e6a0baf",
-        "version": "1.0.6.0"
+        "version": "1.0.7.0"
       }
     ]
   },
