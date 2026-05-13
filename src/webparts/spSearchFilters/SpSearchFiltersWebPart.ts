@@ -23,6 +23,7 @@ import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -116,10 +117,18 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
     // Stream D / #10 — wrap with AudienceGate so the web part hides itself
     // when the current user isn't in any of the configured groups.
     const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
-    const element: React.ReactElement = React.createElement(
+    const gatedElement: React.ReactElement = React.createElement(
       AudienceGate,
       { audienceGroups, store: this._store },
       innerElement
+    );
+
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
+    // for the per-web-part-state-isolation note.
+    const element: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      gatedElement
     );
 
     ReactDom.render(element, this.domElement);

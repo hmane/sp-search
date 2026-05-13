@@ -26,6 +26,7 @@ import { SearchManagerService } from '@services/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 import { DebugCollector } from '@store/debug';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -117,7 +118,16 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       );
     }
 
-    ReactDom.render(element, this.domElement);
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
+    // for the per-web-part-state-isolation note. AdminManager extends this
+    // class so it inherits the wrapping automatically.
+    const wrappedElement: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      element
+    );
+
+    ReactDom.render(wrappedElement, this.domElement);
   }
 
   protected async onInit(): Promise<void> {

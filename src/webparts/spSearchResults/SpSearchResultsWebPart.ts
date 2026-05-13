@@ -30,6 +30,7 @@ import {
 } from './components/ColumnConfigField/columnConfig';
 import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/ColumnConfigField';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -228,7 +229,17 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       element
     );
 
-    ReactDom.render(gatedElement, this.domElement);
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
+    // for the per-web-part-state-isolation note. Coexists with this web
+    // part's existing DebugFab + DebugPanel (those live inside the React
+    // tree below — DebugCollector is window-backed so they share state).
+    const wrappedElement: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      gatedElement
+    );
+
+    ReactDom.render(wrappedElement, this.domElement);
   }
 
   protected async onInit(): Promise<void> {

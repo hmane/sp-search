@@ -25,6 +25,7 @@ import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -121,10 +122,23 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
 
     // Stream D / #10 — wrap with AudienceGate so the web part hides itself
     // when the current user isn't in any of the configured groups.
-    const element: React.ReactElement = React.createElement(
+    const gatedElement: React.ReactElement = React.createElement(
       AudienceGate,
       { audienceGroups, store: this._store },
       innerElement
+    );
+
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel.
+    // Per-web-part state isolation: each web part bundles its own copy of
+    // the toolkit, so each SPDebugProvider has its own SPDebugStore. URL
+    // activation (`?debug=1` / `?isDebug=1`) toggles every web part on the
+    // page in lockstep; keyboard shortcut `Ctrl+Alt+D` toggles the panel of
+    // whichever web part has focus. Coexists with the project's existing
+    // DebugCollector + DebugFab (window-backed) on the Results web part.
+    const element: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      gatedElement
     );
 
     ReactDom.render(element, this.domElement);
