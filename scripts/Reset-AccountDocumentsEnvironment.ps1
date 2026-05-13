@@ -29,7 +29,7 @@
     ./Reset-AccountDocumentsEnvironment.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/SPSearch" -RemovePages
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
@@ -39,7 +39,14 @@ param(
     [string]$ClientId = '970bb320-0d49-4b4a-aa8f-c3f4b1e5928f',
 
     [Parameter(Mandatory = $false)]
-    [switch]$RemovePages
+    [switch]$RemovePages,
+
+    # T4.D1 — bypass the destructive-op confirmation for CI / scripted callers.
+    # This script DELETES site content — `Remove-PnPList`, `Remove-PnPFile`,
+    # `Remove-PnPPage`. Without -Force, you are prompted once with the full
+    # list of targets before anything is removed.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -247,6 +254,17 @@ try {
         $GENERIC_TEST_LISTS +
         $SEARCH_SUPPORT_LISTS
     ) | Select-Object -Unique
+
+    # T4.D1 — top-level safety gate. This script unconditionally tries to
+    # remove every list/library above; on a real tenant this is destructive
+    # and irreversible (Recycle-Bin retention notwithstanding). -Force bypasses
+    # the prompt; -WhatIf reports the planned removals without executing.
+    $pageScope = if ($RemovePages) { "; plus pages: $($KNOWN_SEARCH_PAGES -join ', ')" } else { '' }
+    $target = "$SiteUrl — $($allListsToRemove.Count) lists/libraries$pageScope"
+    if (-not ($Force -or $PSCmdlet.ShouldProcess($target, 'Remove all listed lists/libraries (and pages if -RemovePages)'))) {
+        Write-Host '  Aborted — nothing removed. Re-run with -Force to bypass, or with -WhatIf to preview.' -ForegroundColor Yellow
+        return
+    }
 
     Write-Host '  Removing provisioned libraries and lists...' -ForegroundColor Gray
     foreach ($listName in $allListsToRemove) {

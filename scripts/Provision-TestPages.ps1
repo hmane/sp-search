@@ -49,7 +49,7 @@
       -PagesOnly "test-multi-context,test-all-filters"
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
@@ -62,7 +62,12 @@ param(
     [bool]$Publish = $true,
 
     [Parameter(Mandatory = $false)]
-    [string]$PagesOnly
+    [string]$PagesOnly,
+
+    # T4.D1 — bypass the destructive-op confirmation prompt for CI / scripted callers.
+    # Without -Force, re-running over existing test pages prompts before recycling them.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -120,6 +125,8 @@ function New-TestPage {
     Write-Host "`n  Creating page: $PageName ($PageTitle)" -ForegroundColor Cyan
     Write-Host "    $Description" -ForegroundColor DarkGray
 
+    # The top-level confirmation gate in the main flow already authorised the
+    # recycle batch — see the "$existingTestPages.Count" ShouldProcess call below.
     try {
         Remove-PnPPage -Identity $PageName -Force -ErrorAction SilentlyContinue
     } catch { }
@@ -149,6 +156,27 @@ function Should-ProvisionPage {
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host " SP Search Test Pages Provisioning" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
+
+# T4.D1 — top-level safety gate. Enumerate which test pages already exist and
+# require a single confirmation before recycling any of them. -Force bypasses
+# the prompt; -WhatIf reports the recycle scope without executing.
+$candidatePages = @(
+    'test-general', 'test-documents', 'test-people', 'test-news', 'test-media',
+    'test-multi-context', 'test-all-filters', 'test-all-layouts', 'test-hub-search',
+    'test-no-filters', 'test-manual-filters', 'test-search-manager'
+) | Where-Object { Should-ProvisionPage $_ }
+$existingTestPages = @()
+foreach ($name in $candidatePages) {
+    $found = Get-PnPPage -Identity $name -ErrorAction SilentlyContinue
+    if ($found) { $existingTestPages += $name }
+}
+if ($existingTestPages.Count -gt 0) {
+    $target = "$($existingTestPages.Count) existing test page(s): " + ($existingTestPages -join ', ')
+    if (-not ($Force -or $PSCmdlet.ShouldProcess($target, 'Recycle and recreate'))) {
+        Write-Host "`n  Aborted — existing test pages left in place. Re-run with -Force to bypass the prompt, or -WhatIf to preview." -ForegroundColor Yellow
+        return
+    }
+}
 
 $pagesCreated = 0
 

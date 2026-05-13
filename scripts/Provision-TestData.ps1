@@ -49,7 +49,7 @@
         -RequestReindex
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $true, HelpMessage = "Target SharePoint site URL")]
     [ValidateNotNullOrEmpty()]
@@ -88,7 +88,12 @@ param(
     [switch]$CleanExisting,
 
     [Parameter(Mandatory = $false)]
-    [string]$SiteColumnGroup = "SP Search Test"
+    [string]$SiteColumnGroup = "SP Search Test",
+
+    # T4.D1 — bypass the destructive-op confirmation for CI / scripted callers.
+    # Only relevant when -CleanExisting is set (the only destructive path here).
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -1116,19 +1121,38 @@ try {
 
     # Clean existing if requested
     if ($CleanExisting) {
-        Write-Warning "  Removing existing test libraries and lists..."
+        # T4.D1 — enumerate what would be removed and gate on a single
+        # ShouldProcess call. -Force bypasses the prompt; -WhatIf reports the
+        # planned removals without executing.
+        $existingLibs = @()
         foreach ($libDef in $script:LibraryDefs) {
-            $existing = Get-PnPList -Identity $libDef.Name -ErrorAction SilentlyContinue
-            if ($existing) {
-                Remove-PnPList -Identity $libDef.Name -Force -ErrorAction SilentlyContinue
-                Write-Host "  [REMOVED] Library '$($libDef.Name)'" -ForegroundColor Red
+            if (Get-PnPList -Identity $libDef.Name -ErrorAction SilentlyContinue) {
+                $existingLibs += $libDef.Name
             }
         }
+        $existingLists = @()
         foreach ($listDef in $script:ListDefs) {
-            $existing = Get-PnPList -Identity $listDef.Name -ErrorAction SilentlyContinue
-            if ($existing) {
-                Remove-PnPList -Identity $listDef.Name -Force -ErrorAction SilentlyContinue
-                Write-Host "  [REMOVED] List '$($listDef.Name)'" -ForegroundColor Red
+            if (Get-PnPList -Identity $listDef.Name -ErrorAction SilentlyContinue) {
+                $existingLists += $listDef.Name
+            }
+        }
+        $existingCount = $existingLibs.Count + $existingLists.Count
+
+        if ($existingCount -gt 0) {
+            $target = "$existingCount lists/libraries: " + (($existingLibs + $existingLists) -join ', ')
+            if ($Force -or $PSCmdlet.ShouldProcess($target, 'Remove existing test data (will be recreated)')) {
+                Write-Warning "  Removing existing test libraries and lists..."
+                foreach ($name in $existingLibs) {
+                    Remove-PnPList -Identity $name -Force -ErrorAction SilentlyContinue
+                    Write-Host "  [REMOVED] Library '$name'" -ForegroundColor Red
+                }
+                foreach ($name in $existingLists) {
+                    Remove-PnPList -Identity $name -Force -ErrorAction SilentlyContinue
+                    Write-Host "  [REMOVED] List '$name'" -ForegroundColor Red
+                }
+            } else {
+                Write-Host "  Skipped -CleanExisting removal. Re-run with -Force to bypass the prompt, or -WhatIf to preview." -ForegroundColor Yellow
+                return
             }
         }
     }

@@ -63,7 +63,7 @@
       -SearchContextId "people"
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $true, HelpMessage = "Target SharePoint site URL")]
     [ValidateNotNullOrEmpty()]
@@ -89,7 +89,12 @@ param(
     [bool]$IncludeAdminManager = $true,
 
     [Parameter(Mandatory = $false)]
-    [bool]$Publish = $true
+    [bool]$Publish = $true,
+
+    # T4.D1 — bypass the destructive-op confirmation prompt for CI / scripted callers.
+    # Without -Force, re-running over an existing page prompts before recycling it.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -387,8 +392,16 @@ try {
     # Check if page exists
     $existingPage = Get-PnPPage -Identity $PageName -ErrorAction SilentlyContinue
     if ($existingPage) {
-        Write-Host "  [EXISTS] Page '$PageName.aspx' exists — removing for clean recreation..." -ForegroundColor Yellow
-        Remove-ExistingSearchPage -BaseSiteUrl $SiteUrl -TargetPageName $PageName
+        # T4.D1 — confirm before recycling the existing page. -Force bypasses
+        # the prompt; -WhatIf reports the recycle action without executing it.
+        $target = "$PageName.aspx on $SiteUrl"
+        if ($Force -or $PSCmdlet.ShouldProcess($target, 'Recycle existing page (re-provision will recreate)')) {
+            Write-Host "  [EXISTS] Page '$PageName.aspx' exists — removing for clean recreation..." -ForegroundColor Yellow
+            Remove-ExistingSearchPage -BaseSiteUrl $SiteUrl -TargetPageName $PageName
+        } else {
+            Write-Host "  Skipped recycling existing '$PageName.aspx'. Re-run with -Force to bypass the prompt, or with -WhatIf to preview." -ForegroundColor Yellow
+            return
+        }
     }
 
     # Create the page with Article layout (standard content page)
