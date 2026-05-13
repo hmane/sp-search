@@ -80,6 +80,12 @@ export interface ISpSearchResultsWebPartProps {
   showDeleteConfirmation: boolean;
   enablePreviewPanel: boolean;
   hideWebPartWhenNoResults: boolean;
+  /**
+   * Admin-supplied HTML rendered in place of the default contextual empty
+   * state when a search returns zero results. Empty = use the default
+   * messaging. Sanitized via spfx-toolkit's `sanitizeHtml` before render.
+   */
+  emptyResultsMessage: string;
   titleDisplayMode: TitleDisplayMode;
   // Stream C / #7 — result link behaviour. Defaults preserve today's behaviour:
   // 'panel' keeps the existing DocumentTitleHoverCard Modal-for-previewables;
@@ -181,6 +187,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         showDeleteConfirmation: this.properties.showDeleteConfirmation !== false,
         enablePreviewPanel: this.properties.enablePreviewPanel !== false,
         hideWebPartWhenNoResults: this.properties.hideWebPartWhenNoResults === true,
+        emptyResultsMessage: this.properties.emptyResultsMessage || '',
         titleDisplayMode: this.properties.titleDisplayMode || 'wrap',
         defaultLayout: this.properties.defaultLayout,
         pageSize: this.properties.pageSize,
@@ -1274,6 +1281,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.HideWebPartWhenNoResultsLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
+                }),
+                PropertyPaneTextField('emptyResultsMessage', {
+                  label: strings.EmptyResultsMessageLabel,
+                  description: strings.EmptyResultsMessageDescription,
+                  multiline: true,
+                  rows: 4,
+                  resizable: true
                 }),
               ]
             },

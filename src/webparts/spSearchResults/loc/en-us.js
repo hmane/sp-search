@@ -105,6 +105,8 @@ define([], function() {
     "DocumentLinkModePropertiesFormText": "Its properties form (DispForm)",
     "ListItemLinkModeLabel": "For list-item results, the link opens",
     "ListItemLinkModeDisplayFormText": "The display form (view)",
-    "ListItemLinkModeEditFormText": "The edit form"
+    "ListItemLinkModeEditFormText": "The edit form",
+    "EmptyResultsMessageLabel": "Custom empty-results message (HTML)",
+    "EmptyResultsMessageDescription": "HTML shown when a search returns no results. Leave blank to use the default contextual message. Script tags and event handlers are stripped before render."
   }
 });

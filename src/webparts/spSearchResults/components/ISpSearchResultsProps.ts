@@ -24,6 +24,8 @@ export interface ISpSearchResultsProps {
   showDeleteConfirmation: boolean;
   enablePreviewPanel: boolean;
   hideWebPartWhenNoResults: boolean;
+  /** Admin-supplied HTML rendered in place of the default zero-result empty state. Empty = use default. */
+  emptyResultsMessage: string;
   titleDisplayMode: TitleDisplayMode;
   defaultLayout: string;
   pageSize: number;

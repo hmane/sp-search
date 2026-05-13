@@ -1228,6 +1228,24 @@
   text-align: center;
 }
 
+// Container for admin-supplied HTML in the empty state. Inherits theme colours
+// from the wrapper; max-width keeps long messages readable.
+.emptyCustom {
+  font-size: 14px;
+  color: "[theme:bodyText, default: #323130]";
+  max-width: 560px;
+  text-align: center;
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 8px 0;
+  }
+
+  a {
+    color: "[theme:link, default: #0078d4]";
+  }
+}
+
 // Recovery section shown when active filters are the likely cause.
 .emptyRecovery {
   display: flex;

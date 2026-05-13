@@ -4,6 +4,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
+import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
 import { lazyBridge } from '../../../utilities/lazyBridge';
 import type { ISpSearchResultsProps } from './ISpSearchResultsProps';
 import {
@@ -389,6 +390,10 @@ const PromotedResultsSection: React.FC<{ items: IPromotedResultItem[] }> = funct
 interface IEmptyStateProps {
   queryText: string;
   hasActiveFilters: boolean;
+  /** True once a search has executed — gates the custom-HTML message off the initial page state. */
+  hasSearched: boolean;
+  /** Admin-supplied HTML rendered when set + a search returned zero results. Sanitized via sanitizeHtml. */
+  customMessage: string;
   onClearFilters: () => void;
   onReset: () => void;
 }
@@ -401,7 +406,32 @@ interface IEmptyStateProps {
  * Always offers a hard reset to wipe all state and start fresh.
  */
 const EmptyState: React.FC<IEmptyStateProps> = (emptyProps) => {
-  const { queryText, hasActiveFilters, onClearFilters, onReset } = emptyProps;
+  const { queryText, hasActiveFilters, hasSearched, customMessage, onClearFilters, onReset } = emptyProps;
+
+  // Admin-supplied HTML wins when a search returned zero results — the recovery
+  // buttons stay so users still get "clear filters" / "start over".
+  if (hasSearched && customMessage) {
+    return (
+      <div className={styles.emptyState} role="status">
+        <div
+          className={styles.emptyCustom}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(customMessage) }}
+        />
+        {hasActiveFilters && (
+          <div className={styles.emptyRecovery}>
+            <button className={styles.emptyRecoveryButton} onClick={onClearFilters} type="button">
+              Clear all filters
+            </button>
+          </div>
+        )}
+        {(queryText || hasActiveFilters) && (
+          <button className={styles.emptyResetLink} onClick={onReset} type="button">
+            Start over
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Context-aware empty state messaging
   let title: React.ReactNode;
@@ -463,6 +493,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     showDeleteConfirmation,
     enablePreviewPanel,
     hideWebPartWhenNoResults,
+    emptyResultsMessage,
     titleDisplayMode,
     isEditMode,
     defaultLayout,
@@ -614,6 +645,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
         <EmptyState
           queryText={queryText}
           hasActiveFilters={activeFilters.length > 0}
+          hasSearched={hasSearched}
+          customMessage={emptyResultsMessage}
           onClearFilters={handleClearAllFilters}
           onReset={handleReset}
         />
