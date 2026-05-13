@@ -1,6 +1,14 @@
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
-const GRAPH_MEMBER_OF_URL = 'https://graph.microsoft.com/v1.0/me/memberOf?$select=id,@odata.type';
+// `/me/memberOf` returns a heterogeneous Collection(directoryObject). `@odata.type`
+// is an OData annotation, NOT a selectable property — putting it in `$select` makes
+// Graph reject the request with HTTP 400. It is emitted automatically for the
+// derived types (group / directoryRole / …), so `$select=id` alone keeps the type
+// discriminator below working.
+// NOTE: this call also needs a Graph permission the package does not yet declare
+// (only `People.Read` is in `webApiPermissionRequests`); until that is added +
+// admin-approved this still returns [] (fail-closed). Tracked as a Stream D prereq.
+const GRAPH_MEMBER_OF_URL = 'https://graph.microsoft.com/v1.0/me/memberOf?$select=id';
 
 /** Cached group IDs — groups don't change mid-session */
 let cachedGroupIds: string[] | undefined;
