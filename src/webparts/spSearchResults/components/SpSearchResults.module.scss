@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/rowSurface.scss';
 
 // ─── Container ──────────────────────────────────────────────
 .spSearchResults {
@@ -18,8 +19,8 @@
   margin-bottom: 12px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   background-color: var(--neutralLighterAlt, #faf9f8);
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
-  border: 1px solid var(--neutralLight, #edebe9);
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border: 1px solid var(--neutralLighter, #f3f2f1);
   border-radius: 6px;
   font-size: 14px;
   color: "[theme:neutralSecondary, default: #605e5c]";
@@ -159,7 +160,7 @@
   }
 
   &:hover {
-    background-color: "[theme:neutralLight, default: #edebe9]";
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
     color: "[theme:bodyText, default: #323130]";
   }
 
@@ -282,7 +283,7 @@
   justify-content: space-between;
   padding: 6px 0;
   margin-bottom: 4px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -305,7 +306,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 999px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
   color: "[theme:bodyText, default: #323130]";
@@ -422,7 +423,7 @@
   padding: 10px 12px;
   border-radius: 6px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 12px;
   line-height: 18px;
   color: "[theme:bodySubtext, default: #605e5c]";
@@ -443,13 +444,10 @@
   display: flex;
   align-items: flex-start;
   padding: 12px 10px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 }
 
 .resultCardSelected {
@@ -467,7 +465,8 @@
   opacity: 0;
   transition: opacity 150ms ease;
 
-  .resultCard:hover & {
+  .resultCard:hover &,
+  .resultCard:focus-within & {
     opacity: 1;
   }
 }
@@ -536,7 +535,7 @@
 
 .hoverCardDivider {
   border: none;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   margin: 12px -16px;
 }
 
@@ -675,7 +674,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   flex-shrink: 0;
 }
 
@@ -718,7 +717,7 @@
   align-items: center;
   gap: 4px;
   padding: 8px 16px;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   flex-shrink: 0;
 }
@@ -923,7 +922,7 @@
 // ─── Compact Layout ─────────────────────────────────────────
 .compactTable {
   width: 100%;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow: hidden;
 }
@@ -938,7 +937,7 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: "[theme:neutralSecondary, default: #605e5c]";
-  border-bottom: 2px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   user-select: none;
   width: 100%;
@@ -967,29 +966,22 @@
   display: grid;
   align-items: start;
   padding: 7px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 13px;
-  transition: background-color 150ms ease;
   cursor: default;
   gap: 12px;
   width: 100%;
   box-sizing: border-box;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
-
+  // Zebra at rest — a row-tracking aid for the dense compact view, kept now that
+  // the separator border is gone (Stream C / #9).
   &:nth-child(even) {
     background-color: rgba(0, 0, 0, 0.01);
-
-    &:hover {
-      background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-    }
   }
+
+  // No separator border; hover/focus carries the affordance. Declared after the
+  // zebra rule so the hover background wins (equal specificity → source order).
+  @include interactive-row;
 }
 
 .compactIcon {
@@ -1399,7 +1391,7 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   background-color: "[theme:white, default: #ffffff]";
   transition: box-shadow 200ms ease, border-color 200ms ease;
@@ -1791,7 +1783,7 @@
 // ─── Detail Panel: Preview ──────────────────────────────────
 .detailPanelPreview {
   position: relative;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow: hidden;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
@@ -1815,7 +1807,7 @@
   gap: 12px;
   padding: 32px 16px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
   text-align: center;
@@ -1829,7 +1821,7 @@
 
 // ─── Detail Panel: Author & Dates ──────────────────────────
 .detailPanelAuthorSection {
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -1886,7 +1878,7 @@
 
 // ─── Detail Panel: Properties ───────────────────────────────
 .detailPanelPropsSection {
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
 }
 
@@ -1949,7 +1941,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
 }
 
@@ -2071,7 +2063,7 @@
   overflow: hidden;
   background-color: "[theme:white, default: #ffffff]";
   background-color: var(--white, #ffffff);
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
 
@@ -2316,7 +2308,7 @@
 .galleryItem {
   display: flex;
   flex-direction: column;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   overflow: hidden;
   background-color: "[theme:white, default: #ffffff]";

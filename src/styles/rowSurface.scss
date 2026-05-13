@@ -1,0 +1,33 @@
+// Stream C / #9 — separator softening (design: docs/superpowers/specs/2026-05-12-separator-softening-design.md).
+//
+// Standard treatment for an interactive row in a list (result cards, compact
+// rows, Search Manager list rows, filter-option rows, …). The row has NO
+// border at rest — separation is the row's own padding; hover / keyboard-focus
+// carries the "you can interact with this" affordance.
+//
+// Apply with `@include interactive-row;` on the row class (after any
+// `&:nth-child(...)` zebra rules so the hover background wins on equal
+// specificity), remove that class's `border-bottom` (and any
+// `:last-child { border-bottom: none; }`), and keep/add a
+// `transition: background-color 150ms ease, box-shadow 150ms ease;` declaration
+// on the row so the hover state animates. The mixin itself contains only nested
+// rules — no bare declarations — so it never triggers Sass's `mixed-decls`
+// deprecation regardless of where it is `@include`d.
+//
+// Colours use the modern SharePoint CSS custom properties (with hex fallbacks).
+// Reduced-motion: drop the transition under `prefers-reduced-motion`
+// (Found.D6 / T1.D9 surface-by-surface).
+
+@mixin interactive-row {
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+
+  &:hover,
+  &:focus-within {
+    // Clear, but still light. Was the barely-visible neutralLighterAlt (#faf9f8).
+    background-color: var(--neutralLighter, #f3f2f1);
+    // Left accent via inset shadow — no layout shift (vs a real left border).
+    box-shadow: inset 3px 0 0 0 var(--themePrimary, #0078d4);
+  }
+}

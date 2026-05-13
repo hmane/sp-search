@@ -18,7 +18,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 0 12px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   margin-bottom: 8px;
 }
 
@@ -94,7 +94,7 @@
 
 .filterGroupCard {
   margin-bottom: 0;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   box-shadow: none;
 
@@ -362,7 +362,7 @@
   display: flex;
   justify-content: flex-end;
   padding: 12px 0 4px;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   margin-top: 8px;
 }
 
@@ -393,7 +393,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
 }
 
@@ -534,7 +534,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
 }
@@ -778,7 +778,7 @@
 }
 
 .visualFilterBuilderPanel {
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background-color: "[theme:white, default: #ffffff]";
   padding: 12px;

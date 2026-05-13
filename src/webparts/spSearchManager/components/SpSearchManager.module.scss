@@ -15,7 +15,7 @@
   justify-content: space-between;
   padding: 12px 0;
   margin-bottom: 4px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   gap: 12px;
 }
 
@@ -43,7 +43,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:white, default: #ffffff]";
   color: "[theme:bodyText, default: #323130]";
@@ -141,7 +141,7 @@
   padding: 12px 14px;
   border-radius: 8px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 13px;
   line-height: 20px;
   color: "[theme:bodySubtext, default: #605e5c]";
@@ -393,7 +393,7 @@
   padding: 1px 8px;
   border-radius: 999px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   color: "[theme:bodyText, default: #323130]";
   font-size: 11px;
   font-weight: 600;
@@ -414,7 +414,7 @@
   justify-content: flex-end;
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 }
 
 // ─── Collections ───────────────────────────────────────────
@@ -597,7 +597,7 @@
   justify-content: flex-end;
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 }
 
 // ─── Empty States ──────────────────────────────────────────
@@ -702,7 +702,7 @@
   gap: 6px;
   padding: 10px 12px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   font-size: 13px;
 }
@@ -871,7 +871,7 @@
   :global {
     .ms-TextField-fieldGroup {
       height: 24px;
-      border: 1px solid "[theme:neutralLight, default: #edebe9]";
+      border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
       border-radius: 12px;
     }
 
@@ -998,7 +998,7 @@
 
 .coverageSummarySection {
   padding: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
 }
@@ -1078,7 +1078,7 @@
 
 .coverageSummaryCard {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:white, default: #ffffff]";
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -1112,7 +1112,7 @@
 .coverageQueryBox {
   padding: 14px 16px;
   margin-bottom: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
 }
@@ -1152,7 +1152,7 @@
 }
 
 .coverageTable {
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1165,7 +1165,7 @@
   min-width: 980px;
   padding: 0 12px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 
   > div {
     padding: 9px 6px;
@@ -1227,7 +1227,7 @@
 
 .coverageMissingSection {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:white, default: #ffffff]";
 }
@@ -1270,7 +1270,7 @@
 
 // ─── Zero-Result Table ──────────────────────────────────────
 .zeroResultsTable {
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1279,7 +1279,7 @@
   display: grid;
   grid-template-columns: 1fr 90px 140px 90px 80px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding: 0 12px;
 
   > div {
@@ -1411,7 +1411,7 @@
 
 .insightStatCard {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background: "[theme:white, default: #ffffff]";
   text-align: center;
@@ -1472,7 +1472,7 @@
 // ─── Section block ────────────────────────────────────────────
 .insightSection {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background: "[theme:white, default: #ffffff]";
 }
