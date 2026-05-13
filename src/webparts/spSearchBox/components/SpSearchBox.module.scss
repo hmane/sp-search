@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Outer container (positions suggestions dropdown) ────
 .searchBoxOuter {
@@ -787,8 +788,8 @@
   text-align: center;
 }
 
-// ─── Responsive ──────────────────────────────────────────
-@media (max-width: 480px) {
+// ─── Responsive (T1.D2 — uses the shared `mobile-and-below` breakpoint) ────
+@include mobile-and-below {
   .searchBoxContainer {
     max-width: 100%;
     padding: 8px 0;

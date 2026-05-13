@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Root Container ────────────────────────────────────────
 .spSearchVerticals {
@@ -191,8 +192,8 @@
   }
 }
 
-// ─── Responsive: mobile horizontal scroll ──────────────────
-@media (max-width: 640px) {
+// ─── Responsive: mobile horizontal scroll (T1.D2) ──────────────────
+@include mobile-and-below {
   .tabContainer {
     padding: 0 8px;
   }

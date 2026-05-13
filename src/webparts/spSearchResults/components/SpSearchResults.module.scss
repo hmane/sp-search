@@ -1,5 +1,6 @@
 @import '~@fluentui/react/dist/sass/References.scss';
 @import '../../../styles/rowSurface.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Container ──────────────────────────────────────────────
 .spSearchResults {
@@ -1374,11 +1375,11 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 1023px) {
+  @include tablet-and-below {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: 1fr;
   }
 }
@@ -1429,7 +1430,7 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: 1fr;
   }
 }
@@ -2384,11 +2385,11 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 1023px) {
+  @include tablet-and-below {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -2525,7 +2526,7 @@
 }
 
 // ─── Responsive ─────────────────────────────────────────────
-@media (max-width: 639px) {
+@include mobile-and-below {
   .resultThumbnail {
     width: 44px;
     height: 44px;
