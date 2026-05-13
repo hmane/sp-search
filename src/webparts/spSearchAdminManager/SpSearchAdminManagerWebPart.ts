@@ -18,4 +18,9 @@ export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart 
     await super.onInit();
     DebugCollector.registerWebPart('SPSearchAdminManagerWebPart', this.properties as unknown as Record<string, unknown>);
   }
+
+  /** T3.D2 — surface name shown in the mismatch banner. */
+  protected _getWebPartLabel(): string {
+    return 'SP Search Admin Manager';
+  }
 }
