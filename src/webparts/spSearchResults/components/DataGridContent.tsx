@@ -14,14 +14,19 @@ import { formatRelativeDate, formatDateTime, formatFileSize, buildFormUrl, build
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
-import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import {
+  IColumnConfigItem,
+  ColumnRenderer,
+  normalizeColumnConfigItem,
+} from './ColumnConfigField/columnConfig';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridContentProps {
   items: ISearchResult[];
-  selectedPropertyColumns: ISelectedPropertyColumn[];
+  /** Stream B / Phase 1 — full IColumnConfigItem[] (alias / width / renderer / etc.). */
+  columns: IColumnConfigItem[];
   titleDisplayMode: TitleDisplayMode;
   /** Total result count from the store — used to decide whether to activate virtual scrolling. */
   totalCount: number;
@@ -67,12 +72,12 @@ interface IItemPermissionState {
   canDelete: boolean;
 }
 
-const DEFAULT_COLUMNS: ISelectedPropertyColumn[] = [
-  { property: 'Author', alias: 'Author' },
-  { property: 'LastModifiedTime', alias: 'Modified' },
-  { property: 'FileType', alias: 'Type' },
-  { property: 'Size', alias: 'Size' },
-  { property: 'SiteTitle', alias: 'Site' }
+const DEFAULT_COLUMNS: IColumnConfigItem[] = [
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-0', property: 'Author', alias: 'Author' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-1', property: 'LastModifiedTime', alias: 'Modified' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-2', property: 'FileType', alias: 'Type' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-3', property: 'Size', alias: 'Size' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-4', property: 'SiteTitle', alias: 'Site' }),
 ];
 
 const GRID_HEADER_HEIGHT = 44;
@@ -107,10 +112,17 @@ function getInitialsColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function getConfiguredColumns(selectedPropertyColumns: ISelectedPropertyColumn[]): ISelectedPropertyColumn[] {
-  const source = [{ property: 'Title', alias: 'Name' }, ...(selectedPropertyColumns.length > 0 ? selectedPropertyColumns : DEFAULT_COLUMNS)];
+const TITLE_COLUMN: IColumnConfigItem = normalizeColumnConfigItem({
+  uniqueId: 'dx-title',
+  property: 'Title',
+  alias: 'Name',
+  visibility: 'always',
+});
+
+function getConfiguredColumns(columns: IColumnConfigItem[]): IColumnConfigItem[] {
+  const source = [TITLE_COLUMN, ...(columns.length > 0 ? columns : DEFAULT_COLUMNS)];
   const seen = new Set<string>();
-  const unique: ISelectedPropertyColumn[] = [];
+  const unique: IColumnConfigItem[] = [];
 
   for (let i: number = 0; i < source.length; i++) {
     const property = (source[i].property || '').trim();
@@ -122,37 +134,85 @@ function getConfiguredColumns(selectedPropertyColumns: ISelectedPropertyColumn[]
       continue;
     }
     seen.add(lookupKey);
-    unique.push({
-      property,
-      alias: (source[i].alias || '').trim()
-    });
+    unique.push(source[i]);
   }
 
   return unique;
 }
 
-function getColumnConfig(property: string, alias: string): IGridColumnConfig {
+/**
+ * Auto-detect a column's kind by property name. This is the pre-Phase-1
+ * behaviour, reachable when `IColumnConfigItem.renderer === ''` (the migration
+ * sentinel) and for the Title column.
+ */
+function autoDetectColumnKind(property: string): { kind: ColumnKind; width?: number; minWidth?: number; alignment?: 'left' | 'center' | 'right' } {
   const normalized = property.toLowerCase();
 
   if (normalized === 'title' || normalized === 'filename') {
-    return { property, caption: alias || 'Name', kind: 'title', minWidth: 220 };
+    return { kind: 'title', minWidth: 220 };
   }
   if (normalized === 'author' || normalized === 'authorowsuser' || normalized === 'displayauthor') {
-    return { property, caption: alias || 'Author', kind: 'author', width: 180 };
+    return { kind: 'author', width: 180 };
   }
   if (normalized === 'lastmodifiedtime' || normalized === 'modified' || normalized === 'created') {
-    return { property, caption: alias || property, kind: 'date', width: 140 };
+    return { kind: 'date', width: 140 };
   }
   if (normalized === 'filetype' || normalized === 'fileextension') {
-    return { property, caption: alias || 'Type', kind: 'fileType', width: 80, alignment: 'center' };
+    return { kind: 'fileType', width: 80, alignment: 'center' };
   }
   if (normalized === 'size' || normalized === 'filesize') {
-    return { property, caption: alias || 'Size', kind: 'fileSize', width: 90, alignment: 'right' };
+    return { kind: 'fileSize', width: 90, alignment: 'right' };
   }
   if (normalized === 'path' || normalized.indexOf('url') >= 0 || normalized.indexOf('link') >= 0) {
-    return { property, caption: alias || property, kind: 'url', minWidth: 220 };
+    return { kind: 'url', minWidth: 220 };
   }
-  return { property, caption: alias || property, kind: 'text', minWidth: 140 };
+  return { kind: 'text', minWidth: 140 };
+}
+
+/**
+ * Map an explicit `IColumnConfigItem.renderer` choice onto a Phase-1 cell
+ * renderer kind. Phase-2 renderer values (`richText`, `tags`, `number`,
+ * `boolean`) fall through to `text` here — their dedicated renderers land in
+ * the next phase. `''` defers to the auto-detect path so migrated items
+ * render identically to today.
+ */
+function kindFromRenderer(renderer: ColumnRenderer, property: string): { kind: ColumnKind; width?: number; minWidth?: number; alignment?: 'left' | 'center' | 'right' } {
+  switch (renderer) {
+    case 'text':     return { kind: 'text', minWidth: 140 };
+    case 'date':     return { kind: 'date', width: 140 };
+    case 'fileType': return { kind: 'fileType', width: 80, alignment: 'center' };
+    case 'fileSize': return { kind: 'fileSize', width: 90, alignment: 'right' };
+    case 'url':      return { kind: 'url', minWidth: 220 };
+    case 'persona':  return { kind: 'author', width: 180 };
+    // Phase-2 renderers — fall through to plain text until their dedicated dispatch lands.
+    case 'richText':
+    case 'number':
+    case 'tags':
+    case 'boolean':
+      return { kind: 'text', minWidth: 140 };
+    case '':
+    default:
+      return autoDetectColumnKind(property);
+  }
+}
+
+function getColumnConfig(column: IColumnConfigItem): IGridColumnConfig {
+  const property = column.property;
+  const isTitle = property.toLowerCase() === 'title' || property.toLowerCase() === 'filename';
+  // Title always renders via the title cell renderer regardless of admin choice.
+  const dispatch = isTitle ? autoDetectColumnKind(property) : kindFromRenderer(column.renderer, property);
+  const alias = (column.alias || '').trim();
+  const caption = alias || property;
+  const adminWidth = column.width;
+
+  return {
+    property,
+    caption,
+    kind: dispatch.kind,
+    width: adminWidth !== undefined ? adminWidth : dispatch.width,
+    minWidth: dispatch.minWidth,
+    alignment: dispatch.alignment,
+  };
 }
 
 function resolvePropertyValue(item: ISearchResult, property: string): unknown {
@@ -484,7 +544,7 @@ async function loadItemPermissions(item: ISearchResult): Promise<IItemPermission
 const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   const {
     items,
-    selectedPropertyColumns,
+    columns,
     titleDisplayMode,
     totalCount,
     pageSize,
@@ -537,10 +597,8 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   }, [isFullscreen]);
 
   const columnConfigs = React.useMemo(
-    (): IGridColumnConfig[] => getConfiguredColumns(selectedPropertyColumns).map((column) => {
-      return getColumnConfig(column.property, column.alias);
-    }),
-    [selectedPropertyColumns]
+    (): IGridColumnConfig[] => getConfiguredColumns(columns).map(getColumnConfig),
+    [columns]
   );
 
   const gridData = React.useMemo(

@@ -42,12 +42,12 @@
         { "uniqueId": "starter-compact-3", "property": "FileType", "alias": "Type" }
       ],
       "gridPropertiesCollection": [
-        { "uniqueId": "starter-grid-0", "property": "Author" },
-        { "uniqueId": "starter-grid-1", "property": "LastModifiedTime" },
-        { "uniqueId": "starter-grid-2", "property": "FileType" },
-        { "uniqueId": "starter-grid-3", "property": "Size" },
-        { "uniqueId": "starter-grid-4", "property": "Path" },
-        { "uniqueId": "starter-grid-5", "property": "SiteName" }
+        { "uniqueId": "starter-grid-0", "property": "Author",           "alias": "Author",   "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-1", "property": "LastModifiedTime", "alias": "Modified", "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-2", "property": "FileType",         "alias": "Type",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-3", "property": "Size",             "alias": "Size",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-4", "property": "Path",             "alias": "URL",      "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-5", "property": "SiteName",         "alias": "Site",     "visibility": "defaultOn", "renderer": "" }
       ],
       "refinementFilters": "",
       "refinementFiltersCollection": [],

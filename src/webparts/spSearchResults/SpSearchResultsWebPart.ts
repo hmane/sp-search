@@ -23,6 +23,12 @@ import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControls
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
 import { ISpSearchResultsProps, ISelectedPropertyColumn } from './components/ISpSearchResultsProps';
+import {
+  IColumnConfigItem,
+  ILegacyColumnItem,
+  normalizeColumnConfigItem,
+} from './components/ColumnConfigField/columnConfig';
+import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/ColumnConfigField';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -52,7 +58,12 @@ export interface ISpSearchResultsWebPartProps {
   selectedProperties: string;
   selectedPropertiesCollection: ISelectedPropertyItem[];
   compactPropertiesCollection: ILayoutPropertyItem[];
-  gridPropertiesCollection: ILayoutPropertyItem[];
+  /**
+   * Stream B / Phase 1 — column-config items, replacing the legacy
+   * `ILayoutPropertyItem` shape. Migration is handled at read time by
+   * `normalizeColumnConfigItem`, so stored pages don't need to be migrated.
+   */
+  gridPropertiesCollection: IColumnConfigItem[];
   resultSourceId: string;
   refinementFilters: string;
   refinementFiltersCollection: IRefinementFilterItem[];
@@ -155,7 +166,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
     const selectedPropertyColumns: ISelectedPropertyColumn[] = this._getSelectedPropertyColumns();
     const compactPropertyColumns: ISelectedPropertyColumn[] = this._getCompactPropertyColumns();
-    const gridPropertyColumns: ISelectedPropertyColumn[] = this._getGridPropertyColumns();
+    const gridPropertyColumns: IColumnConfigItem[] = this._getGridPropertyColumns();
     const contextId: string = this.properties.searchContextId || 'default';
     const element: React.ReactElement<ISpSearchResultsProps> = React.createElement(
       SpSearchResults,
@@ -322,8 +333,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     return this._mapLayoutPropertyColumns(this._getCompactLayoutProperties());
   }
 
-  private _getGridPropertyColumns(): ISelectedPropertyColumn[] {
-    return this._mapLayoutPropertyColumns(this._getGridLayoutProperties());
+  private _getGridPropertyColumns(): IColumnConfigItem[] {
+    return this._getGridLayoutProperties();
   }
 
   private _normalizeSelectedPropertiesCollection(): ISelectedPropertyItem[] {
@@ -427,14 +438,69 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     return normalized;
   }
 
-  private _getGridLayoutProperties(): ILayoutPropertyItem[] {
-    const raw = normalizeCollectionValue<ILayoutPropertyItem>(this.properties.gridPropertiesCollection);
-    const selected = this._normalizeSelectedPropertiesCollection()
-      .map((item) => item.property)
-      .filter((property) => !isTitleProperty(property));
-    const normalized = this._normalizeLayoutPropertyCollection(raw, selected);
-    this.properties.gridPropertiesCollection = normalized;
-    return normalized;
+  private _getGridLayoutProperties(): IColumnConfigItem[] {
+    // Stream B / Phase 1 — accepts both legacy `{ uniqueId, property }` items
+    // and the new `IColumnConfigItem` shape. Whichever is on disk is wrapped
+    // via `normalizeColumnConfigItem`; missing aliases are seeded from
+    // `selectedPropertiesCollection` so out-of-box display labels (e.g.
+    // "Modified", "Type") survive migration.
+    const raw = normalizeCollectionValue<Partial<IColumnConfigItem> & ILegacyColumnItem>(
+      this.properties.gridPropertiesCollection as unknown as Array<Partial<IColumnConfigItem> & ILegacyColumnItem>
+    );
+
+    const masterAliasMap = new Map<string, { property: string; alias: string }>();
+    const master = this._normalizeSelectedPropertiesCollection();
+    for (let i: number = 0; i < master.length; i++) {
+      const property = master[i].property;
+      if (!isTitleProperty(property)) {
+        masterAliasMap.set(property.toLowerCase(), {
+          property,
+          alias: master[i].alias || property,
+        });
+      }
+    }
+
+    const result: IColumnConfigItem[] = [];
+    const seen = new Set<string>();
+
+    for (let i: number = 0; i < raw.length; i++) {
+      const property = String(raw[i].property || '').trim();
+      const lookup = property.toLowerCase();
+      if (!property || isTitleProperty(property) || seen.has(lookup) || !masterAliasMap.has(lookup)) {
+        continue;
+      }
+      seen.add(lookup);
+
+      const normalized: IColumnConfigItem = normalizeColumnConfigItem(raw[i]);
+      // Seed alias from the master collection when the column item carries no
+      // explicit alias (i.e. legacy items where normalizer fell back to property).
+      const aliasOnRaw = typeof raw[i].alias === 'string' ? String(raw[i].alias).trim() : '';
+      if (!aliasOnRaw) {
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry && masterEntry.alias && masterEntry.alias !== property) {
+          normalized.alias = masterEntry.alias;
+        }
+      }
+      result.push(normalized);
+    }
+
+    // Fallback: seed from selectedPropertiesCollection when no grid items configured.
+    if (result.length === 0) {
+      let idx = 0;
+      masterAliasMap.forEach((entry) => {
+        result.push(
+          normalizeColumnConfigItem({
+            uniqueId: 'lp-fallback-' + String(idx),
+            property: entry.property,
+            alias: entry.alias,
+          })
+        );
+        idx++;
+      });
+    }
+
+    this.properties.gridPropertiesCollection = result;
+    return result;
   }
 
   private _mapLayoutPropertyColumns(layoutProperties: ILayoutPropertyItem[]): ISelectedPropertyColumn[] {
@@ -750,7 +816,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
     this.properties.gridPropertiesCollection = preset.selectedProperties
       .filter((p) => !isTitleProperty(p.property))
-      .map((p, idx) => ({ uniqueId: 'preset-grid-' + String(idx), property: p.property }));
+      .map((p, idx) =>
+        normalizeColumnConfigItem({
+          uniqueId: 'preset-grid-' + String(idx),
+          property: p.property,
+          alias: p.alias,
+        })
+      );
 
     // Sortable properties — map to the collection format
     this.properties.sortablePropertiesCollection = preset.sortableProperties.map(
@@ -1161,22 +1233,14 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             ...(this.properties.showGridLayout !== false ? [{
               groupName: strings.GridViewGroupName,
               groupFields: [
-                PropertyFieldCollectionData('gridPropertiesCollection', {
-                  key: 'gridPropertiesCollection',
+                // Stream B / Phase 1 — custom column-config field with a
+                // side-panel editor in place of PnP's flat collection-data
+                // table. The Phase-1 dropdown exposes today's ColumnKind
+                // values explicitly; Phase 2 adds richText / tags / etc.
+                PropertyPaneColumnConfigField('gridPropertiesCollection', {
                   label: strings.GridPropertiesLabel,
-                  panelHeader: strings.GridPropertiesPanelHeader,
-                  manageBtnLabel: strings.GridPropertiesManageBtn,
                   value: this._getGridLayoutProperties(),
-                  enableSorting: true,
-                  fields: [
-                    {
-                      id: 'property',
-                      title: strings.SelectedPropertyColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: true,
-                      options: this._getLayoutPropertyOptions()
-                    }
-                  ]
+                  availableProperties: this._getLayoutPropertyOptions(),
                 })
               ]
             }] : []),

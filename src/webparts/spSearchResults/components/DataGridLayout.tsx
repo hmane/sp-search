@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index';
 import DataGridContent from './DataGridContent';
-import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import type { IColumnConfigItem } from './ColumnConfigField/columnConfig';
 import { TitleDisplayMode } from './documentTitleUtils';
 import type { IResultLinkConfig } from './resultLink';
 import styles from './SpSearchResults.module.scss';
@@ -9,7 +9,7 @@ import styles from './SpSearchResults.module.scss';
 export interface IDataGridLayoutProps {
   items: ISearchResult[];
   searchContextId: string;
-  gridPropertyColumns: ISelectedPropertyColumn[];
+  gridPropertyColumns: IColumnConfigItem[];
   titleDisplayMode: TitleDisplayMode;
   totalCount: number;
   pageSize: number;
@@ -101,7 +101,7 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
         <DataGridContent
           items={props.items}
           searchContextId={props.searchContextId}
-          selectedPropertyColumns={props.gridPropertyColumns}
+          columns={props.gridPropertyColumns}
           titleDisplayMode={props.titleDisplayMode}
           totalCount={props.totalCount}
           pageSize={props.pageSize}

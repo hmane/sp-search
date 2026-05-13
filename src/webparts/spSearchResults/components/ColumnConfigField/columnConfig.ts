@@ -1,0 +1,120 @@
+/**
+ * Stream B / Phase 1 — column-config schema for the DataGrid layout.
+ *
+ * Replaces the legacy `{ uniqueId, property }` shape on
+ * `gridPropertiesCollection`. The renderer union covers Phases 1-3 so a
+ * Phase-2 saved value (`richText`, `tags`, etc.) round-trips through a
+ * Phase-1 build without being reset; the Phase-1 DataGrid renderer falls
+ * back to auto-detect for renderer values it doesn't yet handle.
+ *
+ * Spec: docs/superpowers/specs/2026-05-13-stream-b-column-config-design.md
+ */
+
+export type ColumnVisibility = 'always' | 'defaultOn' | 'defaultOff';
+
+/** Empty string is the migration sentinel — routes through today's auto-detect path. */
+export type ColumnRenderer =
+  | ''
+  | 'text'
+  | 'richText'
+  | 'date'
+  | 'number'
+  | 'fileSize'
+  | 'persona'
+  | 'tags'
+  | 'boolean'
+  | 'url'
+  | 'fileType';
+
+export type MultiValueSeparator = 'comma' | 'newline' | 'semicolon' | 'pill';
+
+export interface IColumnConfigItem {
+  uniqueId: string;
+  property: string;
+  alias: string;
+  width?: number;
+  visibility: ColumnVisibility;
+  renderer: ColumnRenderer;
+  maxLength?: number;
+  seeMoreLink?: boolean;
+  multiValueSeparator?: MultiValueSeparator;
+}
+
+/** Legacy shape stored by pre-Phase-1 pages. */
+export interface ILegacyColumnItem {
+  uniqueId?: string;
+  property?: string;
+}
+
+const VALID_VISIBILITIES: ColumnVisibility[] = ['always', 'defaultOn', 'defaultOff'];
+
+const VALID_RENDERERS: ColumnRenderer[] = [
+  '',
+  'text',
+  'richText',
+  'date',
+  'number',
+  'fileSize',
+  'persona',
+  'tags',
+  'boolean',
+  'url',
+  'fileType',
+];
+
+/** Renderers the Phase-1 editor exposes in its dropdown. Phase 2 adds the rest. */
+export const PHASE_1_RENDERERS: ColumnRenderer[] = [
+  '',
+  'text',
+  'date',
+  'fileType',
+  'fileSize',
+  'url',
+  'persona',
+];
+
+const VALID_SEPARATORS: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill'];
+
+let _uniqueIdSeq = 0;
+
+export function generateColumnUniqueId(): string {
+  _uniqueIdSeq = (_uniqueIdSeq + 1) % 1e9;
+  return 'col-' + Date.now().toString(36) + '-' + _uniqueIdSeq.toString(36);
+}
+
+function pickEnum<T extends string>(value: unknown, allowed: T[], fallback: T): T {
+  return typeof value === 'string' && (allowed as string[]).indexOf(value) >= 0 ? (value as T) : fallback;
+}
+
+function pickPositiveNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && isFinite(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * Migration normalizer. Wraps a legacy `{ uniqueId, property }` item or a
+ * partially-populated new-shape item with safe defaults. `renderer: ''` is
+ * the sentinel that routes through the existing auto-detect — every migrated
+ * page renders byte-for-byte identically until an admin opens the editor.
+ */
+export function normalizeColumnConfigItem(
+  raw: Partial<IColumnConfigItem> & ILegacyColumnItem
+): IColumnConfigItem {
+  const property = String(raw.property || '').trim();
+  const aliasRaw = typeof raw.alias === 'string' ? raw.alias.trim() : '';
+  const uniqueId = String(raw.uniqueId || '').trim() || generateColumnUniqueId();
+
+  return {
+    uniqueId,
+    property,
+    alias: aliasRaw || property,
+    width: pickPositiveNumber(raw.width),
+    visibility: pickEnum<ColumnVisibility>(raw.visibility, VALID_VISIBILITIES, 'defaultOn'),
+    renderer: pickEnum<ColumnRenderer>(raw.renderer, VALID_RENDERERS, ''),
+    maxLength: pickPositiveNumber(raw.maxLength),
+    seeMoreLink: typeof raw.seeMoreLink === 'boolean' ? raw.seeMoreLink : undefined,
+    multiValueSeparator:
+      typeof raw.multiValueSeparator === 'string' && VALID_SEPARATORS.indexOf(raw.multiValueSeparator) >= 0
+        ? raw.multiValueSeparator
+        : undefined,
+  };
+}
