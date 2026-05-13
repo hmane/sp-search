@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/rowSurface.scss';
 
 // ─── Main Container ────────────────────────────────────────
 .spSearchManager {
@@ -201,20 +202,17 @@
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 150ms ease, box-shadow 150ms ease;
   position: relative;
 
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-
-    .itemActions {
-      opacity: 1;
-    }
+  // Stream C / #9 — no separator at rest; hover/focus reveals the actions.
+  &:hover .itemActions,
+  &:focus-within .itemActions {
+    opacity: 1;
   }
+  @include interactive-row;
 }
 
 .savedSearchIcon {
@@ -340,13 +338,10 @@
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   cursor: pointer;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 }
 
 .historyIcon {
@@ -424,8 +419,10 @@
   padding: 0;
 }
 
+// Stream C / #9 — no separator between collection entries; the header below
+// carries the hover/focus affordance.
 .collectionItem {
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  position: relative;
 }
 
 .collectionHeader {
@@ -433,11 +430,8 @@
   align-items: center;
   padding: 10px 12px;
   cursor: pointer;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  @include interactive-row;
 }
 
 .collectionChevron {
@@ -1183,15 +1177,10 @@
   min-width: 980px;
   padding: 0 12px;
   align-items: start;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 
   > div {
     padding: 12px 6px;
@@ -1296,17 +1285,11 @@
   display: grid;
   grid-template-columns: 1fr 90px 140px 90px 80px;
   padding: 0 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   align-items: center;
-  transition: background-color 100ms ease;
+  transition: background-color 100ms ease, box-shadow 100ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 
   > div {
     padding: 10px 6px;
