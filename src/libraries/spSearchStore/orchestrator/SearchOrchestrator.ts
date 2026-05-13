@@ -9,6 +9,7 @@ import { SearchManagerService } from '@services/index';
 import { TokenService, ITokenContext } from '@services/TokenService';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { DebugCollector } from '../debug';
+import { spLog } from '@store/utils/spLog';
 
 /**
  * SearchOrchestrator — subscribes to store changes and triggers
@@ -281,21 +282,19 @@ export class SearchOrchestrator {
       // No provider yet — this is normal when the Filters or Verticals web part
       // initializes before the Results web part registers the data provider.
       // Skip silently; the Results web part will trigger a search after registering.
-      console.warn(
-        '[SP Search] Search skipped — no data provider registered.',
-        'Register a provider (e.g. SharePointSearchProvider) before calling triggerSearch().'
-      );
+      spLog.warn('Search skipped — no data provider registered. Register a provider (e.g. SharePointSearchProvider) before calling triggerSearch().');
       return;
     }
 
     if (!this._firstSearchCompleted) {
-      console.log(
-        '[SP Search] First search starting.',
-        'Provider:', provider.id,
-        '| Query:', state.queryText || '*',
-        '| Filters:', state.activeFilters.length,
-        '| Page:', state.currentPage
-      );
+      // T5.D6 — `queryText` is auto-redacted by spLog so the F12 console
+      // never sees a literal user query, even in debug mode.
+      spLog.info('First search starting', {
+        providerId: provider.id,
+        queryText: state.queryText,
+        activeFilterCount: state.activeFilters.length,
+        currentPage: state.currentPage,
+      });
     }
 
     // Create new AbortController for this search cycle
@@ -451,19 +450,19 @@ export class SearchOrchestrator {
 
       if (!this._firstSearchCompleted) {
         this._firstSearchCompleted = true;
-        console.log(
-          '[SP Search] First search complete.',
-          'Results:', response.items.length + '/' + adjustedTotal,
-          '| Time:', elapsed + 'ms',
-          '| Provider:', provider.id
-        );
+        spLog.info('First search complete', {
+          resultCount: response.items.length,
+          totalCount: adjustedTotal,
+          durationMs: elapsed,
+          providerId: provider.id,
+        });
       } else {
-        console.debug(
-          '[SP Search] Search complete.',
-          'Results:', response.items.length + '/' + adjustedTotal,
-          '| Time:', elapsed + 'ms',
-          '| Query:', state.queryText || '*'
-        );
+        spLog.debug('Search complete', {
+          resultCount: response.items.length,
+          totalCount: adjustedTotal,
+          durationMs: elapsed,
+          queryText: state.queryText,
+        });
       }
 
       // Fetch vertical counts in parallel
@@ -489,12 +488,11 @@ export class SearchOrchestrator {
         return;
       }
 
-      console.error(
-        '[SP Search] Search failed.',
-        'Provider:', provider.id,
-        '| Query:', state.queryText || '*',
-        '| Error:', error instanceof Error ? error.message : String(error)
-      );
+      spLog.error('Search failed', {
+        providerId: provider.id,
+        queryText: state.queryText,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       const message = error instanceof Error ? error.message : 'Search failed';
       state.setError(message);
       DebugCollector.logEvent('ERROR', {
