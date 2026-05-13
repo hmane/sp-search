@@ -109,10 +109,18 @@ export class SearchService {
    * ]
    * ```
    *
-   * @param activeFilters - The currently active filter selections.
+   * @param activeFilters         - The currently active filter selections.
+   * @param operatorBetweenFilters - Cross-property combinator. `AND` (the
+   *                                  default) returns one entry per group so
+   *                                  SharePoint's `RefinementFilters` API
+   *                                  ANDs them; `OR` wraps every group in a
+   *                                  single FQL `or()` (MISS-002).
    * @returns An array of refinement filter strings.
    */
-  public static buildRefinementFilters(activeFilters: IActiveFilter[]): string[] {
+  public static buildRefinementFilters(
+    activeFilters: IActiveFilter[],
+    operatorBetweenFilters: 'AND' | 'OR' = 'AND'
+  ): string[] {
     if (!activeFilters || activeFilters.length === 0) {
       return [];
     }
@@ -140,6 +148,15 @@ export class SearchService {
         refinementFilters.push(`${filterName}:or(${values.join(',')})`);
       }
     });
+
+    // MISS-002 — cross-property combinator. SharePoint Search ANDs items in
+    // the `RefinementFilters` array, so AND is "leave the array alone." For
+    // OR, wrap all groups in a single FQL `or(...)` clause and return one
+    // entry. A single-group OR is a no-op (the wrap would just duplicate the
+    // identical semantics) — return the lone entry untouched.
+    if (operatorBetweenFilters === 'OR' && refinementFilters.length > 1) {
+      return [`or(${refinementFilters.join(',')})`];
+    }
 
     return refinementFilters;
   }

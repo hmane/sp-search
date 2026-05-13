@@ -129,6 +129,80 @@ describe('SearchService', () => {
       expect(result[1]).toBe('Author:"John"');
       expect(result[2]).toBe('Created:range(2024-01-01,2024-12-31)');
     });
+
+    describe('MISS-002 — operatorBetweenFilters (cross-property AND/OR)', () => {
+      it('defaults to AND when no operator argument is supplied (back-compat)', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+          { filterName: 'Author', value: '"John"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters);
+        // Two array entries means AND (SharePoint Search ANDs separate RefinementFilters items).
+        expect(result).toHaveLength(2);
+        expect(result).toContain('FileType:"docx"');
+        expect(result).toContain('Author:"John"');
+      });
+
+      it('with operator=AND returns one array entry per property group', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+          { filterName: 'Author', value: '"John"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters, 'AND');
+        expect(result).toHaveLength(2);
+        expect(result).toContain('FileType:"docx"');
+        expect(result).toContain('Author:"John"');
+      });
+
+      it('with operator=OR wraps cross-property groups in a single FQL or()', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+          { filterName: 'Author', value: '"John"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters, 'OR');
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatch(/^or\(/);
+        expect(result[0]).toContain('FileType:"docx"');
+        expect(result[0]).toContain('Author:"John"');
+      });
+
+      it('with operator=OR preserves within-property or() grouping', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+          { filterName: 'FileType', value: '"pptx"', operator: 'OR' },
+          { filterName: 'Author', value: '"John"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters, 'OR');
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe('or(FileType:or("docx","pptx"),Author:"John")');
+      });
+
+      it('with operator=OR does NOT wrap when only one property group exists (no-op)', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+          { filterName: 'FileType', value: '"pptx"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters, 'OR');
+        // No outer or() — there is only one filter group.
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe('FileType:or("docx","pptx")');
+      });
+
+      it('with operator=OR handles FQL range() values across groups', () => {
+        const filters: IActiveFilter[] = [
+          { filterName: 'Created', value: 'range(2024-01-01,2024-12-31)', operator: 'AND' },
+          { filterName: 'FileType', value: '"docx"', operator: 'OR' },
+        ];
+        const result = SearchService.buildRefinementFilters(filters, 'OR');
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe('or(Created:range(2024-01-01,2024-12-31),FileType:"docx")');
+      });
+
+      it('with operator=OR returns empty array on empty input (no wrapper)', () => {
+        const result = SearchService.buildRefinementFilters([], 'OR');
+        expect(result).toEqual([]);
+      });
+    });
   });
 
   describe('buildSortList', () => {
