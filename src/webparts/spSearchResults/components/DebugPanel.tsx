@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { DebugCollector } from '@store/debug';
-import type { IDebugEvent, IQueryDebugInfo, DebugEventType } from '@store/debug';
+import type { IDebugEvent, IQueryDebugInfo, DebugEventType, INetworkEvent } from '@store/debug';
 import type { StoreApi } from 'zustand/vanilla';
 import type { ISearchStore } from '@interfaces/index';
 import styles from './DebugPanel.module.scss';
@@ -372,7 +372,79 @@ const LogTab: React.FC = () => {
 
 // --- Main Panel ---
 
-type TabKey = 'query' | 'state' | 'config' | 'log';
+type TabKey = 'query' | 'state' | 'config' | 'log' | 'network';
+
+// T5.D2 — Network tab thresholds for the timing badge colour.
+const TIMING_FAST_MS = 400;     // green
+const TIMING_SLOW_MS = 1200;    // yellow above this; red is anything slower
+
+function timingBadgeClass(durationMs: number | undefined): string {
+  if (durationMs === undefined) {
+    return styles.timingYellow;
+  }
+  if (durationMs <= TIMING_FAST_MS) {
+    return styles.timingGreen;
+  }
+  if (durationMs <= TIMING_SLOW_MS) {
+    return styles.timingYellow;
+  }
+  return styles.timingRed;
+}
+
+const NetworkTab: React.FC = () => {
+  const [events, setEvents] = React.useState<INetworkEvent[]>(DebugCollector.getNetworkEvents());
+
+  React.useEffect(() => {
+    return DebugCollector.subscribe(() => {
+      setEvents([...DebugCollector.getNetworkEvents()]);
+    });
+  }, []);
+
+  if (events.length === 0) {
+    return (
+      <div style={{ color: '#888', padding: 16 }}>
+        No network calls captured yet. Trigger a search to populate this tab.
+        Buffer cap: 50 most-recent calls.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {events.map((event) => {
+        const statusClass = event.status === 'error'
+          ? styles.logTypeNetworkError
+          : event.status === 'aborted'
+            ? styles.logTypeNetworkAborted
+            : styles.logTypeNetwork;
+        const kindLabel = event.kind === 'verticalCount'
+          ? 'vertical:' + (event.verticalKey || '?')
+          : 'search';
+        return (
+          <div
+            key={event.id}
+            className={`${styles.logEntry}${event.status === 'error' ? ' ' + styles.logEntryError : ''}`}
+          >
+            <span className={styles.logTimestamp}>{formatTime(event.timestamp)}</span>
+            <span className={`${styles.logType} ${statusClass}`}>{kindLabel}</span>
+            <span className={`${styles.timingBadge} ${timingBadgeClass(event.durationMs)}`}>
+              {event.durationMs === undefined ? 'in-flight' : event.durationMs + 'ms'}
+            </span>
+            <span className={styles.logData}>
+              {event.status === 'ok'
+                ? 'p' + event.currentPage + '×' + event.pageSize +
+                  ' → ' + (event.itemCount ?? 0) + '/' + (event.totalCount ?? 0)
+                : (event.errorMessage || event.status)
+              }
+              {' · '}
+              {event.providerId}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 interface IDebugPanelProps {
   store: StoreApi<ISearchStore>;
@@ -381,6 +453,7 @@ interface IDebugPanelProps {
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'query', label: 'Query' },
+  { key: 'network', label: 'Network' },
   { key: 'state', label: 'State' },
   { key: 'config', label: 'Config' },
   { key: 'log', label: 'Log' },
@@ -415,6 +488,7 @@ const DebugPanel: React.FC<IDebugPanelProps> = ({ store, onClose }) => {
   const renderTab = (): React.ReactElement => {
     switch (activeTab) {
       case 'query': return <QueryTab />;
+      case 'network': return <NetworkTab />;
       case 'state': return <StateTab store={store} />;
       case 'config': return <ConfigTab />;
       case 'log': return <LogTab />;

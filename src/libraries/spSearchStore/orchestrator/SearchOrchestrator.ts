@@ -227,20 +227,75 @@ export class SearchOrchestrator {
    * PnPjs caching middleware may throw when storage is full during its
    * cache-write step, even though the API returned valid data. This
    * aggressively cleans both localStorage and sessionStorage then retries once.
+   *
+   * T5.D2 — emits a `logNetworkEvent` entry per call (including the
+   * retry-after-quota path) so the DebugPanel's Network tab can render
+   * timing badges. `kind` distinguishes the main search from vertical-
+   * count fan-out; `verticalKey` is set for vertical counts only.
    */
   private async _executeProviderWithRetry(
     provider: ISearchDataProvider,
     query: ISearchQuery,
-    signal: AbortSignal
+    signal: AbortSignal,
+    kind: 'search' | 'verticalCount' = 'search',
+    verticalKey?: string
   ): Promise<ISearchResponse> {
+    const start = performance.now();
+    const baseEntry = {
+      providerId: provider.id,
+      kind,
+      queryTemplate: query.queryTemplate,
+      currentPage: query.page,
+      pageSize: query.pageSize,
+      verticalKey,
+    };
     try {
-      return await provider.execute(query, signal);
+      const response = await provider.execute(query, signal);
+      DebugCollector.logNetworkEvent({
+        ...baseEntry,
+        status: 'ok',
+        durationMs: Math.round(performance.now() - start),
+        totalCount: response.totalCount,
+        itemCount: response.items.length,
+        errorMessage: undefined,
+      });
+      return response;
     } catch (error) {
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        // Retry once — space should now be available.
         this._cleanupStorage();
-        // Retry once — space should now be available
-        return provider.execute(query, signal);
+        const retryStart = performance.now();
+        try {
+          const retryResponse = await provider.execute(query, signal);
+          DebugCollector.logNetworkEvent({
+            ...baseEntry,
+            status: 'ok',
+            durationMs: Math.round(performance.now() - retryStart),
+            totalCount: retryResponse.totalCount,
+            itemCount: retryResponse.items.length,
+            errorMessage: 'recovered after QuotaExceededError retry',
+          });
+          return retryResponse;
+        } catch (retryError) {
+          DebugCollector.logNetworkEvent({
+            ...baseEntry,
+            status: signal.aborted ? 'aborted' : 'error',
+            durationMs: Math.round(performance.now() - retryStart),
+            totalCount: undefined,
+            itemCount: undefined,
+            errorMessage: retryError instanceof Error ? retryError.message : String(retryError),
+          });
+          throw retryError;
+        }
       }
+      DebugCollector.logNetworkEvent({
+        ...baseEntry,
+        status: error instanceof DOMException && error.name === 'AbortError' ? 'aborted' : 'error',
+        durationMs: Math.round(performance.now() - start),
+        totalCount: undefined,
+        itemCount: undefined,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -586,7 +641,9 @@ export class SearchOrchestrator {
           trimDuplicates: true,
         };
 
-        const response = await this._executeProviderWithRetry(provider, countQuery, signal);
+        // T5.D2 — label vertical-count traffic so the DebugPanel Network
+        // tab distinguishes it from the main search request.
+        const response = await this._executeProviderWithRetry(provider, countQuery, signal, 'verticalCount', vertical.key);
         return { key: vertical.key, count: response.totalCount };
       } catch {
         return { key: vertical.key, count: 0 };
