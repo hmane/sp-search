@@ -30,7 +30,12 @@ import {
 } from './components/ColumnConfigField/columnConfig';
 import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/ColumnConfigField';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -229,6 +234,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       element
     );
 
+    // T3.D2 — edit-mode banner warning admins when the contextId doesn't
+    // match peer web parts on the same page.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Results',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
     // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
     // for the per-web-part-state-isolation note. Coexists with this web
     // part's existing DebugFab + DebugPanel (those live inside the React
@@ -236,7 +254,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     const wrappedElement: React.ReactElement = React.createElement(
       SPDebugProvider,
       { logger: SPContext.logger, allowInProduction: false },
-      gatedElement
+      bannerWrapped
     );
 
     ReactDom.render(wrappedElement, this.domElement);
@@ -1071,6 +1089,15 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             description: strings.DataSourcePageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Shared helper keeps the label /
+            // description / required-error string identical across panes.
+            {
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupFields: [
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.DataGroupName,
               groupFields: [
@@ -1364,26 +1391,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
           ]
         },
         // ─── Page 3: Connections ───────────────────────────
+        // T3.D4 — searchContextId moved to page-1 group-1; this page now
+        // hosts audience targeting only.
         {
           header: {
             description: strings.ConnectionsPageHeader
           },
           groups: [
-            {
-              groupName: strings.ConnectionsGroupName,
-              groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdLabel,
-                  description: strings.SearchContextIdDescription,
-                  onGetErrorMessage: (value: string): string => {
-                    if (!value || value.trim() === '') {
-                      return 'Required — enter an ID to connect search web parts on this page (e.g. "hr-search").';
-                    }
-                    return '';
-                  }
-                })
-              ]
-            },
             // Stream D / #10 — per-web-part audience targeting.
             {
               groupName: strings.AudienceTargetingGroupName,

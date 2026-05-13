@@ -26,7 +26,13 @@ import { SearchManagerService } from '@services/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 import { DebugCollector } from '@store/debug';
+import { DisplayMode } from '@microsoft/sp-core-library';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -73,6 +79,11 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
   private _service: SearchManagerService | undefined;
   private _hasAdminAccess: boolean = true;
 
+  /** T3.D2 — surface name shown in the mismatch banner. Overridden by AdminManager. */
+  protected _getWebPartLabel(): string {
+    return 'SP Search Manager';
+  }
+
   public render(): void {
     let element: React.ReactElement;
 
@@ -118,13 +129,27 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       );
     }
 
+    // T3.D2 — edit-mode mismatch banner. AdminManager extends this class
+    // and overrides `_getWebPartLabel()` so the banner copy names the
+    // correct surface in each subclass.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: this._getWebPartLabel(),
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      element
+    );
+
     // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
     // for the per-web-part-state-isolation note. AdminManager extends this
     // class so it inherits the wrapping automatically.
     const wrappedElement: React.ReactElement = React.createElement(
       SPDebugProvider,
       { logger: SPContext.logger, allowInProduction: false },
-      element
+      bannerWrapped
     );
 
     ReactDom.render(wrappedElement, this.domElement);
@@ -209,13 +234,17 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
             description: strings.PropertyPaneDescription
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Shared helper.
+            {
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupFields: [
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.ConnectionGroupName,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdLabel,
-                  description: strings.SearchContextIdDescription
-                }),
                 PropertyPaneTextField('coverageSourcePageUrl', {
                   label: strings.CoverageSourcePageUrlLabel,
                   description: strings.CoverageSourcePageUrlDescription,

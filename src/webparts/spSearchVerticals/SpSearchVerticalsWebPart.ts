@@ -25,8 +25,14 @@ import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { DebugCollector } from '@store/debug';
+import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -91,12 +97,24 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       innerElement
     );
 
+    // T3.D2 — edit-mode mismatch banner above the gated tree.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Verticals',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
     // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
     // for the per-web-part-state-isolation note.
     const element: React.ReactElement = React.createElement(
       SPDebugProvider,
       { logger: SPContext.logger, allowInProduction: false },
-      gatedElement
+      bannerWrapped
     );
 
     ReactDom.render(element, this.domElement);
@@ -339,13 +357,12 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
             description: strings.VerticalsPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Shared helper.
             {
-              groupName: strings.ConnectionGroupName,
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdFieldLabel,
-                  description: strings.SearchContextIdFieldDescription
-                })
+                propertyPaneSearchContextIdField()
               ]
             },
             {

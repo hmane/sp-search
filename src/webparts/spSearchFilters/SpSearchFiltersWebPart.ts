@@ -22,8 +22,14 @@ import { getStore, initializeSearchContext } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
+import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -123,12 +129,24 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       innerElement
     );
 
+    // T3.D2 — edit-mode mismatch banner above the gated tree.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Filters',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
     // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
     // for the per-web-part-state-isolation note.
     const element: React.ReactElement = React.createElement(
       SPDebugProvider,
       { logger: SPContext.logger, allowInProduction: false },
-      gatedElement
+      bannerWrapped
     );
 
     ReactDom.render(element, this.domElement);
@@ -279,6 +297,14 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
             description: strings.FiltersPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Shared helper.
+            {
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupFields: [
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.FiltersGroupName,
               groupFields: [
@@ -475,29 +501,9 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
             }
           ]
         },
-        {
-          header: {
-            description: strings.ConnectionsPageHeader
-          },
-          groups: [
-            {
-              groupName: strings.ConnectionsGroupName,
-              groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdLabel,
-                  description: strings.SearchContextIdDescription,
-                  value: this.properties.searchContextId || 'default',
-                  onGetErrorMessage: (value: string): string => {
-                    if (!value || value.trim() === '') {
-                      return 'Required — must match the Search Context ID set on the Search Results web part.';
-                    }
-                    return '';
-                  }
-                })
-              ]
-            }
-          ]
-        },
+        // T3.D4 — Connections page retired: searchContextId is now on
+        // page-1 group-1 via the shared helper, leaving no fields for a
+        // separate page.
         {
           header: {
             description: strings.AdvancedPageHeader

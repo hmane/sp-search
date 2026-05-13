@@ -24,8 +24,14 @@ import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -128,6 +134,20 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
       innerElement
     );
 
+    // T3.D2 — edit-mode banner above the gated tree warning admins when
+    // this web part's searchContextId doesn't match other search web parts
+    // on the page. View-mode renders nothing.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Box',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
     // SPDebug — toolkit's debug runtime + lazy-loaded panel.
     // Per-web-part state isolation: each web part bundles its own copy of
     // the toolkit, so each SPDebugProvider has its own SPDebugStore. URL
@@ -138,7 +158,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     const element: React.ReactElement = React.createElement(
       SPDebugProvider,
       { logger: SPContext.logger, allowInProduction: false },
-      gatedElement
+      bannerWrapped
     );
 
     ReactDom.render(element, this.domElement);
@@ -251,6 +271,16 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             description: strings.SearchPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Hoisted to page-1 / group-1 via the
+            // shared helper so the label / description / required-error
+            // string match across all six panes.
+            {
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupFields: [
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.SearchGroupName,
               groupFields: [
@@ -384,21 +414,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             description: strings.ConnectionsPageHeader
           },
           groups: [
-            {
-              groupName: strings.ConnectionGroupName,
-              groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdFieldLabel,
-                  description: strings.SearchContextIdFieldDescription,
-                  onGetErrorMessage: (value: string): string => {
-                    if (!value || value.trim() === '') {
-                      return 'Required — must match the Search Context ID set on the Search Results web part.';
-                    }
-                    return '';
-                  }
-                })
-              ]
-            },
+            // T3.D4 — searchContextId moved to page-1 group-1 via the shared
+            // helper. The Connections page now hosts only audience targeting.
             // Stream D / #10 — per-web-part audience targeting.
             {
               groupName: strings.AudienceTargetingGroupName,
