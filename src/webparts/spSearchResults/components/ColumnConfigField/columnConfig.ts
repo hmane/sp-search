@@ -62,15 +62,27 @@ const VALID_RENDERERS: ColumnRenderer[] = [
   'fileType',
 ];
 
-/** Renderers the Phase-1 editor exposes in its dropdown. Phase 2 adds the rest. */
+/**
+ * Renderers exposed in the side-panel editor's dropdown.
+ *
+ * Phase 1 shipped with the Phase-1 subset (`'' / text / date / fileType /
+ * fileSize / url / persona`). Phase 2 added the remaining types
+ * (`richText / number / tags / boolean`) once their cell renderers landed in
+ * `renderCell.tsx`. The constant name is kept for back-compat with the
+ * Phase-1 import path; the order matches the dropdown's visible order.
+ */
 export const PHASE_1_RENDERERS: ColumnRenderer[] = [
   '',
   'text',
+  'richText',
   'date',
-  'fileType',
+  'number',
   'fileSize',
-  'url',
   'persona',
+  'tags',
+  'boolean',
+  'url',
+  'fileType',
 ];
 
 const VALID_SEPARATORS: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill'];

@@ -2284,6 +2284,51 @@
   color: "[theme:neutralSecondary, default: #605e5c]";
 }
 
+// Stream B / Phase 2 — explicit renderer styles
+
+.gridRichText {
+  font-size: 13px;
+  color: "[theme:bodyText, default: #323130]";
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    color: "[theme:link, default: #0078d4]";
+  }
+}
+
+.gridBooleanTrue {
+  color: "[theme:successText, default: #107c10]";
+  font-size: 16px;
+}
+
+.gridBooleanFalse {
+  color: "[theme:redDark, default: #a4262c]";
+  font-size: 16px;
+}
+
+.gridTagsCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.gridTagPill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: "[theme:neutralLighter, default: #f3f2f1]";
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
 .gridToolbarButton {
   :global(.ms-Button) {
     min-width: auto;

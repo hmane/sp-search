@@ -10,7 +10,7 @@ import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index'
 import { PermissionKind } from '@pnp/sp/security';
 import { hasPermissions } from '@pnp/sp/security/funcs';
 import { buildDownloadUrl, copyTextToClipboard } from '@providers/actions/actionUtils';
-import { formatRelativeDate, formatDateTime, formatFileSize, buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
@@ -19,6 +19,18 @@ import {
   ColumnRenderer,
   normalizeColumnConfigItem,
 } from './ColumnConfigField/columnConfig';
+import {
+  renderText,
+  renderRichText,
+  renderNumber,
+  renderFileSize,
+  renderBoolean,
+  renderTags,
+  renderPersona,
+  renderDate,
+  renderUrl,
+  renderFileType,
+} from './renderCell';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
@@ -49,12 +61,27 @@ export interface IDataGridContentProps {
   onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
-type ColumnKind = 'title' | 'author' | 'date' | 'fileType' | 'fileSize' | 'url' | 'text';
+type ColumnKind =
+  | 'title'
+  | 'author'      // auto-detected from property name (Author / DisplayAuthor) — uses the in-component avatar render
+  | 'date'
+  | 'fileType'
+  | 'fileSize'
+  | 'url'
+  | 'text'
+  // Stream B / Phase 2 — admin-picked renderer types dispatched via renderCell.tsx
+  | 'persona'
+  | 'richText'
+  | 'number'
+  | 'tags'
+  | 'boolean';
 
 interface IGridColumnConfig {
   property: string;
   caption: string;
   kind: ColumnKind;
+  /** Carries the source column-config item through to the renderer dispatch. */
+  column: IColumnConfigItem;
   width?: number;
   minWidth?: number;
   alignment?: 'left' | 'center' | 'right';
@@ -170,11 +197,11 @@ function autoDetectColumnKind(property: string): { kind: ColumnKind; width?: num
 }
 
 /**
- * Map an explicit `IColumnConfigItem.renderer` choice onto a Phase-1 cell
- * renderer kind. Phase-2 renderer values (`richText`, `tags`, `number`,
- * `boolean`) fall through to `text` here — their dedicated renderers land in
- * the next phase. `''` defers to the auto-detect path so migrated items
- * render identically to today.
+ * Map an explicit `IColumnConfigItem.renderer` choice onto a cell renderer
+ * kind. `''` defers to the auto-detect path so migrated items render
+ * identically to today. The Phase-2 renderer types (`persona`, `richText`,
+ * `number`, `tags`, `boolean`) each have their own kind dispatched via the
+ * pure renderers in `renderCell.tsx`.
  */
 function kindFromRenderer(renderer: ColumnRenderer, property: string): { kind: ColumnKind; width?: number; minWidth?: number; alignment?: 'left' | 'center' | 'right' } {
   switch (renderer) {
@@ -183,13 +210,11 @@ function kindFromRenderer(renderer: ColumnRenderer, property: string): { kind: C
     case 'fileType': return { kind: 'fileType', width: 80, alignment: 'center' };
     case 'fileSize': return { kind: 'fileSize', width: 90, alignment: 'right' };
     case 'url':      return { kind: 'url', minWidth: 220 };
-    case 'persona':  return { kind: 'author', width: 180 };
-    // Phase-2 renderers — fall through to plain text until their dedicated dispatch lands.
-    case 'richText':
-    case 'number':
-    case 'tags':
-    case 'boolean':
-      return { kind: 'text', minWidth: 140 };
+    case 'persona':  return { kind: 'persona', width: 200 };
+    case 'richText': return { kind: 'richText', minWidth: 200 };
+    case 'number':   return { kind: 'number', width: 100, alignment: 'right' };
+    case 'tags':     return { kind: 'tags', minWidth: 160 };
+    case 'boolean':  return { kind: 'boolean', width: 70, alignment: 'center' };
     case '':
     default:
       return autoDetectColumnKind(property);
@@ -209,6 +234,7 @@ function getColumnConfig(column: IColumnConfigItem): IGridColumnConfig {
     property,
     caption,
     kind: dispatch.kind,
+    column,
     width: adminWidth !== undefined ? adminWidth : dispatch.width,
     minWidth: dispatch.minWidth,
     alignment: dispatch.alignment,
@@ -1004,72 +1030,14 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     );
   }, []);
 
-  const dateCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const rawValue = typeof cellData.value === 'string' ? cellData.value : '';
-    if (!rawValue) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span className={styles.gridDateCell} title={formatDateTime(rawValue)}>
-        {formatRelativeDate(rawValue)}
-      </span>
-    );
-  }, []);
-
-  const typeCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const label = formatTextValue(cellData.value).toUpperCase();
-    if (!cellData.value) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span className={styles.gridTypeBadge}>
-        {label}
-      </span>
-    );
-  }, []);
-
-  const fileSizeCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const size = typeof cellData.value === 'number'
-      ? cellData.value
-      : parseInt(String(cellData.value || '0'), 10) || 0;
-
-    if (!size) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span title={String(size) + ' bytes'}>
-        {formatFileSize(size)}
-      </span>
-    );
-  }, []);
-
-  const urlCellRender = React.useCallback((cellData: { value: unknown; data: IGridRow }): React.ReactElement => {
-    const href = typeof cellData.value === 'string' && cellData.value ? cellData.value : cellData.data.__item.url;
-    if (!href) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={styles.gridTitleLink}>
-        {href}
-      </a>
-    );
-  }, []);
-
-  const textCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const text = formatTextValue(cellData.value);
-    if (text === '--') {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return <span title={text}>{text}</span>;
-  }, []);
+  // Date / fileType / fileSize / url / text renderers have moved to the pure
+  // `renderCell.tsx` module as part of Stream B / Phase 2 — they're dispatched
+  // directly inside `renderColumn`. The title and author cell renders stay
+  // here because they close over local state (hover-card, permissions, etc.).
 
   const renderColumn = React.useCallback((column: IGridColumnConfig, index: number): React.ReactElement => {
     const sortProperty = resolveColumnSortProperty(column.property, sortableProperties);
+    const cfg = column.column;
     let cellRender:
       | ((cellData: { value: unknown; data: IGridRow; rowIndex?: number }) => React.ReactElement)
       | undefined;
@@ -1079,22 +1047,42 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         cellRender = titleCellRender;
         break;
       case 'author':
+        // Auto-detected author column — keep today's simple initials avatar.
         cellRender = authorCellRender;
         break;
       case 'date':
-        cellRender = dateCellRender;
+        cellRender = (cellData): React.ReactElement => renderDate(cellData.value, cfg);
         break;
       case 'fileType':
-        cellRender = typeCellRender;
+        cellRender = (cellData): React.ReactElement => renderFileType(cellData.value, cfg);
         break;
       case 'fileSize':
-        cellRender = fileSizeCellRender;
+        cellRender = (cellData): React.ReactElement => renderFileSize(cellData.value, cfg);
         break;
       case 'url':
-        cellRender = urlCellRender;
+        cellRender = (cellData): React.ReactElement => {
+          const value = typeof cellData.value === 'string' && cellData.value ? cellData.value : cellData.data.__item.url;
+          return renderUrl(value, cfg);
+        };
+        break;
+      // Stream B / Phase 2 — admin-picked explicit renderers
+      case 'persona':
+        cellRender = (cellData): React.ReactElement => renderPersona(cellData.value, cfg);
+        break;
+      case 'richText':
+        cellRender = (cellData): React.ReactElement => renderRichText(cellData.value, cfg);
+        break;
+      case 'number':
+        cellRender = (cellData): React.ReactElement => renderNumber(cellData.value, cfg);
+        break;
+      case 'tags':
+        cellRender = (cellData): React.ReactElement => renderTags(cellData.value, cfg);
+        break;
+      case 'boolean':
+        cellRender = (cellData): React.ReactElement => renderBoolean(cellData.value, cfg);
         break;
       default:
-        cellRender = textCellRender;
+        cellRender = (cellData): React.ReactElement => renderText(cellData.value, cfg);
         break;
     }
 
@@ -1114,7 +1102,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         sortIndex={sortProperty && getDxSortOrder(sort, sortProperty) ? 0 : undefined}
       />
     );
-  }, [authorCellRender, dateCellRender, fileSizeCellRender, sort, sortableProperties, textCellRender, titleCellRender, typeCellRender, urlCellRender]);
+  }, [authorCellRender, sort, sortableProperties, titleCellRender]);
 
   return (
     <div
