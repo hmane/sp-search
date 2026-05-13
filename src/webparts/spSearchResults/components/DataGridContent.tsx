@@ -50,6 +50,8 @@ export interface IDataGridContentProps {
   /** Used to scope the localStorage key for column preferences — one entry per context per page. */
   searchContextId: string;
   showDeleteConfirmation: boolean;
+  /** Stream B / Phase 3 — when false, the "Columns" toolbar button is hidden. */
+  showColumnChooser: boolean;
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   onPreviewItem?: (item: ISearchResult) => void;
@@ -579,6 +581,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     pageRange,
     searchContextId,
     showDeleteConfirmation,
+    showColumnChooser,
     sort,
     sortableProperties,
     onItemClick,
@@ -828,17 +831,25 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   }, [columnConfigs, onSortChange, sort, sortableProperties, syncVisibleColumnsFromGrid]);
 
   const columnMenuItems = React.useMemo((): IContextualMenuItem[] => {
+    // Stream B / Phase 3 — visibility-aware filter + initial-check derivation.
+    // `always` columns never appear in the menu; `defaultOff` columns start
+    // unchecked unless the user has saved their state otherwise.
     return columnConfigs
-      .filter((column) => column.kind !== 'title')
-      .map((column) => ({
-        key: column.property,
-        text: column.caption,
-        canCheck: true,
-        checked: columnVisibility[column.property] !== false,
-        onClick: (): void => {
-          handleToggleColumnVisibility(column.property);
-        }
-      }));
+      .filter((column) => column.kind !== 'title' && column.column.visibility !== 'always')
+      .map((column) => {
+        const saved = columnVisibility[column.property];
+        const isOnByDefault = column.column.visibility !== 'defaultOff';
+        const checked = saved === undefined ? isOnByDefault : saved !== false;
+        return {
+          key: column.property,
+          text: column.caption,
+          canCheck: true,
+          checked,
+          onClick: (): void => {
+            handleToggleColumnVisibility(column.property);
+          }
+        };
+      });
   }, [columnConfigs, columnVisibility, handleToggleColumnVisibility]);
 
   const handleExportXlsx = React.useCallback((): void => {
@@ -1086,6 +1097,17 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         break;
     }
 
+    const isTitle = column.kind === 'title';
+    const isAlways = cfg.visibility === 'always';
+    const allowHiding = !isTitle && !isAlways;
+    // Initial visibility: derived from the column-config item's `visibility`
+    // (defaultOff starts hidden, defaultOn/always start visible). Saved state
+    // from localStorage takes precedence via StateStoring once it loads.
+    const savedVisible = columnVisibility[column.property];
+    const initialVisible = savedVisible === undefined
+      ? cfg.visibility !== 'defaultOff'
+      : savedVisible !== false;
+
     return (
       <Column
         key={column.property}
@@ -1095,14 +1117,15 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         width={column.width}
         minWidth={column.minWidth}
         alignment={column.alignment}
-        allowHiding={column.kind !== 'title'}
-        showInColumnChooser={column.kind !== 'title'}
+        allowHiding={allowHiding}
+        showInColumnChooser={allowHiding}
+        visible={initialVisible}
         allowSorting={!!sortProperty}
         sortOrder={sortProperty ? getDxSortOrder(sort, sortProperty) : undefined}
         sortIndex={sortProperty && getDxSortOrder(sort, sortProperty) ? 0 : undefined}
       />
     );
-  }, [authorCellRender, sort, sortableProperties, titleCellRender]);
+  }, [authorCellRender, columnVisibility, sort, sortableProperties, titleCellRender]);
 
   return (
     <div
@@ -1163,19 +1186,21 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
 
       {/* Toolbar — fullscreen toggle, column chooser, and XLSX export */}
       <Toolbar>
-        <Item
-          location="after"
-          render={(): React.ReactElement => (
-            <DefaultButton
-              iconProps={{ iconName: 'BulletedList' }}
-              text="Columns"
-              title="Choose visible columns"
-              ariaLabel="Choose visible columns"
-              className={styles.gridToolbarButton}
-              menuProps={{ items: columnMenuItems }}
-            />
-          )}
-        />
+        {showColumnChooser && (
+          <Item
+            location="after"
+            render={(): React.ReactElement => (
+              <DefaultButton
+                iconProps={{ iconName: 'BulletedList' }}
+                text="Columns"
+                title="Choose visible columns"
+                ariaLabel="Choose visible columns"
+                className={styles.gridToolbarButton}
+                menuProps={{ items: columnMenuItems }}
+              />
+            )}
+          />
+        )}
         <Item
           location="after"
           render={(): React.ReactElement => (

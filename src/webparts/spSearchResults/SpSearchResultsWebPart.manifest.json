@@ -36,10 +36,10 @@
         { "uniqueId": "starter-sp-6", "property": "SiteName", "alias": "Site" }
       ],
       "compactPropertiesCollection": [
-        { "uniqueId": "starter-compact-0", "property": "Author", "alias": "Author" },
-        { "uniqueId": "starter-compact-1", "property": "LastModifiedTime", "alias": "Modified" },
-        { "uniqueId": "starter-compact-2", "property": "Size", "alias": "Size" },
-        { "uniqueId": "starter-compact-3", "property": "FileType", "alias": "Type" }
+        { "uniqueId": "starter-compact-0", "property": "Author",           "alias": "Author",   "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-1", "property": "LastModifiedTime", "alias": "Modified", "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-2", "property": "Size",             "alias": "Size",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-3", "property": "FileType",         "alias": "Type",     "visibility": "defaultOn", "renderer": "" }
       ],
       "gridPropertiesCollection": [
         { "uniqueId": "starter-grid-0", "property": "Author",           "alias": "Author",   "visibility": "defaultOn", "renderer": "" },
@@ -72,6 +72,7 @@
       "enablePreviewPanel": true,
       "hideWebPartWhenNoResults": false,
       "emptyResultsMessage": "",
+      "showColumnChooser": true,
       "titleDisplayMode": "wrap",
       "resultClickTarget": "panel",
       "documentLinkMode": "file",

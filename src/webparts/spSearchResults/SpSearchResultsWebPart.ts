@@ -57,13 +57,26 @@ export interface ISpSearchResultsWebPartProps {
   queryTemplate: string;
   selectedProperties: string;
   selectedPropertiesCollection: ISelectedPropertyItem[];
-  compactPropertiesCollection: ILayoutPropertyItem[];
+  /**
+   * Stream B / Phase 3 — IColumnConfigItem[] replacing the legacy
+   * `{ uniqueId, property }` shape (Phase 1 did this for grid; Phase 3
+   * brings compact along). Migration is handled at read time by
+   * `normalizeColumnConfigItem`, so stored pages don't need to be migrated.
+   */
+  compactPropertiesCollection: IColumnConfigItem[];
   /**
    * Stream B / Phase 1 — column-config items, replacing the legacy
-   * `ILayoutPropertyItem` shape. Migration is handled at read time by
+   * `{ uniqueId, property }` shape. Migration is handled at read time by
    * `normalizeColumnConfigItem`, so stored pages don't need to be migrated.
    */
   gridPropertiesCollection: IColumnConfigItem[];
+  /**
+   * Stream B / Phase 3 — when true (default), the DataGrid layout shows its
+   * built-in column chooser. Columns with `visibility === 'always'` never
+   * appear in the chooser; the rest pre-check based on
+   * `visibility === 'defaultOn'`.
+   */
+  showColumnChooser: boolean;
   resultSourceId: string;
   refinementFilters: string;
   refinementFiltersCollection: IRefinementFilterItem[];
@@ -125,11 +138,6 @@ interface IRefinementFilterItem {
   value: string;
 }
 
-interface ILayoutPropertyItem {
-  uniqueId: string;
-  property: string;
-}
-
 function normalizeCollectionValue<T>(raw: T[] | string | undefined): T[] {
   if (Array.isArray(raw)) {
     return raw;
@@ -171,7 +179,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     }
 
     const selectedPropertyColumns: ISelectedPropertyColumn[] = this._getSelectedPropertyColumns();
-    const compactPropertyColumns: ISelectedPropertyColumn[] = this._getCompactPropertyColumns();
+    const compactPropertyColumns: IColumnConfigItem[] = this._getCompactPropertyColumns();
     const gridPropertyColumns: IColumnConfigItem[] = this._getGridPropertyColumns();
     const contextId: string = this.properties.searchContextId || 'default';
     const element: React.ReactElement<ISpSearchResultsProps> = React.createElement(
@@ -188,6 +196,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         enablePreviewPanel: this.properties.enablePreviewPanel !== false,
         hideWebPartWhenNoResults: this.properties.hideWebPartWhenNoResults === true,
         emptyResultsMessage: this.properties.emptyResultsMessage || '',
+        showColumnChooser: this.properties.showColumnChooser !== false,
         titleDisplayMode: this.properties.titleDisplayMode || 'wrap',
         defaultLayout: this.properties.defaultLayout,
         pageSize: this.properties.pageSize,
@@ -336,8 +345,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     }));
   }
 
-  private _getCompactPropertyColumns(): ISelectedPropertyColumn[] {
-    return this._mapLayoutPropertyColumns(this._getCompactLayoutProperties());
+  private _getCompactPropertyColumns(): IColumnConfigItem[] {
+    return this._getCompactLayoutProperties();
   }
 
   private _getGridPropertyColumns(): IColumnConfigItem[] {
@@ -396,53 +405,68 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       }));
   }
 
-  private _normalizeLayoutPropertyCollection(raw: ILayoutPropertyItem[], fallbackProperties: string[] = []): ILayoutPropertyItem[] {
-    const options = this._getLayoutPropertyOptions();
-    const allowed = new Set<string>(options.map((item) => String(item.key).toLowerCase()));
-    const result: ILayoutPropertyItem[] = [];
+  private _getCompactLayoutProperties(): IColumnConfigItem[] {
+    // Stream B / Phase 3 — same shape + migration approach as the grid path
+    // in `_getGridLayoutProperties`. The Compact layout's tight visual
+    // budget caps the visible columns at 4; the editor list reflects that.
+    const raw = normalizeCollectionValue<Partial<IColumnConfigItem> & ILegacyColumnItem>(
+      this.properties.compactPropertiesCollection as unknown as Array<Partial<IColumnConfigItem> & ILegacyColumnItem>
+    );
+
+    const masterAliasMap = new Map<string, { property: string; alias: string }>();
+    const master = this._normalizeSelectedPropertiesCollection();
+    for (let i: number = 0; i < master.length; i++) {
+      const property = master[i].property;
+      if (!isTitleProperty(property)) {
+        masterAliasMap.set(property.toLowerCase(), {
+          property,
+          alias: master[i].alias || property,
+        });
+      }
+    }
+
+    const result: IColumnConfigItem[] = [];
     const seen = new Set<string>();
 
     for (let i: number = 0; i < raw.length; i++) {
       const property = String(raw[i].property || '').trim();
       const lookup = property.toLowerCase();
-      if (!property || isTitleProperty(property) || seen.has(lookup) || !allowed.has(lookup)) {
+      if (!property || isTitleProperty(property) || seen.has(lookup) || !masterAliasMap.has(lookup)) {
         continue;
       }
       seen.add(lookup);
-      result.push({
-        uniqueId: raw[i].uniqueId || ('lp-' + String(i)),
-        property
-      });
+
+      const normalized: IColumnConfigItem = normalizeColumnConfigItem(raw[i]);
+      const aliasOnRaw = typeof raw[i].alias === 'string' ? String(raw[i].alias).trim() : '';
+      if (!aliasOnRaw) {
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry && masterEntry.alias && masterEntry.alias !== property) {
+          normalized.alias = masterEntry.alias;
+        }
+      }
+      result.push(normalized);
     }
 
-    if (result.length === 0 && fallbackProperties.length > 0) {
-      for (let i: number = 0; i < fallbackProperties.length; i++) {
-        const property = String(fallbackProperties[i] || '').trim();
-        const lookup = property.toLowerCase();
-        if (!property || seen.has(lookup) || !allowed.has(lookup)) {
-          continue;
+    // Fallback: seed from the Compact-friendly defaults if no items configured.
+    if (result.length === 0) {
+      const defaults = ['Author', 'LastModifiedTime', 'Size', 'FileType'];
+      for (let i: number = 0; i < defaults.length; i++) {
+        const lookup = defaults[i].toLowerCase();
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry) {
+          result.push(
+            normalizeColumnConfigItem({
+              uniqueId: 'compact-fallback-' + String(i),
+              property: masterEntry.property,
+              alias: masterEntry.alias,
+            })
+          );
         }
-        seen.add(lookup);
-        result.push({
-          uniqueId: 'lp-fallback-' + String(i),
-          property
-        });
       }
     }
 
+    this.properties.compactPropertiesCollection = result;
     return result;
-  }
-
-  private _getCompactLayoutProperties(): ILayoutPropertyItem[] {
-    const raw = normalizeCollectionValue<ILayoutPropertyItem>(this.properties.compactPropertiesCollection);
-    const normalized = this._normalizeLayoutPropertyCollection(raw, [
-      'Author',
-      'LastModifiedTime',
-      'Size',
-      'FileType'
-    ]);
-    this.properties.compactPropertiesCollection = normalized;
-    return normalized;
   }
 
   private _getGridLayoutProperties(): IColumnConfigItem[] {
@@ -508,27 +532,6 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
     this.properties.gridPropertiesCollection = result;
     return result;
-  }
-
-  private _mapLayoutPropertyColumns(layoutProperties: ILayoutPropertyItem[]): ISelectedPropertyColumn[] {
-    const master = this._normalizeSelectedPropertiesCollection();
-    const masterMap = new Map<string, ISelectedPropertyItem>();
-    for (let i: number = 0; i < master.length; i++) {
-      masterMap.set(master[i].property.toLowerCase(), master[i]);
-    }
-
-    return layoutProperties
-      .map((item: ILayoutPropertyItem): ISelectedPropertyColumn | undefined => {
-        const match = masterMap.get(String(item.property || '').toLowerCase());
-        if (!match) {
-          return undefined;
-        }
-        return {
-          property: match.property,
-          alias: match.alias || match.property
-        };
-      })
-      .filter((item: ISelectedPropertyColumn | undefined): item is ISelectedPropertyColumn => !!item);
   }
 
   private _syncQueryTemplateToStore(): void {
@@ -817,8 +820,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       (p, idx) => ({ uniqueId: 'preset-sp-' + String(idx), property: p.property, alias: p.alias })
     );
 
+    // Stream B / Phase 3 — compact items now carry the IColumnConfigItem
+    // shape. Map alias through from the matching selectedProperty when
+    // available, so out-of-box labels (Modified / Type / Size) survive.
+    const presetAliasMap = new Map<string, string>(
+      preset.selectedProperties.map((p) => [p.property.toLowerCase(), p.alias])
+    );
     this.properties.compactPropertiesCollection = preset.compactProperties.map(
-      (p, idx) => ({ uniqueId: 'preset-compact-' + String(idx), property: p.property })
+      (p, idx) =>
+        normalizeColumnConfigItem({
+          uniqueId: 'preset-compact-' + String(idx),
+          property: p.property,
+          alias: presetAliasMap.get(p.property.toLowerCase()) || p.property,
+        })
     );
 
     this.properties.gridPropertiesCollection = preset.selectedProperties
@@ -1088,6 +1102,12 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                       placeholder: 'Date Modified'
                     }
                   ]
+                }),
+                // Stream B / Phase 3 — quiet-deprecation note. `alias` here
+                // is no longer read by the column-render path; per-column
+                // display labels live on the Grid / Compact column editors.
+                PropertyPaneLabel('selectedPropertiesAliasDeprecation', {
+                  text: strings.SelectedPropertiesAliasDeprecationNote
                 })
               ]
             },
@@ -1218,22 +1238,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             ...(this.properties.showCompactLayout !== false ? [{
               groupName: strings.CompactViewGroupName,
               groupFields: [
-                PropertyFieldCollectionData('compactPropertiesCollection', {
-                  key: 'compactPropertiesCollection',
+                // Stream B / Phase 3 — Compact adopts the same custom field
+                // as the grid. Renderer dispatch flows through the unified
+                // `renderCell.tsx` module via `CompactLayout`.
+                PropertyPaneColumnConfigField('compactPropertiesCollection', {
                   label: strings.CompactPropertiesLabel,
-                  panelHeader: strings.CompactPropertiesPanelHeader,
-                  manageBtnLabel: strings.CompactPropertiesManageBtn,
                   value: this._getCompactLayoutProperties(),
-                  enableSorting: true,
-                  fields: [
-                    {
-                      id: 'property',
-                      title: strings.SelectedPropertyColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: true,
-                      options: this._getLayoutPropertyOptions()
-                    }
-                  ]
+                  availableProperties: this._getLayoutPropertyOptions(),
                 })
               ]
             }] : []),
@@ -1242,12 +1253,17 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
               groupFields: [
                 // Stream B / Phase 1 — custom column-config field with a
                 // side-panel editor in place of PnP's flat collection-data
-                // table. The Phase-1 dropdown exposes today's ColumnKind
-                // values explicitly; Phase 2 adds richText / tags / etc.
+                // table. Phase 2 added richText / tags / number / boolean
+                // renderer types; Phase 3 added the column-chooser toggle.
                 PropertyPaneColumnConfigField('gridPropertiesCollection', {
                   label: strings.GridPropertiesLabel,
                   value: this._getGridLayoutProperties(),
                   availableProperties: this._getLayoutPropertyOptions(),
+                }),
+                PropertyPaneToggle('showColumnChooser', {
+                  label: strings.ShowColumnChooserLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 })
               ]
             }] : []),

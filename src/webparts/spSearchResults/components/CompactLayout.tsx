@@ -2,17 +2,30 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatShortDate, stripHtml, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
+import { formatShortDate, formatFileSize, stripHtml, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
-import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import type { IColumnConfigItem, ColumnRenderer } from './ColumnConfigField/columnConfig';
+import {
+  renderText,
+  renderRichText,
+  renderNumber,
+  renderFileSize,
+  renderBoolean,
+  renderTags,
+  renderPersona,
+  renderDate,
+  renderUrl,
+  renderFileType,
+} from './renderCell';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface ICompactLayoutProps {
   items: ISearchResult[];
   searchContextId: string;
-  compactPropertyColumns: ISelectedPropertyColumn[];
+  /** Stream B / Phase 3 — full IColumnConfigItem[]. */
+  compactPropertyColumns: IColumnConfigItem[];
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
   // Stream C / #7
@@ -20,29 +33,98 @@ export interface ICompactLayoutProps {
   onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
-type CompactColumnKind = 'author' | 'date' | 'fileSize' | 'fileType' | 'site' | 'text';
+/**
+ * Compact-layout cell kinds — a subset of the DataGrid's `ColumnKind`
+ * adapted for the tight 4-column grid layout. The auto-detect path keeps
+ * today's behaviour (plain text for author/site, short-date for dates,
+ * etc.); explicit renderers route through `renderCell.tsx`.
+ */
+type CompactKind =
+  | 'author'    // auto-detected — plain text + tooltip (Compact doesn't have room for an avatar)
+  | 'date'      // auto-detected — short date
+  | 'fileSize'  // auto-detected — formatFileSize
+  | 'fileType'  // auto-detected — uppercase badge
+  | 'site'      // auto-detected — plain text
+  | 'text'      // auto-detected — plain text
+  // explicit-renderer kinds dispatch via renderCell.tsx
+  | 'persona' | 'richText' | 'number' | 'tags' | 'boolean' | 'url' | 'rendererText' | 'rendererDate' | 'rendererFileSize' | 'rendererFileType';
 
-interface ICompactColumnConfig {
+interface ICompactColumn {
   property: string;
   label: string;
-  kind: CompactColumnKind;
+  kind: CompactKind;
   width: string;
+  config: IColumnConfigItem;
 }
 
-const DEFAULT_COMPACT_COLUMNS: ISelectedPropertyColumn[] = [
-  { property: 'Author', alias: 'Author' },
-  { property: 'LastModifiedTime', alias: 'Modified' },
-  { property: 'Size', alias: 'Size' },
-  { property: 'FileType', alias: 'Type' }
-];
+function widthForKind(kind: CompactKind): string {
+  switch (kind) {
+    case 'author':
+    case 'persona':
+      return '160px';
+    case 'date':
+    case 'rendererDate':
+      return '110px';
+    case 'fileSize':
+    case 'rendererFileSize':
+    case 'number':
+      return '80px';
+    case 'fileType':
+    case 'rendererFileType':
+    case 'boolean':
+      return '72px';
+    case 'site':
+      return '130px';
+    case 'tags':
+      return '160px';
+    default:
+      return '130px';
+  }
+}
 
-function getCompactColumns(columns: ISelectedPropertyColumn[]): ICompactColumnConfig[] {
-  const source = columns.length > 0 ? columns : DEFAULT_COMPACT_COLUMNS;
+function autoDetectCompactKind(property: string): CompactKind {
+  const normalized = property.toLowerCase();
+  if (normalized === 'author' || normalized === 'authorowsuser' || normalized === 'displayauthor') {
+    return 'author';
+  }
+  if (normalized === 'lastmodifiedtime' || normalized === 'modified' || normalized === 'created') {
+    return 'date';
+  }
+  if (normalized === 'size' || normalized === 'filesize') {
+    return 'fileSize';
+  }
+  if (normalized === 'filetype' || normalized === 'fileextension') {
+    return 'fileType';
+  }
+  if (normalized === 'sitename' || normalized === 'sitetitle') {
+    return 'site';
+  }
+  return 'text';
+}
+
+function kindFromExplicitRenderer(renderer: ColumnRenderer): CompactKind | undefined {
+  switch (renderer) {
+    case 'persona':  return 'persona';
+    case 'richText': return 'richText';
+    case 'number':   return 'number';
+    case 'tags':     return 'tags';
+    case 'boolean':  return 'boolean';
+    case 'url':      return 'url';
+    case 'text':     return 'rendererText';
+    case 'date':     return 'rendererDate';
+    case 'fileSize': return 'rendererFileSize';
+    case 'fileType': return 'rendererFileType';
+    default:         return undefined;
+  }
+}
+
+function getCompactColumns(columns: IColumnConfigItem[]): ICompactColumn[] {
+  const result: ICompactColumn[] = [];
   const seen = new Set<string>();
-  const result: ICompactColumnConfig[] = [];
 
-  for (let i: number = 0; i < source.length; i++) {
-    const property = (source[i].property || '').trim();
+  for (let i: number = 0; i < columns.length; i++) {
+    const config = columns[i];
+    const property = (config.property || '').trim();
     if (!property) {
       continue;
     }
@@ -52,27 +134,15 @@ function getCompactColumns(columns: ISelectedPropertyColumn[]): ICompactColumnCo
     }
     seen.add(lookup);
 
-    if (lookup === 'author' || lookup === 'authorowsuser' || lookup === 'displayauthor') {
-      result.push({ property, label: source[i].alias || 'Author', kind: 'author', width: '140px' });
-      continue;
-    }
-    if (lookup === 'lastmodifiedtime' || lookup === 'modified' || lookup === 'created') {
-      result.push({ property, label: source[i].alias || 'Modified', kind: 'date', width: '110px' });
-      continue;
-    }
-    if (lookup === 'size' || lookup === 'filesize') {
-      result.push({ property, label: source[i].alias || 'Size', kind: 'fileSize', width: '72px' });
-      continue;
-    }
-    if (lookup === 'filetype' || lookup === 'fileextension') {
-      result.push({ property, label: source[i].alias || 'Type', kind: 'fileType', width: '72px' });
-      continue;
-    }
-    if (lookup === 'sitename' || lookup === 'sitetitle') {
-      result.push({ property, label: source[i].alias || 'Site', kind: 'site', width: '130px' });
-      continue;
-    }
-    result.push({ property, label: source[i].alias || property, kind: 'text', width: '130px' });
+    const explicit = kindFromExplicitRenderer(config.renderer);
+    const kind: CompactKind = explicit !== undefined ? explicit : autoDetectCompactKind(property);
+    result.push({
+      property,
+      label: config.alias || property,
+      kind,
+      width: widthForKind(kind),
+      config,
+    });
   }
 
   return result.slice(0, 4);
@@ -104,10 +174,11 @@ function resolveCompactValue(item: ISearchResult, property: string): unknown {
   }
 }
 
-function renderCompactCell(item: ISearchResult, column: ICompactColumnConfig): React.ReactNode {
+function renderCompactCell(item: ISearchResult, column: ICompactColumn): React.ReactNode {
   const value = resolveCompactValue(item, column.property);
 
   switch (column.kind) {
+    // Auto-detected kinds — preserve today's compact-friendly rendering.
     case 'author':
     case 'site':
     case 'text':
@@ -122,6 +193,17 @@ function renderCompactCell(item: ISearchResult, column: ICompactColumnConfig): R
           {String(value).toUpperCase()}
         </span>
       ) : '';
+    // Explicit-renderer kinds dispatch via renderCell.tsx (Stream B / Phase 2 + 3).
+    case 'persona':           return renderPersona(value, column.config);
+    case 'richText':          return renderRichText(value, column.config);
+    case 'number':            return renderNumber(value, column.config);
+    case 'tags':              return renderTags(value, column.config);
+    case 'boolean':           return renderBoolean(value, column.config);
+    case 'url':               return renderUrl(value, column.config);
+    case 'rendererText':      return renderText(value, column.config);
+    case 'rendererDate':      return renderDate(value, column.config);
+    case 'rendererFileSize':  return renderFileSize(value, column.config);
+    case 'rendererFileType':  return renderFileType(value, column.config);
     default:
       return <span className={styles.compactMetaText}>{String(value || '')}</span>;
   }
@@ -130,7 +212,7 @@ function renderCompactCell(item: ISearchResult, column: ICompactColumnConfig): R
 const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
   const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
   const columns = React.useMemo(
-    (): ICompactColumnConfig[] => getCompactColumns(compactPropertyColumns),
+    (): ICompactColumn[] => getCompactColumns(compactPropertyColumns),
     [compactPropertyColumns]
   );
   const layoutTemplate = React.useMemo((): string => {

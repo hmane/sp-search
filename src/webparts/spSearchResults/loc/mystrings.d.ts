@@ -107,6 +107,8 @@ declare interface ISpSearchResultsWebPartStrings {
   ListItemLinkModeEditFormText: string;
   EmptyResultsMessageLabel: string;
   EmptyResultsMessageDescription: string;
+  ShowColumnChooserLabel: string;
+  SelectedPropertiesAliasDeprecationNote: string;
 }
 
 declare module 'SpSearchResultsWebPartStrings' {

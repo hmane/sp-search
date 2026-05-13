@@ -107,6 +107,8 @@ define([], function() {
     "ListItemLinkModeDisplayFormText": "The display form (view)",
     "ListItemLinkModeEditFormText": "The edit form",
     "EmptyResultsMessageLabel": "Custom empty-results message (HTML)",
-    "EmptyResultsMessageDescription": "HTML shown when a search returns no results. Leave blank to use the default contextual message. Script tags and event handlers are stripped before render."
+    "EmptyResultsMessageDescription": "HTML shown when a search returns no results. Leave blank to use the default contextual message. Script tags and event handlers are stripped before render.",
+    "ShowColumnChooserLabel": "Show column chooser",
+    "SelectedPropertiesAliasDeprecationNote": "Display labels (the alias column above) have moved to the Data Grid and Compact column editors. The alias value here is preserved for back-compat but no longer drives the column header."
   }
 });

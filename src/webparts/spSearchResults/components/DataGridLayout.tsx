@@ -17,6 +17,8 @@ export interface IDataGridLayoutProps {
   showPaging: boolean;
   pageRange: number;
   showDeleteConfirmation: boolean;
+  /** Stream B / Phase 3 — when false, the "Columns" toolbar button is hidden. */
+  showColumnChooser: boolean;
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   onPreviewItem?: (item: ISearchResult) => void;
@@ -109,6 +111,7 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
           showPaging={props.showPaging}
           pageRange={props.pageRange}
           showDeleteConfirmation={props.showDeleteConfirmation}
+          showColumnChooser={props.showColumnChooser}
           sort={props.sort}
           sortableProperties={props.sortableProperties}
           onPreviewItem={props.onPreviewItem}

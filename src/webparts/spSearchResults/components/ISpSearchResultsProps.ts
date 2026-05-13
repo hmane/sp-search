@@ -42,8 +42,17 @@ export interface ISpSearchResultsProps {
    * through today's auto-detect path so pre-Phase-1 pages render identically.
    */
   gridPropertyColumns: IColumnConfigItem[];
-  /** Compact view metadata columns. Title remains fixed; these control the additional compact fields. */
-  compactPropertyColumns: ISelectedPropertyColumn[];
+  /**
+   * Compact view metadata columns. Title remains fixed; these control the
+   * additional compact fields. Stream B / Phase 3 — same `IColumnConfigItem`
+   * shape as the grid; CompactLayout dispatches via the unified renderCell.
+   */
+  compactPropertyColumns: IColumnConfigItem[];
+  /**
+   * Stream B / Phase 3 — controls the DataGrid's column-chooser feature.
+   * Always-on columns are excluded from the chooser regardless of this flag.
+   */
+  showColumnChooser: boolean;
   /** KQL query template from the property pane — used for edit-mode validation only. */
   queryTemplate: string;
   /** Graph org service for manager/direct-reports lookups in People layout. Undefined when Graph is unavailable. */

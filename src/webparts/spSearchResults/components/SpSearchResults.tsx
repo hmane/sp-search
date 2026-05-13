@@ -500,6 +500,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     selectedPropertyColumns,
     gridPropertyColumns,
     compactPropertyColumns,
+    showColumnChooser,
     queryTemplate,
     graphOrgService,
     linkConfig
@@ -708,6 +709,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             showPaging={showPaging}
             pageRange={pageRange}
             showDeleteConfirmation={showDeleteConfirmation}
+            showColumnChooser={showColumnChooser}
             sort={sort}
             sortableProperties={sortableProperties}
             onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
