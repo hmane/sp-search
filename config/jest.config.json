@@ -30,9 +30,6 @@
     "tests/store/slices/querySlice\\.test\\.ts$",
     "tests/store/slices/filterSlice\\.test\\.ts$",
 
-    "tests/services/TokenService\\.test\\.ts$",
-    "tests/services/SearchService\\.test\\.ts$",
-
     "tests/middleware/urlSyncMiddleware\\.test\\.ts$"
   ],
 
