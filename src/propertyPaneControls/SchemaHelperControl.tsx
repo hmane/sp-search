@@ -13,6 +13,7 @@ import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { fetchManagedProperties } from '@services/index';
 import type { ISchemaResult } from '@services/index';
 import type { IManagedProperty } from '@interfaces/index';
+import { validateManagedProperty } from '@store/utils/managedPropertyValidation';
 import styles from './SchemaHelperControl.module.scss';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -29,6 +30,8 @@ export interface ISchemaHelperControlProps {
   filterHint?: SchemaFilterHint;
   /** When true, text changes are buffered locally and only applied on Enter or Apply button click */
   applyOnEnter?: boolean;
+  /** T4.D3 — validate against the cached schema (did-you-mean + required flags). */
+  validation?: import('@store/utils/managedPropertyValidation').IValidateOptions;
   onChange: (newValue: string) => void;
 }
 
@@ -54,7 +57,7 @@ const PIVOT_MAP: Record<string, keyof IManagedProperty | undefined> = {
 const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function SchemaHelperControl(
   props: ISchemaHelperControlProps
 ): React.ReactElement {
-  const { label, description, value, multiline, rows, filterHint, applyOnEnter, onChange } = props;
+  const { label, description, value, multiline, rows, filterHint, applyOnEnter, validation, onChange } = props;
 
   // State
   const [isPanelOpen, setIsPanelOpen] = React.useState<boolean>(false);
@@ -215,6 +218,22 @@ const SchemaHelperControl: React.FC<ISchemaHelperControlProps> = function Schema
             onKeyDown={applyOnEnter ? handleTextFieldKeyDown : undefined}
             multiline={multiline}
             rows={rows}
+            // T4.D3 — synchronous did-you-mean + required-flag validation
+            // against the cached schema. Multi-token (comma-separated)
+            // values validate each token; first error wins.
+            onGetErrorMessage={validation ? (currentValue: string): string => {
+              if (!schemaResult || schemaResult.status !== 'success') {
+                return '';
+              }
+              const tokens = currentValue.split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
+              for (let i: number = 0; i < tokens.length; i++) {
+                const result = validateManagedProperty(tokens[i], schemaResult.properties, validation);
+                if (!result.valid) {
+                  return result.message;
+                }
+              }
+              return '';
+            } : undefined}
           />
         </div>
         <TooltipHost

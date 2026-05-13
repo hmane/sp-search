@@ -8,6 +8,7 @@ import {
 
 import SchemaHelperControl from './SchemaHelperControl';
 import type { SchemaFilterHint } from './SchemaHelperControl';
+import type { IValidateOptions } from '@store/utils/managedPropertyValidation';
 
 // ─── Public API ─────────────────────────────────────────────
 
@@ -26,6 +27,13 @@ export interface IPropertyPaneSchemaHelperProps {
   filterHint?: SchemaFilterHint;
   /** When true, text changes are buffered locally and only applied on Enter or Apply button click */
   applyOnEnter?: boolean;
+  /**
+   * T4.D3 — pass flag requirements (e.g. `{ requireSortable: true }`) so
+   * the field's onGetErrorMessage validates against the cached schema and
+   * surfaces did-you-mean / non-sortable errors before the admin saves.
+   * Comma-separated multi-property fields are validated per-token.
+   */
+  validation?: IValidateOptions;
 }
 
 /**
@@ -81,6 +89,7 @@ export function PropertyPaneSchemaHelper(
             rows: context.rows,
             filterHint: context.filterHint,
             applyOnEnter: context.applyOnEnter,
+            validation: context.validation,
             onChange: handleChange,
           }),
           domElement

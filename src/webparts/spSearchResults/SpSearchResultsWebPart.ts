@@ -1473,9 +1473,18 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                     }
                   ]
                 }),
-                PropertyPaneTextField('collapseSpecification', {
+                // T4.D3 — schema-helper-backed editor with sortable filter.
+                // The browser pivot opens to the Sortable tab and admins
+                // can browse only sortable managed properties; the field's
+                // `onGetErrorMessage` adds did-you-mean / non-sortable
+                // validation against the cached schema (closes the audit's
+                // "Collapse spec rejects non-sortable" acceptance signal).
+                PropertyPaneSchemaHelper('collapseSpecification', {
                   label: strings.CollapseSpecificationLabel,
-                  description: strings.CollapseSpecificationDescription
+                  description: strings.CollapseSpecificationDescription,
+                  value: this.properties.collapseSpecification || '',
+                  filterHint: 'sortable',
+                  validation: { requireSortable: true },
                 }),
                 PropertyPaneToggle('showDeleteConfirmation', {
                   label: strings.ShowDeleteConfirmationLabel,
