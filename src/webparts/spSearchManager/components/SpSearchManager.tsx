@@ -827,6 +827,13 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   headerText="Coverage"
                   itemIcon="DatabaseSync"
                 >
+                  <MessageBar messageBarType={MessageBarType.info} isMultiline={true}>
+                    Content coverage stats — indexed item count, freshness, file-type
+                    breakdown, and site distribution — are on the <strong>Dashboard</strong> tab
+                    (enable it in the property pane if it isn’t shown). Per-list / per-library
+                    coverage-profile inspection (the <em>Coverage profiles</em> configured in the
+                    property pane) is not yet surfaced here.
+                  </MessageBar>
                 </PivotItem>
               )}
               {config.enableHealth && (

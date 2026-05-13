@@ -476,17 +476,25 @@ try {
     if ($IncludeAdminManager) {
         $step++
         Write-Host "[$step/$totalSteps] Adding Admin Search Manager..." -ForegroundColor Cyan
+        # NOTE: -Properties REPLACES the manifest's preconfiguredEntries defaults
+        # (PnP does not merge), so every property the Admin Manager needs must be
+        # listed here. defaultTab must point at a tab that actually renders content:
+        # 'dashboard' (Content Coverage stats + Search Quality + Zero-Result + Top
+        # Queries) is the working coverage surface. The standalone 'coverage' tab is
+        # currently an info pointer to the Dashboard tab (the coverage-profiles UI is
+        # not built yet), so it must not be the default.
         Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_ADMIN_MANAGER -Section 4 -Column 1 -Properties @{
-            searchContextId           = $SearchContextId
-            coverageSourcePageUrl     = "$($SiteUrl.TrimEnd('/'))/SitePages/$PageName.aspx"
-            mode                      = "standalone"
-            defaultTab                = "coverage"
-            enableCoverage            = $true
+            searchContextId            = $SearchContextId
+            coverageSourcePageUrl      = "$($SiteUrl.TrimEnd('/'))/SitePages/$PageName.aspx"
+            mode                       = "standalone"
+            defaultTab                 = "dashboard"
+            enableDashboard            = $true
+            enableCoverage             = $true
             coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
-            enableHealth              = $true
-            enableInsights            = $true
+            enableHealth               = $true
+            enableInsights             = $true
         }
-        Write-Host "  [OK] Admin Search Manager (standalone mode)" -ForegroundColor Green
+        Write-Host "  [OK] Admin Search Manager (standalone, Dashboard tab default)" -ForegroundColor Green
         Write-Host ""
     }
 
