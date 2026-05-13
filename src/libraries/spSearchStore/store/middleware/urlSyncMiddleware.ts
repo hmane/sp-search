@@ -7,6 +7,7 @@ import {
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
 import { assignFilterUrlAliases, getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { shouldPushHistory } from '@store/utils/historyMode';
 import { DebugCollector } from '../../debug';
 
 // ─── URL State Shape ────────────────────────────────────────────
@@ -602,7 +603,11 @@ export function setStateSnapshotHandler(handler: (stateJson: string) => Promise<
  */
 function pushStateToUrl(
   state: Partial<IUrlSyncStoreSlice>,
-  prefix?: string
+  prefix?: string,
+  // T2.D8 — `push` creates a new back/forward entry (navigational
+  // changes: queryText / vertical), `replace` updates the current
+  // entry silently (incremental tweaks: filters / sort / page / layout).
+  historyMode: 'push' | 'replace' = 'replace'
 ): void {
   if (!isBrowser()) {
     return;
@@ -621,9 +626,20 @@ function pushStateToUrl(
       ? `${window.location.pathname}?${qs}${window.location.hash}`
       : `${window.location.pathname}${window.location.hash}`;
 
-    DebugCollector.logEvent('URL', { action: 'push', params: qs });
-    // Check if URL exceeds max length — fall back to ?sid= if handler available
+    DebugCollector.logEvent('URL', { action: historyMode === 'push' ? 'pushState' : 'replaceState', params: qs });
+    // Check if URL exceeds max length — fall back to ?sid= if handler available.
+    // The ?sid= replacement always uses replaceState so the long-URL fallback
+    // doesn't double the history entry; the navigational entry was already
+    // created by the time we know the URL is too long.
     if (newUrl.length > MAX_URL_LENGTH && _saveSnapshotHandler) {
+      // Write the long URL first using the requested historyMode so a
+      // future Back navigation lands on the right query, then quietly
+      // replace it with the short ?sid= form.
+      if (historyMode === 'push') {
+        window.history.pushState(window.history.state, '', newUrl);
+      } else {
+        window.history.replaceState(window.history.state, '', newUrl);
+      }
       const stateJson = JSON.stringify({
         queryText: state.queryText,
         activeFilters: state.activeFilters,
@@ -643,15 +659,12 @@ function pushStateToUrl(
           }
         })
         .catch(function (): void {
-          // Fallback: use the long URL anyway
-          window.history.replaceState(window.history.state, '', newUrl);
+          // Long URL already written above — nothing to do on failure.
         });
+    } else if (historyMode === 'push') {
+      window.history.pushState(window.history.state, '', newUrl);
     } else {
-      window.history.replaceState(
-        window.history.state,
-        '',
-        newUrl
-      );
+      window.history.replaceState(window.history.state, '', newUrl);
     }
 
     delete debounceTimers[timerKey];
@@ -700,6 +713,10 @@ export function createUrlSyncSubscription(
   const initial = deserializeFromUrl(prefix);
   let pendingUrlFilters: IUrlFilterParam[] | undefined;
   let pendingFilterTimeout: ReturnType<typeof setTimeout> | undefined;
+  // T2.D8 — guard: when popstate (or any other URL-driven hydration)
+  // writes to the store, the subscription must NOT push another entry
+  // onto the history stack — that would corrupt Back/Forward.
+  let isApplyingUrlState: boolean = false;
 
   // Handle ?sid= fallback: load state snapshot from list
   if (initial.stateId && _loadSnapshotHandler) {
@@ -773,8 +790,22 @@ export function createUrlSyncSubscription(
 
     const snapshot = takeSnapshot(state);
     if (!shallowEqualSnapshot(previousSnapshot, snapshot)) {
+      // T2.D8 — navigational changes (queryText / vertical) create a new
+      // browser-history entry so Back/Forward walk distinct searches.
+      // Filter / sort / page / layout tweaks `replaceState` so they
+      // don't pollute the history stack. URL-driven hydration (popstate)
+      // updates `previousSnapshot` without writing back to the URL so the
+      // user's Back navigation isn't immediately overwritten by a push.
+      if (isApplyingUrlState) {
+        previousSnapshot = snapshot;
+        return;
+      }
+      const historyMode = shouldPushHistory(
+        { queryText: previousSnapshot.queryText, currentVerticalKey: previousSnapshot.currentVerticalKey },
+        { queryText: snapshot.queryText, currentVerticalKey: snapshot.currentVerticalKey }
+      ) ? 'push' : 'replace';
       previousSnapshot = snapshot;
-      pushStateToUrl(state, prefix);
+      pushStateToUrl(state, prefix, historyMode);
     }
   });
 
@@ -782,7 +813,14 @@ export function createUrlSyncSubscription(
   const onPopState = (): void => {
     const urlState = deserializeFromUrl(prefix);
     DebugCollector.logEvent('URL', { action: 'popstate', params: window.location.search });
-    pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
+    // T2.D8 — gate the subscription so the URL → store hydration doesn't
+    // bounce back as another store → URL push.
+    isApplyingUrlState = true;
+    try {
+      pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
+    } finally {
+      isApplyingUrlState = false;
+    }
   };
 
   window.addEventListener('popstate', onPopState);
