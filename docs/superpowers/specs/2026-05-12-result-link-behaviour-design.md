@@ -15,7 +15,7 @@ A new **"Result link behaviour"** section on the `SpSearchResults` web-part prop
 
 | Property | Control | Values (default first) | Effect |
 |----------|---------|------------------------|--------|
-| `resultClickTarget` | `PropertyPaneChoiceGroup` | `newTab` *(default)* · `sameTab` · `panel` | How a title click opens. `newTab`/`sameTab` → navigate (sets `<a target>`); `panel` → intercept the click and `setPreviewItem(item)` to open `ResultDetailPanel` (forces `enablePreviewPanel` true). |
+| `resultClickTarget` | `PropertyPaneChoiceGroup` | `panel` *(default — preserves today's behaviour)* · `newTab` · `sameTab` · `sidePanel` | How a title click opens. `panel` → keep today's `DocumentTitleHoverCard` centred preview Modal for previewable files (PDF/Office/image/text via `buildPreviewUrl`), navigate (new tab) for non-previewable. `newTab` / `sameTab` → always navigate (sets `<a target>`), including for previewable files (suppresses the Modal). `sidePanel` → intercept the click and `setPreviewItem(item)` to open `ResultDetailPanel` for every result (forces `enablePreviewPanel` true). |
 | `documentLinkMode` | `PropertyPaneDropdown` (visible when `resultClickTarget !== 'panel'`) | `file` *(default)* · `propertiesForm` | For results classified **Document**: `file` → `buildBrowserOpenUrl(item)` (already exists — `ServerRedirectedURL` when present so Office docs open in the web app, else the file URL); `propertiesForm` → the item's DispForm. |
 | `listItemLinkMode` | `PropertyPaneDropdown` (visible when `resultClickTarget !== 'panel'`) | `displayForm` *(default)* · `editForm` | For results classified **ListItem**: `displayForm` → `item.url` (search already returns a list item's URL as its DispForm); `editForm` → the item's EditForm. |
 
@@ -25,7 +25,7 @@ When `resultClickTarget === 'panel'`, `documentLinkMode` / `listItemLinkMode` ar
 
 ### Content-type classification
 
-The provider's baseline `selectedProperties` gains: `ContentClass`, `ListID`, `ListItemID`, `FileExtension`, `ServerRedirectedURL` (these land in `item.properties[...]`; no new typed fields on `ISearchResult`). `classifyResult(item)` → `'document' | 'page' | 'listItem' | 'site' | 'folder' | 'other'`:
+The provider's baseline `selectedProperties` (`DEFAULT_SELECTED_PROPERTIES` in `src/libraries/spSearchStore/services/SearchService.ts`) already requests `contentclass`, `FileExtension`, `ServerRedirectedURL`, `IsDocument`, `NormListID`, and `SPSiteURL`. It gains `ListId` and `ListItemID` — required for `buildFormUrl(item, pageType)` (already exists at [documentTitleUtils.ts:377](src/webparts/spSearchResults/components/documentTitleUtils.ts#L377)) to resolve. (Side benefit: this also fixes the dead "View / Edit item" links inside `DocumentTitleHoverCard` — they call `buildFormUrl` today but return `undefined` because the props aren't requested.) `classifyResult(item)` → `'document' | 'page' | 'listItem' | 'site' | 'folder' | 'other'`:
 
 1. `FileExtension === 'aspx'` **or** `ContentClass === 'STS_ListItem_WebPageLibrary'` → `page`.
 2. else non-empty `FileExtension` **or** `ContentClass` starts with `STS_ListItem_DocumentLibrary` **or** `ContentClass === 'STS_Document'` → `document`.
@@ -50,7 +50,13 @@ New util `src/webparts/spSearchResults/components/resultLink.ts`:
 - `classifyResult(item: ISearchResult): ResultKind` — pure.
 - `resolveResultLink(item: ISearchResult, cfg: { clickTarget; documentLinkMode; listItemLinkMode }): { href: string; target?: string; rel?: string; openInPanel: boolean }` — pure; replaces `getResultAnchorProps`. `openInPanel` true iff `clickTarget === 'panel'`. `target`/`rel` set from `clickTarget` (`newTab` → `_blank` + `noopener noreferrer`; `sameTab` → undefined).
 
-All five layouts (`ListLayout`, `CompactLayout`, `CardLayout`, `PeopleLayout`, `GalleryLayout`, plus `DataGridContent`'s title cell) call `resolveResultLink` instead of `getResultAnchorProps`. The title `<a>`'s `onClick` (currently `handleClick` from `DocumentTitleHoverCard`, which calls `onItemClick` → history logging): wrap so that when `openInPanel`, it also `e.preventDefault()` + `store.getState().setPreviewItem(item)`. History-click logging (`orchestrator.logClickedItem`) fires in all cases. (The `<a>` stays a real `<a href>` for keyboard accessibility — middle-click / Ctrl-click still open the resolved URL in a new tab even in `panel` mode, which is the expected browser behaviour.)
+All five layouts (`ListLayout`, `CompactLayout`, `CardLayout`, `PeopleLayout`, `GalleryLayout`, plus `DataGridContent`'s title cell) call `resolveResultLink` instead of `getResultAnchorProps`, and pass `clickTarget` down to `DocumentTitleHoverCard` (new prop). `DocumentTitleHoverCard.handleClick` is updated:
+
+- `clickTarget = 'panel'` → unchanged (preserve today's Modal for previewable files; let the `<a>` navigate for non-previewable).
+- `clickTarget = 'newTab'` / `'sameTab'` → always let the `<a>` navigate (skip the Modal even for previewable files).
+- `clickTarget = 'sidePanel'` → `e.preventDefault()` + `store.getState().setPreviewItem(item)` to open `ResultDetailPanel` (the side-panel `setPreviewItem` action — the component reads from the store, so this works for every layout).
+
+History-click logging (`orchestrator.logClickedItem` via `onItemClick`) fires in all cases. The `<a>` stays a real `<a href>` for keyboard accessibility — middle-click / Ctrl-click still open the resolved URL in a new tab even in `panel` / `sidePanel` mode, which is the expected browser behaviour.
 
 The web part passes the three config values down through `ISpSearchResultsProps` → `SpSearchResults` → the layout components (alongside the existing `titleDisplayMode` etc.).
 
@@ -60,7 +66,7 @@ The web part passes the three config values down through `ISpSearchResultsProps`
 
 ### Defaults preserve today's behaviour
 
-`resultClickTarget = 'newTab'`, `documentLinkMode = 'file'`, `listItemLinkMode = 'displayForm'` → a title click opens a new tab to `buildBrowserOpenUrl(item)` for docs and `item.url` for everything else. (Very close to today; the only change is docs now consistently use the browser-open URL, which is what `buildBrowserOpenUrl` was written for.) Manifest `preconfiguredEntries` get the three new properties at these defaults; existing pages pick them up as the same defaults.
+`resultClickTarget = 'panel'`, `documentLinkMode = 'file'`, `listItemLinkMode = 'displayForm'` → preserves today's behaviour byte-for-byte: previewable files open in the existing centred preview Modal (via `DocumentTitleHoverCard`); non-previewable files navigate to `item.url` in a new tab. Manifest `preconfiguredEntries` get the three new properties at these defaults; existing pages pick them up as the same defaults.
 
 ## Verification
 

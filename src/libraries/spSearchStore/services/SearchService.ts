@@ -33,6 +33,11 @@ const DEFAULT_SELECTED_PROPERTIES: string[] = [
   'NormUniqueID',
   'DocId',
   'IsDocument',
+  // Stream C / #7 — required by `buildFormUrl(item, pageType)` in
+  // `documentTitleUtils.ts` so the DocumentTitleHoverCard View/Edit links and
+  // the new `resolveResultLink` propertiesForm / editForm modes can resolve.
+  'ListId',
+  'ListItemID',
 ];
 
 /**
