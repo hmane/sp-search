@@ -81,7 +81,7 @@ describe('storeRegistry', () => {
       expect(state.pageSize).toBe(25);
       expect(state.sort).toBeUndefined();
       expect(state.promotedResults).toEqual([]);
-      expect(state.isLoading).toBe(true); // starts loading to prevent empty-state flash
+      expect(state.isLoading).toBe(false); // T1.D4 — idle on mount; orchestrator flips to true when a search starts
       expect(state.hasSearched).toBe(false);
       expect(state.error).toBeUndefined();
 

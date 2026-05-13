@@ -34,9 +34,11 @@ describe('resultSlice', () => {
       expect(store.getState().promotedResults).toEqual([]);
     });
 
-    it('should start in loading state (prevents empty-state flash before first search)', () => {
-      // isLoading starts true so the first render shows a skeleton, not "No results found"
-      expect(store.getState().isLoading).toBe(true);
+    it('should start in idle state (T1.D4 — no shimmer until a search actually starts)', () => {
+      // T1.D4 — isLoading starts false so a freshly-mounted Results web part with
+      // no auto-search renders the idle EmptyState instead of a shimmer. The
+      // orchestrator flips it true when a search actually starts.
+      expect(store.getState().isLoading).toBe(false);
     });
 
     it('should start with hasSearched false', () => {

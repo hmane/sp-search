@@ -627,15 +627,26 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   // ─── Determine which layout to render ──────────────────────
   const renderLayout = (): React.ReactElement | undefined => {
-    // No search has completed yet — show skeleton, never "No results found".
-    // This covers both the very first page load and the case where the store
-    // initializes before the Results web part has registered a data provider.
-    if (!hasSearched) {
-      return <LoadingShimmer count={5} />;
+    // T1.D4 — fresh page (no search triggered yet) renders the idle
+    // EmptyState ("Enter a search term to get started."), not a shimmer.
+    // Shimmer is reserved for actually-loading states. If a search IS in
+    // flight on first render (e.g. auto-search from URL state), the next
+    // branch catches it.
+    if (!hasSearched && !isLoading) {
+      return (
+        <EmptyState
+          queryText={queryText}
+          hasActiveFilters={activeFilters.length > 0}
+          hasSearched={false}
+          customMessage={emptyResultsMessage}
+          onClearFilters={handleClearAllFilters}
+          onReset={handleReset}
+        />
+      );
     }
 
-    // A refresh search is in progress with no previous results to retain.
-    // Show the skeleton again rather than flickering to empty state.
+    // First search in flight (or refresh with no previous results to retain)
+    // — show the skeleton rather than flickering to empty state.
     if (isLoading && items.length === 0) {
       return <LoadingShimmer count={5} />;
     }
