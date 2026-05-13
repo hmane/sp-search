@@ -62,6 +62,8 @@ declare interface ISpSearchResultsWebPartStrings {
   DefaultLayoutLabel: string;
   ScenarioPresetLabel: string;
   ScenarioPresetHint: string;
+  ScenarioPresetPeopleWarning: string;
+  GetStartedGroupName: string;
   ListLayoutText: string;
   CompactLayoutText: string;
   GridLayoutText: string;

@@ -32,10 +32,7 @@ import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/Co
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
-import {
-  propertyPaneSearchContextIdField,
-  SEARCH_CONTEXT_ID_GROUP_NAME,
-} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
+import { propertyPaneSearchContextIdField } from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -929,7 +926,11 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   private _buildPresetOptions(): Array<{ key: string; text: string; iconProps: { officeFabricIconFontName: string } }> {
-    const options = [
+    // T4.D2 — surface all 9 presets unconditionally. The People preset
+    // is shown even when Graph isn't available so admins can discover the
+    // capability and select it; `_isPeoplePresetBlocked` then renders a
+    // graceful warning explaining what's missing.
+    return [
       { key: 'custom',          text: 'Custom',         iconProps: { officeFabricIconFontName: 'Settings' } },
       { key: 'general',         text: 'General',        iconProps: { officeFabricIconFontName: 'Search' } },
       { key: 'documents',       text: 'Documents',      iconProps: { officeFabricIconFontName: 'DocLibrary' } },
@@ -937,16 +938,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       { key: 'knowledge-base',  text: 'Knowledge Base', iconProps: { officeFabricIconFontName: 'BookAnswers' } },
       { key: 'policy-search',   text: 'Policy Search',  iconProps: { officeFabricIconFontName: 'Shield' } },
       { key: 'news',            text: 'News',           iconProps: { officeFabricIconFontName: 'News' } },
-      { key: 'media',           text: 'Media',          iconProps: { officeFabricIconFontName: 'Photo2' } }
+      { key: 'media',           text: 'Media',          iconProps: { officeFabricIconFontName: 'Photo2' } },
+      { key: 'people',          text: 'People',         iconProps: { officeFabricIconFontName: 'Group' } }
     ];
+  }
 
-    const currentPreset = this.properties.layoutPreset || 'custom';
-    const shouldShowPeople = !!this._graphOrgService || currentPreset === 'people';
-    if (shouldShowPeople) {
-      options.push({ key: 'people', text: 'People', iconProps: { officeFabricIconFontName: 'Group' } });
-    }
-
-    return options;
+  /**
+   * T4.D2 — true when the admin has selected `people` but no Graph
+   * client is available (most commonly: the tenant hasn't approved the
+   * Microsoft Graph permission at SharePoint admin → API access).
+   * Drives the graceful-warning label below the preset picker.
+   */
+  private _isPeoplePresetBlocked(): boolean {
+    return this.properties.layoutPreset === 'people' && !this._graphOrgService;
   }
 
   private _shouldShowSpecializedViews(): boolean {
@@ -1089,12 +1093,28 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             description: strings.DataSourcePageHeader
           },
           groups: [
-            // T3.D4 — searchContextId is the first field every admin sees
-            // on every search web part. Shared helper keeps the label /
-            // description / required-error string identical across panes.
+            // T4.D2 — "Get started" hoists the scenario preset picker to
+            // the first field on page 1, ahead of any data-source detail.
+            // T3.D4 — `searchContextId` follows the picker in the same group
+            // so both first-impression knobs are visible without a scroll.
             {
-              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupName: strings.GetStartedGroupName,
               groupFields: [
+                PropertyPaneChoiceGroup('layoutPreset', {
+                  label: strings.ScenarioPresetLabel,
+                  options: this._buildPresetOptions()
+                }),
+                PropertyPaneLabel('layoutPresetHint', {
+                  text: strings.ScenarioPresetHint
+                }),
+                // T4.D2 — graceful warning when admin selects `people` but
+                // Graph isn't available. The preset still applies; this
+                // label tells admins what to fix.
+                ...(this._isPeoplePresetBlocked() ? [
+                  PropertyPaneLabel('layoutPresetPeopleWarning', {
+                    text: strings.ScenarioPresetPeopleWarning
+                  })
+                ] : []),
                 propertyPaneSearchContextIdField()
               ]
             },
@@ -1237,13 +1257,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.MainLayoutsGroupName,
               groupFields: [
-                PropertyPaneChoiceGroup('layoutPreset', {
-                  label: strings.ScenarioPresetLabel,
-                  options: this._buildPresetOptions()
-                }),
-                PropertyPaneLabel('layoutPresetHint', {
-                  text: strings.ScenarioPresetHint
-                }),
+                // T4.D2 — preset picker moved to page-1 "Get started" group.
                 PropertyPaneChoiceGroup('defaultLayout', {
                   label: strings.DefaultLayoutLabel,
                   options: this._buildDefaultLayoutOptions()

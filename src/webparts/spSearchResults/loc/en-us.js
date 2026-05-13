@@ -63,6 +63,8 @@ define([], function() {
     "DefaultLayoutLabel": "Starting View",
     "ScenarioPresetLabel": "Scenario Preset",
     "ScenarioPresetHint": "A preset configures layout, query template, and result columns. Filters and Verticals web parts are configured separately. Select Custom to configure everything manually.",
+    "ScenarioPresetPeopleWarning": "The People preset needs Microsoft Graph access. The preset is applied but the People results will be empty until a tenant admin approves the People.Read (and optionally User.Read.All / Sites.Read.All) Graph permissions at SharePoint admin centre → Advanced → API access.",
+    "GetStartedGroupName": "Get started",
     "ListLayoutText": "List",
     "CompactLayoutText": "Compact List",
     "GridLayoutText": "Data Grid",
