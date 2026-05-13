@@ -93,6 +93,18 @@ define([], function() {
     "DisplayPageHeader": "Configure layout, sort, and display options.",
     "ConnectionsPageHeader": "Configure connections to other search web parts on the page.",
     "AdvancedPageHeader": "Configure expert search and grid behaviors.",
-    "AboutPageHeader": "SP Search Results Web Part"
+    "AboutPageHeader": "SP Search Results Web Part",
+    "ResultLinkGroupName": "Result link behaviour",
+    "ResultClickTargetLabel": "When a result is clicked",
+    "ResultClickTargetPanelText": "Open the preview pop-up (default — today’s behaviour for files; new tab for other items)",
+    "ResultClickTargetNewTabText": "Open in a new tab",
+    "ResultClickTargetSameTabText": "Open in the same tab",
+    "ResultClickTargetSidePanelText": "Open the detail side-panel",
+    "DocumentLinkModeLabel": "For document results, the link opens",
+    "DocumentLinkModeFileText": "The file",
+    "DocumentLinkModePropertiesFormText": "Its properties form (DispForm)",
+    "ListItemLinkModeLabel": "For list-item results, the link opens",
+    "ListItemLinkModeDisplayFormText": "The display form (view)",
+    "ListItemLinkModeEditFormText": "The edit form"
   }
 });

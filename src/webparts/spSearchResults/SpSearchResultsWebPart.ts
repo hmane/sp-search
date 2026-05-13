@@ -1278,32 +1278,31 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
               ]
             },
             // ─── Result link behaviour (Stream C / #7) ──────────
-            // NOTE: strings hardcoded inline pending a follow-up `loc/` update.
             {
-              groupName: 'Result link behaviour',
+              groupName: strings.ResultLinkGroupName,
               groupFields: [
                 PropertyPaneChoiceGroup('resultClickTarget', {
-                  label: 'When a result is clicked',
+                  label: strings.ResultClickTargetLabel,
                   options: [
-                    { key: 'panel', text: 'Open the preview pop-up (default — today’s behaviour for files; new tab for other items)' },
-                    { key: 'newTab', text: 'Open in a new tab' },
-                    { key: 'sameTab', text: 'Open in the same tab' },
-                    { key: 'sidePanel', text: 'Open the detail side-panel' }
+                    { key: 'panel',     text: strings.ResultClickTargetPanelText },
+                    { key: 'newTab',    text: strings.ResultClickTargetNewTabText },
+                    { key: 'sameTab',   text: strings.ResultClickTargetSameTabText },
+                    { key: 'sidePanel', text: strings.ResultClickTargetSidePanelText }
                   ]
                 }),
                 ...((this.properties.resultClickTarget || 'panel') !== 'sidePanel' ? [
                   PropertyPaneDropdown('documentLinkMode', {
-                    label: 'For document results, the link opens',
+                    label: strings.DocumentLinkModeLabel,
                     options: [
-                      { key: 'file', text: 'The file' },
-                      { key: 'propertiesForm', text: 'Its properties form (DispForm)' }
+                      { key: 'file',            text: strings.DocumentLinkModeFileText },
+                      { key: 'propertiesForm', text: strings.DocumentLinkModePropertiesFormText }
                     ]
                   }),
                   PropertyPaneDropdown('listItemLinkMode', {
-                    label: 'For list-item results, the link opens',
+                    label: strings.ListItemLinkModeLabel,
                     options: [
-                      { key: 'displayForm', text: 'The display form (view)' },
-                      { key: 'editForm', text: 'The edit form' }
+                      { key: 'displayForm', text: strings.ListItemLinkModeDisplayFormText },
+                      { key: 'editForm',    text: strings.ListItemLinkModeEditFormText }
                     ]
                   })
                 ] : [])

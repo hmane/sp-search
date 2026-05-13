@@ -93,6 +93,18 @@ declare interface ISpSearchResultsWebPartStrings {
   ConnectionsPageHeader: string;
   AdvancedPageHeader: string;
   AboutPageHeader: string;
+  ResultLinkGroupName: string;
+  ResultClickTargetLabel: string;
+  ResultClickTargetPanelText: string;
+  ResultClickTargetNewTabText: string;
+  ResultClickTargetSameTabText: string;
+  ResultClickTargetSidePanelText: string;
+  DocumentLinkModeLabel: string;
+  DocumentLinkModeFileText: string;
+  DocumentLinkModePropertiesFormText: string;
+  ListItemLinkModeLabel: string;
+  ListItemLinkModeDisplayFormText: string;
+  ListItemLinkModeEditFormText: string;
 }
 
 declare module 'SpSearchResultsWebPartStrings' {
