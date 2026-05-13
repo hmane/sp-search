@@ -71,7 +71,10 @@
       "showDeleteConfirmation": true,
       "enablePreviewPanel": true,
       "hideWebPartWhenNoResults": false,
-      "titleDisplayMode": "wrap"
+      "titleDisplayMode": "wrap",
+      "resultClickTarget": "panel",
+      "documentLinkMode": "file",
+      "listItemLinkMode": "displayForm"
     }
   }]
 }

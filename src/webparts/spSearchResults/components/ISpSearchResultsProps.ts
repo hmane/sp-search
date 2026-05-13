@@ -4,6 +4,7 @@ import { ISearchStore } from '@interfaces/index';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
 import { GraphOrgService } from './GraphOrgService';
 import { TitleDisplayMode } from './documentTitleUtils';
+import type { IResultLinkConfig } from './resultLink';
 
 export interface ISelectedPropertyColumn {
   property: string;
@@ -37,4 +38,6 @@ export interface ISpSearchResultsProps {
   queryTemplate: string;
   /** Graph org service for manager/direct-reports lookups in People layout. Undefined when Graph is unavailable. */
   graphOrgService?: GraphOrgService;
+  /** Result link behaviour config (Stream C / #7). Drives `resolveResultLink` + DocumentTitleHoverCard click flow. */
+  linkConfig: IResultLinkConfig;
 }

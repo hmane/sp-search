@@ -70,6 +70,12 @@ export interface ISpSearchResultsWebPartProps {
   enablePreviewPanel: boolean;
   hideWebPartWhenNoResults: boolean;
   titleDisplayMode: TitleDisplayMode;
+  // Stream C / #7 — result link behaviour. Defaults preserve today's behaviour:
+  // 'panel' keeps the existing DocumentTitleHoverCard Modal-for-previewables;
+  // 'file' / 'displayForm' keep today's URL resolution.
+  resultClickTarget: 'panel' | 'newTab' | 'sameTab' | 'sidePanel';
+  documentLinkMode: 'file' | 'propertiesForm';
+  listItemLinkMode: 'displayForm' | 'editForm';
   searchScope: string;
   searchScopePath: string;
   showListLayout: boolean;
@@ -172,7 +178,14 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         gridPropertyColumns,
         compactPropertyColumns,
         queryTemplate: this.properties.queryTemplate || '{searchTerms}',
-        graphOrgService: this._graphOrgService
+        graphOrgService: this._graphOrgService,
+        // Stream C / #7 — assemble the link-behaviour config with safe defaults
+        // (preserves today's behaviour byte-for-byte for missing properties).
+        linkConfig: {
+          clickTarget: this.properties.resultClickTarget || 'panel',
+          documentLinkMode: this.properties.documentLinkMode || 'file',
+          listItemLinkMode: this.properties.listItemLinkMode || 'displayForm',
+        }
       }
     );
 
@@ -1198,6 +1211,38 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
                 }),
+              ]
+            },
+            // ─── Result link behaviour (Stream C / #7) ──────────
+            // NOTE: strings hardcoded inline pending a follow-up `loc/` update.
+            {
+              groupName: 'Result link behaviour',
+              groupFields: [
+                PropertyPaneChoiceGroup('resultClickTarget', {
+                  label: 'When a result is clicked',
+                  options: [
+                    { key: 'panel', text: 'Open the preview pop-up (default — today’s behaviour for files; new tab for other items)' },
+                    { key: 'newTab', text: 'Open in a new tab' },
+                    { key: 'sameTab', text: 'Open in the same tab' },
+                    { key: 'sidePanel', text: 'Open the detail side-panel' }
+                  ]
+                }),
+                ...((this.properties.resultClickTarget || 'panel') !== 'sidePanel' ? [
+                  PropertyPaneDropdown('documentLinkMode', {
+                    label: 'For document results, the link opens',
+                    options: [
+                      { key: 'file', text: 'The file' },
+                      { key: 'propertiesForm', text: 'Its properties form (DispForm)' }
+                    ]
+                  }),
+                  PropertyPaneDropdown('listItemLinkMode', {
+                    label: 'For list-item results, the link opens',
+                    options: [
+                      { key: 'displayForm', text: 'The display form (view)' },
+                      { key: 'editForm', text: 'The edit form' }
+                    ]
+                  })
+                ] : [])
               ]
             }
           ]

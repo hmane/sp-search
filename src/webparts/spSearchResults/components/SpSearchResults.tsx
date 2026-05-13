@@ -470,7 +470,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     gridPropertyColumns,
     compactPropertyColumns,
     queryTemplate,
-    graphOrgService
+    graphOrgService,
+    linkConfig
   } = props;
 
   const {
@@ -630,6 +631,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             compactPropertyColumns={compactPropertyColumns}
             titleDisplayMode={titleDisplayMode}
             onItemClick={handleItemClick}
+            linkConfig={linkConfig}
+            onOpenInSidePanel={handlePreviewItem}
           />
         );
         break;
@@ -642,6 +645,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             titleDisplayMode={titleDisplayMode}
             onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
             onItemClick={handleItemClick}
+            linkConfig={linkConfig}
+            onOpenInSidePanel={handlePreviewItem}
           />
         );
         break;
@@ -677,6 +682,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onPageChange={handlePageChange}
             onSortChange={handleSortChange}
             onFallback={(): void => handleLayoutChange('list')}
+            linkConfig={linkConfig}
+            onOpenInSidePanel={handlePreviewItem}
           />
         );
         break;
@@ -688,6 +695,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             titleDisplayMode={titleDisplayMode}
             onPreviewItem={enablePreviewPanel ? handlePreviewItem : undefined}
             onItemClick={handleItemClick}
+            linkConfig={linkConfig}
+            onOpenInSidePanel={handlePreviewItem}
           />
         );
         break;
@@ -700,6 +709,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             searchContextId={searchContextId}
             titleDisplayMode={titleDisplayMode}
             onItemClick={handleItemClick}
+            linkConfig={linkConfig}
+            onOpenInSidePanel={handlePreviewItem}
           />
         );
     }

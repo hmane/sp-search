@@ -3,6 +3,7 @@ import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index'
 import DataGridContent from './DataGridContent';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
 import { TitleDisplayMode } from './documentTitleUtils';
+import type { IResultLinkConfig } from './resultLink';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridLayoutProps {
@@ -28,6 +29,9 @@ export interface IDataGridLayoutProps {
    * Use this to switch to a safe fallback layout (e.g. list).
    */
   onFallback?: () => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 interface IDataGridRenderErrorState {
@@ -111,6 +115,8 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
           onItemClick={props.onItemClick}
           onPageChange={props.onPageChange}
           onSortChange={props.onSortChange}
+          linkConfig={props.linkConfig}
+          onOpenInSidePanel={props.onOpenInSidePanel}
         />
       </DataGridRenderErrorBoundary>
     </div>

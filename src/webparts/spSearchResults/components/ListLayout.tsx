@@ -6,7 +6,8 @@ import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPer
 const UserPersona: any = _UserPersona;
 import { ISearchResult } from '@interfaces/index';
 import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
-import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
@@ -16,16 +17,19 @@ export interface IListLayoutProps {
   searchContextId: string;
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onItemClick } = props;
+  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <ul className={styles.resultList} role="list">
       {items.map((item: ISearchResult, index: number) => {
         const sizeDisplay: string = formatFileSize(item.fileSize);
-        const linkProps = getResultAnchorProps(item);
+        const linkProps = resolveResultLink(item, linkConfig);
 
         return (
           <li key={item.key} className={styles.resultCard} role="listitem">
@@ -37,7 +41,13 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
             <div className={styles.resultBody}>
               <h3 className={styles.resultTitle}>
                 <div className={styles.resultTitleRow}>
-                  <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick}>
+                  <DocumentTitleHoverCard
+                    item={item}
+                    position={index + 1}
+                    onItemClick={onItemClick}
+                    clickTarget={linkConfig.clickTarget}
+                    onOpenInSidePanel={onOpenInSidePanel}
+                  >
                     {(handleClick): React.ReactNode => (
                       <a
                         href={linkProps.href}

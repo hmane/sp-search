@@ -10,7 +10,8 @@ import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index'
 import { PermissionKind } from '@pnp/sp/security';
 import { hasPermissions } from '@pnp/sp/security/funcs';
 import { buildDownloadUrl, copyTextToClipboard } from '@providers/actions/actionUtils';
-import { formatRelativeDate, formatDateTime, formatFileSize, getResultAnchorProps, buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatRelativeDate, formatDateTime, formatFileSize, buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
@@ -38,6 +39,9 @@ export interface IDataGridContentProps {
   onItemClick?: (item: ISearchResult, position: number) => void;
   onPageChange: (page: number) => void;
   onSortChange: (sort: ISortField) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 type ColumnKind = 'title' | 'author' | 'date' | 'fileType' | 'fileSize' | 'url' | 'text';
@@ -493,7 +497,9 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     sortableProperties,
     onItemClick,
     onPageChange,
-    onSortChange
+    onSortChange,
+    linkConfig,
+    onOpenInSidePanel
   } = props;
 
   // Activate virtual scrolling only for larger page sizes where DOM virtualization
@@ -766,7 +772,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     const matchingItem = cellData.data.__item;
     const position = (cellData.rowIndex !== undefined ? cellData.rowIndex : 0) + 1;
     const title = formatTitleText(formatTextValue(cellData.value), titleDisplayMode);
-    const linkProps = getResultAnchorProps(matchingItem);
+    const linkProps = resolveResultLink(matchingItem, linkConfig);
     const permissionState = permissionCache[matchingItem.key];
     const viewUrl = buildFormUrl(matchingItem, 4);
     const editUrl = buildFormUrl(matchingItem, 6);
@@ -867,7 +873,14 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     ];
 
     return (
-      <DocumentTitleHoverCard item={matchingItem} position={position} onItemClick={onItemClick} hostDisplay="block">
+      <DocumentTitleHoverCard
+        item={matchingItem}
+        position={position}
+        onItemClick={onItemClick}
+        hostDisplay="block"
+        clickTarget={linkConfig.clickTarget}
+        onOpenInSidePanel={onOpenInSidePanel}
+      >
         {(handleClick): React.ReactNode => (
           <div className={styles.gridTitleCell}>
             <span className={styles.gridTitleIcon}>

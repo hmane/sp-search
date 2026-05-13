@@ -4,7 +4,8 @@ import { IconButton } from '@fluentui/react/lib/Button';
 import { IContextualMenuProps, IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
@@ -13,6 +14,9 @@ export interface IGalleryLayoutProps {
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 /**
@@ -32,10 +36,12 @@ const GalleryItem: React.FC<{
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }> = (galleryProps) => {
-  const { item, position, titleDisplayMode, onPreviewItem, onItemClick } = galleryProps;
+  const { item, position, titleDisplayMode, onPreviewItem, onItemClick, linkConfig, onOpenInSidePanel } = galleryProps;
   const isImage: boolean = isImageType(item.fileType);
-  const linkProps = getResultAnchorProps(item);
+  const linkProps = resolveResultLink(item, linkConfig);
 
   const handlePreviewClick = React.useCallback((): void => {
     if (onPreviewItem) {
@@ -135,7 +141,13 @@ const GalleryItem: React.FC<{
       {/* Info bar */}
       <div className={styles.galleryInfo}>
         <div className={styles.galleryTitle} title={item.title}>
-          <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick}>
+          <DocumentTitleHoverCard
+            item={item}
+            position={position}
+            onItemClick={onItemClick}
+            clickTarget={linkConfig.clickTarget}
+            onOpenInSidePanel={onOpenInSidePanel}
+          >
             {(handleClick): React.ReactNode => (
               <a
                 href={linkProps.href}
@@ -181,7 +193,7 @@ const GalleryItem: React.FC<{
  *  - Mobile (< 640px): 2 columns
  */
 const GalleryLayout: React.FC<IGalleryLayoutProps> = (props) => {
-  const { items, titleDisplayMode, onPreviewItem, onItemClick } = props;
+  const { items, titleDisplayMode, onPreviewItem, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <div className={styles.galleryGrid} role="list">
@@ -193,6 +205,8 @@ const GalleryLayout: React.FC<IGalleryLayoutProps> = (props) => {
           titleDisplayMode={titleDisplayMode}
           onPreviewItem={onPreviewItem}
           onItemClick={onItemClick}
+          linkConfig={linkConfig}
+          onOpenInSidePanel={onOpenInSidePanel}
         />
       ))}
     </div>

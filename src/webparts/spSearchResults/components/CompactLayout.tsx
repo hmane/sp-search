@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatShortDate, stripHtml, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatShortDate, stripHtml, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
 import AddToCollectionButton from './AddToCollectionButton';
@@ -14,6 +15,9 @@ export interface ICompactLayoutProps {
   compactPropertyColumns: ISelectedPropertyColumn[];
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 type CompactColumnKind = 'author' | 'date' | 'fileSize' | 'fileType' | 'site' | 'text';
@@ -124,7 +128,7 @@ function renderCompactCell(item: ISearchResult, column: ICompactColumnConfig): R
 }
 
 const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
-  const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick } = props;
+  const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
   const columns = React.useMemo(
     (): ICompactColumnConfig[] => getCompactColumns(compactPropertyColumns),
     [compactPropertyColumns]
@@ -152,7 +156,7 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
       </div>
       {items.map((item: ISearchResult, index: number) => {
         const tooltipText: string = stripHtml(item.summary) || item.title;
-        const linkProps = getResultAnchorProps(item);
+        const linkProps = resolveResultLink(item, linkConfig);
 
         return (
           <div
@@ -167,7 +171,14 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
             </div>
             <div className={styles.compactTitle} role="cell">
               <div className={styles.compactTitleInner}>
-                <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick} hostDisplay="block">
+                <DocumentTitleHoverCard
+                  item={item}
+                  position={index + 1}
+                  onItemClick={onItemClick}
+                  hostDisplay="block"
+                  clickTarget={linkConfig.clickTarget}
+                  onOpenInSidePanel={onOpenInSidePanel}
+                >
                   {(handleClick): React.ReactNode => (
                     <a
                       href={linkProps.href}
