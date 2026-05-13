@@ -6,6 +6,8 @@ import {
   ISearchDataProvider
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { TokenService, ITokenContext } from '@services/TokenService';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { DebugCollector } from '../debug';
 
 /**
@@ -696,15 +698,44 @@ export class SearchOrchestrator {
     return { textFilters, refinementFilters };
   }
 
+  /**
+   * MISS-001 — build an ITokenContext from SPContext for resolving tokens
+   * other than `{searchTerms}` in admin-configured templates. Returns
+   * empty strings for fields when SPContext isn't ready (e.g. during the
+   * very first render before `onInit` resolves) — TokenService treats
+   * empty replacements as no-ops, so this degrades gracefully.
+   */
+  private _buildTokenContext(rawQuery: string): ITokenContext {
+    const pageContext = SPContext.isReady() ? SPContext.pageContext : undefined;
+    const user = pageContext?.user;
+    return {
+      queryText: rawQuery || '',
+      siteId: pageContext?.site?.id?.toString() || '',
+      siteUrl: pageContext?.site?.absoluteUrl || '',
+      webId: pageContext?.web?.id?.toString() || '',
+      webUrl: pageContext?.web?.absoluteUrl || '',
+      hubSiteUrl: (pageContext?.legacyPageContext as { hubSiteId?: string; hubSiteUrl?: string })?.hubSiteUrl || '',
+      userDisplayName: user?.displayName || '',
+      userEmail: user?.email || user?.loginName || '',
+      listId: pageContext?.list?.id?.toString() || '',
+    };
+  }
+
   private _buildEffectiveQueryText(
     state: ISearchStore,
     textFilters: ISearchStore['activeFilters']
   ): string {
     const rawQuery = state.queryText;
     const transformation = state.queryInputTransformation || '{searchTerms}';
-    const queryText = rawQuery
-      ? transformation.replace(/\{searchTerms\}/gi, rawQuery)
-      : '*';
+    // MISS-001 — full token resolution (not just `{searchTerms}`). Admin
+    // patterns like `({searchTerms}) AND owner:{User.Email}` now expand
+    // every token client-side before the provider sees the query.
+    const tokenContext = this._buildTokenContext(rawQuery);
+    const queryText = TokenService.applyQueryInputTransformation(
+      transformation,
+      rawQuery,
+      tokenContext
+    );
 
     if (textFilters.length === 0) {
       return queryText;

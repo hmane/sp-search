@@ -102,6 +102,39 @@ export class TokenService {
   }
 
   /**
+   * MISS-001 — Apply a `queryInputTransformation` template to the user's
+   * raw search text. The transformation may reference any token the
+   * full {@link resolveTokens} method understands, not just `{searchTerms}`.
+   *
+   * Used by the orchestrator's `_buildEffectiveQueryText` to expand
+   * admin-configured patterns like
+   *   `({searchTerms}) AND owner:{User.Email}`
+   * before the result is handed to the data provider. Without this,
+   * tokens other than `{searchTerms}` flow into the provider unresolved
+   * and reach SharePoint as literal text (server-side substitution only
+   * handles `{searchTerms}` in the outer `QueryTemplate` field).
+   *
+   * Empty-query behaviour: if `rawQuery` is empty/whitespace, the
+   * transformation is still resolved (so non-`{searchTerms}` parts
+   * survive). If the resolved + trimmed result is empty, returns `*`
+   * (SharePoint's match-all sentinel) instead of an empty query string.
+   *
+   * @param transformation - The admin-configured template (defaults to `{searchTerms}` when blank).
+   * @param rawQuery       - The user's typed query text.
+   * @param context        - Token context (everything except `queryText`, which is overridden by `rawQuery`).
+   */
+  public static applyQueryInputTransformation(
+    transformation: string,
+    rawQuery: string,
+    context: ITokenContext
+  ): string {
+    const template = transformation && transformation.trim() ? transformation : '{searchTerms}';
+    const tokenContext: ITokenContext = { ...context, queryText: rawQuery || '' };
+    const resolved = TokenService.resolveTokens(template, tokenContext).trim();
+    return resolved || '*';
+  }
+
+  /**
    * Format a Date as an ISO date string (YYYY-MM-DD).
    */
   private static _formatDate(date: Date): string {
