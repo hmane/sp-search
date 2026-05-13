@@ -4,7 +4,7 @@ import { IconButton } from '@fluentui/react/lib/Button';
 import { IContextualMenuProps, IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
@@ -17,14 +17,6 @@ export interface IGalleryLayoutProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
-}
-
-/**
- * Determines if a file type is an image.
- */
-function isImageType(fileType: string): boolean {
-  const ft: string = (fileType || '').toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].indexOf(ft) >= 0;
 }
 
 /**

@@ -6,7 +6,7 @@ import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPer
 const UserPersona: any = _UserPersona;
 import { ISearchResult } from '@interfaces/index';
 import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
-import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
@@ -35,7 +35,12 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
           <li key={item.key} className={styles.resultCard} role="listitem">
 
             <div className={styles.resultIcon}>
-              <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 32 })} />
+              {isImageType(item) && item.thumbnailUrl ? (
+                // Stream C / #8 — show the image itself for image results.
+                <img className={styles.resultIconImage} src={item.thumbnailUrl} alt="" loading="lazy" />
+              ) : (
+                <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 32 })} />
+              )}
             </div>
 
             <div className={styles.resultBody}>

@@ -10,13 +10,25 @@ export const OFFICE_EXTENSIONS: string[] = [
   'docm', 'dotx', 'xlsm', 'xltx', 'pptm', 'potx',
 ];
 
+/** Image extensions — rendered as a native `<img>` (Stream C / #8). */
+export const IMAGE_EXTENSIONS: string[] = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'];
+
 /** All extensions that can be previewed in-browser. */
 export const PREVIEWABLE_EXTENSIONS: string[] = [
   ...OFFICE_EXTENSIONS,
   'pdf',
-  'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
+  ...IMAGE_EXTENSIONS,
   'txt', 'csv', 'json', 'xml',
 ];
+
+/** Image-type predicate. Accepts either a raw extension string or an `ISearchResult`. */
+export function isImageType(fileTypeOrItem: string | ISearchResult): boolean {
+  const ext: string =
+    typeof fileTypeOrItem === 'string'
+      ? (fileTypeOrItem || '').toLowerCase()
+      : getFileExtension(fileTypeOrItem);
+  return IMAGE_EXTENSIONS.indexOf(ext) >= 0;
+}
 
 /**
  * Formats a file size in bytes into a human-readable string.

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatShortDate, stripHtml, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatShortDate, stripHtml, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
@@ -167,7 +167,12 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
             style={{ gridTemplateColumns: layoutTemplate }}
           >
             <div className={styles.compactIcon} role="cell">
-              <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 16 })} />
+              {isImageType(item) && item.thumbnailUrl ? (
+                // Stream C / #8 — show the image itself for image results.
+                <img className={styles.compactIconImage} src={item.thumbnailUrl} alt="" loading="lazy" />
+              ) : (
+                <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 16 })} />
+              )}
             </div>
             <div className={styles.compactTitle} role="cell">
               <div className={styles.compactTitleInner}>

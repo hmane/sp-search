@@ -491,6 +491,15 @@
   }
 }
 
+// Stream C / #8 — image-result thumbnail in List layout's leading cell.
+.resultIconImage {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  background-color: var(--neutralLighterAlt, #faf9f8);
+}
+
 // ─── Title Hover Card ──────────────────────────────────────
 .resultTitleHoverCard {
   padding: 16px;
@@ -710,6 +719,17 @@
     border: none;
     display: block;
   }
+}
+
+// Stream C / #8 — image-result preview inside the click-Modal.
+// Dark backdrop + object-fit: contain so the actual image fills the frame
+// without distortion, instead of the SharePoint `?web=1` wrapper page.
+.previewModalImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background-color: #1b1a19;
 }
 
 .previewModalFooter {
@@ -993,6 +1013,15 @@
   font-size: 15px;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+// Stream C / #8 — image-result thumbnail in Compact layout's leading cell.
+.compactIconImage {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 2px;
+  background-color: var(--neutralLighterAlt, #faf9f8);
 }
 
 .compactTitle {

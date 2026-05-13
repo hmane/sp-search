@@ -12,7 +12,7 @@ const UserPersona: any = _UserPersona;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VersionHistory: any = _LazyVersionHistory;
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatDateTime, buildPreviewUrl, buildFormUrl } from './documentTitleUtils';
+import { formatFileSize, formatDateTime, buildPreviewUrl, buildFormUrl, isImageType } from './documentTitleUtils';
 import type { ResultClickTarget } from './resultLink';
 import styles from './SpSearchResults.module.scss';
 
@@ -263,12 +263,22 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
             </div>
           </div>
           <div className={styles.previewModalFrame}>
-            <iframe
-              src={buildPreviewUrl(previewItem)}
-              title={previewItem.title}
-              // eslint-disable-next-line react/no-unknown-property
-              allowFullScreen
-            />
+            {isImageType(previewItem) ? (
+              // Stream C / #8 — render the actual image (clean fullscreen view)
+              // instead of an iframe wrapping `?web=1` (SharePoint preview page).
+              <img
+                className={styles.previewModalImage}
+                src={previewItem.url}
+                alt={previewItem.title}
+              />
+            ) : (
+              <iframe
+                src={buildPreviewUrl(previewItem)}
+                title={previewItem.title}
+                // eslint-disable-next-line react/no-unknown-property
+                allowFullScreen
+              />
+            )}
           </div>
         </Modal>
       )}
