@@ -74,7 +74,8 @@
       "defaultVertical": "all",
       "showCounts": true,
       "hideEmptyVerticals": false,
-      "tabStyle": "tabs"
+      "tabStyle": "tabs",
+      "audienceGroups": ""
     }
   }]
 }

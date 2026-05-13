@@ -49,6 +49,9 @@ define([], function() {
     "EnableKqlModeFieldLabel": "Enable KQL mode toggle",
     "EnableSearchManagerFieldLabel": "Enable saved searches button",
     "ToggleOnText": "On",
-    "ToggleOffText": "Off"
+    "ToggleOffText": "Off",
+    "AudienceTargetingGroupName": "Audience targeting",
+    "AudienceTargetingLabel": "Visible to (Azure AD group IDs)",
+    "AudienceTargetingDescription": "Comma- or newline-separated Azure AD group object IDs. Leave blank to show this web part to everyone. Requires the User.Read Graph permission to be approved at SharePoint admin → API access."
   }
 });

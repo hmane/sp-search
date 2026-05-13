@@ -22,6 +22,7 @@ import { getStore, initializeSearchContext } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -41,6 +42,8 @@ export interface ISpSearchFiltersWebPartProps {
   operatorBetweenFilters: 'AND' | 'OR';
   showClearAll: boolean;
   enableVisualFilterBuilder: boolean;
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 interface IFilterCollectionItem {
@@ -100,7 +103,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   private _store: StoreApi<ISearchStore> | undefined;
 
   public render(): void {
-    const element: React.ReactElement<ISpSearchFiltersProps> = React.createElement(
+    const innerElement: React.ReactElement<ISpSearchFiltersProps> = React.createElement(
       SpSearchFilters,
       {
         store: this._store,
@@ -108,6 +111,15 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         showClearAll: this.properties.showClearAll !== false,
         enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder
       }
+    );
+
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const element: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      innerElement
     );
 
     ReactDom.render(element, this.domElement);
@@ -489,6 +501,19 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.EnableVisualFilterBuilderLabel,
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
+                })
+              ]
+            },
+            // Stream D / #10 — per-web-part audience targeting.
+            {
+              groupName: strings.AudienceTargetingGroupName,
+              groupFields: [
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             }

@@ -76,7 +76,8 @@
       "titleDisplayMode": "wrap",
       "resultClickTarget": "panel",
       "documentLinkMode": "file",
-      "listItemLinkMode": "displayForm"
+      "listItemLinkMode": "displayForm",
+      "audienceGroups": ""
     }
   }]
 }

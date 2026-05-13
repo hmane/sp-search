@@ -29,6 +29,7 @@ import {
   normalizeColumnConfigItem,
 } from './components/ColumnConfigField/columnConfig';
 import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/ColumnConfigField';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -116,6 +117,8 @@ export interface ISpSearchResultsWebPartProps {
   showGalleryLayout: boolean;
   /** Active scenario preset. 'custom' means individual toggles are in control. */
   layoutPreset: string;
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 interface ISortCollectionItem {
@@ -216,7 +219,16 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       }
     );
 
-    ReactDom.render(element, this.domElement);
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const gatedElement: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      element
+    );
+
+    ReactDom.render(gatedElement, this.domElement);
   }
 
   protected async onInit(): Promise<void> {
@@ -1358,6 +1370,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                     }
                     return '';
                   }
+                })
+              ]
+            },
+            // Stream D / #10 — per-web-part audience targeting.
+            {
+              groupName: strings.AudienceTargetingGroupName,
+              groupFields: [
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             }

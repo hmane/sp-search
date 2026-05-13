@@ -35,6 +35,9 @@ declare interface ISpSearchVerticalsWebPartStrings {
   TabStyleUnderline: string;
   ToggleOnText: string;
   ToggleOffText: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchVerticalsWebPartStrings' {

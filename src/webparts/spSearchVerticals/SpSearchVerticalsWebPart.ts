@@ -25,6 +25,7 @@ import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { DebugCollector } from '@store/debug';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -37,6 +38,8 @@ export interface ISpSearchVerticalsWebPartProps {
   showCounts: boolean;
   hideEmptyVerticals: boolean;
   tabStyle: 'tabs' | 'pills' | 'underline';
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 interface IVerticalCollectionItem {
@@ -67,7 +70,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       return;
     }
 
-    const element: React.ReactElement<ISpSearchVerticalsProps> = React.createElement(
+    const innerElement: React.ReactElement<ISpSearchVerticalsProps> = React.createElement(
       SpSearchVerticals,
       {
         store: this._store,
@@ -76,6 +79,15 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
         tabStyle: this.properties.tabStyle || 'tabs',
         theme: this._theme
       }
+    );
+
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const element: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      innerElement
     );
 
     ReactDom.render(element, this.domElement);
@@ -379,6 +391,22 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                     { key: 'pills', text: strings.TabStylePills },
                     { key: 'underline', text: strings.TabStyleUnderline }
                   ]
+                })
+              ]
+            },
+            // Stream D / #10 — per-web-part audience targeting. Independent of
+            // the per-vertical `audience` column already on the verticals
+            // collection (that controls individual tab visibility; this one
+            // controls whether the entire tab strip renders).
+            {
+              groupName: strings.AudienceTargetingGroupName,
+              groupFields: [
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             }

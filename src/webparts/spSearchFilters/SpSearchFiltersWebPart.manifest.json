@@ -27,6 +27,7 @@
       "operatorBetweenFilters": "AND",
       "showClearAll": true,
       "enableVisualFilterBuilder": false,
+      "audienceGroups": "",
       "filtersCollection": [
         {
           "uniqueId": "starter-filter-0",

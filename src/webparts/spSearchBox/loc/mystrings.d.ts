@@ -49,6 +49,9 @@ declare interface ISpSearchBoxWebPartStrings {
   EnableSearchManagerFieldLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchBoxWebPartStrings' {

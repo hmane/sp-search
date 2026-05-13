@@ -109,6 +109,9 @@ declare interface ISpSearchResultsWebPartStrings {
   EmptyResultsMessageDescription: string;
   ShowColumnChooserLabel: string;
   SelectedPropertiesAliasDeprecationNote: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchResultsWebPartStrings' {

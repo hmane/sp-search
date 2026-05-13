@@ -65,6 +65,9 @@ declare interface ISpSearchFiltersWebPartStrings {
   AppOfficeEnvironment: string;
   AppOutlookEnvironment: string;
   UnknownEnvironment: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchFiltersWebPartStrings' {

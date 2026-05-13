@@ -24,6 +24,7 @@ import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _ensureStyles = spfxToolkitStylesLoaded;
@@ -52,6 +53,8 @@ export interface ISpSearchBoxWebPartProps {
   newPageParameterLocation: 'queryString' | 'hash';
   newPageQueryParameter: string;
   queryInputTransformation: string;
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 function normalizeSearchScopes(raw: unknown): ISearchScope[] {
@@ -83,7 +86,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
       return;
     }
 
-    const element: React.ReactElement<ISpSearchBoxProps> = React.createElement(
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const innerElement: React.ReactElement<ISpSearchBoxProps> = React.createElement(
       SpSearchBox,
       {
         store: this._store,
@@ -113,6 +117,14 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
         theme: this._theme,
         managerService: getManagerService(this.properties.searchContextId || 'default'),
       }
+    );
+
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const element: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      innerElement
     );
 
     ReactDom.render(element, this.domElement);
@@ -370,6 +382,19 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                     }
                     return '';
                   }
+                })
+              ]
+            },
+            // Stream D / #10 — per-web-part audience targeting.
+            {
+              groupName: strings.AudienceTargetingGroupName,
+              groupFields: [
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             },
