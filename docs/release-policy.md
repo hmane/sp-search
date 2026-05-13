@@ -21,7 +21,7 @@ Pre-release tags: `1.0.0-rc.N` for release candidates, `1.0.0-beta.N` for unstab
 | `1.1.0`      | `1.1.0.0` |
 | `2.0.0`      | `2.0.0.0` |
 
-Both files MUST be bumped in the same commit. CI at `.github/workflows/build.yml` validates the lockstep relationship and fails on mismatch.
+Both files MUST be bumped in the same commit. The Azure DevOps build pipeline validates the lockstep relationship and fails on mismatch.
 
 > **Tranche-2 transient state:** between Found.D8 (this doc) landing and Found.D11 closing, `package.json` may still read `0.0.1` while `config/package-solution.json` reads `1.0.13.0`. The lockstep gate will fail until D11 ships, by design — that surfaces the alignment debt rather than hiding it.
 
@@ -30,10 +30,10 @@ Both files MUST be bumped in the same commit. CI at `.github/workflows/build.yml
 - Tag format: `v<semver>` (e.g. `v1.0.0`, `v1.0.0-rc.1`)
 - Release title: `v<semver> — <one-line summary>`
 - Release body: pulled from the matching `## [<semver>]` section of `CHANGELOG.md`
-- Release artifact: `sp-search.sppkg` from the `release.yml` workflow build
+- Release artifact: `sp-search.sppkg` from the Azure DevOps release pipeline build
 
 ## Dependency policy
 
 - Production deps (`dependencies` in `package.json`) — manual review per PR; no automatic version bumps.
-- Dev deps (`devDependencies`) — Dependabot-managed weekly per `.github/dependabot.yml`; auto-merge disabled (manual review).
+- Dev deps (`devDependencies`) — reviewed and bumped in small batches against a green build pipeline; no automated dependency bot.
 - SPFx core (`@microsoft/sp-*`) — manual; coordinate version bumps with a documented Heft / spfx-toolkit compatibility check.

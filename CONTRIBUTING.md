@@ -44,16 +44,16 @@ Each commit MUST close exactly one Roadmap ID from the launch readiness audit un
 
 ## Pre-merge checklist
 
-Run `docs/release-smoke-checklist.md` before merging to `main`. CI at `.github/workflows/build.yml` enforces the build + test + bundle-gate steps; the tenant-upload smoke (Step 6) and multi-context smoke (Step 7) are manual.
+Run `docs/release-smoke-checklist.md` before merging to `main`. The project's Azure DevOps build pipeline runs the build + test + bundle-gate steps (`npm ci` → `npm run type-check` → `npm test` → `npm run package` → `npm run check:bundles`); the tenant-upload smoke (Step 6) and multi-context smoke (Step 7) are manual.
 
 ## Releases
 
-See `docs/release-policy.md` for SemVer policy and tag conventions. Tagging `vX.Y.Z` triggers `.github/workflows/release.yml` which builds production + publishes a GitHub Release with `sp-search.sppkg` attached.
+See `docs/release-policy.md` for SemVer policy and tag conventions. The Azure DevOps release pipeline builds production and publishes `sp-search.sppkg` as a pipeline artifact for the tagged commit.
 
 ## Performance budgets
 
-Per-web-part byte budgets are enforced by `scripts/check-bundle-sizes.js` (Found.D7). PRs that breach the budget fail CI; raising a budget requires Foundations track lead approval. See `docs/performance-budgets.md`.
+Per-web-part byte budgets are enforced by `scripts/check-bundle-sizes.js` (Found.D7). PRs that breach the budget fail the build pipeline; raising a budget requires Foundations track lead approval. See `docs/performance-budgets.md`.
 
 ## Accessibility
 
-axe-core smoke tests in CI (Found.D6). PRs that introduce new violations fail CI. See `docs/accessibility.md` for the WCAG 2.1 AA scope.
+axe-core smoke tests run in the build pipeline (Found.D6). PRs that introduce new violations fail the build. See `docs/accessibility.md` for the WCAG 2.1 AA scope.

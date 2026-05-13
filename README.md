@@ -25,7 +25,7 @@ npm run package
 # upload sharepoint/solution/sp-search.sppkg to your tenant or site app catalog
 ```
 
-The latest released `.sppkg` is also attached to each [GitHub Release](../../releases) so you can skip the local build.
+Tagged releases also publish `sp-search.sppkg` as a build artifact on the project's Azure DevOps pipeline, so you can download it instead of building locally.
 
 > After deploying, approve the `Microsoft Graph: People.Read` API access request in the SharePoint admin center for the People vertical to function (declared in `webApiPermissionRequests` per Found.D10).
 

@@ -40,7 +40,7 @@ Bytes column reflects current production output captured by `npm run check:bundl
 
 ## Enforcement
 
-`scripts/check-bundle-sizes.js` runs after `npm run package` (`heft build --clean --production` + `heft package-solution --production`), discovers `release/assets/sp-search-*-web-part_<hash>.js` (strict — hashed bundles only) via regex, compares against `config/bundle-budgets.json`, and exits non-zero on breach (or on missing/ambiguous matches, including unhashed `npm run package:debug` output). CI wiring lives in `.github/workflows/build.yml` (Found.D8).
+`scripts/check-bundle-sizes.js` runs after `npm run package` (`heft build --clean --production` + `heft package-solution --production`), discovers `release/assets/sp-search-*-web-part_<hash>.js` (strict — hashed bundles only) via regex, compares against `config/bundle-budgets.json`, and exits non-zero on breach (or on missing/ambiguous matches, including unhashed `npm run package:debug` output). CI wiring lives in the project's Azure DevOps build pipeline (the `npm run check:bundles` step, Found.D8).
 
 Per-PR attribution dashboard at `release/analysis-logs/bundle-sizes.json` captures current vs budget per web part — consumed by reviewers to identify which adopted dependency drove a budget breach.
 

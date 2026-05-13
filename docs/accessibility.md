@@ -35,4 +35,4 @@ We claim WCAG 2.1 Level AA conformance for the surfaces enumerated above. All ot
 
 ## Reporting an accessibility issue
 
-File a bug via `.github/ISSUE_TEMPLATE/bug_report.md` with the surface URL, AT used, and reproduction steps. Tag `accessibility` label.
+File a work item on the project's Azure DevOps board with the surface URL, assistive technology used, and reproduction steps. Tag it `accessibility`.

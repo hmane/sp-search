@@ -9,6 +9,11 @@ All notable changes to SP Search are documented here. Format follows [Keep a Cha
 - `package.json:version` aligned to `1.0.0` from generator default `0.0.1`; `config/package-solution.json:solution.version` aligned to `1.0.0.0` (lockstep — Found.D11).
 - `solution.developer.mpnId` cleared from `Undefined-1.21.1` (SPFx generator default) to empty string (Found.D11). Populate with a real Partner Center MPN ID once one is registered.
 - `solution.developer.websiteUrl / privacyUrl / termsOfUseUrl` populated with canonical project URLs derived from `git remote get-url origin` (Found.D11).
+- CI/release tooling standardized on Azure DevOps (the repo is hosted in Azure Repos). `docs/release-policy.md`, `docs/performance-budgets.md`, `docs/accessibility.md`, `CONTRIBUTING.md`, `README.md`, and `docs/release-runs/v1.0.0-rc.1.md` updated to reference the ADO build/release pipeline instead of GitHub Actions.
+
+### Removed
+
+- `.github/` directory removed entirely — the GitHub Actions CI workflow (`build.yml`), release workflow (`release.yml`), Dependabot config (`dependabot.yml`), and GitHub issue/PR templates added in Found.D8. The build/test/bundle gates and `.sppkg` packaging run via the project's Azure DevOps pipeline; dependency review is manual; bugs and PRs use ADO work items.
 
 ## [1.0.0-rc.1] - 2026-05-DD
 
