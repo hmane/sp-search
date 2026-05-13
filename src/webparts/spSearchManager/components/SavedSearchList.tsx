@@ -12,6 +12,7 @@ import {
   IActiveFilter
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { validateSearchState } from '@store/utils/searchStateSchema';
 import styles from './SpSearchManager.module.scss';
 
 export interface ISavedSearchListProps {
@@ -116,6 +117,8 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
   const [deleteError, setDeleteError] = React.useState<string | undefined>(undefined);
   const [isRenaming, setIsRenaming] = React.useState<boolean>(false);
+  // T2.D3 — set when a saved-search restore fails schema validation; rendered as a MessageBar.
+  const [restoreError, setRestoreError] = React.useState<{ title: string; errors: string[] } | undefined>(undefined);
 
   // ─── Initialize expanded categories ──────────────────────
   React.useEffect(() => {
@@ -154,42 +157,39 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
     if (renamingId === search.id) {
       return; // Don't load if renaming
     }
-    try {
-      const state: {
-        queryText?: string;
-        activeFilters?: IActiveFilter[];
-        currentVerticalKey?: string;
-        sort?: { property: string; direction: 'Ascending' | 'Descending' };
-      } = JSON.parse(search.searchState);
 
-      // Set ALL state atomically via store.setState() so the orchestrator
-      // sees a single change notification and fires ONE search with
-      // complete state. Calling individual methods (clearAllFilters,
-      // setQueryText, setRefiner) would trigger multiple orchestrator
-      // reactions, causing a search WITHOUT filters before filters are set.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const update: Record<string, any> = {
-        activeFilters: state.activeFilters || [],
-        currentPage: 1,
-      };
-      if (state.queryText !== undefined) {
-        update.queryText = state.queryText;
-      }
-      if (state.currentVerticalKey !== undefined) {
-        update.currentVerticalKey = state.currentVerticalKey;
-      }
-      if (state.sort !== undefined) {
-        update.sort = state.sort;
-      }
-      store.setState(update);
-    } catch {
-      // If searchState JSON is invalid, fall back to just setting query text
-      store.setState({
-        queryText: search.queryText,
-        activeFilters: [],
-        currentPage: 1,
-      });
+    // T2.D3 — schema-validate before applying. A malformed `searchState`
+    // (wrong field types, prototype-pollution, etc.) is now flagged with a
+    // MessageBar instead of silently corrupting the store.
+    const validation = validateSearchState(search.searchState);
+    if (!validation.ok) {
+      setRestoreError({ title: search.title, errors: validation.errors });
+      console.warn('[SP Search] Skipping saved-search restore — schema validation failed:', validation.errors);
+      return;
     }
+    const state = validation.state;
+
+    // Set ALL state atomically via store.setState() so the orchestrator
+    // sees a single change notification and fires ONE search with
+    // complete state. Calling individual methods (clearAllFilters,
+    // setQueryText, setRefiner) would trigger multiple orchestrator
+    // reactions, causing a search WITHOUT filters before filters are set.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const update: Record<string, any> = {
+      activeFilters: (state.activeFilters || []) as IActiveFilter[],
+      currentPage: 1,
+    };
+    if (state.queryText !== undefined) {
+      update.queryText = state.queryText;
+    }
+    if (state.currentVerticalKey !== undefined) {
+      update.currentVerticalKey = state.currentVerticalKey;
+    }
+    if (state.sort !== undefined) {
+      update.sort = state.sort;
+    }
+    store.setState(update);
+    setRestoreError(undefined);
 
     // Update lastUsed in the background
     service.updateSavedSearch(search.id, {}).catch(function noop(): void { /* swallow */ });
@@ -307,6 +307,17 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
       <div className={styles.sectionIntro}>
         <strong>Saved searches keep your search setup.</strong> Save the query, filters, and vertical so you can rerun the same search later or share that setup with someone else.
       </div>
+      {restoreError && (
+        <MessageBar
+          messageBarType={MessageBarType.error}
+          isMultiline={true}
+          onDismiss={(): void => setRestoreError(undefined)}
+          dismissButtonAriaLabel="Dismiss"
+        >
+          <strong>Could not restore &quot;{restoreError.title}&quot;.</strong> The saved
+          search data is malformed and was not applied. Details: {restoreError.errors.join('; ')}
+        </MessageBar>
+      )}
       {categoryKeys.map(function (category): React.ReactElement {
         const items = grouped[category];
         const isExpanded = expandedCategories[category] !== false;
