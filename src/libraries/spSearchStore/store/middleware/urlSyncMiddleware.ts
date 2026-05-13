@@ -6,7 +6,7 @@ import {
   ISortField,
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
-import { getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { assignFilterUrlAliases, getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '../../debug';
 
 // ─── URL State Shape ────────────────────────────────────────────
@@ -128,9 +128,12 @@ function clearFilterParams(
   const keysToDelete: string[] = [];
   const filterConfig = state.filterConfig || [];
   const filterKeys = new Set<string>();
+  // T3.D3 — single disambiguated alias per filter for the whole pass.
+  const aliasMap = assignFilterUrlAliases(filterConfig);
 
   for (let i = 0; i < filterConfig.length; i++) {
-    filterKeys.add(getFilterParamKey(getFilterUrlAlias(filterConfig[i]), prefix));
+    const alias = aliasMap.get(filterConfig[i].id) || getFilterUrlAlias(filterConfig[i]);
+    filterKeys.add(getFilterParamKey(alias, prefix));
     filterKeys.add(prefixKey(filterConfig[i].managedProperty, prefix));
   }
 
@@ -138,10 +141,11 @@ function clearFilterParams(
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
       const config = filterConfig.find((f) => f.managedProperty === filter.filterName);
-      filterKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+      const alias = config ? (aliasMap.get(config.id) || getFilterUrlAlias(config)) : getFilterUrlAlias({
         managedProperty: filter.filterName,
         filterType: 'checkbox',
-      } as IFilterConfig), prefix));
+      } as IFilterConfig);
+      filterKeys.add(getFilterParamKey(alias, prefix));
       filterKeys.add(prefixKey(filter.filterName, prefix));
     }
   }
@@ -252,10 +256,14 @@ function resolveFilterConfigByUrlKey(
 ): IFilterConfig | undefined {
   const normalizedKey = normalizeFilterKey(key);
   const filterConfig = state.filterConfig || [];
+  // T3.D3 — use the same disambiguated alias map the serializer uses so
+  // `?au=` and `?au2=` find their respective configs on round-trip.
+  const aliasMap = assignFilterUrlAliases(filterConfig);
   for (let i = 0; i < filterConfig.length; i++) {
     const config = filterConfig[i];
+    const alias = aliasMap.get(config.id) || getFilterUrlAlias(config);
     if (
-      normalizeFilterKey(getFilterUrlAlias(config)) === normalizedKey ||
+      normalizeFilterKey(alias) === normalizedKey ||
       normalizeFilterKey(config.managedProperty) === normalizedKey
     ) {
       return config;
@@ -376,16 +384,23 @@ export function serializeToUrl(
   clearFilterParams(params, state, prefix);
   if (state.activeFilters && state.activeFilters.length > 0) {
     const filterConfig = state.filterConfig || [];
+    // T3.D3 — single disambiguated alias map drives every key emitted on
+    // this pass; matching deserialization uses the same map (via
+    // resolveFilterConfigByUrlKey) for round-trip consistency.
+    const aliasMap = assignFilterUrlAliases(filterConfig);
+    const resolveAlias = (config: IFilterConfig | undefined, filterName: string): string => {
+      if (config) {
+        return aliasMap.get(config.id) || getFilterUrlAlias(config);
+      }
+      return getFilterUrlAlias({ managedProperty: filterName, filterType: 'checkbox' } as IFilterConfig);
+    };
     const groupedValues = new Map<string, string[]>();
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
       const config = filterConfig.find(
         (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
       );
-      const key = getFilterParamKey(getFilterUrlAlias(config || {
-        managedProperty: filter.filterName,
-        filterType: 'checkbox',
-      } as IFilterConfig), prefix);
+      const key = getFilterParamKey(resolveAlias(config, filter.filterName), prefix);
       const serializedValue = serializeActiveFilterForUrl(filter, state);
       if (shouldUseMultiValueParam(config)) {
         const existing = groupedValues.get(key) || [];
@@ -404,6 +419,7 @@ export function serializeToUrl(
   // If a non-grouped key was also grouped later, grouped value wins.
   if (state.activeFilters && state.activeFilters.length > 0) {
     const filterConfig = state.filterConfig || [];
+    const aliasMap = assignFilterUrlAliases(filterConfig);
     const groupedKeys = new Set<string>();
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
@@ -411,10 +427,11 @@ export function serializeToUrl(
         (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
       );
       if (shouldUseMultiValueParam(config)) {
-        groupedKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+        const alias = config ? (aliasMap.get(config.id) || getFilterUrlAlias(config)) : getFilterUrlAlias({
           managedProperty: filter.filterName,
           filterType: 'checkbox',
-        } as IFilterConfig), prefix));
+        } as IFilterConfig);
+        groupedKeys.add(getFilterParamKey(alias, prefix));
       }
     }
     groupedKeys.forEach((key) => {
