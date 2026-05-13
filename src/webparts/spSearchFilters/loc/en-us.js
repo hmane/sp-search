@@ -46,6 +46,8 @@ define([], function() {
     "FilterTrueLabelColumn": "True label",
     "FilterFalseLabelColumn": "False label",
     "FilterInvertBooleanColumn": "Invert boolean semantics",
+    "FilterAudienceColumn": "Audience (group IDs)",
+    "FilterAudiencePlaceholder": "Comma-separated Azure AD group IDs; leave blank for everyone",
     "ApplyModeLabel": "Apply mode",
     "ApplyModeInstant": "Instant (apply on each selection)",
     "ApplyModeManual": "Manual (apply with button)",

@@ -95,6 +95,13 @@ export interface IFilterConfig {
   falseLabel?: string;
   /** Optional: invert boolean semantics for UI labels against the stored raw value */
   invertBoolean?: boolean;
+  /**
+   * Stream D / #5 — Azure AD security group object IDs that should see this
+   * refiner. Empty / undefined = visible to everyone. When non-empty, the
+   * Filters component hides the refiner unless the current user is a member
+   * of at least one listed group (resolved via `AudienceService`).
+   */
+  audienceGroups?: string[];
 }
 
 /**

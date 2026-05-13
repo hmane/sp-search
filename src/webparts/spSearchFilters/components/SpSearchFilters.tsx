@@ -13,6 +13,7 @@ import type {
   ISearchStore
 } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
+import { isInAudience } from '@services/index';
 
 const VisualFilterBuilder = lazyBridge(
   () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
@@ -247,6 +248,14 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     return s.filterConfig;
   }, []);
 
+  // Stream D / #5 — audience-targeted refiners. `currentUserGroups` is
+  // populated by storeRegistry's fire-and-forget call to `resolveUserGroupIds()`
+  // on context init; until it resolves (or if the Graph call fails) all
+  // audience-targeted refiners stay hidden (fail-closed).
+  const selectCurrentUserGroups = React.useCallback(function (s: ISearchStore): string[] {
+    return s.currentUserGroups;
+  }, []);
+
   const selectIsLoading = React.useCallback(function (s: ISearchStore): boolean {
     return s.isLoading;
   }, []);
@@ -260,11 +269,19 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   const filterConfig: IFilterConfig[] | undefined = useStoreState(store, selectFilterConfig);
   const isLoading: boolean | undefined = useStoreState(store, selectIsLoading);
   const operatorBetweenFilters: 'AND' | 'OR' | undefined = useStoreState(store, selectOperatorBetweenFilters);
+  const currentUserGroups: string[] | undefined = useStoreState(store, selectCurrentUserGroups);
 
   // Use safe defaults
   const refiners: IRefiner[] = availableRefiners || [];
   const filters: IActiveFilter[] = activeFilters || [];
-  const configs: IFilterConfig[] = filterConfig || [];
+  const userGroups: string[] = currentUserGroups || [];
+  const configs: IFilterConfig[] = (filterConfig || []).filter((config: IFilterConfig): boolean => {
+    // Stream D / #5 — hide refiners whose audienceGroups exclude the current user.
+    if (!config.audienceGroups || config.audienceGroups.length === 0) {
+      return true;
+    }
+    return isInAudience(config.audienceGroups, userGroups);
+  });
 
   // Pending filters for manual mode
   const [pendingFilters, setPendingFilters] = React.useState<IActiveFilter[]>([]);

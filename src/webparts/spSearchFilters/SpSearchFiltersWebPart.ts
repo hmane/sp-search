@@ -63,6 +63,8 @@ interface IFilterCollectionItem {
   trueLabel?: string;
   falseLabel?: string;
   invertBoolean?: boolean;
+  /** Stream D / #5 — comma-separated Azure AD group object IDs (admin UX matches Verticals). */
+  audience?: string;
 }
 
 function normalizeFiltersCollectionValue(
@@ -184,7 +186,10 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         resetWhenParentChanges: item.resetWhenParentChanges === true,
         trueLabel: item.trueLabel || undefined,
         falseLabel: item.falseLabel || undefined,
-        invertBoolean: item.invertBoolean === true
+        invertBoolean: item.invertBoolean === true,
+        audienceGroups: item.audience
+          ? item.audience.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined
       };
     });
 
@@ -408,6 +413,16 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
                       type: CustomCollectionFieldType.boolean,
                       required: false,
                       defaultValue: false
+                    },
+                    // Stream D / #5 — audience targeting per refiner. Matches
+                    // the convention used by `SpSearchVerticalsWebPart.ts:305`
+                    // (comma-separated Azure AD group object IDs).
+                    {
+                      id: 'audience',
+                      title: strings.FilterAudienceColumn,
+                      type: CustomCollectionFieldType.string,
+                      required: false,
+                      placeholder: strings.FilterAudiencePlaceholder
                     }
                   ]
                 }),

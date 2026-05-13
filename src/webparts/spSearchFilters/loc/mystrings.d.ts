@@ -45,6 +45,8 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterTrueLabelColumn: string;
   FilterFalseLabelColumn: string;
   FilterInvertBooleanColumn: string;
+  FilterAudienceColumn: string;
+  FilterAudiencePlaceholder: string;
   ApplyModeLabel: string;
   ApplyModeInstant: string;
   ApplyModeManual: string;
