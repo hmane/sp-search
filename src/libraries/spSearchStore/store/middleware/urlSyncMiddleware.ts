@@ -92,6 +92,14 @@ const RESERVED_PARAM_KEYS = new Set([
   PARAM_LAYOUT,
   PARAM_STATE_VERSION,
   PARAM_STATE_ID,
+  // SharePoint / SPFx / SP Search system params — never filter aliases.
+  // Without these, e.g. `?debug=1` (the Debug FAB activation param read by
+  // DebugCollector) is mistaken for a filter and the middleware waits
+  // URL_FILTER_RESTORE_TIMEOUT_MS for a `filterConfig` that never arrives.
+  'debug',                // SP Search Debug FAB (?debug=1)
+  'noredir',              // SPFx workbench: skip the workbench redirect
+  'loadSPFX',             // SPFx debug serve: load the framework
+  'debugManifestsFile',   // SPFx debug serve: local manifest override
 ]);
 
 function getFilterParamKey(urlKey: string, prefix?: string): string {
