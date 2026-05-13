@@ -49,6 +49,8 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
   const [isSharing, setIsSharing] = React.useState<boolean>(false);
   const [shareError, setShareError] = React.useState<string | undefined>(undefined);
   const [shareSuccess, setShareSuccess] = React.useState<boolean>(false);
+  // T2.D1 — recipient count for the success MessageBar copy.
+  const [sharedRecipientCount, setSharedRecipientCount] = React.useState<number>(0);
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ─── Cleanup copy timeout on unmount ──────────────────────
@@ -183,6 +185,7 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
     service.shareToUsers(search.id, selectedUsers)
       .then(function (result: { succeeded: string[]; failed: string[] }): void {
         setIsSharing(false);
+        setSharedRecipientCount(result.succeeded.length);
         if (result.failed.length > 0 && result.succeeded.length > 0) {
           setShareSuccess(true);
           setShareError('Could not resolve the following users: ' + result.failed.join(', '));
@@ -303,7 +306,11 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
                     onDismiss={function (): void { setShareSuccess(false); }}
                     dismissButtonAriaLabel="Close"
                   >
-                    Search shared successfully
+                    {/* T2.D1 — explicit count so the sender knows the share landed. */}
+                    {sharedRecipientCount === 1
+                      ? '1 recipient notified.'
+                      : sharedRecipientCount + ' recipients notified.'}
+                    {' '}They’ll see a badge on the Saved Searches tab within a minute.
                   </MessageBar>
                 )}
 
@@ -313,7 +320,11 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
                     onDismiss={function (): void { setShareSuccess(false); setShareError(undefined); }}
                     dismissButtonAriaLabel="Close"
                   >
-                    Search shared, but some users could not be resolved. {shareError}
+                    {/* T2.D1 — partial-success: confirm count + name the unresolved users. */}
+                    {sharedRecipientCount === 1
+                      ? '1 recipient notified.'
+                      : sharedRecipientCount + ' recipients notified.'}
+                    {' '}{shareError}
                   </MessageBar>
                 )}
 

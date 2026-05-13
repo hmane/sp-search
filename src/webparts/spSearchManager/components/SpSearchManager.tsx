@@ -24,6 +24,11 @@ import {
   ISearchScope
 } from '@interfaces/index';
 import { safeNavigate } from '@store/utils/safeNavigate';
+import {
+  computeUnacknowledgedShares,
+  loadAcknowledgedShareIds,
+  acknowledgeShareIds,
+} from '@store/utils/sharedSearchNotifications';
 import SavedSearchList from './SavedSearchList';
 import SearchHistory from './SearchHistory';
 import SearchCollections from './SearchCollections';
@@ -440,6 +445,52 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     };
   }, []);
 
+  // ─── T2.D1: shared-search notifications ───────────────────
+  // Polls `loadSavedSearches` every 60s while the panel is mounted so
+  // recipients see new shares without a manual refresh. Acknowledgement
+  // is per-user (localStorage). The audit acceptance signal calls out a
+  // visible MessageBar + count within the polling interval — see render
+  // path below for the rendered banner.
+  const currentUserKey = React.useMemo(function (): string {
+    try {
+      return (SPContext.currentUser && SPContext.currentUser.email) || 'anonymous';
+    } catch {
+      return 'anonymous';
+    }
+  }, []);
+  const [acknowledgedShares, setAcknowledgedShares] = React.useState<Set<number>>(
+    function () { return loadAcknowledgedShareIds(currentUserKey); }
+  );
+  const unacknowledgedShares = React.useMemo(function (): ISavedSearch[] {
+    return computeUnacknowledgedShares(filteredSavedSearches, acknowledgedShares);
+  }, [filteredSavedSearches, acknowledgedShares]);
+
+  React.useEffect(function (): () => void {
+    if (!shouldLoadManagerData || !config.enableSharedSearches) {
+      return function (): void { /* no poll */ };
+    }
+    const POLL_MS = 60 * 1000;
+    const intervalId = window.setInterval(function (): void {
+      reloadData();
+    }, POLL_MS);
+    return function cleanup(): void {
+      window.clearInterval(intervalId);
+    };
+  // reloadData is stable for the lifetime of the panel; the deps below
+  // gate whether to poll at all (admin disabling shared-searches turns
+  // it off entirely).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldLoadManagerData, config.enableSharedSearches]);
+
+  function handleAcknowledgeShares(): void {
+    if (unacknowledgedShares.length === 0) {
+      return;
+    }
+    const ids = unacknowledgedShares.map(function (s) { return s.id; });
+    const next = acknowledgeShareIds(currentUserKey, ids);
+    setAcknowledgedShares(next);
+  }
+
   // ─── Show success message with auto-dismiss ───────────────
   function showSuccess(message: string): void {
     setSuccessMessage(message);
@@ -777,7 +828,53 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   headerText="Saved Searches"
                   itemIcon="SearchBookmark"
                   itemCount={filteredSavedSearches.length}
+                  onRenderItemLink={unacknowledgedShares.length > 0 ? function (link, defaultRender): JSX.Element {
+                    // T2.D1 — overlay the unread-share count as a small red badge
+                    // on the tab header so the cue is visible without opening the tab.
+                    return (
+                      <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                        {defaultRender ? defaultRender(link) : null}
+                        <span
+                          aria-label={unacknowledgedShares.length + ' unread shared searches'}
+                          style={{
+                            marginLeft: 6,
+                            minWidth: 18,
+                            height: 18,
+                            padding: '0 5px',
+                            borderRadius: 9,
+                            background: '#a4262c',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {unacknowledgedShares.length}
+                        </span>
+                      </span>
+                    );
+                  } : undefined}
                 >
+                  {unacknowledgedShares.length > 0 && (
+                    <MessageBar
+                      messageBarType={MessageBarType.info}
+                      isMultiline={true}
+                      onDismiss={handleAcknowledgeShares}
+                      dismissButtonAriaLabel="Got it"
+                      styles={{ root: { marginBottom: 8 } }}
+                    >
+                      <strong>
+                        {unacknowledgedShares.length === 1
+                          ? '1 new search has been shared with you'
+                          : unacknowledgedShares.length + ' new searches have been shared with you'}.
+                      </strong>{' '}
+                      {unacknowledgedShares.slice(0, 3).map(function (s) { return '“' + s.title + '”'; }).join(', ')}
+                      {unacknowledgedShares.length > 3 ? ', and ' + (unacknowledgedShares.length - 3) + ' more.' : '.'}
+                      {' '}Dismiss this notice to mark them as read.
+                    </MessageBar>
+                  )}
                   <SavedSearchList
                     store={store}
                     service={service}
