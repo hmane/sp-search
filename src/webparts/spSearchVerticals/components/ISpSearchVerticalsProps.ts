@@ -8,4 +8,9 @@ export interface ISpSearchVerticalsProps {
   hideEmptyVerticals: boolean;
   tabStyle: 'tabs' | 'pills' | 'underline';
   theme: IReadonlyTheme | undefined;
+  // T3.D7 — edit-mode-only validation MessageBar at component root.
+  // Renders when any vertical references a `dataProviderId` not in
+  // the registered providers list (typo Did-You-Mean for the silent-
+  // fallback failure mode `SearchOrchestrator.ts` produces today).
+  isEditMode?: boolean;
 }

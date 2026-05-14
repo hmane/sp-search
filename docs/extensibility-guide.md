@@ -54,6 +54,26 @@ registries.dataProviders.register(new MyCustomProvider());
 
 Data providers abstract over search backends. The default `SharePointSearchProvider` uses PnPjs; you can add providers for Microsoft Graph, external APIs, or mock data.
 
+### Built-in provider ids (T3.D7)
+
+The Verticals web part's `dataProviderId` cell on each row routes the
+vertical to the named provider. The three providers shipped today are:
+
+| Provider | id | Source |
+|----------|----|--------|
+| SharePoint Search (PnPjs) | `sharepoint-search` | `src/libraries/spSearchStore/providers/SharePointSearchProvider.ts` |
+| Graph Search (files) | `graph-search` | `src/libraries/spSearchStore/providers/GraphSearchProvider.ts` (configurable via `config.id`) |
+| Graph Search (people) | `graph-people` | `src/libraries/spSearchStore/providers/GraphSearchProvider.ts` (people entity-type variant) |
+
+Empty `dataProviderId` falls back to whatever provider the orchestrator
+registered as the default for the context — usually `sharepoint-search`.
+Custom providers must register with a unique id; the Verticals property
+pane edit-mode validator (`validateDataProviderId` at
+`src/libraries/spSearchStore/configValidation/dataProviderId.ts`)
+flags typos with a Did-You-Mean suggestion against the registered
+provider list.
+
+
 ### Interface
 
 ```typescript

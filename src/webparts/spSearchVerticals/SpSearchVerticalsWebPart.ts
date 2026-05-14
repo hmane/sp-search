@@ -84,7 +84,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
         showCounts: this.properties.showCounts,
         hideEmptyVerticals: this.properties.hideEmptyVerticals,
         tabStyle: this.properties.tabStyle || 'tabs',
-        theme: this._theme
+        theme: this._theme,
+        isEditMode: this.displayMode === DisplayMode.Edit
       }
     );
 
