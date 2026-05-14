@@ -15,7 +15,13 @@ import type {
   ISearchStore
 } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
-import { isInAudience } from '@services/index';
+import { isInAudience, fetchManagedProperties, getCachedSchema } from '@services/index';
+// T4.D5 — edit-mode validator surfaces a Did-You-Mean MessageBar for any
+// filter row whose `managedProperty` doesn't match a known managed property
+// in the cached schema. Validator passes silently when schema cache is cold.
+import { validateManagedPropertyCollection } from '@store/configValidation/sharedValidators';
+import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+import type { IManagedProperty } from '@store/interfaces/ISearchDataProvider';
 
 const VisualFilterBuilder = lazyBridge(
   () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
@@ -235,7 +241,24 @@ function useStoreState<T>(
 }
 
 const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFiltersProps): React.ReactElement => {
-  const { store, applyMode, showClearAll, enableVisualFilterBuilder } = props;
+  const { store, applyMode, showClearAll, enableVisualFilterBuilder, isEditMode } = props;
+
+  // T4.D5 — fetch schema on mount in edit mode so the synchronous
+  // validator below has something to compare against. Fire-and-forget;
+  // the validator handles missing schema gracefully.
+  const [schema, setSchema] = React.useState<IManagedProperty[] | undefined>(() => getCachedSchema());
+  React.useEffect((): void => {
+    if (!isEditMode) { return; }
+    if (schema && schema.length > 0) { return; }
+    fetchManagedProperties()
+      .then((result): void => {
+        if (result.status === 'success' && result.properties.length > 0) {
+          setSchema(result.properties);
+        }
+      })
+      .catch((): void => { /* silent — validator passes when schema missing */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
 
   // Stable selectors to avoid re-subscriptions
   const selectRefiners = React.useCallback(function (s: ISearchStore): IRefiner[] {
@@ -493,10 +516,36 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
+  // T4.D5 — edit-mode-only managed-property validation MessageBar block.
+  // Runs against the cached schema; admin sees Did-You-Mean copy for any
+  // filterConfig row whose `managedProperty` doesn't match a known property.
+  const validationBlock: React.ReactNode = isEditMode ? ((): React.ReactNode => {
+    const issues = validateManagedPropertyCollection(
+      (filterConfig || []).map((c) => ({ managedProperty: c.managedProperty, property: c.managedProperty })),
+      schema
+    );
+    if (issues.length === 0) { return null; }
+    return (
+      <>
+        {issues.map((issue) => (
+          <MessageBar
+            key={issue.id}
+            messageBarType={issue.severity === 'error' ? MessageBarType.error : MessageBarType.warning}
+            isMultiline={true}
+            styles={{ root: { marginBottom: 4 } }}
+          >
+            {issue.message}
+          </MessageBar>
+        ))}
+      </>
+    );
+  })() : null;
+
   // T1.D1 — body content is rendered identically inline (desktop) and inside
   // the mobile drawer Panel. Extracted so we only describe the filter UI once.
   const filterBody: React.ReactElement = (
     <>
+      {validationBlock}
       {/* Visual Filter Builder toggle */}
       {enableVisualFilterBuilder && (
         <div className={styles.visualFilterBuilderToggle}>

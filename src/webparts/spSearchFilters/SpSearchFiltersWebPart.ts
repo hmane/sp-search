@@ -116,7 +116,8 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         store: this._store,
         applyMode: this.properties.applyMode || 'instant',
         showClearAll: this.properties.showClearAll !== false,
-        enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder
+        enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder,
+        isEditMode: this.displayMode === DisplayMode.Edit
       }
     );
 

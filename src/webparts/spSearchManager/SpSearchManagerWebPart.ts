@@ -124,7 +124,9 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
           enableAnnotations: false,
           maxHistoryItems: 0,
           showResetAction: false,
-          showSaveAction: false
+          showSaveAction: false,
+          isEditMode: this.displayMode === DisplayMode.Edit,
+          tenantRoot: this.context.pageContext.web.absoluteUrl
         }
       );
     }

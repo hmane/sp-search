@@ -24,6 +24,11 @@ import {
   ISearchScope
 } from '@interfaces/index';
 import { safeNavigate } from '@store/utils/safeNavigate';
+// T4.D5 — edit-mode validators for coverageProfiles + expectedSiteUrls.
+import {
+  validateCoverageProfileSourceUrls,
+  validateExpectedSiteUrls,
+} from '@store/configValidation/sharedValidators';
 import {
   computeUnacknowledgedShares,
   loadAcknowledgedShareIds,
@@ -754,6 +759,46 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
             <span>{successMessage}</span>
           </div>
         )}
+
+        {/* T4.D5 — edit-mode-only config validation. Runs both coverage-source
+            and expected-sites validators and renders one MessageBar per issue.
+            Both validators are pure functions; their results re-compute on
+            every property pane change because props.coverageProfiles /
+            expectedSiteUrls change. */}
+        {props.isEditMode && ((): React.ReactNode => {
+          const coverageIssues = validateCoverageProfileSourceUrls(
+            (props.coverageProfiles || []).map((p) => ({
+              title: p.title,
+              sourceUrls: (p.sourceUrls || []).join(', '),
+            })),
+            props.tenantRoot || ''
+          );
+          const expectedIssues = validateExpectedSiteUrls(
+            props.expectedSiteUrls || [],
+            props.tenantRoot || ''
+          );
+          const allIssues = coverageIssues.concat(expectedIssues);
+          if (allIssues.length === 0) { return null; }
+          const severityToType = (s: 'error' | 'warning' | 'info'): MessageBarType => {
+            if (s === 'error')   { return MessageBarType.error; }
+            if (s === 'warning') { return MessageBarType.warning; }
+            return MessageBarType.info;
+          };
+          return (
+            <>
+              {allIssues.map((issue) => (
+                <MessageBar
+                  key={issue.id}
+                  messageBarType={severityToType(issue.severity)}
+                  isMultiline={true}
+                  styles={{ root: { marginBottom: 4 } }}
+                >
+                  {issue.message}
+                </MessageBar>
+              ))}
+            </>
+          );
+        })()}
 
         {!config.hideHeader && (
           <div className={styles.header}>
