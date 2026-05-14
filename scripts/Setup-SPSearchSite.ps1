@@ -18,7 +18,11 @@
         -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 
-[CmdletBinding()]
+# T4.D1 — `SupportsShouldProcess` with `ConfirmImpact = 'High'` so the two
+# destructive paths (existing-page removal and UserMulti-field type change)
+# prompt by default. `-WhatIf` reports without executing; `-Force` bypasses
+# the prompt for scripted callers (CI re-runs, idempotent automation).
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $true)]
     [string]$SiteUrl,
@@ -33,7 +37,13 @@ param(
     [string]$PageName = "Search",
 
     [Parameter(Mandatory = $false)]
-    [string]$SearchContextId = "default"
+    [string]$SearchContextId = "default",
+
+    # T4.D1 — bypass the destructive-op confirmation. Only relevant when the
+    # script re-runs against a site that already has a previous page or
+    # mistyped UserMulti columns; on a clean tenant `-Force` is a no-op.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -333,10 +343,18 @@ try {
             if ($existing) {
                 # If it exists as a wrong type (e.g., Note), remove and recreate
                 if ($existing.TypeAsString -ne "UserMulti") {
-                    Write-Host "    ~ ${umField}: changing from $($existing.TypeAsString) to UserMulti" -ForegroundColor Yellow
-                    Remove-PnPField -List $listDef.Name -Identity $umField -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 1
-                    $existing = $null
+                    # T4.D1 — destructive: dropping the field also drops any data
+                    # stored in it. Admins who customised this column on a hidden
+                    # list deserve a prompt before we overwrite them.
+                    $target = "$($listDef.Name)/$umField (currently $($existing.TypeAsString))"
+                    if ($Force -or $PSCmdlet.ShouldProcess($target, 'Drop field and recreate as UserMulti')) {
+                        Write-Host "    ~ ${umField}: changing from $($existing.TypeAsString) to UserMulti" -ForegroundColor Yellow
+                        Remove-PnPField -List $listDef.Name -Identity $umField -Force -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 1
+                        $existing = $null
+                    } else {
+                        Write-Host "    ~ ${umField}: skipped (existing $($existing.TypeAsString) preserved). Re-run with -Force to overwrite." -ForegroundColor Yellow
+                    }
                 }
             }
             if (-not $existing) {
@@ -369,11 +387,21 @@ try {
     Write-Host ""
     Write-Host "[4/5] Creating search page..." -ForegroundColor Cyan
 
-    # Remove existing page if present
+    # T4.D1 — destructive: removing the page wipes any web-part customisation
+    # an admin may have layered on after the first run (column tweaks, manual
+    # content additions, third-party web parts). Audit Roadmap Journey A Step 4
+    # called this out as the worst Day-1 surprise. Prompt-by-default; `-Force`
+    # opts in.
     $existingPage = Get-PnPPage -Identity $PageName -ErrorAction SilentlyContinue
     if ($existingPage) {
-        Write-Host "  Removing existing page..." -ForegroundColor Yellow
-        Remove-PnPPage -Identity $PageName -Force -ErrorAction Stop
+        if ($Force -or $PSCmdlet.ShouldProcess($PageName, 'Remove existing page (any web-part customisations on this page will be lost)')) {
+            Write-Host "  Removing existing page..." -ForegroundColor Yellow
+            Remove-PnPPage -Identity $PageName -Force -ErrorAction Stop
+        } else {
+            Write-Host "  Existing page '$PageName' preserved. Re-run with -Force to overwrite, or pick a different -PageName." -ForegroundColor Yellow
+            Write-Host "  Aborting to avoid overwriting customisations." -ForegroundColor Red
+            exit 1
+        }
     }
 
     Add-PnPPage -Name $PageName -Title "Search" -LayoutType Article -HeaderLayoutType NoImage -CommentsEnabled:$false -ErrorAction Stop | Out-Null

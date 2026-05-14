@@ -61,6 +61,35 @@ The script provisions:
 
 See [provisioning-guide.md](./provisioning-guide.md) for schema details.
 
+## Safe Re-Runs (T4.D1)
+
+The four provisioning scripts that touch destructive paths now implement the
+standard PowerShell `SupportsShouldProcess` contract:
+
+| Script | Destructive paths | Default behaviour |
+|--------|-------------------|-------------------|
+| `Setup-SPSearchSite.ps1` | `Remove-PnPPage` (existing search page); `Remove-PnPField` when a UserMulti column was previously created as the wrong type | Prompts before each destructive op |
+| `Provision-SPSearchLists.ps1` | `Set-PnPList -BreakRoleInheritance` on each of the three hidden lists | Prompts before each permission reset |
+| `Map-CrawledProperties.ps1` | `Set-PnPSearchConfiguration -Scope Site` (site-scoped search schema overwrite) | Prompts before each mapping |
+| `Provision-TestData.ps1` | `Remove-PnPList` of the seeded libraries/lists when `-CleanExisting` is set | Prompts before the batch removal |
+
+Common patterns:
+
+- **Preview first** — add `-WhatIf` to any of the four scripts to see the
+  destructive operations the script would perform without executing them. The
+  output lines are tagged `What if: Performing the operation 'X' on target
+  'Y'.`
+- **Bypass the prompt** — add `-Force` for CI / scripted callers. `-Force`
+  short-circuits the `ShouldProcess` gate; the destructive op still runs.
+- **Decline interactively** — leave both off. PowerShell asks `Y/N` before
+  each destructive op; the script prints a "preserved / re-run with `-Force`"
+  message and continues (`Setup-SPSearchSite.ps1` exits non-zero if the page
+  removal is declined, because the script cannot continue without removing
+  the existing page).
+
+PSScriptAnalyzer's `PSShouldProcess` rule reports zero violations across the
+four scripts.
+
 ## Optional: Provision a Scenario Search Page
 
 The repo also includes `scripts/Search-ScenarioPresets.ps1`, which can provision complete search pages for built-in scenarios.

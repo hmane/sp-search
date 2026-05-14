@@ -19,13 +19,24 @@
     .\Provision-SPSearchLists.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/search" -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 
-[CmdletBinding()]
+# T4.D1 — `SupportsShouldProcess` so the three `BreakRoleInheritance`
+# permission-overwrite calls prompt by default. Field creation /
+# index creation are already idempotent; the only state that survives
+# multiple runs and could be admin-customised is the permission scope
+# on each hidden list. `ConfirmImpact = 'Medium'` because permission
+# resets are recoverable (re-grant) — not catastrophic data loss.
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Mandatory = $true)]
     [string]$SiteUrl,
 
     [Parameter(Mandatory = $false)]
-    [string]$ClientId
+    [string]$ClientId,
+
+    # T4.D1 — bypass the BreakRoleInheritance confirmation. Idempotent
+    # for the field/index pieces; only matters on the permission resets.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 # Ensure PnP.PowerShell is available
@@ -191,8 +202,12 @@ Ensure-Index -ListName "SearchSavedQueries" -FieldName "LastUsed"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "ExpiresAt"
 
 # Permissions: All authenticated users can Add Items
-Write-Host "  [PERM] Setting permissions for SearchSavedQueries..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchSavedQueries" -BreakRoleInheritance -CopyRoleAssignments
+# T4.D1 — `BreakRoleInheritance` resets any custom permissions an admin
+# has layered on the hidden list. Prompt before overwriting on re-run.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchSavedQueries', 'Break role inheritance and copy parent assignments')) {
+    Write-Host "  [PERM] Setting permissions for SearchSavedQueries..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchSavedQueries" -BreakRoleInheritance -CopyRoleAssignments
+}
 
 # ─── 2. SearchHistory ─────────────────────────────────────
 Write-Host "`n[2/3] SearchHistory" -ForegroundColor Magenta
@@ -228,10 +243,15 @@ if (-not $authorField.Indexed -or -not $tsField.Indexed) {
 }
 
 # Permissions: Add Items + Edit Own Items (no Read All)
-Write-Host "  [PERM] Setting permissions for SearchHistory..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchHistory" -BreakRoleInheritance -ClearSubscopes
-# Users can add and edit their own items
-Set-PnPList -Identity "SearchHistory" -ReadSecurity 2 -WriteSecurity 2
+# T4.D1 — `BreakRoleInheritance -ClearSubscopes` is the most destructive of
+# the three: it also drops any item-level permission scopes admins set on
+# individual history rows. Prompt-by-default on re-run.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchHistory', 'Break role inheritance and clear all sub-scopes (item-level permissions will be reset)')) {
+    Write-Host "  [PERM] Setting permissions for SearchHistory..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchHistory" -BreakRoleInheritance -ClearSubscopes
+    # Users can add and edit their own items
+    Set-PnPList -Identity "SearchHistory" -ReadSecurity 2 -WriteSecurity 2
+}
 
 # ─── 3. SearchCollections ─────────────────────────────────
 Write-Host "`n[3/3] SearchCollections" -ForegroundColor Magenta
@@ -252,8 +272,11 @@ Ensure-Index -ListName "SearchCollections" -FieldName "Title"
 Ensure-Index -ListName "SearchCollections" -FieldName "CollectionName"
 
 # Permissions: All authenticated users can Add Items
-Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
+# T4.D1 — see SearchSavedQueries above.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchCollections', 'Break role inheritance and copy parent assignments')) {
+    Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
+}
 
 # ============================================================
 # Foundations Found.D9 — Telemetry lists
