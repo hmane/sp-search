@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { IconButton } from '@fluentui/react/lib/Button';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -10,6 +11,7 @@ import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
+import { buildRowActionMenu } from './buildRowActionMenu';
 import styles from './SpSearchResults.module.scss';
 
 export interface IListLayoutProps {
@@ -20,39 +22,23 @@ export interface IListLayoutProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
-  // T2.D2 — bulk-selection wiring shared with Compact + DataGrid.
-  bulkSelection: string[];
-  onToggleSelect: (itemKey: string) => void;
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel, bulkSelection, onToggleSelect } = props;
-  const selectionSet = React.useMemo(() => new Set(bulkSelection), [bulkSelection]);
+  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <ul className={styles.resultList} role="list">
       {items.map((item: ISearchResult, index: number) => {
         const sizeDisplay: string = formatFileSize(item.fileSize);
         const linkProps = resolveResultLink(item, linkConfig);
-        const isSelected = selectionSet.has(item.key);
 
         return (
           <li
             key={item.key}
-            className={`${styles.resultCard}${isSelected ? ' ' + styles.resultCardSelected : ''}`}
+            className={styles.resultCard}
             role="listitem"
           >
-            {/* T2.D2 — selection checkbox. `stopPropagation` keeps clicks
-                from falling through to the title-anchor / hover-card. */}
-            <input
-              type="checkbox"
-              className={styles.resultSelectCheckbox}
-              checked={isSelected}
-              onChange={(): void => onToggleSelect(item.key)}
-              onClick={(e): void => e.stopPropagation()}
-              aria-label={isSelected ? 'Deselect ' + item.title : 'Select ' + item.title}
-            />
-
             <div className={styles.resultIcon}>
               {isImageType(item) && item.thumbnailUrl ? (
                 // Stream C / #8 — show the image itself for image results.
@@ -142,6 +128,24 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
                   </>
                 )}
               </div>
+            </div>
+            {/* ECB — per-row contextual action menu at the trailing edge.
+                Open / Download / Copy link via the shared menu builder.
+                The existing AddToCollectionButton stays inside the title
+                row for the most common "pin to a collection" action; the
+                ECB covers the longer tail. */}
+            <div className={styles.resultRowEcb}>
+              <IconButton
+                iconProps={{ iconName: 'MoreVertical' }}
+                ariaLabel={'More actions for ' + item.title}
+                title="More actions"
+                menuProps={{
+                  items: buildRowActionMenu(item, {
+                    position: index + 1,
+                    onItemClick,
+                  }),
+                }}
+              />
             </div>
           </li>
         );

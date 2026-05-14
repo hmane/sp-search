@@ -34,9 +34,6 @@ export interface IDataGridLayoutProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
-  // T2.D2 — selection wiring threaded through to DataGridContent.
-  bulkSelection: string[];
-  onToggleSelect: (itemKey: string) => void;
 }
 
 interface IDataGridRenderErrorState {
@@ -123,8 +120,6 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
           onSortChange={props.onSortChange}
           linkConfig={props.linkConfig}
           onOpenInSidePanel={props.onOpenInSidePanel}
-          bulkSelection={props.bulkSelection}
-          onToggleSelect={props.onToggleSelect}
         />
       </DataGridRenderErrorBoundary>
     </div>

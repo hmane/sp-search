@@ -496,6 +496,23 @@
   }
 }
 
+// Per-row ECB ("...") menu at the trailing edge of List rows.
+// Visible on hover/focus or when the menu is open. The IconButton
+// inside opens a Fluent ContextualMenu fed by `buildRowActionMenu`.
+.resultRowEcb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .resultCard:hover &,
+  .resultCard:focus-within & {
+    opacity: 1;
+  }
+}
+
 .resultIcon {
   flex-shrink: 0;
   width: 32px;

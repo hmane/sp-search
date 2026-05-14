@@ -17,7 +17,6 @@ import {
 } from '@interfaces/index';
 import ResultToolbar from './ResultToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
-import BulkActionsToolbar from './BulkActionsToolbar';
 import Pagination from './Pagination';
 
 // ─── Lazy-loaded layouts (code-split per layout) ─────────
@@ -103,9 +102,6 @@ function useStoreState(
   querySuggestion: string | undefined;
   showPaging: boolean;
   pageRange: number;
-  // T2.D2 — selection state lives in the shared store so it persists
-  // across layout switches; per-layout components subscribe to this slice.
-  bulkSelection: string[];
 } {
   const { store } = props;
 
@@ -129,7 +125,6 @@ function useStoreState(
     querySuggestion: undefined as string | undefined,
     showPaging: true,
     pageRange: 5,
-    bulkSelection: [] as string[]
   }), []);
 
   const getSnapshot = React.useCallback((): {
@@ -152,7 +147,6 @@ function useStoreState(
     querySuggestion: string | undefined;
     showPaging: boolean;
     pageRange: number;
-    bulkSelection: string[];
   } => {
     if (!store) {
       return emptyState;
@@ -178,7 +172,6 @@ function useStoreState(
       querySuggestion: state.querySuggestion,
       showPaging: state.showPaging,
       pageRange: state.pageRange,
-      bulkSelection: state.bulkSelection
     };
   }, [store, emptyState]);
 
@@ -211,8 +204,7 @@ function useStoreState(
           prev.filterConfig === next.filterConfig &&
           prev.querySuggestion === next.querySuggestion &&
           prev.showPaging === next.showPaging &&
-          prev.pageRange === next.pageRange &&
-          prev.bulkSelection === next.bulkSelection
+          prev.pageRange === next.pageRange
         ) {
           return prev;
         }
@@ -501,7 +493,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     store,
     orchestrator,
     searchContextId,
-    siteUrl,
     showResultCount,
     showSortDropdown,
     showDeleteConfirmation,
@@ -522,7 +513,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
 
   const {
     items,
-    bulkSelection,
     totalCount,
     currentPage,
     pageSize,
@@ -607,13 +597,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
   }, [store]);
 
   // ─── Click tracking ───────────────────────────────────────
-  // T2.D2 — single store action drives selection for every layout; the
-  // store's `toggleSelection(key, true)` flips one row in the shared
-  // `bulkSelection` array. Stable reference so the layouts can memoize.
-  const handleToggleSelect = React.useCallback((itemKey: string): void => {
-    store.getState().toggleSelection(itemKey, true);
-  }, [store]);
-
   const handleItemClick = React.useCallback((item: ISearchResult, position: number): void => {
     if (orchestrator) {
       orchestrator.logClickedItem(item.url, item.title, position);
@@ -714,8 +697,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onItemClick={handleItemClick}
             linkConfig={linkConfig}
             onOpenInSidePanel={handlePreviewItem}
-            bulkSelection={bulkSelection}
-            onToggleSelect={handleToggleSelect}
           />
         );
         break;
@@ -768,8 +749,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onFallback={(): void => handleLayoutChange('list')}
             linkConfig={linkConfig}
             onOpenInSidePanel={handlePreviewItem}
-            bulkSelection={bulkSelection}
-            onToggleSelect={handleToggleSelect}
           />
         );
         break;
@@ -797,8 +776,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onItemClick={handleItemClick}
             linkConfig={linkConfig}
             onOpenInSidePanel={handlePreviewItem}
-            bulkSelection={bulkSelection}
-            onToggleSelect={handleToggleSelect}
           />
         );
     }
@@ -931,16 +908,14 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onLayoutChange={handleLayoutChange}
             onSortChange={handleSortChange}
             onPreloadLayout={handlePreloadLayout}
-            selectionCount={bulkSelection.length}
-            onExportCsv={(selectionOnly): void => {
+            onExportCsv={(): void => {
+              // Bulk selection retired — export the full current page.
               exportItemsAsCsv(items, {
-                selectedItemKeys: selectionOnly ? bulkSelection : undefined,
                 configuredColumns: selectedPropertyColumns,
               });
             }}
-            onExportXlsx={(selectionOnly): void => {
+            onExportXlsx={(): void => {
               exportItemsAsXlsx(items, {
-                selectedItemKeys: selectionOnly ? bulkSelection : undefined,
                 configuredColumns: selectedPropertyColumns,
               }).catch((err): void => { console.error('[SP Search] XLSX export failed', err); });
             }}
@@ -954,33 +929,6 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
         />
-
-        {/* T2.D2 — bulk-actions toolbar above the layout when any rows are
-            ticked. Selection survives layout switches because the store keeps
-            the `bulkSelection` array intact (`uiSlice.setLayout` no longer
-            clears it). The toolbar gates per-action applicability — Compare
-            requires 2-3 items, every other action requires ≥1. */}
-        {bulkSelection.length > 0 && (() => {
-          const selectionSet = new Set(bulkSelection);
-          const selectedItems = items.filter((item) => selectionSet.has(item.key));
-          if (selectedItems.length === 0) {
-            return null;
-          }
-          const actions = store.getState().registries.actions.getAll();
-          const context = {
-            searchContextId,
-            siteUrl,
-            scope: store.getState().scope,
-          };
-          return (
-            <BulkActionsToolbar
-              selectedItems={selectedItems}
-              actions={actions}
-              context={context}
-              onClearSelection={() => store.getState().clearSelection()}
-            />
-          );
-        })()}
 
         {/* Active layout — wrapped to provide overlay positioning context */}
         <div className={styles.resultsWrapper}>
