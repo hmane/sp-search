@@ -936,14 +936,41 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           />
         )}
 
-        {/* Detail panel — lazy-loaded, only renders when preview panel is open */}
-        {enablePreviewPanel && previewPanel.isOpen && (
-          <ResultDetailPanel
-            isOpen={previewPanel.isOpen}
-            item={previewPanel.item}
-            onDismiss={handleDismissPreviewPanel}
-          />
-        )}
+        {/* T2.D7 — Detail panel with next/previous navigation. Items list +
+            current index are passed so the panel can render arrow buttons
+            and listen for Alt+Left/Right. When the user advances past the
+            last on-page item, the parent triggers a page load via
+            `handleNextPage` (existing pager). */}
+        {enablePreviewPanel && previewPanel.isOpen && ((): React.ReactNode => {
+          const currentIndex = previewPanel.item
+            ? items.findIndex((it) => it.key === previewPanel.item!.key)
+            : -1;
+          const handleNavigate = (delta: number): void => {
+            if (currentIndex < 0) { return; }
+            const nextIndex = currentIndex + delta;
+            if (nextIndex >= 0 && nextIndex < items.length) {
+              store.getState().setPreviewItem(items[nextIndex]);
+              return;
+            }
+            // Forward past the last item — if a next page exists, page +1
+            // and keep the panel open so the user can advance into the
+            // newly-loaded page. (Pager bounds check upstream.)
+            if (delta > 0 && currentPage * pageSize < totalCount) {
+              handlePageChange(currentPage + 1);
+            }
+          };
+          return (
+            <ResultDetailPanel
+              isOpen={previewPanel.isOpen}
+              item={previewPanel.item}
+              onDismiss={handleDismissPreviewPanel}
+              currentIndex={currentIndex}
+              totalOnPage={items.length}
+              hasNextPage={currentPage * pageSize < totalCount}
+              onNavigate={handleNavigate}
+            />
+          );
+        })()}
       </div>
         {isDebugActive && (
           <React.Suspense fallback={null}>

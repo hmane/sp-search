@@ -16,6 +16,17 @@ export interface IResultDetailPanelProps {
   isOpen: boolean;
   item: ISearchResult | undefined;
   onDismiss: () => void;
+  // T2.D7 — next/previous result navigation. `currentIndex` is the
+  // position of the open item in the current page's items array (-1 when
+  // the item isn't on-page); `totalOnPage` is the items count; `hasNextPage`
+  // indicates whether the parent can advance into a fresh page when the
+  // user clicks Next at the end. `onNavigate(delta)` is called with +1
+  // (next) or -1 (previous); the parent updates `item` and the panel
+  // stays mounted (no close animation between rows).
+  currentIndex?: number;
+  totalOnPage?: number;
+  hasNextPage?: boolean;
+  onNavigate?: (delta: number) => void;
 }
 
 /**
@@ -119,7 +130,34 @@ const PanelShimmer: React.FC = () => (
  * selected search result, including document preview, metadata, and actions.
  */
 const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
-  const { isOpen, item, onDismiss } = props;
+  const { isOpen, item, onDismiss, currentIndex, totalOnPage, hasNextPage, onNavigate } = props;
+
+  // T2.D7 — derived navigation flags.
+  const canGoPrevious: boolean = (currentIndex !== undefined && currentIndex > 0);
+  const canGoNext: boolean = (
+    (currentIndex !== undefined && totalOnPage !== undefined && currentIndex < totalOnPage - 1) ||
+    !!hasNextPage
+  );
+  const isAtEndOfPage: boolean = (
+    currentIndex !== undefined && totalOnPage !== undefined && currentIndex === totalOnPage - 1
+  );
+
+  // T2.D7 — Alt+Left / Alt+Right keyboard navigation while the panel is open.
+  React.useEffect((): (() => void) | undefined => {
+    if (!isOpen || !onNavigate) { return undefined; }
+    const handler = (event: KeyboardEvent): void => {
+      if (!event.altKey) { return; }
+      if (event.key === 'ArrowLeft' && canGoPrevious) {
+        event.preventDefault();
+        onNavigate(-1);
+      } else if (event.key === 'ArrowRight' && canGoNext) {
+        event.preventDefault();
+        onNavigate(1);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return (): void => { document.removeEventListener('keydown', handler); };
+  }, [isOpen, onNavigate, canGoPrevious, canGoNext]);
   const [isPreviewLoaded, setIsPreviewLoaded] = React.useState<boolean>(false);
   const [linkCopied, setLinkCopied] = React.useState<boolean>(false);
   const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
@@ -243,6 +281,38 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                 className={linkCopied ? styles.detailPanelActionIconSuccess : styles.detailPanelActionIcon}
               />
             </TooltipHost>
+            {/* T2.D7 — Next/Previous navigation. Only mounted when the
+                parent passed `onNavigate` so the panel can be reused
+                stand-alone (without an items list) without breaking. */}
+            {onNavigate && (
+              <>
+                <TooltipHost content="Previous result (Alt+Left)">
+                  <IconButton
+                    iconProps={{ iconName: 'ChevronLeft' }}
+                    ariaLabel="Previous result"
+                    onClick={(): void => onNavigate(-1)}
+                    disabled={!canGoPrevious}
+                    className={styles.detailPanelActionIcon}
+                  />
+                </TooltipHost>
+                <TooltipHost content={isAtEndOfPage && hasNextPage ? 'Load next page (Alt+Right)' : 'Next result (Alt+Right)'}>
+                  <IconButton
+                    iconProps={{ iconName: 'ChevronRight' }}
+                    ariaLabel={isAtEndOfPage && hasNextPage ? 'Load next page' : 'Next result'}
+                    onClick={(): void => onNavigate(1)}
+                    disabled={!canGoNext}
+                    className={styles.detailPanelActionIcon}
+                  />
+                </TooltipHost>
+                {/* Position indicator: "3 of 10" — shows the admin where
+                    in the page they are. Hidden when index is unknown. */}
+                {currentIndex !== undefined && totalOnPage !== undefined && currentIndex >= 0 && (
+                  <span style={{ fontSize: 12, color: '#605e5c', marginLeft: 8, alignSelf: 'center' }}>
+                    {(currentIndex + 1) + ' of ' + totalOnPage}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
 
