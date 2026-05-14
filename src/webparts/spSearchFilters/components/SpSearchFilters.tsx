@@ -1,7 +1,9 @@
 import * as React from 'react';
 import * as strings from 'SpSearchFiltersWebPartStrings';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
+import { useMediaQuery } from 'spfx-toolkit/lib/hooks/useViewport';
 import { lazyBridge } from '../../../utilities/lazyBridge';
 import styles from './SpSearchFilters.module.scss';
 import type { ISpSearchFiltersProps } from './ISpSearchFiltersProps';
@@ -290,6 +292,24 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   // Visual Filter Builder toggle
   const [isBuilderOpen, setIsBuilderOpen] = React.useState<boolean>(false);
 
+  // T1.D1 — phone-width drawer state. Below 640px the filter body collapses
+  // behind a "Show filters" toggle that opens a Fluent Panel (off-canvas
+  // surface with built-in FocusTrapZone + Escape-to-close + light dismiss
+  // backdrop). Desktop ignores both pieces of state.
+  const isMobile: boolean = useMediaQuery('(max-width: 639px)', false);
+  const [isDrawerOpen, setIsDrawerOpen] = React.useState<boolean>(false);
+  const openDrawer = React.useCallback((): void => { setIsDrawerOpen(true); }, []);
+  const closeDrawer = React.useCallback((): void => { setIsDrawerOpen(false); }, []);
+
+  // When the viewport grows past 640px while the drawer is open, drop the
+  // drawer flag — the body is about to render inline so leaving the modal
+  // mounted would briefly trap focus inside an invisible surface.
+  React.useEffect((): void => {
+    if (!isMobile && isDrawerOpen) {
+      setIsDrawerOpen(false);
+    }
+  }, [isMobile, isDrawerOpen]);
+
   // Determine which filters to display: pending (manual mode) or live (instant mode)
   const displayFilters: IActiveFilter[] = applyMode === 'manual' && hasPendingChanges
     ? pendingFilters
@@ -394,6 +414,9 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     }
 
     setHasPendingChanges(false);
+    // T1.D1 — closing the drawer on Apply matches the iOS/Android filter
+    // pattern: the user explicitly committed; the surface gets out of the way.
+    setIsDrawerOpen(false);
   }
 
   /** Clear all active filters. Respects apply mode: instant dispatches to store, manual clears pending. */
@@ -470,8 +493,10 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   }
 
-  return (
-    <div className={styles.spSearchFilters}>
+  // T1.D1 — body content is rendered identically inline (desktop) and inside
+  // the mobile drawer Panel. Extracted so we only describe the filter UI once.
+  const filterBody: React.ReactElement = (
+    <>
       {/* Visual Filter Builder toggle */}
       {enableVisualFilterBuilder && (
         <div className={styles.visualFilterBuilderToggle}>
@@ -538,6 +563,54 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
           </button>
         </div>
       )}
+    </>
+  );
+
+  // T1.D1 — mobile (≤639px): collapse the body behind a "Show filters" toggle.
+  // The active-filter count is part of the label so the user sees what's
+  // applied without having to open the drawer. Fluent Panel handles focus
+  // trap, Escape-to-close, light dismiss, aria-modal, and motion-reduction.
+  if (isMobile) {
+    const activeCount: number = displayFilters.length;
+    const toggleLabel: string = activeCount > 0
+      ? `${strings.ShowFiltersLabel || 'Show filters'} (${activeCount})`
+      : (strings.ShowFiltersLabel || 'Show filters');
+
+    return (
+      <div className={styles.spSearchFilters}>
+        <div className={styles.drawerToggleBar}>
+          <button
+            type="button"
+            className={styles.drawerToggleButton}
+            onClick={openDrawer}
+            aria-haspopup="dialog"
+            aria-expanded={isDrawerOpen}
+            aria-label={activeCount > 0
+              ? `${strings.ShowFiltersLabel || 'Show filters'}, ${activeCount} active`
+              : (strings.ShowFiltersLabel || 'Show filters')}
+          >
+            {toggleLabel}
+          </button>
+        </div>
+        <Panel
+          isOpen={isDrawerOpen}
+          onDismiss={closeDrawer}
+          type={PanelType.smallFluid}
+          headerText={strings.FiltersPanelHeaderLabel || 'Filters'}
+          isLightDismiss={true}
+          closeButtonAriaLabel={strings.CloseFiltersLabel || 'Close filters'}
+        >
+          <div className={styles.drawerContent}>
+            {filterBody}
+          </div>
+        </Panel>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.spSearchFilters}>
+      {filterBody}
     </div>
   );
 };

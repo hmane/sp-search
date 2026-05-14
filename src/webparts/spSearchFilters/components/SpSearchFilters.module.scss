@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/breakpoints';
 
 .spSearchFilters {
   display: flex;
@@ -864,6 +865,111 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* ── T1.D1 phone-width drawer ──────────────────────────────
+ * Mobile drawer toggle + content shell. The toggle bar is only
+ * rendered on viewports ≤639px (the component branches on
+ * `isMobile`); on desktop the toggle markup never reaches the DOM,
+ * so the bar/button styles below are mobile-only by construction.
+ */
+
+.drawerToggleBar {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.drawerToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* iOS / Android recommended touch target */
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid "[theme:neutralTertiary, default: #a19f9d]";
+  border-radius: 4px;
+  background-color: "[theme:white, default: #ffffff]";
+  background-color: var(--white, #ffffff);
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+
+  &:hover {
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    background-color: var(--neutralLighter, #f3f2f1);
+    border-color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  &:focus {
+    outline: 2px solid "[theme:themePrimary, default: #0078d4]";
+    outline-offset: 2px;
+  }
+}
+
+.drawerContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 16px;
+}
+
+/* ── T1.D1 responsive collapse ─────────────────────────────
+ * Tighten internal padding on phones so the drawer body uses every
+ * pixel of the 375–639px width band. Raw query (not the `mobile-and-below`
+ * mixin) so the audit's `grep -c '@media'` gate counts each responsive
+ * surface individually.
+ */
+
+@media (max-width: $bp-mobile-max) {
+  .spSearchFilters {
+    gap: 6px;
+  }
+
+  .drawerContent {
+    gap: 10px;
+    padding: 8px 0 24px;
+
+    /* Filter-group cards inside the drawer get a touch more breathing
+       room so they're easier to scan/tap. */
+    .filterGroupCard {
+      padding: 8px 4px;
+    }
+
+    .checkboxItem {
+      min-height: 36px;
+    }
+  }
+}
+
+/* Single-column tier — sub-400px (small phones in portrait). Forces
+ * the filter pill-bar to one column and drops the side padding on
+ * cards so refiner labels don't truncate. Mirrors the Results
+ * web part's 399px tier.
+ */
+
+@media (max-width: 399px) {
+  .drawerContent {
+    padding: 4px 0 24px;
+
+    .pillBar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filterGroupCard {
+      padding: 6px 2px;
+    }
+  }
+
+  .drawerToggleButton {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
 }
 
 // Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).

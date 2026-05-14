@@ -53,6 +53,12 @@ declare interface ISpSearchFiltersWebPartStrings {
   OperatorLabel: string;
   ShowClearAllLabel: string;
   ClearAllFiltersLabel: string;
+  // T1.D1 — phone-width drawer (≤639px). `ShowFiltersLabel` is the toggle
+  // affordance; `FiltersPanelHeaderLabel` is the drawer's Panel header;
+  // `CloseFiltersLabel` is the Panel's close-button aria-label.
+  ShowFiltersLabel: string;
+  FiltersPanelHeaderLabel: string;
+  CloseFiltersLabel: string;
   EnableVisualFilterBuilderLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
