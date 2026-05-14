@@ -12,7 +12,10 @@ export interface IQualityMetrics {
   repeatQueryRate: number;
   hasUseCountField: boolean;
   topVertical: string;
-  verticalUsage: Array<{ vertical: string; count: number }>;
+  // T4.D7 / UX-006 — per-vertical breakdown for the zero-rate table. `zeroRate`
+  // is computed at aggregation time so the renderer can sort by it without
+  // re-deriving the ratio on every paint.
+  verticalUsage: Array<{ vertical: string; count: number; zeroCount: number; zeroRate: number }>;
 }
 
 export interface IQualityMetricsSectionProps {
@@ -99,6 +102,41 @@ const QualityMetricsSection: React.FC<IQualityMetricsSectionProps> = (props) => 
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* T4.D7 / UX-006 — per-vertical zero-result rate table. Sorted by
+          zero-rate descending so the worst-performing verticals surface
+          first. Empty verticals are skipped (the audit signal calls out
+          "per-vertical zero-rate table sortable by rate descending"). */}
+      {metrics.verticalUsage.length > 1 && (
+        <div style={{ marginTop: 16 }}>
+          <h3 className={styles.insightSectionTitle}>Zero-result rate by vertical</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '1px solid #edebe9', color: '#605e5c' }}>
+                <th style={{ padding: '6px 8px' }}>Vertical</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right' }}>Searches</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right' }}>Zero-result</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right' }}>Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...metrics.verticalUsage].sort((a, b) => b.zeroRate - a.zeroRate).map(function (v) {
+                const isWarning = v.zeroRate > 20 && v.count >= 5;
+                return (
+                  <tr key={v.vertical} style={{ borderBottom: '1px solid #faf9f8' }}>
+                    <td style={{ padding: '6px 8px' }}>{v.vertical}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>{v.count.toLocaleString()}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>{v.zeroCount.toLocaleString()}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: isWarning ? '#a4262c' : '#323130', fontWeight: isWarning ? 600 : 400 }}>
+                      {v.zeroRate.toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

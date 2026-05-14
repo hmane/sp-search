@@ -30,6 +30,11 @@ interface IInsightMetrics {
   topQueries: Array<{ queryText: string; count: number; vertical: string }>;
   topClickedItems: Array<{ url: string; title: string; clicks: number }>;
   volumeByDay: Array<{ dateLabel: string; count: number }>;
+  // T4.D7 / UX-007 — per-day CTR for the 7-day rolling sparkline. Each
+  // entry's `ctr` is `clicks/total` for that calendar day, computed once
+  // at aggregation time. `dateLabel` matches the format used by
+  // `volumeByDay` so the two surfaces line up visually.
+  ctrByDay: Array<{ dateLabel: string; ctr: number; total: number; clicked: number }>;
   repeatQueries: Array<{ queryText: string; totalSearches: number; lastSeen: Date }>;
   verticalUsage: Array<{ vertical: string; count: number }>;
 }
@@ -49,6 +54,7 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
       topQueries: [],
       topClickedItems: [],
       volumeByDay: [],
+      ctrByDay: [],
       repeatQueries: [],
       verticalUsage: [],
     };
@@ -67,13 +73,17 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
 
   // ── Volume by day (ISO date string → count) ───────────────
   const dayMap = new Map<string, number>();
+  // T4.D7 / UX-007 — per-day clicked-search count for the CTR sparkline.
+  // Shares its date keys with `dayMap` so the two zip cleanly at the end.
+  const clickedDayMap = new Map<string, number>();
 
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
     if (e.isZeroResult) {
       zeroCount++;
     }
-    if (e.clickedItems && e.clickedItems.length > 0) {
+    const hasClicks = !!(e.clickedItems && e.clickedItems.length > 0);
+    if (hasClicks) {
       clickedCount++;
     }
     resultCountSum += e.resultCount || 0;
@@ -107,6 +117,9 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
     if (e.searchTimestamp) {
       const dayKey = e.searchTimestamp.toISOString().substring(0, 10); // YYYY-MM-DD
       dayMap.set(dayKey, (dayMap.get(dayKey) || 0) + 1);
+      if (hasClicks) {
+        clickedDayMap.set(dayKey, (clickedDayMap.get(dayKey) || 0) + 1);
+      }
     }
   }
 
@@ -132,6 +145,24 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const dateLabel = dayNames[d.getDay()] + ' ' + String(d.getDate());
       return { dateLabel, count };
+    });
+
+  // T4.D7 / UX-007 — 7-day rolling CTR sparkline. Zip `dayMap` totals with
+  // `clickedDayMap` per-day click counts, take the last 7 calendar days
+  // that had any searches, and compute ctr = clicked / total. Days with
+  // zero searches are skipped (ctr undefined). Audit acceptance:
+  // "Insights panel shows a 7-day rolling CTR sparkline alongside the
+  // window-wide number."
+  const ctrByDay = Array.from(dayMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7)
+    .map(([dateKey, total]) => {
+      const d = new Date(dateKey + 'T00:00:00');
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dateLabel = dayNames[d.getDay()] + ' ' + String(d.getDate());
+      const clicked = clickedDayMap.get(dateKey) || 0;
+      const ctr = total > 0 ? (clicked / total) * 100 : 0;
+      return { dateLabel, ctr, total, clicked };
     });
 
   // ── Repeat queries: entries where UseCount > 2 ──────────
@@ -179,6 +210,7 @@ function computeMetrics(entries: ISearchHistoryEntry[]): IInsightMetrics {
     topQueries,
     topClickedItems,
     volumeByDay,
+    ctrByDay,
     repeatQueries,
     verticalUsage,
   };
@@ -441,6 +473,39 @@ const SearchInsightsPanel: React.FC<ISearchInsightsPanelProps> = (props) => {
           iconName="NumberField"
         />
       </div>
+
+      {/* T4.D7 / UX-007 — 7-day rolling CTR sparkline. Sits between the
+          window-wide CTR stat card and the split section so the admin can
+          compare today's trend against the time-window aggregate. */}
+      {metrics.ctrByDay.length > 0 && (
+        <div className={styles.insightSection} style={{ marginTop: 4, marginBottom: 12 }}>
+          <h3 className={styles.insightSectionTitle}>
+            <Icon iconName="LineChart" className={styles.insightSectionIcon} />
+            CTR trend (last 7 days)
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            {metrics.ctrByDay.map((day, idx) => {
+              // Bars scale to a 100% ceiling (CTR cap) so the visual is
+              // comparable day-over-day rather than self-normalised.
+              const pct = Math.max(2, Math.min(100, day.ctr));
+              const color = day.ctr >= 50 ? '#107c10' : day.ctr >= 20 ? '#0078d4' : '#a4262c';
+              return (
+                <div
+                  key={String(idx) + '-' + day.dateLabel}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}
+                  title={day.dateLabel + ': ' + day.ctr.toFixed(1) + '% (' + day.clicked + '/' + day.total + ')'}
+                >
+                  <span style={{ fontSize: 11, color: '#605e5c' }}>{day.ctr.toFixed(0)}%</span>
+                  <div style={{ width: '100%', height: 40, display: 'flex', alignItems: 'flex-end' }}>
+                    <div style={{ width: '100%', height: pct + '%', backgroundColor: color, borderRadius: 2 }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: '#605e5c', marginTop: 2 }}>{day.dateLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Two-column section: top queries + top clicked ─────── */}
       <div className={styles.insightsSplit}>

@@ -54,7 +54,9 @@ function computeQualityMetrics(entries: ISearchHistoryEntry[]): IQualityMetrics 
   let clickedCount = 0;
   let repeatCount = 0;
   let hasUseCount = false;
-  const verticalMap = new Map<string, number>();
+  // T4.D7 / UX-006 — track per-vertical totals + zero-result counts so the
+  // QualityMetrics surface can render a sortable per-vertical zero-rate table.
+  const verticalMap = new Map<string, { count: number; zeroCount: number }>();
 
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
@@ -65,12 +67,20 @@ function computeQualityMetrics(entries: ISearchHistoryEntry[]): IQualityMetrics 
       hasUseCount = true;
     }
     const v = e.vertical || 'All';
-    verticalMap.set(v, (verticalMap.get(v) || 0) + 1);
+    const bucket = verticalMap.get(v) || { count: 0, zeroCount: 0 };
+    bucket.count++;
+    if (e.isZeroResult) { bucket.zeroCount++; }
+    verticalMap.set(v, bucket);
   }
 
-  const verticalUsage: Array<{ vertical: string; count: number }> = [];
-  verticalMap.forEach(function (count, vertical): void {
-    verticalUsage.push({ vertical, count });
+  const verticalUsage: Array<{ vertical: string; count: number; zeroCount: number; zeroRate: number }> = [];
+  verticalMap.forEach(function (bucket, vertical): void {
+    verticalUsage.push({
+      vertical,
+      count: bucket.count,
+      zeroCount: bucket.zeroCount,
+      zeroRate: bucket.count > 0 ? (bucket.zeroCount / bucket.count) * 100 : 0,
+    });
   });
   verticalUsage.sort(function (a, b): number { return b.count - a.count; });
 
