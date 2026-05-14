@@ -162,7 +162,8 @@ Write-Host "========================================" -ForegroundColor Green
 # the prompt; -WhatIf reports the recycle scope without executing.
 $candidatePages = @(
     'test-general', 'test-documents', 'test-people', 'test-news', 'test-media',
-    'test-multi-context', 'test-all-filters', 'test-all-layouts', 'test-hub-search',
+    'test-multi-context', 'test-multi-context-tenant-vs-site',
+    'test-all-filters', 'test-all-layouts', 'test-hub-search',
     'test-no-filters', 'test-manual-filters', 'test-search-manager'
 ) | Where-Object { Should-ProvisionPage $_ }
 $existingTestPages = @()
@@ -396,6 +397,64 @@ if (Should-ProvisionPage "test-multi-context") {
 }
 
 # ============================================================================
+# Page 6b: Multi-Context Tenant-vs-Site (T3.D11)
+# Demonstrates the second-most-common shape: a tenant-wide Knowledge
+# Base context (no scope narrowing) + a site-scoped Documents context.
+# Single page; URL prefixes keep both contexts independent.
+# ============================================================================
+if (Should-ProvisionPage "test-multi-context-tenant-vs-site") {
+    $pg = New-TestPage -PageName "test-multi-context-tenant-vs-site" `
+        -PageTitle "Test: Multi-Context (Tenant vs Site)" `
+        -Description "Knowledge Base (tenant-wide) + Documents (current-site only) on one page. Tests URL prefix isolation across mixed-scope contexts."
+
+    # Top half: tenant-wide Knowledge Base
+    Add-PnPPageSection -Page $pg -SectionTemplate OneColumn -Order 1
+    Add-PnPPageSection -Page $pg -SectionTemplate TwoColumnLeft -Order 2
+
+    # Bottom half: site-scoped Documents
+    Add-PnPPageSection -Page $pg -SectionTemplate OneColumn -Order 3
+    Add-PnPPageSection -Page $pg -SectionTemplate TwoColumnLeft -Order 4
+
+    $ctxKb = "kb-tenant"
+    $ctxDocs = "docs-site"
+
+    # Context A — Knowledge Base (tenant scope)
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_BOX -Section 1 -Column 1 -Properties @{
+        searchContextId = $ctxKb
+        placeholder = "Knowledge Base — search the entire tenant..."
+    }
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_RESULTS -Section 2 -Column 1 -Properties @{
+        searchContextId = $ctxKb
+        scenarioPreset = "knowledgeBase"
+        searchScope = "all"
+        pageSize = 5
+        showPaging = $true
+    }
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_FILTERS -Section 2 -Column 2 -Properties @{
+        searchContextId = $ctxKb
+        applyMode = "instant"
+    }
+
+    # Context B — Documents (site scope)
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_BOX -Section 3 -Column 1 -Properties @{
+        searchContextId = $ctxDocs
+        placeholder = "This site only — search documents..."
+    }
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_RESULTS -Section 4 -Column 1 -Properties @{
+        searchContextId = $ctxDocs
+        scenarioPreset = "documents"
+        searchScope = "site"
+        pageSize = 5
+        showPaging = $true
+    }
+    Add-SPSearchWebPart -Page $pg -ComponentName $WP_SEARCH_FILTERS -Section 4 -Column 2 -Properties @{
+        searchContextId = $ctxDocs
+        applyMode = "instant"
+    }
+    $pagesCreated++
+}
+
+# ============================================================================
 # Page 7: All Filter Types
 # ============================================================================
 if (Should-ProvisionPage "test-all-filters") {
@@ -620,9 +679,9 @@ if ($Publish -and $pagesCreated -gt 0) {
     Write-Host "`nPublishing $pagesCreated pages..." -ForegroundColor Yellow
     $allPages = @(
         "test-general", "test-documents", "test-people", "test-news",
-        "test-media", "test-multi-context", "test-all-filters",
-        "test-all-layouts", "test-hub-search", "test-no-filters",
-        "test-manual-filters", "test-search-manager"
+        "test-media", "test-multi-context", "test-multi-context-tenant-vs-site",
+        "test-all-filters", "test-all-layouts", "test-hub-search",
+        "test-no-filters", "test-manual-filters", "test-search-manager"
     )
     foreach ($pageName in $allPages) {
         if (Should-ProvisionPage $pageName) {
@@ -650,6 +709,7 @@ Write-Host "  3. test-people          - Verify Graph provider, people cards, pre
 Write-Host "  4. test-news            - Card layout, date sorting, thumbnail display"
 Write-Host "  5. test-media           - Gallery layout, image zoom, video preview"
 Write-Host "  6. test-multi-context   - Search in BOTH contexts independently"
+Write-Host " 6b. test-multi-context-tenant-vs-site - Tenant-wide KB + site-scoped docs (T3.D11)"
 Write-Host "  7. test-all-filters     - Test each filter type, Clear All, show more/less"
 Write-Host "  8. test-all-layouts     - Switch between all 6 layouts, verify rendering"
 Write-Host "  9. test-hub-search      - Vertical tabs, counts, per-vertical queries"
