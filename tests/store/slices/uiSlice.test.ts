@@ -24,10 +24,6 @@ describe('uiSlice', () => {
         item: undefined,
       });
     });
-
-    it('should have empty bulk selection', () => {
-      expect(store.getState().bulkSelection).toEqual([]);
-    });
   });
 
   describe('setLayout', () => {
@@ -121,74 +117,7 @@ describe('uiSlice', () => {
     });
   });
 
-  describe('toggleSelection', () => {
-    describe('single-select mode (multiSelect=false)', () => {
-      it('should select a single item', () => {
-        store.getState().toggleSelection('item-1', false);
-        expect(store.getState().bulkSelection).toEqual(['item-1']);
-      });
-
-      it('should replace selection with a new item', () => {
-        store.getState().toggleSelection('item-1', false);
-        store.getState().toggleSelection('item-2', false);
-        expect(store.getState().bulkSelection).toEqual(['item-2']);
-      });
-
-      it('should deselect an already-selected item', () => {
-        store.getState().toggleSelection('item-1', false);
-        store.getState().toggleSelection('item-1', false);
-        expect(store.getState().bulkSelection).toEqual([]);
-      });
-    });
-
-    describe('multi-select mode (multiSelect=true)', () => {
-      it('should add items to the selection', () => {
-        store.getState().toggleSelection('item-1', true);
-        store.getState().toggleSelection('item-2', true);
-        store.getState().toggleSelection('item-3', true);
-        expect(store.getState().bulkSelection).toEqual(['item-1', 'item-2', 'item-3']);
-      });
-
-      it('should deselect an already-selected item', () => {
-        store.getState().toggleSelection('item-1', true);
-        store.getState().toggleSelection('item-2', true);
-        store.getState().toggleSelection('item-1', true); // deselect
-        expect(store.getState().bulkSelection).toEqual(['item-2']);
-      });
-
-      it('should handle toggling the same item multiple times', () => {
-        store.getState().toggleSelection('item-1', true);
-        store.getState().toggleSelection('item-1', true);
-        store.getState().toggleSelection('item-1', true);
-        // Toggle: add -> remove -> add
-        expect(store.getState().bulkSelection).toEqual(['item-1']);
-      });
-    });
-
-    describe('mixed mode interactions', () => {
-      it('should switch from multi to single correctly', () => {
-        store.getState().toggleSelection('item-1', true);
-        store.getState().toggleSelection('item-2', true);
-        // Now single-select a new item: replaces all
-        store.getState().toggleSelection('item-3', false);
-        expect(store.getState().bulkSelection).toEqual(['item-3']);
-      });
-    });
-  });
-
-  describe('clearSelection', () => {
-    it('should clear all selected items', () => {
-      store.getState().toggleSelection('item-1', true);
-      store.getState().toggleSelection('item-2', true);
-      store.getState().toggleSelection('item-3', true);
-
-      store.getState().clearSelection();
-      expect(store.getState().bulkSelection).toEqual([]);
-    });
-
-    it('should be a no-op on empty selection', () => {
-      store.getState().clearSelection();
-      expect(store.getState().bulkSelection).toEqual([]);
-    });
-  });
+  // bulkSelection / toggleSelection / clearSelection retired alongside
+  // the BulkActionsToolbar surface. The per-row ECB menu replaces the
+  // checkbox-driven bulk-action flow.
 });

@@ -14,16 +14,9 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
     isOpen: false,
     item: undefined,
   },
-  bulkSelection: [],
   currentUserGroups: [],
 
   setLayout: (key: string): void => {
-    // T2.D2 — selection persists across layout switch (audit acceptance signal).
-    // The 3 selection-aware layouts (list / compact / grid) all render their
-    // selection from the same `bulkSelection` array, so a row ticked on List
-    // stays ticked when the admin switches to Compact and back. Layouts that
-    // don't render checkboxes (card / people / gallery) ignore the array;
-    // returning to a checkbox-aware layout restores the ticks.
     set({ activeLayoutKey: key });
   },
 
@@ -43,28 +36,6 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
         item,
       },
     });
-  },
-
-  toggleSelection: (itemKey: string, multiSelect: boolean): void => {
-    const current = get().bulkSelection;
-    const index = current.indexOf(itemKey);
-
-    if (index >= 0) {
-      // Deselect
-      const updated = [...current];
-      updated.splice(index, 1);
-      set({ bulkSelection: updated });
-    } else if (multiSelect) {
-      // Add to selection
-      set({ bulkSelection: [...current, itemKey] });
-    } else {
-      // Replace selection
-      set({ bulkSelection: [itemKey] });
-    }
-  },
-
-  clearSelection: (): void => {
-    set({ bulkSelection: [] });
   },
 
   setCurrentUserGroups: (groups: string[]): void => {

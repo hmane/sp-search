@@ -26,7 +26,7 @@ This section covers Sprint 5 + Sprint 6 audit Roadmap deliverables landed since 
 #### T2 — End-User Productivity
 
 - Shared-search recipient notification: badge on tab + MessageBar within 60 s polling window; sender sees "N recipients notified" copy (T2.D1).
-- `BulkActionsToolbar` wired across List / Compact / DataGrid layouts; selection persists across layout switch (T2.D2).
+- **(Retired)** ~~`BulkActionsToolbar` wired across List / Compact / DataGrid layouts; selection persists across layout switch (T2.D2).~~ — Replaced by per-row ECB menu (see Changed below).
 - Saved-search JSON schema validation on restore with malformation MessageBar and skip-apply path (T2.D3).
 - Owned / Shared-with-me / All toggle on saved searches + collections; per-row "Shared by &lt;Name&gt;" badge on saved searches (T2.D6).
 - Detail panel next / previous result navigation with Alt+Left / Alt+Right; "Load next page" at end of page (T2.D7).
@@ -84,7 +84,7 @@ This section covers Sprint 5 + Sprint 6 audit Roadmap deliverables landed since 
 
 ### Changed
 
-- `setLayout` no longer clears `bulkSelection` — selection persists across layout switches (T2.D2 acceptance signal).
+- Bulk-selection UX retired in favour of a per-row ECB ("...") menu. Each List-view row gets a trailing-edge `...` IconButton on hover with Open / Download / Copy link actions; Compact + DataGrid keep their existing title-cell action menus. `BulkActionsToolbar.tsx` deleted; `bulkSelection` slice (`toggleSelection`, `clearSelection`, `bulkSelection: string[]`) removed from `uiSlice.ts`, `IStoreSlices.ts`, `createStore.ts`. Layout-agnostic Export menu (T2.D11) is now page-wide ("Export all to CSV/XLSX"); the prior "Selection only (N rows)" submenu is gone.
 - Schema service cache reused across all managed-property fields so a single tenant fetch services every validator + dropdown (T4.D3 substrate).
 - `disposeStore` JSDoc rewritten — documents the refcount as the preferred lifecycle path, direct calls only for tests + admin Force-Dispose.
 

@@ -67,7 +67,6 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
         activeLayoutKey: 'list',
         isSearchManagerOpen: false,
         previewPanel: { isOpen: false, item: undefined },
-        bulkSelection: [],
         // User slice defaults
         savedSearches: [],
         searchHistory: [],

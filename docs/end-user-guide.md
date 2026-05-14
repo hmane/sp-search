@@ -88,22 +88,21 @@ selected collection.
 Collections persist across sessions and can be shared with
 coworkers the same way saved searches can.
 
-## Bulk actions
+## Per-row actions
 
-When you have results on screen, tick the checkbox on any row. A
-**bulk action toolbar** appears above the results listing the
-selected count + the bulk actions available:
+Hover any row and a **"..."** button appears at the trailing edge
+(List view), or click the existing menu indicator in Compact /
+DataGrid rows. The menu offers:
 
-- **Open all** — open every selected result in new tabs
-- **Add to collection** — pin all selected results to one of your
-  collections
-- **Share** — send the selection link to a coworker
-- **Compare** — when 2 or 3 items are selected, open a comparison
-  view (deferred in v1.0 — button greys past the 3-item limit)
+- **Open in new tab** — open the result in a fresh browser tab.
+- **Download** — download the underlying file (when supported).
+- **Copy link** — copy the result's URL to your clipboard.
+- *DataGrid only*: **View item**, **Edit item**, and **Delete**
+  also appear when you have the appropriate permissions on the
+  underlying list item.
 
-Selections persist when you switch layouts (List → Grid →
-Compact) so you can pick the best view per task without losing your
-ticks.
+To pin a result into a collection, use the **Pin** icon next to
+the title (visible on hover).
 
 ## Export results
 
@@ -112,9 +111,6 @@ menu:
 
 - **Export all to CSV** / **XLSX** — download every result on the
   current page in the layout's column shape.
-- **Selection only (N rows) to CSV** / **XLSX** — when you have rows
-  ticked, the menu adds these two items so you can export just
-  what you picked.
 
 Both formats include the columns your admin configured for the
 active layout. CSV uses UTF-8 with a byte-order mark so Excel on

@@ -94,7 +94,6 @@ describe('storeRegistry', () => {
       expect(state.activeLayoutKey).toBe('list');
       expect(state.isSearchManagerOpen).toBe(false);
       expect(state.previewPanel).toEqual({ isOpen: false, item: undefined });
-      expect(state.bulkSelection).toEqual([]);
 
       // User slice defaults
       expect(state.savedSearches).toEqual([]);

@@ -131,7 +131,6 @@ export interface IUISlice {
     isOpen: boolean;
     item: ISearchResult | undefined;
   };
-  bulkSelection: string[];
   /** Current user's Azure AD security group IDs (for audience targeting) */
   currentUserGroups: string[];
   // Actions
@@ -139,8 +138,6 @@ export interface IUISlice {
   setAvailableLayouts: (layouts: string[]) => void;
   toggleSearchManager: (isOpen?: boolean) => void;
   setPreviewItem: (item: ISearchResult | undefined) => void;
-  toggleSelection: (itemKey: string, multiSelect: boolean) => void;
-  clearSelection: () => void;
   setCurrentUserGroups: (groups: string[]) => void;
 }
 
