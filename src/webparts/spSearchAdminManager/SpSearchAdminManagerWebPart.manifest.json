@@ -12,8 +12,8 @@
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
     "title": { "default": "SP Search Admin Manager" },
-    "description": { "default": "Admin diagnostics for search health, freshness, coverage, and insights" },
-    "officeFabricIconFontName": "SearchAndApps",
+    "description": { "default": "Admin diagnostics for search health, freshness, coverage, and insights. Requires ManageWeb (Owner/Admin) permission to render." },
+    "officeFabricIconFontName": "BIDashboard",
     "properties": {
       "searchContextId": "default",
       "coverageSourcePageUrl": "",
