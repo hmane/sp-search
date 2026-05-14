@@ -10,6 +10,9 @@ import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
 import { lazyBridge } from '../../../utilities/lazyBridge';
+// T2.D9 — global keyboard-shortcut help modal host. Installs '?' and '/'
+// bindings + listens for the help-open event.
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
 import { safeNavigate } from '@store/utils/safeNavigate';
@@ -125,6 +128,27 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const suggestionRequestIdRef = React.useRef<number>(0);
   const latestSuggestionQueryRef = React.useRef<string>('');
   const suggestionAbortRef = React.useRef<AbortController | undefined>(undefined);
+
+  // T2.D9 — focus the input when '/' is pressed (anywhere on the page).
+  // The shortcut hook dispatches a window CustomEvent; we listen and
+  // focus whichever input the Fluent SearchBox or KQL editor rendered
+  // inside our container. The container ref scopes the query so
+  // multi-Box pages each focus the most-recently-clicked container's input.
+  React.useEffect((): (() => void) => {
+    const handler = (): void => {
+      if (!containerRef.current) { return; }
+      // Fluent SearchBox renders <input> with role="searchbox"; KQL mode
+      // renders a textarea. Either is the focus target.
+      const target = containerRef.current.querySelector(
+        'input[role="searchbox"], textarea[role="textbox"], input[type="search"], textarea'
+      ) as HTMLElement | null;
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+      }
+    };
+    window.addEventListener('sp-search:focus-search-box', handler);
+    return (): void => { window.removeEventListener('sp-search:focus-search-box', handler); };
+  }, []);
 
   // ─── Subscribe to store changes ─────────────────────────────────
   React.useEffect(() => {
@@ -937,6 +961,12 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   return (
     <ErrorBoundary>
       {content}
+      {/* T2.D9 — global keyboard-shortcut help modal. Installs the `?`
+          and `/` shortcut bindings + listens for the help-open event.
+          Mounted inside the SearchBox web part because it's the most
+          common entry point on a search page; harmless if multiple Box
+          web parts mount their own copies. */}
+      <ShortcutHelpModalHost />
     </ErrorBoundary>
   );
 };
