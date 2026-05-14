@@ -1927,6 +1927,47 @@
   }
 }
 
+// T1.D6 (b) — richer non-previewable fallback card. Replaces the sparse
+// pane with a centered file-type icon, type + size sub-line, and a
+// two-button row (Open + Download). Covers .eml/.msg/images/video/zip
+// — common file types that previously hit the empty placeholder.
+.detailPanelNoPreviewCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 40px 24px;
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 6px;
+  text-align: center;
+}
+
+.detailPanelNoPreviewIcon {
+  font-size: 56px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.detailPanelNoPreviewTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+}
+
+.detailPanelNoPreviewSubtitle {
+  font-size: 13px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin: 0;
+}
+
+.detailPanelNoPreviewActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 // ─── Detail Panel: Author & Dates ──────────────────────────
 .detailPanelAuthorSection {
   border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";

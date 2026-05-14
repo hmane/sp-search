@@ -165,22 +165,10 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   }, []);
 
-  // ─── Render header content ─────────────────────────────
-  const onRenderNavigationContent = React.useCallback(
-    (): React.ReactElement => {
-      return (
-        <div className={styles.detailPanelNav}>
-          <IconButton
-            iconProps={{ iconName: 'Cancel' }}
-            ariaLabel="Close panel"
-            onClick={onDismiss}
-            title="Close"
-          />
-        </div>
-      );
-    },
-    [onDismiss]
-  );
+  // T1.D6 (a) — Fluent's default close button is preferred over a custom
+  // override. Removed the previous `onRenderNavigationContent` that
+  // hand-rolled an IconButton (lost the keyboard hint + alignment Fluent
+  // provides). Panel below now uses `hasCloseButton={true}` + `headerText`.
 
   if (!item) {
     return (
@@ -212,8 +200,8 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
       type={PanelType.medium}
       onDismiss={onDismiss}
       isLightDismiss={true}
-      hasCloseButton={false}
-      onRenderNavigationContent={onRenderNavigationContent}
+      hasCloseButton={true}
+      closeButtonAriaLabel="Close detail panel"
     >
       <div className={styles.detailPanel}>
         {/* ─── Header Section ───────────────────────────── */}
@@ -285,16 +273,31 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
           </div>
         )}
 
-        {/* ─── Non-previewable fallback ─────────────────── */}
+        {/* T1.D6 (b) — Non-previewable fallback. Centered card layout with
+            file-type icon, file-type + size sub-line, and a two-button row
+            (Open in browser + Download). Covers .eml/.msg/images/video/
+            zip which are the audit's named-out "common types with empty
+            pane" cases. */}
         {!canPreview && (
-          <div className={styles.detailPanelNoPreview}>
-            <Icon iconName={getFileTypeIcon(item.fileType)} style={{ fontSize: 48 }} />
-            <p>Preview is not available for this file type.</p>
-            <DefaultButton
-              text="Open in browser"
-              iconProps={{ iconName: 'OpenInNewTab' }}
-              onClick={handleOpenInBrowser}
-            />
+          <div className={styles.detailPanelNoPreviewCard}>
+            <Icon iconName={getFileTypeIcon(item.fileType)} className={styles.detailPanelNoPreviewIcon} />
+            <p className={styles.detailPanelNoPreviewTitle}>Preview not available</p>
+            <p className={styles.detailPanelNoPreviewSubtitle}>
+              {(item.fileType || 'This file type').toUpperCase()}
+              {fileSizeStr ? ' · ' + fileSizeStr : ''}
+            </p>
+            <div className={styles.detailPanelNoPreviewActions}>
+              <DefaultButton
+                text="Open in browser"
+                iconProps={{ iconName: 'OpenInNewTab' }}
+                onClick={handleOpenInBrowser}
+              />
+              <DefaultButton
+                text="Download"
+                iconProps={{ iconName: 'Download' }}
+                onClick={handleDownload}
+              />
+            </div>
           </div>
         )}
 
@@ -309,10 +312,21 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
               showSecondaryText={true}
               showLivePersona={false}
             />
-          ) : (
+          ) : item.author && item.author.displayText ? (
+            // T1.D6 (c) — author display name present but no email (Graph
+            // people lookup failed, or the field was indexed as a plain
+            // string). Render the name without the persona avatar — better
+            // than a generic Contact icon + "Unknown" placeholder.
             <div className={styles.detailPanelAuthorFallback}>
               <Icon iconName="Contact" className={styles.detailPanelAuthorFallbackIcon} />
-              <span>{item.author?.displayText || 'Unknown'}</span>
+              <span>{item.author.displayText}</span>
+            </div>
+          ) : (
+            // T1.D6 (c) — author entirely missing. Graceful copy instead
+            // of the bare "Unknown" word that read as a broken state.
+            <div className={styles.detailPanelAuthorFallback}>
+              <Icon iconName="Info" className={styles.detailPanelAuthorFallbackIcon} />
+              <span style={{ color: '#605e5c' }}>Author not indexed for this result</span>
             </div>
           )}
 
