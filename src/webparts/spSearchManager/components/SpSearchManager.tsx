@@ -46,6 +46,12 @@ const AdminDashboard = React.lazy(
   () => import(/* webpackChunkName: 'AdminDashboard' */ './AdminDashboard') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
 );
 
+// T4.D9 — Pre-Flight tab is admin-only. Lazy-loaded so user-variant pages
+// don't pay for the readiness service code.
+const PreFlightPanel = React.lazy(
+  () => import(/* webpackChunkName: 'PreFlightPanel' */ './PreFlightPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
+
 // ─── Category options for save dialog ───────────────────────
 const CATEGORY_OPTIONS: IDropdownOption[] = [
   { key: 'General', text: 'General' },
@@ -1016,6 +1022,22 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                       coverageProfileCount={(props.coverageProfiles || []).length}
                       onRunQuery={handleRunZeroResultQuery}
                     />
+                  </React.Suspense>
+                </PivotItem>
+              )}
+              {/* T4.D9 — Pre-Flight tab. Admin-only. Renders the
+                  tenant-readiness checklist (Graph permission, hidden lists,
+                  SearchHistory item permissions, schema mappings, content
+                  source). The single-screenshot acceptance signal lives
+                  here. */}
+              {config.variant === 'admin' && (
+                <PivotItem
+                  itemKey="preflight"
+                  headerText="Pre-Flight"
+                  itemIcon="Diagnostic"
+                >
+                  <React.Suspense fallback={<Spinner size={SpinnerSize.medium} label="Loading pre-flight checks..." />}>
+                    <PreFlightPanel />
                   </React.Suspense>
                 </PivotItem>
               )}
