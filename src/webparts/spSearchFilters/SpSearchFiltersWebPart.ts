@@ -19,6 +19,7 @@ import SpSearchFilters from './components/SpSearchFilters';
 import type { ISpSearchFiltersProps } from './components/ISpSearchFiltersProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
+import { recordWebPartInit } from '@store/utils/initOrderDiagnostic';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
@@ -194,6 +195,11 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       this._store = getStore(contextId);
       // T3.D1 — refcount holder.
       incrementContextRef(contextId);
+      // T3.D10 — record this web part's registration. If it arrives
+      // after Results' first search ran with empty filterConfig,
+      // the diagnostic flips `filtersLateRegistered` and the Results
+      // edit-mode MessageBar surfaces.
+      recordWebPartInit(contextId, 'SpSearchFiltersWebPart');
 
       // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
       const provider = new SharePointSearchProvider();

@@ -35,6 +35,11 @@ import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 import { propertyPaneSearchContextIdField } from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 // T4.D11 — context-sensitive help link surface.
 import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
+// T3.D10 — initialization-order diagnostic; records this web part's
+// registration + the filterConfig length at first-search time so the
+// Results component can surface an edit-mode warning when Filters
+// arrives late.
+import { recordWebPartInit, recordFirstSearch } from '@store/utils/initOrderDiagnostic';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -373,12 +378,22 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     // This triggers the first search — all store config must be set above
     await initializeSearchContext(contextId, this.context);
 
+    // T3.D10 — record this web part's registration + measure the
+    // filterConfig length at first-search time so the edit-mode
+    // diagnostic can surface an init-order MessageBar when Filters
+    // arrives late.
+    recordWebPartInit(contextId, 'SpSearchResultsWebPart');
+
     // Always trigger a search after initialization. The initial search inside
     // initializeSearchContext may have been skipped if another web part
     // (e.g., Filters) called initializeSearchContext before the Results web
     // part registered the data provider. This call is safe — triggerSearch
     // cancels any pending/in-flight search before starting a new one.
     if (this._orchestrator) {
+      const filterConfigLength = this._store
+        ? (this._store.getState().filterConfig || []).length
+        : 0;
+      recordFirstSearch(contextId, filterConfigLength);
       this._orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
     }
     DebugCollector.registerWebPart('SPSearchResultsWebPart', this.properties as unknown as Record<string, unknown>);

@@ -68,6 +68,8 @@ const ResultDetailPanel = lazyBridge(
 );
 
 import { safeNavigate } from '@store/utils/safeNavigate';
+// T3.D10 — init-order diagnostic helpers.
+import { hasInitOrderIssue, clearInitOrderDiagnostic } from '@store/utils/initOrderDiagnostic';
 
 // T5.D1 — singleton DebugFab + Panel imported from the cross-bundle host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
@@ -814,6 +816,42 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           <MessageBar messageBarType={MessageBarType.info} isMultiline={true} styles={{ root: { marginBottom: 8 } }}>
             Using the <strong>default</strong> search context. Set a unique Search Context ID in the property pane
             when using multiple independent search experiences on the same page.
+          </MessageBar>
+        )}
+        {/* T3.D10 — init-order diagnostic. Renders when Filters web part
+            registered AFTER the first search ran with empty filterConfig
+            (URL-deep-linked filter values silently failed to apply). The
+            Retry button re-runs the search now that filterConfig is
+            populated. View mode hides this entirely. */}
+        {isEditMode && hasInitOrderIssue(searchContextId) && (
+          <MessageBar
+            messageBarType={MessageBarType.warning}
+            isMultiline={true}
+            styles={{ root: { marginBottom: 8 } }}
+            actions={
+              <div>
+                <button
+                  type="button"
+                  onClick={(): void => {
+                    clearInitOrderDiagnostic(searchContextId);
+                    // Re-fire the orchestrator's search with the now-loaded filterConfig.
+                    const orchestrator = (store.getState() as unknown as { triggerSearch?: () => void });
+                    if (typeof orchestrator.triggerSearch === 'function') {
+                      orchestrator.triggerSearch();
+                    } else {
+                      // Fallback — bump the store's queryText to trigger a re-search via the orchestrator subscription.
+                      store.setState({ queryText: store.getState().queryText });
+                    }
+                  }}
+                  style={{ padding: '4px 10px', cursor: 'pointer' }}
+                >
+                  Retry
+                </button>
+              </div>
+            }
+          >
+            First search ran before the Filters web part loaded — URL filters may not have been applied.
+            Click Retry to re-run the search now that the filter configuration is loaded, or reload the page.
           </MessageBar>
         )}
         {isEditMode && ((): React.ReactNode => {
