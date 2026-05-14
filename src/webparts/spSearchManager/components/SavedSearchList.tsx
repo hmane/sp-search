@@ -6,6 +6,8 @@ import { TextField } from '@fluentui/react/lib/TextField';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+// T2.D6 — Owned / Shared-with-me / All ownership toggle on the saved-search list.
+import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import {
   ISavedSearch,
   ISearchStore,
@@ -119,6 +121,10 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
   const [isRenaming, setIsRenaming] = React.useState<boolean>(false);
   // T2.D3 — set when a saved-search restore fails schema validation; rendered as a MessageBar.
   const [restoreError, setRestoreError] = React.useState<{ title: string; errors: string[] } | undefined>(undefined);
+  // T2.D6 — Owned / Shared-with-me / All ownership filter. "All" matches
+  // today's behaviour; "Owned" filters to entryType === 'SavedSearch';
+  // "Shared with me" filters to entryType === 'SharedSearch'.
+  const [ownershipFilter, setOwnershipFilter] = React.useState<'all' | 'owned' | 'shared'>('all');
 
   // ─── Initialize expanded categories ──────────────────────
   React.useEffect(() => {
@@ -298,8 +304,19 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
     );
   }
 
+  // T2.D6 — apply the ownership filter before grouping.
+  const filteredSavedSearches: ISavedSearch[] = ownershipFilter === 'all'
+    ? savedSearches
+    : ownershipFilter === 'owned'
+      ? savedSearches.filter((s) => s.entryType !== 'SharedSearch')
+      : savedSearches.filter((s) => s.entryType === 'SharedSearch');
+
+  // Counts for the toggle labels (computed against the unfiltered set).
+  const ownedCount = savedSearches.filter((s) => s.entryType !== 'SharedSearch').length;
+  const sharedCount = savedSearches.filter((s) => s.entryType === 'SharedSearch').length;
+
   // ─── Group by category ────────────────────────────────────
-  const grouped = groupByCategory(savedSearches);
+  const grouped = groupByCategory(filteredSavedSearches);
   const categoryKeys = Object.keys(grouped);
 
   return (
@@ -317,6 +334,23 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
           <strong>Could not restore &quot;{restoreError.title}&quot;.</strong> The saved
           search data is malformed and was not applied. Details: {restoreError.errors.join('; ')}
         </MessageBar>
+      )}
+      {/* T2.D6 — ownership toggle. Hidden when there are zero shared
+          searches (a single-state toggle adds clutter without context). */}
+      {sharedCount > 0 && (
+        <Pivot
+          selectedKey={ownershipFilter}
+          onLinkClick={(item): void => {
+            if (item && item.props.itemKey) {
+              setOwnershipFilter(item.props.itemKey as 'all' | 'owned' | 'shared');
+            }
+          }}
+          styles={{ root: { marginBottom: 12 } }}
+        >
+          <PivotItem itemKey="all" headerText={'All (' + (ownedCount + sharedCount) + ')'} />
+          <PivotItem itemKey="owned" headerText={'Owned (' + ownedCount + ')'} />
+          <PivotItem itemKey="shared" headerText={'Shared with me (' + sharedCount + ')'} />
+        </Pivot>
       )}
       {categoryKeys.map(function (category): React.ReactElement {
         const items = grouped[category];
@@ -409,6 +443,18 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
                             <span>{String(search.resultCount) + ' results'}</span>
                             <span className={styles.metaDot} />
                             <span>{formatRelativeDate(search.lastUsed)}</span>
+                            {/* T2.D6 — "Shared by <Name>" badge surfaces
+                                the sender on every shared-with-me row.
+                                Skipped for owned rows. */}
+                            {search.entryType === 'SharedSearch' && search.author && search.author.displayText && (
+                              <>
+                                <span className={styles.metaDot} />
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#0078d4' }}>
+                                  <Icon iconName="People" style={{ fontSize: 11 }} />
+                                  Shared by {search.author.displayText}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
