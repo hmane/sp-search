@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as strings from 'SpSearchFiltersWebPartStrings';
-import { IconButton } from '@fluentui/react/lib/Button';
+import { IconButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { useMediaQuery } from 'spfx-toolkit/lib/hooks/useViewport';
@@ -22,6 +22,15 @@ import { isInAudience, fetchManagedProperties, getCachedSchema } from '@services
 import { validateManagedPropertyCollection } from '@store/configValidation/sharedValidators';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import type { IManagedProperty } from '@store/interfaces/ISearchDataProvider';
+// T4.D12 — cross-web-part preset propagation. When Results applies a
+// preset, the suggestion lands in the registry; this component subscribes
+// and renders an edit-mode MessageBar offering to apply the suggested filters.
+import {
+  consumePresetSuggestion,
+  clearPresetSuggestion,
+  subscribePresetSuggestionChanges,
+  type IPresetSuggestion,
+} from '@store/utils/presetSuggestionRegistry';
 
 const VisualFilterBuilder = lazyBridge(
   () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
@@ -241,7 +250,7 @@ function useStoreState<T>(
 }
 
 const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFiltersProps): React.ReactElement => {
-  const { store, applyMode, showClearAll, enableVisualFilterBuilder, isEditMode } = props;
+  const { store, applyMode, showClearAll, enableVisualFilterBuilder, isEditMode, searchContextId, onApplyPresetFilters } = props;
 
   // T4.D5 — fetch schema on mount in edit mode so the synchronous
   // validator below has something to compare against. Fire-and-forget;
@@ -259,6 +268,22 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       .catch((): void => { /* silent — validator passes when schema missing */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode]);
+
+  // T4.D12 — cross-web-part preset suggestion. Subscribe to registry
+  // changes in edit mode and re-render when the Results web part publishes
+  // a preset application. View mode never subscribes — the MessageBar is
+  // an admin-only affordance.
+  const [presetSuggestion, setPresetSuggestion] = React.useState<IPresetSuggestion | undefined>(
+    () => isEditMode && searchContextId ? consumePresetSuggestion(searchContextId) : undefined
+  );
+  React.useEffect((): (() => void) | undefined => {
+    if (!isEditMode || !searchContextId) { return undefined; }
+    setPresetSuggestion(consumePresetSuggestion(searchContextId));
+    const unsub = subscribePresetSuggestionChanges((): void => {
+      setPresetSuggestion(consumePresetSuggestion(searchContextId));
+    });
+    return unsub;
+  }, [isEditMode, searchContextId]);
 
   // Stable selectors to avoid re-subscriptions
   const selectRefiners = React.useCallback(function (s: ISearchStore): IRefiner[] {
@@ -541,10 +566,48 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     );
   })() : null;
 
+  // T4.D12 — preset suggestion MessageBar. Edit-mode only. Shows the
+  // preset's `filterSuggestions` count, offers an Apply button that calls
+  // back to the web part to write `filtersCollection`, and a Dismiss that
+  // clears the suggestion. Existing managed-property rows are not
+  // duplicated — the web part filters them out in `onApplyPresetFilters`.
+  const presetBlock: React.ReactNode = isEditMode && presetSuggestion && presetSuggestion.filterSuggestions.length > 0 ? (
+    <MessageBar
+      messageBarType={MessageBarType.info}
+      isMultiline={true}
+      styles={{ root: { marginBottom: 4 } }}
+      actions={
+        <div>
+          <PrimaryButton
+            text="Apply"
+            onClick={(): void => {
+              if (onApplyPresetFilters && presetSuggestion) {
+                onApplyPresetFilters(presetSuggestion.filterSuggestions);
+              }
+              if (searchContextId) {
+                clearPresetSuggestion(searchContextId);
+              }
+            }}
+          />
+          <DefaultButton
+            text="Dismiss"
+            onClick={(): void => {
+              if (searchContextId) { clearPresetSuggestion(searchContextId); }
+            }}
+            style={{ marginLeft: 8 }}
+          />
+        </div>
+      }
+    >
+      The <strong>{presetSuggestion.label}</strong> preset suggests {presetSuggestion.filterSuggestions.length} filter{presetSuggestion.filterSuggestions.length === 1 ? '' : 's'} for this web part — apply now?
+    </MessageBar>
+  ) : null;
+
   // T1.D1 — body content is rendered identically inline (desktop) and inside
   // the mobile drawer Panel. Extracted so we only describe the filter UI once.
   const filterBody: React.ReactElement = (
     <>
+      {presetBlock}
       {validationBlock}
       {/* Visual Filter Builder toggle */}
       {enableVisualFilterBuilder && (

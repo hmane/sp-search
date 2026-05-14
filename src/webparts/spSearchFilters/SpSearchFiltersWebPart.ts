@@ -117,7 +117,37 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         applyMode: this.properties.applyMode || 'instant',
         showClearAll: this.properties.showClearAll !== false,
         enableVisualFilterBuilder: !!this.properties.enableVisualFilterBuilder,
-        isEditMode: this.displayMode === DisplayMode.Edit
+        isEditMode: this.displayMode === DisplayMode.Edit,
+        // T4.D12 — cross-web-part preset propagation.
+        searchContextId: this.properties.searchContextId || 'default',
+        onApplyPresetFilters: (filterRows): void => {
+          // Build new filter rows with sensible operator/option defaults
+          // for each suggested filter type. Existing rows are kept and the
+          // suggestions are appended only when the managedProperty isn't
+          // already configured.
+          const existing = normalizeFiltersCollectionValue(this.properties.filtersCollection);
+          const haveProps = new Set(existing.map((r) => (r.managedProperty || '').toLowerCase()));
+          const additions: IFilterCollectionItem[] = filterRows
+            .filter((r) => !haveProps.has(r.managedProperty.toLowerCase()))
+            .map((r, idx): IFilterCollectionItem => ({
+              uniqueId: 'preset-filter-' + String(Date.now()) + '-' + String(idx),
+              managedProperty: r.managedProperty,
+              displayName: r.label,
+              urlAlias: r.urlAlias,
+              filterType: r.filterType,
+              operator: '=',
+              maxValues: 10,
+              defaultExpanded: true,
+              showCount: true,
+              sortBy: 'count',
+              sortDirection: 'desc',
+              multiValues: true,
+            }));
+          if (additions.length === 0) { return; }
+          this.properties.filtersCollection = existing.concat(additions);
+          this.context.propertyPane.refresh();
+          this.render();
+        }
       }
     );
 

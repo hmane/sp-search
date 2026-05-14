@@ -44,6 +44,10 @@ import { registerBuiltInActions } from './registerBuiltInActions';
 import { SharePointSearchProvider, GraphSearchProvider } from '@providers/index';
 import { PropertyPaneSchemaHelper } from '../../propertyPaneControls/PropertyPaneSchemaHelper';
 import { SCENARIO_PRESETS } from './presets/searchPresets';
+// T4.D12 — cross-web-part preset propagation. Results publishes
+// filterSuggestions for the Filters web part to consume via an edit-mode
+// MessageBar.
+import { recordPresetSuggestion } from '@store/utils/presetSuggestionRegistry';
 import { GraphOrgService } from './components/GraphOrgService';
 import { TitleDisplayMode } from './components/documentTitleUtils';
 import { DebugCollector } from '@store/debug';
@@ -887,6 +891,17 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     this.properties.sortablePropertiesCollection = preset.sortableProperties.map(
       (s, idx) => ({ uniqueId: 'preset-sort-' + String(idx), property: s.property, label: s.label, direction: s.direction })
     );
+
+    // T4.D12 — record the preset's filter suggestions in the cross-web-part
+    // registry so the Filters web part can offer to apply them via an
+    // edit-mode MessageBar. Peers subscribed to the registry re-render and
+    // surface the "Apply N filters from preset" CTA.
+    recordPresetSuggestion(this.properties.searchContextId || 'default', {
+      id: preset.id,
+      label: preset.label,
+      filterSuggestions: preset.filterSuggestions,
+      recordedAt: 0, // overwritten by recordPresetSuggestion
+    });
   }
 
   private _getAvailableLayoutsFromProperties(): string[] {
