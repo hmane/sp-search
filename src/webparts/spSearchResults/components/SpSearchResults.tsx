@@ -67,16 +67,10 @@ const ResultDetailPanel = lazyBridge(
   { errorMessage: 'Failed to load detail panel' }
 );
 
-import { DebugCollector } from '@store/debug';
 import { safeNavigate } from '@store/utils/safeNavigate';
 
-// Debug panel — only loaded when ?debug=1
-const DebugFab = React.lazy(
-  () => import(/* webpackChunkName: 'DebugPanel' */ './DebugFab') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
-);
-const DebugPanelLazy = React.lazy(
-  () => import(/* webpackChunkName: 'DebugPanel' */ './DebugPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
-);
+// T5.D1 — singleton DebugFab + Panel imported from the cross-bundle host.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -538,8 +532,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     pageRange
   } = useStoreState(props);
 
-  const isDebugActive = DebugCollector.isActive();
-  const [debugOpen, setDebugOpen] = React.useState(false);
+  // T5.D1 — DebugFab/Panel now mounted via shared DebugFabHost.
 
   const effectiveDefaultLayout = React.useMemo((): string => {
     const configured = defaultLayout || 'list';
@@ -972,16 +965,10 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           );
         })()}
       </div>
-        {isDebugActive && (
-          <React.Suspense fallback={null}>
-            {!debugOpen && (
-              <DebugFab onClick={() => setDebugOpen(true)} />
-            )}
-            {debugOpen && (
-              <DebugPanelLazy store={store} onClose={() => setDebugOpen(false)} />
-            )}
-          </React.Suspense>
-        )}
+        {/* T5.D1 — singleton DebugFab + Panel. Host gates internally on
+            DebugCollector.isActive() AND the cross-bundle owner claim so
+            multi-web-part pages render exactly one FAB. */}
+        <DebugFabHost store={store} />
     </ErrorBoundary>
   );
 };

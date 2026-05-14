@@ -13,6 +13,8 @@ import { lazyBridge } from '../../../utilities/lazyBridge';
 // T2.D9 — global keyboard-shortcut help modal host. Installs '?' and '/'
 // bindings + listens for the help-open event.
 import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
+// T5.D1 — cross-bundle singleton DebugFab + Panel.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
 import { safeNavigate } from '@store/utils/safeNavigate';
@@ -961,12 +963,12 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   return (
     <ErrorBoundary>
       {content}
-      {/* T2.D9 — global keyboard-shortcut help modal. Installs the `?`
-          and `/` shortcut bindings + listens for the help-open event.
-          Mounted inside the SearchBox web part because it's the most
-          common entry point on a search page; harmless if multiple Box
-          web parts mount their own copies. */}
+      {/* T2.D9 — global keyboard-shortcut help modal. */}
       <ShortcutHelpModalHost />
+      {/* T5.D1 — cross-bundle singleton DebugFab + Panel. Owner-claim
+          via window flag ensures one FAB per page even when every web
+          part mounts the host. */}
+      <DebugFabHost store={store} />
     </ErrorBoundary>
   );
 };

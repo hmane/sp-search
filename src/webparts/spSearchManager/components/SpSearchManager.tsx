@@ -29,6 +29,8 @@ import {
   validateCoverageProfileSourceUrls,
   validateExpectedSiteUrls,
 } from '@store/configValidation/sharedValidators';
+// T5.D1 — cross-bundle singleton DebugFab + Panel host.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 import {
   computeUnacknowledgedShares,
   loadAcknowledgedShareIds,
@@ -1171,6 +1173,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   return (
     <ErrorBoundary enableRetry={true} maxRetries={3}>
       {content}
+      {/* T5.D1 — singleton DebugFab host. */}
+      <DebugFabHost store={props.store} />
     </ErrorBoundary>
   );
 };

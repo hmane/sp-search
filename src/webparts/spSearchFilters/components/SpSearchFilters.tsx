@@ -31,6 +31,8 @@ import {
   subscribePresetSuggestionChanges,
   type IPresetSuggestion,
 } from '@store/utils/presetSuggestionRegistry';
+// T5.D1 — cross-bundle singleton DebugFab + Panel host.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 
 const VisualFilterBuilder = lazyBridge(
   () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
@@ -734,6 +736,8 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   return (
     <div className={styles.spSearchFilters}>
       {filterBody}
+      {/* T5.D1 — singleton DebugFab host. */}
+      {store && <DebugFabHost store={store} />}
     </div>
   );
 };
