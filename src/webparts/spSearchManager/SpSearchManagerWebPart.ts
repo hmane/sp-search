@@ -32,6 +32,8 @@ import {
   validateCoverageSourcePageUrl,
   validateExpectedSiteUrlsField,
 } from '../../propertyPaneControls/fieldValidation';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 import { DebugCollector } from '@store/debug';
 import { DisplayMode } from '@microsoft/sp-core-library';
@@ -331,6 +333,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       {
         groupName: 'User tabs',
         groupFields: [
+          propertyPaneGroupHelp('manager-user-tabs', 'Help: User-facing Manager tabs'),
           PropertyPaneToggle('enableSavedSearches', {
             label: 'Show Saved Searches tab',
             onText: strings.ToggleOnText,
@@ -374,6 +377,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       {
         groupName: strings.ConnectionGroupName,
         groupFields: [
+          propertyPaneGroupHelp('adminmgr-connection', 'Help: Connecting Admin Manager to a search page'),
           PropertyPaneTextField('coverageSourcePageUrl', {
             label: strings.CoverageSourcePageUrlLabel,
             description: strings.CoverageSourcePageUrlDescription,
@@ -437,6 +441,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       {
         groupName: strings.MonitoringGroupName,
         groupFields: [
+          propertyPaneGroupHelp('adminmgr-coverage', 'Help: Coverage profiles and monitoring'),
           PropertyFieldCollectionData('coverageProfilesCollection', {
             key: 'coverageProfilesCollection',
             label: strings.CoverageProfilesLabel,

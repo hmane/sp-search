@@ -31,6 +31,8 @@ import {
   propertyPaneSearchContextIdField,
   SEARCH_CONTEXT_ID_GROUP_NAME,
 } from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -350,6 +352,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.FiltersGroupName,
               groupFields: [
+                propertyPaneGroupHelp('filters-config', 'Help: Configure refiners and filter types'),
                 PropertyFieldCollectionData('filtersCollection', {
                   key: 'filtersCollection',
                   label: strings.FiltersFieldLabel,
@@ -520,6 +523,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.BehaviorGroupName,
               groupFields: [
+                propertyPaneGroupHelp('filters-behavior', 'Help: Apply mode and Clear All behaviour'),
                 PropertyPaneChoiceGroup('applyMode', {
                   label: strings.ApplyModeLabel,
                   options: [

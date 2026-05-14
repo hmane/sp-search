@@ -560,6 +560,48 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (!hasShareableCurrentSearch) {
       return;
     }
+    // T2.D10(c) — auto-save on share for unsaved current-search.
+    // Without a saved row (`id <= 0`), `shareToUsers` has no list-item
+    // to grant access on. Save first with a generated title, then open
+    // the share dialog against the real saved row.
+    if (currentShareTarget.id <= 0) {
+      const generatedTitle = 'Untitled search — ' + new Date().toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      });
+      const searchState = JSON.stringify({
+        queryText,
+        activeFilters,
+        currentVerticalKey,
+        sort,
+        scope,
+        activeLayoutKey,
+      });
+      // safe: read-only URL capture for serialization (Found.D4 exempt).
+      const searchUrl = window.location.href;
+      service.saveSearch(
+        generatedTitle,
+        queryText,
+        searchState,
+        searchUrl,
+        'General',
+        totalCount
+      )
+        .then((newSearch: ISavedSearch): void => {
+          // Optimistically add to the store so the row exists for the
+          // share-dialog row lookup on the next render.
+          const current = store.getState().savedSearches;
+          store.setState({ savedSearches: [newSearch].concat(current) });
+          setSharingCurrentSearch(true);
+          setShareTarget(newSearch);
+          showSuccess('Saved as "' + generatedTitle + '". Pick recipients to share.');
+          reloadData();
+        })
+        .catch((err): void => {
+          const message = err instanceof Error ? err.message : 'Failed to save current search';
+          setError(message);
+        });
+      return;
+    }
     setSharingCurrentSearch(true);
     setShareTarget(currentShareTarget);
   }

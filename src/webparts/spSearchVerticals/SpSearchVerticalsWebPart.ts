@@ -21,6 +21,8 @@ import SpSearchVerticals from './components/SpSearchVerticals';
 import { type ISpSearchVerticalsProps } from './components/ISpSearchVerticalsProps';
 import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -374,6 +376,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
             {
               groupName: strings.VerticalsGroupName,
               groupFields: [
+                propertyPaneGroupHelp('verticals-config', 'Help: Configure vertical tabs and data providers'),
                 PropertyPaneLabel('verticalsIntro', {
                   text: strings.VerticalsIntroLabel
                 }),

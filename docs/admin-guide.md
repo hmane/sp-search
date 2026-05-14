@@ -210,28 +210,31 @@ Example:
 
 This gives a true Graph-backed People vertical instead of a SharePoint-file result set filtered to people-like properties.
 
-## Search Manager
+## Search Manager (user-facing)
 
-The Search Manager is not a PnP parity feature. It is a product extension that consolidates saved searches, history, collections, zero-result health, and insights.
+The Search Manager is not a PnP parity feature. It is a product extension that consolidates saved searches, shared searches, history, and collections. T4.D6 forked the manager surface — the **user-facing** Manager shipped here surfaces only end-user tabs. For the admin diagnostics (coverage, health, insights, pre-flight), use the **SP Search Admin Manager** web part instead.
 
 | Property | Default | Notes |
 |----------|---------|-------|
 | `searchContextId` | `default` | Must match Results |
 | `mode` | `panel` | `panel` or `standalone` |
-| `enableSavedSearches` | `false` | Saved searches tab |
-| `enableSharedSearches` | `false` | Shared searches tab |
-| `enableCollections` | `false` | Collections tab |
-| `enableHistory` | `false` | History tab |
+| `defaultTab` | `saved` | One of `saved` / `history` / `collections` |
+| `enableSavedSearches` | `true` | Saved searches tab |
+| `enableSharedSearches` | `true` | Shared searches tab |
+| `enableCollections` | `true` | Collections tab |
+| `enableHistory` | `true` | History tab |
 | `enableAnnotations` | `false` | Extra annotations surface |
 | `maxHistoryItems` | `50` | History page size |
 
-### Tabs
+### Tabs (user variant)
 
 - `Saved Searches`
 - `History`
 - `Collections`
-- `Health`
-- `Insights`
+
+The Admin Manager web part has its own admin-only tab set: `Dashboard`,
+`Coverage`, `Health`, `Insights`, and `Pre-Flight`. See [Coverage
+Profiles (Admin Manager)](#coverage-profiles-admin-manager).
 
 ## Coverage Profiles (Admin Manager)
 
@@ -365,6 +368,81 @@ Results web part → **Layouts** group. Documents the six layouts
 (List, Compact, Card, People, Grid, Gallery), which preset enables
 which layout, and how the DataGrid column chooser works. See
 [Search Results](#search-results).
+
+<a id="box-search"></a>
+
+### box-search
+
+Search Box → **Search** group. Placeholder text, search-on-Enter vs
+search-on-button, debounce, scope selector. See [Search Box](#search-box).
+
+<a id="box-navigation"></a>
+
+### box-navigation
+
+Search Box → **Navigation** group. Toggle between same-page search
+(replaces results in place) and new-page navigation (sends the
+query to a dedicated results page via the configured query
+parameter name). See [Search Box](#search-box).
+
+<a id="box-suggestions"></a>
+
+### box-suggestions
+
+Search Box → **Suggestions** group. Recent searches, frequent
+queries (per-user), SharePoint search suggestions, managed-property
+shortcuts, quick results. See [Search Box](#search-box).
+
+<a id="filters-config"></a>
+
+### filters-config
+
+Filters → **Filters** group. Manage the refiner collection
+(checkbox / dropdown / date-range / slider / people / taxonomy /
+tag-box / toggle). Configure managed property, display name, URL
+alias, max values, sort, dependencies. See [Search Filters](#search-filters).
+
+<a id="filters-behavior"></a>
+
+### filters-behavior
+
+Filters → **Behavior** group. Apply mode (Instant vs Manual),
+Show Clear All button, operator between filters (AND vs OR),
+visual filter builder toggle. See [Search Filters](#search-filters).
+
+<a id="verticals-config"></a>
+
+### verticals-config
+
+Verticals → **Verticals** group. Configure the vertical collection
+(key, label, icon, KQL query template, result-source ID, data
+provider id). See [Search Verticals](#search-verticals).
+
+<a id="manager-user-tabs"></a>
+
+### manager-user-tabs
+
+Search Manager → **User tabs** group. Toggle the four user-facing
+tabs: Saved Searches, Shared Searches, Collections, History. See
+[Search Manager (user-facing)](#search-manager-user-facing).
+
+<a id="adminmgr-connection"></a>
+
+### adminmgr-connection
+
+Admin Manager → **Connection** group. The `coverageSourcePageUrl`
+field tells the Admin Manager which search page to reflect when
+showing coverage / health / insights. See [Coverage Profiles
+(Admin Manager)](#coverage-profiles-admin-manager).
+
+<a id="adminmgr-coverage"></a>
+
+### adminmgr-coverage
+
+Admin Manager → **Monitoring** group. Add and configure coverage
+profiles. Each profile names one or more SharePoint URLs and a
+query template; the Coverage Stats section reports item count and
+freshness per profile. See [Coverage Profiles (Admin Manager)](#coverage-profiles-admin-manager).
 
 > Help links surface a subset of groups today (Quick Start, Data,
 > Layouts on Results). Coverage will expand to every group on every

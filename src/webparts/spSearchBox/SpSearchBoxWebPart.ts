@@ -26,6 +26,8 @@ import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 // T4.D8 — shared validator for the newPageQueryParameter URL-key field.
 import { validateNewPageQueryParameter } from '../../propertyPaneControls/fieldValidation';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
@@ -294,6 +296,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             {
               groupName: strings.SearchGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-search', 'Help: Search input behaviour'),
                 PropertyPaneTextField('placeholder', {
                   label: strings.PlaceholderFieldLabel,
                 }),
@@ -324,6 +327,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             {
               groupName: strings.NavigationGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-navigation', 'Help: Same-page vs new-page navigation'),
                 PropertyPaneToggle('searchInNewPage', {
                   label: strings.SearchInNewPageLabel,
                   onText: strings.ToggleOnText,
@@ -379,6 +383,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             {
               groupName: strings.SuggestionsGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-suggestions', 'Help: Search suggestions and quick results'),
                 PropertyPaneToggle('enableSuggestions', {
                   label: strings.EnableSuggestionsFieldLabel,
                   onText: strings.ToggleOnText,

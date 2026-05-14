@@ -20,7 +20,7 @@
     "group": { "default": "Advanced" },
     "title": { "default": "SP Search Results" },
     "description": { "default": "Search results with PnP-style starter defaults, multiple layouts, detail preview, and bulk actions" },
-    "officeFabricIconFontName": "Search",
+    "officeFabricIconFontName": "GroupedList",
     "properties": {
       "searchContextId": "default",
       "searchScope": "currentsite",
