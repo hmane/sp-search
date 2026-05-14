@@ -476,6 +476,26 @@
   opacity: 1;
 }
 
+// T2.D2 — selection checkbox rendered as direct child of .resultCard.
+// Visible on hover/focus, on a selected row, or when the checkbox itself is
+// already checked. The grid-layout sibling (.resultIcon) keeps its column.
+.resultSelectCheckbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 4px 6px 0 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .resultCard:hover &,
+  .resultCard:focus-within &,
+  .resultCardSelected &,
+  &:checked {
+    opacity: 1;
+  }
+}
+
 .resultIcon {
   flex-shrink: 0;
   width: 32px;
@@ -969,6 +989,11 @@
   width: 20px;
 }
 
+// T2.D2 — compact-layout select column header (24px column in the grid template).
+.compactHeaderSelect {
+  width: 24px;
+}
+
 .compactHeaderTitle {
   min-width: 0;
   overflow: hidden;
@@ -1005,6 +1030,14 @@
   @include interactive-row;
 }
 
+// T2.D2 — selected-row background, mirroring .resultCardSelected. Declared
+// after .compactRow so its background wins over the zebra alt-row rule.
+.compactRowSelected,
+.compactRowSelected:nth-child(even) {
+  background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+  background-color: var(--themeLighterAlt, #eff6fc);
+}
+
 .compactIcon {
   width: 20px;
   height: 20px;
@@ -1014,6 +1047,33 @@
   font-size: 15px;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+// T2.D2 — compact-layout selection cell + checkbox. Checkbox is revealed on
+// hover/focus or when the row is selected, mirroring the List layout pattern.
+.compactSelect {
+  width: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.compactSelectCheckbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .compactRow:hover &,
+  .compactRow:focus-within &,
+  .compactRowSelected &,
+  &:checked {
+    opacity: 1;
+  }
 }
 
 // Stream C / #8 — image-result thumbnail in Compact layout's leading cell.

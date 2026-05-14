@@ -18,9 +18,13 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
   currentUserGroups: [],
 
   setLayout: (key: string): void => {
-    // Clear bulk selection when switching layouts — selections are layout-specific
-    // and invisible on layouts that don't render checkboxes.
-    set({ activeLayoutKey: key, bulkSelection: [] });
+    // T2.D2 — selection persists across layout switch (audit acceptance signal).
+    // The 3 selection-aware layouts (list / compact / grid) all render their
+    // selection from the same `bulkSelection` array, so a row ticked on List
+    // stays ticked when the admin switches to Compact and back. Layouts that
+    // don't render checkboxes (card / people / gallery) ignore the array;
+    // returning to a checkbox-aware layout restores the ticks.
+    set({ activeLayoutKey: key });
   },
 
   setAvailableLayouts: (layouts: string[]): void => {

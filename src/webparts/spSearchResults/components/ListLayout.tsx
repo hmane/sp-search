@@ -20,19 +20,38 @@ export interface IListLayoutProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
+  // T2.D2 — bulk-selection wiring shared with Compact + DataGrid.
+  bulkSelection: string[];
+  onToggleSelect: (itemKey: string) => void;
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
+  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel, bulkSelection, onToggleSelect } = props;
+  const selectionSet = React.useMemo(() => new Set(bulkSelection), [bulkSelection]);
 
   return (
     <ul className={styles.resultList} role="list">
       {items.map((item: ISearchResult, index: number) => {
         const sizeDisplay: string = formatFileSize(item.fileSize);
         const linkProps = resolveResultLink(item, linkConfig);
+        const isSelected = selectionSet.has(item.key);
 
         return (
-          <li key={item.key} className={styles.resultCard} role="listitem">
+          <li
+            key={item.key}
+            className={`${styles.resultCard}${isSelected ? ' ' + styles.resultCardSelected : ''}`}
+            role="listitem"
+          >
+            {/* T2.D2 — selection checkbox. `stopPropagation` keeps clicks
+                from falling through to the title-anchor / hover-card. */}
+            <input
+              type="checkbox"
+              className={styles.resultSelectCheckbox}
+              checked={isSelected}
+              onChange={(): void => onToggleSelect(item.key)}
+              onClick={(e): void => e.stopPropagation()}
+              aria-label={isSelected ? 'Deselect ' + item.title : 'Select ' + item.title}
+            />
 
             <div className={styles.resultIcon}>
               {isImageType(item) && item.thumbnailUrl ? (

@@ -31,6 +31,9 @@ export interface ICompactLayoutProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
+  // T2.D2 — bulk-selection wiring shared with List + DataGrid.
+  bulkSelection: string[];
+  onToggleSelect: (itemKey: string) => void;
 }
 
 /**
@@ -210,18 +213,21 @@ function renderCompactCell(item: ISearchResult, column: ICompactColumn): React.R
 }
 
 const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
-  const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
+  const { items, searchContextId, compactPropertyColumns, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel, bulkSelection, onToggleSelect } = props;
   const columns = React.useMemo(
     (): ICompactColumn[] => getCompactColumns(compactPropertyColumns),
     [compactPropertyColumns]
   );
+  // T2.D2 — prepend a 24px selection-checkbox column to the grid template.
   const layoutTemplate = React.useMemo((): string => {
-    return ['20px', 'minmax(0, 1fr)', ...columns.map((column) => column.width)].join(' ');
+    return ['24px', '20px', 'minmax(0, 1fr)', ...columns.map((column) => column.width)].join(' ');
   }, [columns]);
+  const selectionSet = React.useMemo(() => new Set(bulkSelection), [bulkSelection]);
 
   return (
     <div className={styles.compactTable} role="table" aria-label="Search results">
       <div className={styles.compactHeader} role="row" style={{ gridTemplateColumns: layoutTemplate }}>
+        <div className={styles.compactHeaderSelect} role="columnheader" aria-label="Select" />
         <div className={styles.compactHeaderIcon} role="columnheader" aria-label="File type" />
         <div className={styles.compactHeaderTitle} role="columnheader">Name</div>
         {columns.map((column) => (
@@ -239,15 +245,28 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
       {items.map((item: ISearchResult, index: number) => {
         const tooltipText: string = stripHtml(item.summary) || item.title;
         const linkProps = resolveResultLink(item, linkConfig);
+        const isSelected = selectionSet.has(item.key);
 
         return (
           <div
             key={item.key}
-            className={styles.compactRow}
+            className={`${styles.compactRow}${isSelected ? ' ' + styles.compactRowSelected : ''}`}
             role="row"
             title={tooltipText}
             style={{ gridTemplateColumns: layoutTemplate }}
           >
+            <div className={styles.compactSelect} role="cell">
+              {/* T2.D2 — selection checkbox; stopPropagation keeps the row's
+                  title-anchor click from firing when toggling. */}
+              <input
+                type="checkbox"
+                className={styles.compactSelectCheckbox}
+                checked={isSelected}
+                onChange={(): void => onToggleSelect(item.key)}
+                onClick={(e): void => e.stopPropagation()}
+                aria-label={isSelected ? 'Deselect ' + item.title : 'Select ' + item.title}
+              />
+            </div>
             <div className={styles.compactIcon} role="cell">
               {isImageType(item) && item.thumbnailUrl ? (
                 // Stream C / #8 — show the image itself for image results.

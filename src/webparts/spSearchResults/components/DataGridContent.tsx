@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
-import DataGrid, { Column, Scrolling, Sorting, StateStoring, Toolbar, Item, Paging, Pager, LoadPanel } from 'devextreme-react/data-grid';
+import DataGrid, { Column, Scrolling, Selection, Sorting, StateStoring, Toolbar, Item, Paging, Pager, LoadPanel } from 'devextreme-react/data-grid';
 import { IconButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
@@ -61,6 +61,9 @@ export interface IDataGridContentProps {
   // Stream C / #7
   linkConfig: IResultLinkConfig;
   onOpenInSidePanel?: (item: ISearchResult) => void;
+  // T2.D2 — bulk-selection wiring shared with List + Compact.
+  bulkSelection: string[];
+  onToggleSelect: (itemKey: string) => void;
 }
 
 type ColumnKind =
@@ -587,6 +590,8 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     onItemClick,
     onPageChange,
     onSortChange,
+    bulkSelection,
+    onToggleSelect,
     linkConfig,
     onOpenInSidePanel
   } = props;
@@ -1166,9 +1171,31 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         onRowClick={handleRowClick}
         onOptionChanged={handleGridOptionChanged}
         onContentReady={syncVisibleColumnsFromGrid}
+        // T2.D2 — controlled selection sourced from the store so ticks
+        // survive a layout-switch round-trip. The selection-changed
+        // callback diffs against the previous set and forwards toggles
+        // one key at a time to the store action.
+        selectedRowKeys={bulkSelection}
+        onSelectionChanged={(e: { selectedRowKeys: string[]; currentSelectedRowKeys: string[]; currentDeselectedRowKeys: string[] }): void => {
+          const added = e.currentSelectedRowKeys || [];
+          const removed = e.currentDeselectedRowKeys || [];
+          for (let i: number = 0; i < added.length; i++) {
+            if (bulkSelection.indexOf(added[i]) < 0) {
+              onToggleSelect(added[i]);
+            }
+          }
+          for (let i: number = 0; i < removed.length; i++) {
+            if (bulkSelection.indexOf(removed[i]) >= 0) {
+              onToggleSelect(removed[i]);
+            }
+          }
+        }}
         height={estimatedGridHeight}
         wordWrapEnabled={false}
       >
+      {/* T2.D2 — checkbox column on every row + a select-all in the header.
+          DevExtreme renders this before the first admin column. */}
+      <Selection mode="multiple" selectAllMode="page" showCheckBoxesMode="always" />
       <Paging enabled={false} />
       <Pager visible={false} />
       <Sorting mode="single" />
