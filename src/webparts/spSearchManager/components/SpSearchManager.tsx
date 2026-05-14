@@ -968,6 +968,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                       store={props.store}
                       service={props.service}
                       expectedSiteUrls={props.expectedSiteUrls || []}
+                      coverageProfileCount={(props.coverageProfiles || []).length}
                       onRunQuery={handleRunZeroResultQuery}
                     />
                   </React.Suspense>

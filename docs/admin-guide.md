@@ -233,6 +233,49 @@ The Search Manager is not a PnP parity feature. It is a product extension that c
 - `Health`
 - `Insights`
 
+## Coverage Profiles (Admin Manager)
+
+The Admin Manager's **Dashboard → Content Coverage** section visualises item
+count, freshness, and per-site gap analysis. It is driven by the
+`coverageProfilesCollection` property pane field — a list of profiles that
+each name one or more SharePoint URLs to enumerate.
+
+### Default seeding (T4.D4)
+
+When you run `Setup-SPSearchSite.ps1`, the script seeds **one tenant-aware
+coverage profile** that points at the actual top-5 document libraries on the
+target site (any list with `BaseTemplate = 101` that is not hidden). The
+discovery uses `Get-PnPList -Includes BaseTemplate, Hidden, RootFolder` and
+converts each `RootFolder.ServerRelativeUrl` to an absolute URL against the
+tenant root.
+
+```powershell
+# Default — discover and seed top-5 actual libraries on the site
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id>
+
+# Configure how many libraries to seed (1-50)
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id> -MaxSeededLibraries 10
+
+# Test tenant: use the legacy hardcoded Provision-TestData library names
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id> -UseTestData
+```
+
+### Empty state (no profiles configured)
+
+If you add the Admin Manager web part to a page **without** running
+`Setup-SPSearchSite.ps1`, the manifest default for
+`coverageProfilesCollection` is `[]` — and the Dashboard's Content Coverage
+section renders a help message:
+
+> **No coverage profiles configured.**
+> Configure coverage profiles in the web part property pane to begin
+> monitoring item count, freshness, and gap analysis against your expected
+> sites.
+
+To configure profiles by hand, open the web part property pane → **Coverage
+profiles** → **Manage profiles**, then add entries with at least a `title`
+and one or more `sourceUrls` (comma-separated).
+
 ## Graph Requirements
 
 Graph-backed People search, org-chart traversal, and audience targeting require Microsoft Graph permissions.

@@ -20,6 +20,13 @@ export interface IAdminDashboardProps {
   store: StoreApi<ISearchStore>;
   service: SearchManagerService;
   expectedSiteUrls: string[];
+  // T4.D4 — number of coverage profiles the admin has configured in the
+  // property pane. Zero means the Coverage section renders a CTA empty
+  // state instead of broken stat cards. The actual fetch in
+  // `CoverageStatsService` uses the store's queryTemplate, not the
+  // profile URLs, but a clean tenant install with `coverageProfilesCollection: []`
+  // is the signal that the admin hasn't configured the surface yet.
+  coverageProfileCount: number;
   onRunQuery: (queryText: string, vertical: string) => void;
 }
 
@@ -79,7 +86,7 @@ function computeQualityMetrics(entries: ISearchHistoryEntry[]): IQualityMetrics 
 }
 
 const AdminDashboard: React.FC<IAdminDashboardProps> = (props) => {
-  const { store, service, expectedSiteUrls, onRunQuery } = props;
+  const { store, service, expectedSiteUrls, coverageProfileCount, onRunQuery } = props;
 
   // Time range state
   const [daysBack, setDaysBack] = React.useState<number>(30);
@@ -203,12 +210,27 @@ const AdminDashboard: React.FC<IAdminDashboardProps> = (props) => {
           Content Coverage
         </button>
         {coverageExpanded && (
-          <CoverageStatsSection
-            coverage={coverage}
-            expectedSiteUrls={expectedSiteUrls}
-            isLoading={coverageLoading}
-            error={coverageError}
-          />
+          coverageProfileCount === 0 ? (
+            // T4.D4 — empty-state CTA. Clean tenant install with no profiles
+            // configured: render the helpful copy instead of broken stat
+            // cards. SPFx can't programmatically open the web part's own
+            // property pane from rendered output, so the CTA is descriptive
+            // (admin opens edit → ellipsis → Edit web part).
+            <div role="status" style={{ padding: 16, backgroundColor: '#faf9f8', borderRadius: 4, color: '#605e5c' }}>
+              <Icon iconName="Info" style={{ marginRight: 8, verticalAlign: 'middle', color: '#0078d4' }} />
+              <strong>No coverage profiles configured.</strong>
+              <div style={{ marginTop: 8, fontSize: 13 }}>
+                Configure coverage profiles in the web part property pane to begin monitoring item count, freshness, and gap analysis against your expected sites.
+              </div>
+            </div>
+          ) : (
+            <CoverageStatsSection
+              coverage={coverage}
+              expectedSiteUrls={expectedSiteUrls}
+              isLoading={coverageLoading}
+              error={coverageError}
+            />
+          )
         )}
       </div>
 

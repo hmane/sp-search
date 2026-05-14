@@ -43,7 +43,18 @@ param(
     # script re-runs against a site that already has a previous page or
     # mistyped UserMulti columns; on a clean tenant `-Force` is a no-op.
     [Parameter(Mandatory = $false)]
-    [switch]$Force
+    [switch]$Force,
+
+    # T4.D4 — seed the Admin Manager's coverageProfilesCollection from the
+    # tenant's actual top-N document libraries (default 5) instead of from
+    # the hardcoded Provision-TestData list names. Use `-UseTestData` to
+    # restore the previous behaviour for the test tenant.
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 50)]
+    [int]$MaxSeededLibraries = 5,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$UseTestData
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,39 +95,104 @@ $PROVISIONED_CUSTOM_LISTS = @(
 )
 
 function Get-SeededCoverageProfiles {
+    # T4.D4 — default to tenant-aware seeding: discover the actual top-N
+    # document libraries on the target site and write a coverage profile
+    # pointing at those URLs. Callers who explicitly want the previous
+    # Provision-TestData-aligned defaults pass `-UseTestData`.
+    #
+    # Audit acceptance signal: "Running Setup-SPSearchSite.ps1 on a clean
+    # tenant without Provision-TestData.ps1 having been run first: the
+    # resulting Admin Dashboard Coverage tab renders real itemCount /
+    # freshness data from the actual top-5 site libraries, not broken
+    # cards."
     param(
         [Parameter(Mandatory = $true)]
-        [string]$BaseSiteUrl
+        [string]$BaseSiteUrl,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxLibraries = 5,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseTestData
     )
 
     $normalizedSiteUrl = $BaseSiteUrl.TrimEnd('/')
 
-    $documentLibraryUrls = $PROVISIONED_DOCUMENT_LIBRARIES | ForEach-Object {
-        "$normalizedSiteUrl/$_"
-    }
-
-    $customListUrls = $PROVISIONED_CUSTOM_LISTS | ForEach-Object {
-        "$normalizedSiteUrl/Lists/$_"
-    }
-
-    return @(
-        @{
-            title = "Provisioned Document Libraries"
-            description = "Coverage profile for the seeded document libraries created by Provision-TestData.ps1."
-            sourceUrls = ($documentLibraryUrls -join ", ")
-            queryTemplate = "{searchTerms} IsDocument:1"
-            includeFolders = $false
-            trimDuplicates = $false
-        },
-        @{
-            title = "Provisioned Business Lists"
-            description = "Coverage profile for the seeded custom lists created by Provision-TestData.ps1."
-            sourceUrls = ($customListUrls -join ", ")
-            queryTemplate = "{searchTerms}"
-            includeFolders = $false
-            trimDuplicates = $false
+    if ($UseTestData) {
+        # Legacy path: hardcoded test-data library names + custom list names.
+        # Kept for the test tenant where Provision-TestData.ps1 has already
+        # run and seeded these libraries.
+        $documentLibraryUrls = $PROVISIONED_DOCUMENT_LIBRARIES | ForEach-Object {
+            "$normalizedSiteUrl/$_"
         }
-    )
+
+        $customListUrls = $PROVISIONED_CUSTOM_LISTS | ForEach-Object {
+            "$normalizedSiteUrl/Lists/$_"
+        }
+
+        return @(
+            @{
+                title = "Provisioned Document Libraries"
+                description = "Coverage profile for the seeded document libraries created by Provision-TestData.ps1."
+                sourceUrls = ($documentLibraryUrls -join ", ")
+                queryTemplate = "{searchTerms} IsDocument:1"
+                includeFolders = $false
+                trimDuplicates = $false
+            },
+            @{
+                title = "Provisioned Business Lists"
+                description = "Coverage profile for the seeded custom lists created by Provision-TestData.ps1."
+                sourceUrls = ($customListUrls -join ", ")
+                queryTemplate = "{searchTerms}"
+                includeFolders = $false
+                trimDuplicates = $false
+            }
+        )
+    }
+
+    # Tenant-aware path: enumerate the site's actual document libraries.
+    # BaseTemplate 101 = standard document library; -not Hidden filters out
+    # _catalogs, Style Library, and the like. Failing-silently here is OK —
+    # if we can't enumerate, fall back to an empty coverageProfilesCollection
+    # so the Admin Manager renders its empty-state CTA rather than broken
+    # cards pointing at nonexistent URLs.
+    try {
+        $libraries = Get-PnPList -Includes BaseTemplate, Hidden, RootFolder -ErrorAction Stop |
+            Where-Object { $_.BaseTemplate -eq 101 -and -not $_.Hidden } |
+            Select-Object -First $MaxLibraries
+
+        if (-not $libraries -or $libraries.Count -eq 0) {
+            Write-Host "  Coverage profile: no document libraries found on $BaseSiteUrl; seeding empty (Admin Manager will show 'Configure coverage profiles' CTA)." -ForegroundColor Yellow
+            return @()
+        }
+
+        $libraryUrls = $libraries | ForEach-Object {
+            # RootFolder.ServerRelativeUrl is the canonical list URL.
+            $rel = $_.RootFolder.ServerRelativeUrl
+            if (-not $rel) { return $null }
+            # Convert server-relative ('/sites/x/Foo') to absolute against the tenant.
+            $tenantRoot = ([Uri]$BaseSiteUrl).GetLeftPart([System.UriPartial]::Authority)
+            "$tenantRoot$rel"
+        } | Where-Object { $_ }
+
+        $titles = ($libraries | ForEach-Object { $_.Title }) -join ', '
+        Write-Host "  Coverage profile: seeding from top-$($libraries.Count) tenant libraries — $titles" -ForegroundColor Green
+
+        return @(
+            @{
+                title = "Site Document Libraries"
+                description = "Tenant-discovered top-$($libraries.Count) document libraries on $BaseSiteUrl. Auto-seeded; edit in the Admin Manager property pane to refine."
+                sourceUrls = ($libraryUrls -join ", ")
+                queryTemplate = "{searchTerms} IsDocument:1"
+                includeFolders = $false
+                trimDuplicates = $false
+            }
+        )
+    }
+    catch {
+        Write-Warning "  Coverage profile seeding failed (could not enumerate document libraries): $($_.Exception.Message). Seeding empty; admins can configure profiles in the property pane after the script completes."
+        return @()
+    }
 }
 
 Write-Host ""
@@ -513,7 +589,7 @@ try {
         mode                       = "standalone"
         defaultTab                 = "coverage"
         enableCoverage             = $true
-        coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
+        coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl -MaxLibraries $MaxSeededLibraries -UseTestData:$UseTestData
         enableHealth               = $true
         enableInsights             = $true
     } -ErrorAction Stop | Out-Null
