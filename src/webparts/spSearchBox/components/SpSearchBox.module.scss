@@ -804,12 +804,46 @@
     max-width: 140px;
   }
 
+  // T1.D10 — iOS Safari auto-zooms inputs whose font-size is below 16px.
+  // Forcing 16px on the SearchBox input + KQL textarea keeps the page
+  // stable on focus (no scroll jump, no zoom-in). Desktop ergonomics are
+  // unaffected — 16px reads identically to 14px at typical desktop
+  // distances and only fires inside the mobile media query.
   .searchInput {
     :global {
-      .ms-SearchBox-field {
-        font-size: 14px;
+      .ms-SearchBox-field,
+      .ms-SearchBox-field input,
+      textarea {
+        font-size: 16px;
       }
     }
+  }
+
+  // T1.D10 — ensure the input has at least 260px to render the placeholder
+  // and active query without truncating. iPhone-13 (390px) - scope (140px) -
+  // action buttons (~80px) - container padding leaves ~170px without help;
+  // bumping the input's flex-basis recovers the budget while still allowing
+  // the scope dropdown to shrink to its min-content.
+  .searchInput {
+    min-width: 260px;
+    flex: 1 1 260px;
+  }
+
+  .scopeSelector {
+    flex: 0 1 auto;
+  }
+
+  // T1.D10 — collapse the auxiliary toolbar (KQL toggle, Save action,
+  // Query Builder toggle, Save Search button) into a hidden state on
+  // mobile widths. The audit's "overflow menu" framing implies a full
+  // refactor; the simpler shipping approach is to drop them below the
+  // search row and stack them in a horizontally-scrollable strip so
+  // they're still reachable without consuming horizontal budget the
+  // input needs. Buttons remain individually tappable.
+  .actionToolbar,
+  .toolbarRow {
+    flex-wrap: wrap;
+    gap: 4px;
   }
 }
 

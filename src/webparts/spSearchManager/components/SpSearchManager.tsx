@@ -7,6 +7,7 @@ import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
+import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
@@ -738,9 +739,40 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   let content: React.ReactElement;
 
   if (isLoading) {
+    // T1.D3 — shape-matched Shimmer replaces the big centered Spinner.
+    // Pivot-tab strip skeleton on top + 3 list-row skeletons below match
+    // the actual Manager layout admins see post-load. Reads as "we're
+    // building this surface" rather than "we have nothing for you."
     content = (
-      <div className={styles.loadingContainer}>
-        <Spinner size={SpinnerSize.large} label="Loading search manager..." />
+      <div className={styles.loadingContainer} role="status" aria-label="Loading search manager">
+        <div style={{ marginBottom: 16 }}>
+          <Shimmer
+            shimmerElements={[
+              { type: ShimmerElementType.line, height: 28, width: '60%' },
+            ]}
+            width="100%"
+          />
+        </div>
+        {[0, 1, 2].map((idx): React.ReactElement => (
+          <div key={idx} style={{ marginBottom: 12 }}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.circle, height: 24 },
+                { type: ShimmerElementType.gap, width: 12 },
+                { type: ShimmerElementType.line, height: 16, width: '80%' },
+              ]}
+              width="100%"
+            />
+            <div style={{ marginTop: 6 }}>
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 12, width: '50%' },
+                ]}
+                width="100%"
+              />
+            </div>
+          </div>
+        ))}
       </div>
     );
   } else {

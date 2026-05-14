@@ -453,10 +453,17 @@ const EmptyState: React.FC<IEmptyStateProps> = (emptyProps) => {
     description = 'Enter a search term to get started.';
   }
 
+  // T1.D5 — neutral icon. `SearchIssue` reads as a warning/error (warning
+  // triangle over a magnifying glass); using it for the "no results" /
+  // "enter a query" state miscommunicates that something went wrong.
+  // `Search` is the iconographic match for both idle ("start typing") and
+  // no-results ("we looked, nothing found") states.
+  const emptyIconName: string = hasSearched ? 'SearchAndApps' : 'Search';
+
   return (
     <div className={styles.emptyState} role="status">
       <div className={styles.emptyIcon}>
-        <Icon iconName="SearchIssue" />
+        <Icon iconName={emptyIconName} />
       </div>
       <h3 className={styles.emptyTitle}>{title}</h3>
       <p className={styles.emptyDescription}>{description}</p>
