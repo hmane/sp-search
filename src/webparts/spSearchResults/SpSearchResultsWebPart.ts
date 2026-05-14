@@ -33,6 +33,8 @@ import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate'
 import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
 import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
 import { propertyPaneSearchContextIdField } from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
+// T4.D11 — context-sensitive help link surface.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
@@ -1122,6 +1124,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.GetStartedGroupName,
               groupFields: [
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('quick-start', 'Help: Quick Start presets'),
                 PropertyPaneChoiceGroup('layoutPreset', {
                   label: strings.ScenarioPresetLabel,
                   options: this._buildPresetOptions()
@@ -1143,6 +1147,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.DataGroupName,
               groupFields: [
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('results-data', 'Help: Search scope and managed properties'),
                 PropertyPaneDropdown('searchScope', {
                   label: strings.SearchScopeLabel,
                   options: [
@@ -1279,6 +1285,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.MainLayoutsGroupName,
               groupFields: [
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('results-layouts', 'Help: Layouts and presets'),
                 // T4.D2 — preset picker moved to page-1 "Get started" group.
                 PropertyPaneChoiceGroup('defaultLayout', {
                   label: strings.DefaultLayoutLabel,

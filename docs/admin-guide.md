@@ -330,3 +330,51 @@ The Results web part shows edit-mode `MessageBar` warnings for common misconfigu
 - invalid managed property names
 
 These warnings are advisory. They do not block rendering, but they should be resolved before production rollout.
+
+## Property pane help anchors (T4.D11)
+
+Each property pane group on the SP Search web parts renders a "Help:
+&lt;topic&gt;" link as its first field. The link opens this guide at the
+relevant section. Anchors used by the help links:
+
+<a id="quick-start"></a>
+
+### quick-start
+
+Results web part → **Get started** group. Documents scenario presets
+(general / documents / news / people / media / hub-search /
+knowledge-base / policy-search / account-documents) and how the
+preset picker rewrites layouts + selected properties + filter
+suggestions in one step. See [Starter Experience](#starter-experience).
+
+<a id="results-data"></a>
+
+### results-data
+
+Results web part → **Data** group. Covers search scope (all / site /
+hub / list-by-url), query template tokens (`{searchTerms}`,
+`{Site.URL}`), and managed property pickers (selected, compact,
+grid, sortable, refinement). See [Search Results](#search-results)
+and [Validation and Edit-Mode Warnings](#validation-and-edit-mode-warnings).
+
+<a id="results-layouts"></a>
+
+### results-layouts
+
+Results web part → **Layouts** group. Documents the six layouts
+(List, Compact, Card, People, Grid, Gallery), which preset enables
+which layout, and how the DataGrid column chooser works. See
+[Search Results](#search-results).
+
+> Help links surface a subset of groups today (Quick Start, Data,
+> Layouts on Results). Coverage will expand to every group on every
+> web part in future passes; the helper `propertyPaneGroupHelp` is
+> the durable contract for adding new ones —
+> `propertyPaneGroupHelp('anchor-id', 'Help: <topic>')` returns a
+> `PropertyPaneLink` field admin authors paste at the top of a
+> group's `groupFields` array.
+
+To override the link base URL (e.g. for tenants that mirror SP
+Search docs internally), call
+`setPropertyPaneHelpBaseUrl('https://intranet.contoso.com/wikis/sp-search/admin-guide')`
+from the web part's `onInit()` before the property pane builds.
