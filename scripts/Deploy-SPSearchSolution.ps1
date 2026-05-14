@@ -85,7 +85,16 @@ param(
     [switch]$ProvisionSite,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+
+    # T4.D10 — pull a `.sppkg` artifact from a release URL (Azure DevOps
+    # Artifacts, GitHub Releases, S3, anywhere with a direct https
+    # download) instead of using a locally-built `-PackagePath`. When
+    # provided, the script downloads the artifact to a temp file and
+    # overrides `$PackagePath` so the rest of the deploy flow runs
+    # against the canonical release.
+    [Parameter(Mandatory = $false)]
+    [string]$ReleaseArtifactUrl
 )
 
 # ============================================================================
@@ -104,8 +113,32 @@ if (-not $module) {
 
 Import-Module $module.Path -Force -ErrorAction Stop
 
+# T4.D10 — download release artifact when -ReleaseArtifactUrl is provided.
+# Overrides $PackagePath so the rest of the script runs against the
+# downloaded .sppkg instead of a locally-built one. Useful for admins who
+# want to deploy a canonical release without rebuilding from source.
+if ($ReleaseArtifactUrl) {
+    Write-Host "Downloading release artifact from $ReleaseArtifactUrl..." -ForegroundColor Cyan
+    $downloadPath = Join-Path $env:TEMP "sp-search-$(Get-Date -Format 'yyyyMMddHHmmss').sppkg"
+    try {
+        # Use Invoke-WebRequest — built-in, supports redirects, honours
+        # tenant proxy via $env:HTTPS_PROXY. -UseBasicParsing is required
+        # on Windows PowerShell 5.1 (no-op on PowerShell 7+).
+        Invoke-WebRequest -Uri $ReleaseArtifactUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop
+    }
+    catch {
+        throw "Failed to download release artifact from $ReleaseArtifactUrl : $($_.Exception.Message)"
+    }
+    if (-not (Test-Path $downloadPath)) {
+        throw "Download succeeded but file is missing at $downloadPath"
+    }
+    $downloadedSize = [math]::Round((Get-Item $downloadPath).Length / 1MB, 2)
+    Write-Host "  Downloaded $downloadedSize MB to $downloadPath" -ForegroundColor Green
+    $PackagePath = $downloadPath
+}
+
 if (-not (Test-Path $PackagePath)) {
-    throw "Package not found at: $PackagePath`nRun 'gulp bundle --ship && gulp package-solution --ship' first."
+    throw "Package not found at: $PackagePath`nRun 'npm run package' first, or pass -ReleaseArtifactUrl to download a published artifact."
 }
 
 if ($AppCatalogScope -eq "TenantLevel" -and -not $AppCatalogUrl) {

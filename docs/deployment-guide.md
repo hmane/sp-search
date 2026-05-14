@@ -44,6 +44,39 @@ sharepoint/solution/sp-search.sppkg
 
 After deployment, add the SP Search app to the target site from **Site contents**.
 
+### Automated deploy (T4.D10)
+
+`scripts/Deploy-SPSearchSolution.ps1` automates upload + deploy
+against either a site- or tenant-level App Catalog:
+
+```powershell
+# Site-level (default) — uploads to <SiteUrl>/AppCatalog
+.\scripts\Deploy-SPSearchSolution.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search" `
+    -ClientId "<azure-ad-app-id>"
+
+# Tenant-level — requires -AppCatalogUrl
+.\scripts\Deploy-SPSearchSolution.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search" `
+    -ClientId "<azure-ad-app-id>" `
+    -AppCatalogScope TenantLevel `
+    -AppCatalogUrl "https://contoso.sharepoint.com/sites/appcatalog"
+
+# Deploy from a published release artifact (Azure DevOps, GitHub,
+# any direct https URL) instead of a locally-built .sppkg
+.\scripts\Deploy-SPSearchSolution.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search" `
+    -ClientId "<azure-ad-app-id>" `
+    -AppCatalogScope TenantLevel `
+    -AppCatalogUrl "https://contoso.sharepoint.com/sites/appcatalog" `
+    -ReleaseArtifactUrl "https://dev.azure.com/.../sp-search-v1.0.0.sppkg"
+```
+
+`-ReleaseArtifactUrl` downloads the `.sppkg` to a temp file and
+overrides the default `-PackagePath`. Useful when an admin wants to
+deploy the canonical release artifact without cloning the repo and
+rebuilding.
+
 ## Provision Hidden Lists
 
 The Search Manager, history, collections, saved searches, health, and insights features depend on the hidden lists created by the provisioning script.
