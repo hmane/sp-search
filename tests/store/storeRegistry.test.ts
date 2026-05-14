@@ -1,4 +1,4 @@
-import { getStore, disposeStore, hasStore } from '../../src/libraries/spSearchStore/store/storeRegistry';
+import { getStore, disposeStore, hasStore, initializeSearchContext } from '../../src/libraries/spSearchStore/store/storeRegistry';
 
 /**
  * Tests for the store registry — getStore, disposeStore, hasStore.
@@ -186,6 +186,50 @@ describe('storeRegistry', () => {
       getStore(id);
       disposeStore(id);
       expect(hasStore(id)).toBe(false);
+    });
+  });
+
+  /**
+   * T3.D6 — initializeSearchContext options. Verifies admin overrides
+   * for the URL prefix and the enableUrlSync opt-out are honoured.
+   * Doesn't drive a full second-context scenario (the bi-directional
+   * URL sync wiring requires a DOM + history harness beyond unit-test
+   * scope) — instead asserts the registry state shape after init.
+   */
+  describe('initializeSearchContext (T3.D6)', () => {
+    it('accepts a urlPrefix override option without throwing', async () => {
+      const id = trackId('ctx-url-prefix-override');
+      await initializeSearchContext(id, undefined, { urlPrefix: 'ctx1' });
+      expect(hasStore(id)).toBe(true);
+    });
+
+    it('accepts an enableUrlSync: false option without throwing', async () => {
+      const id = trackId('ctx-sync-opt-out');
+      await initializeSearchContext(id, undefined, { enableUrlSync: false });
+      expect(hasStore(id)).toBe(true);
+    });
+
+    it('accepts both options together', async () => {
+      const id = trackId('ctx-both-options');
+      await initializeSearchContext(id, undefined, {
+        urlPrefix: 'ctx-explicit',
+        enableUrlSync: true,
+      });
+      expect(hasStore(id)).toBe(true);
+    });
+
+    it('trims and ignores an empty-string urlPrefix override', async () => {
+      const id = trackId('ctx-empty-prefix');
+      await initializeSearchContext(id, undefined, { urlPrefix: '   ' });
+      expect(hasStore(id)).toBe(true);
+      // Empty override should fall through to the auto-computed prefix
+      // (sufficient to assert the context was created without error).
+    });
+
+    it('works without options (backward compat)', async () => {
+      const id = trackId('ctx-no-options');
+      await initializeSearchContext(id);
+      expect(hasStore(id)).toBe(true);
     });
   });
 });

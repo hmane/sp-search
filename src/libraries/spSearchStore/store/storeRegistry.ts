@@ -23,6 +23,27 @@ interface ISearchContext {
   isInitialized: boolean;
   /** Stable URL prefix computed at context creation time (before initialization). */
   urlPrefix: string;
+  /**
+   * T3.D6 — admin-provided URL prefix override. When set, wins over
+   * the auto-computed `urlPrefix`. Admins configure short readable
+   * prefixes like `ctx1` instead of the auto-generated 6+6-char hash.
+   */
+  urlPrefixOverride?: string;
+  /**
+   * T3.D6 — URL sync opt-out. When `false`, the context never
+   * subscribes to URL changes / pushes state to the URL — useful
+   * for embedded "saved-search runner" widgets that must not stomp
+   * the page URL. Default true.
+   */
+  enableUrlSync: boolean;
+}
+
+// T3.D6 — initialization options surface admins can set per-context.
+export interface IInitializeContextOptions {
+  /** Explicit URL prefix override (e.g. "ctx1"). */
+  urlPrefix?: string;
+  /** Opt out of URL sync entirely. Default true. */
+  enableUrlSync?: boolean;
 }
 
 /**
@@ -93,9 +114,24 @@ export function getManagerService(searchContextId: string): SearchManagerService
 export async function initializeSearchContext(
   searchContextId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  spfxContext?: any
+  spfxContext?: any,
+  options?: IInitializeContextOptions
 ): Promise<void> {
   const context = getOrCreateContext(searchContextId);
+
+  // T3.D6 — admin URL-prefix override + sync opt-out. These are
+  // recorded on the context BEFORE the urlSync subscription is created
+  // below. Re-init with different options is allowed; the most recent
+  // wins because re-init creates a new subscription with the new prefix.
+  if (options) {
+    if (typeof options.urlPrefix === 'string') {
+      const trimmed = options.urlPrefix.trim();
+      context.urlPrefixOverride = trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (typeof options.enableUrlSync === 'boolean') {
+      context.enableUrlSync = options.enableUrlSync;
+    }
+  }
 
   // Initialize SPContext in the library's own webpack bundle.
   // Each web part bundle has its own copy of SPContext (due to webpack entry-point
@@ -170,14 +206,22 @@ async function _doInitializeContext(
     return managerService.loadStateSnapshot(stateId);
   });
 
-  // Create the URL sync subscription.
-  // Prefer clean unprefixed URLs for the common single-search-page case.
-  // If multiple independent search contexts exist, use the stored prefix.
-  const urlPrefix = getContextMap().size > 1 ? context.urlPrefix : undefined;
-  context.urlSyncUnsubscribe = createUrlSyncSubscription(
-    context.store,
-    urlPrefix
-  );
+  // T3.D6 — when the admin opts out of URL sync (`enableUrlSync: false`),
+  // skip the subscription entirely. The store still functions; only URL
+  // round-trips are disabled (useful for embedded saved-search runners
+  // that must not stomp the page URL).
+  if (context.enableUrlSync !== false) {
+    // Create the URL sync subscription.
+    // Prefer clean unprefixed URLs for the common single-search-page case.
+    // If multiple independent search contexts exist, use the stored prefix.
+    // T3.D6 — admin override wins over the auto-computed prefix.
+    const autoPrefix = getContextMap().size > 1 ? context.urlPrefix : undefined;
+    const effectivePrefix = context.urlPrefixOverride !== undefined ? context.urlPrefixOverride : autoPrefix;
+    context.urlSyncUnsubscribe = createUrlSyncSubscription(
+      context.store,
+      effectivePrefix
+    );
+  }
 
   // Resolve Azure AD group memberships for audience targeting (non-blocking)
   resolveUserGroupIds()
@@ -215,19 +259,29 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
       urlSyncUnsubscribe: undefined,
       isInitialized: false,
       urlPrefix: _buildStableUrlPrefix(searchContextId),
+      // T3.D6 — defaults; admins override via initializeSearchContext options.
+      enableUrlSync: true,
+      urlPrefixOverride: undefined,
     };
     map.set(searchContextId, context);
 
     // When a second context arrives (map.size transitions from 1 → 2+), the
     // first context was initialized without a URL prefix. Re-subscribe ALL
     // previously-initialized contexts so they pick up their stored prefix.
+    // T3.D6 — also respect the admin override + enableUrlSync flag.
     if (map.size === 2) {
       map.forEach(function (existingCtx: ISearchContext, _existingId: string): void {
         if (existingCtx.isInitialized && existingCtx.urlSyncUnsubscribe) {
           existingCtx.urlSyncUnsubscribe();
+          existingCtx.urlSyncUnsubscribe = undefined;
+        }
+        if (existingCtx.isInitialized && existingCtx.enableUrlSync !== false) {
+          const prefix = existingCtx.urlPrefixOverride !== undefined
+            ? existingCtx.urlPrefixOverride
+            : existingCtx.urlPrefix;
           existingCtx.urlSyncUnsubscribe = createUrlSyncSubscription(
             existingCtx.store,
-            existingCtx.urlPrefix
+            prefix
           );
         }
       });
