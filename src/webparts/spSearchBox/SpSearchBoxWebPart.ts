@@ -24,6 +24,8 @@ import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+// T4.D8 — shared validator for the newPageQueryParameter URL-key field.
+import { validateNewPageQueryParameter } from '../../propertyPaneControls/fieldValidation';
 import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
 import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
@@ -350,7 +352,11 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                   }),
                   PropertyPaneTextField('newPageQueryParameter', {
                     label: strings.NewPageQueryParameterLabel,
-                    description: strings.NewPageQueryParameterDescription
+                    description: strings.NewPageQueryParameterDescription,
+                    // T4.D8 — alphanumeric + dash + underscore only.
+                    // Special URL characters (?, &, =, #, space) corrupt
+                    // the query string the search box constructs.
+                    onGetErrorMessage: validateNewPageQueryParameter
                   })
                 ] : [])
               ]

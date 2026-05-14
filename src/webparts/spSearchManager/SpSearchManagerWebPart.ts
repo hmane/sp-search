@@ -25,6 +25,13 @@ import { getStore, initializeSearchContext } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+// T4.D8 — shared property-pane field validators (coverageSourcePageUrl,
+// expectedSiteUrls). Centralised so AdminManager (which inherits this
+// property-pane builder) gets identical validation copy.
+import {
+  validateCoverageSourcePageUrl,
+  validateExpectedSiteUrlsField,
+} from '../../propertyPaneControls/fieldValidation';
 import { ICoverageProfile, normalizeCoverageProfile } from '@services/SearchCoverageService';
 import { DebugCollector } from '@store/debug';
 import { DisplayMode } from '@microsoft/sp-core-library';
@@ -362,7 +369,10 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
           PropertyPaneTextField('coverageSourcePageUrl', {
             label: strings.CoverageSourcePageUrlLabel,
             description: strings.CoverageSourcePageUrlDescription,
-            placeholder: '/sites/search/SitePages/Search.aspx'
+            placeholder: '/sites/search/SitePages/Search.aspx',
+            // T4.D8 — shared validator. Accepts server-relative /sites/ |
+            // /teams/ paths and absolute https://*.sharepoint.com URLs.
+            onGetErrorMessage: validateCoverageSourcePageUrl
           })
         ]
       },
@@ -410,6 +420,9 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
             multiline: true,
             rows: 5,
             description: 'Enter site URLs to monitor for content coverage. One URL per line.',
+            // T4.D8 — per-line URL validator. Reports the first offending
+            // line so admins can locate the bad row in the textarea.
+            onGetErrorMessage: validateExpectedSiteUrlsField
           })
         ]
       },
