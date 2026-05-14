@@ -554,8 +554,23 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
   }, [activeLayoutKey, availableLayouts, effectiveDefaultLayout, store]);
 
   // ─── Store action callbacks ─────────────────────────────────
+  // T1.D11 — preserve scroll position across layout swaps. Capture
+  // `window.scrollY` before the layout change fires, then restore it on
+  // the next animation frame after the new layout has painted. All
+  // layouts render in the same parent so the same scroll offset lands
+  // the user at roughly the same row in the new view.
   const handleLayoutChange = React.useCallback((key: string): void => {
+    const savedScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
     store.getState().setLayout(key);
+    if (typeof window !== 'undefined' && savedScrollY > 0) {
+      // Two RAFs — first lets React commit the new layout DOM, second
+      // lets the new layout's first paint complete so heights are real.
+      window.requestAnimationFrame((): void => {
+        window.requestAnimationFrame((): void => {
+          window.scrollTo({ top: savedScrollY, behavior: 'auto' });
+        });
+      });
+    }
   }, [store]);
 
   const handlePreloadLayout = React.useCallback((key: string): void => {

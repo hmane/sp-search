@@ -36,9 +36,12 @@ function getGroupDisplay(groupName: string): { title: string; description: strin
         description: 'Your recent search history'
       };
     case 'Trending':
+      // T2.D13 — "Popular Searches" was a misnomer: TrendingQueryProvider
+      // filters by Author = currentUser.id, so the list is per-user
+      // frequency. Renamed until org-aggregation actually lands.
       return {
-        title: 'Popular Searches',
-        description: 'Frequently used terms from your history'
+        title: 'Frequent for you',
+        description: 'Search terms you have run most often'
       };
     case 'Properties':
       return {
