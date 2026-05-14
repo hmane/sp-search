@@ -18,6 +18,13 @@ export interface IResultToolbarProps {
   onSortChange: (sort: ISortField) => void;
   /** Called on button hover to warm the webpack chunk before the user clicks. */
   onPreloadLayout?: (key: string) => void;
+  // T2.D11 — layout-agnostic export. When `onExportCsv` / `onExportXlsx`
+  // are provided, an Export IconButton appears with a contextual menu.
+  // The "Selection only (N rows)" item only renders when
+  // `selectionCount > 0` (consumes T2.D2 bulk-selection state).
+  onExportCsv?: (selectionOnly: boolean) => void;
+  onExportXlsx?: (selectionOnly: boolean) => void;
+  selectionCount?: number;
 }
 
 /** Sort preset key for "Relevance" (no explicit sort) */
@@ -149,7 +156,10 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
     showSortDropdown,
     onLayoutChange,
     onSortChange,
-    onPreloadLayout
+    onPreloadLayout,
+    onExportCsv,
+    onExportXlsx,
+    selectionCount,
   } = props;
 
   const sortOptions: IDropdownOption[] = React.useMemo(
@@ -205,6 +215,48 @@ const ResultToolbar: React.FC<IResultToolbarProps> = (props) => {
         )}
         {availableLayouts.indexOf('gallery') >= 0 && (
           renderLayoutButton('gallery', 'PhotoCollection', 'Gallery view', activeLayoutKey, onLayoutChange, onPreloadLayout)
+        )}
+        {/* T2.D11 — layout-agnostic export menu. Renders whenever the
+            web part wires `onExportCsv` / `onExportXlsx`. The DataGrid
+            layout has its own Toolbar export so we keep this menu visible
+            on every layout; admins can choose either path. */}
+        {(onExportCsv || onExportXlsx) && (
+          <IconButton
+            iconProps={{ iconName: 'Download' }}
+            title="Export results"
+            ariaLabel="Export results"
+            menuProps={{
+              items: [
+                ...(onExportCsv ? [{
+                  key: 'csv-all',
+                  text: 'Export all to CSV',
+                  iconProps: { iconName: 'TextDocument' },
+                  onClick: (): void => { onExportCsv(false); },
+                }] : []),
+                ...(onExportXlsx ? [{
+                  key: 'xlsx-all',
+                  text: 'Export all to XLSX',
+                  iconProps: { iconName: 'ExcelDocument' },
+                  onClick: (): void => { onExportXlsx(false); },
+                }] : []),
+                ...((selectionCount && selectionCount > 0) ? [
+                  { key: 'sel-divider', itemType: 1 as 0 | 1 | 2 | 3 },
+                  ...(onExportCsv ? [{
+                    key: 'csv-sel',
+                    text: 'Selection only (' + selectionCount + ' rows) to CSV',
+                    iconProps: { iconName: 'TextDocument' },
+                    onClick: (): void => { onExportCsv(true); },
+                  }] : []),
+                  ...(onExportXlsx ? [{
+                    key: 'xlsx-sel',
+                    text: 'Selection only (' + selectionCount + ' rows) to XLSX',
+                    iconProps: { iconName: 'ExcelDocument' },
+                    onClick: (): void => { onExportXlsx(true); },
+                  }] : []),
+                ] : []),
+              ],
+            }}
+          />
         )}
       </div>
     </div>

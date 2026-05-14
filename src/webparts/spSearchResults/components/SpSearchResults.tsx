@@ -70,6 +70,8 @@ const ResultDetailPanel = lazyBridge(
 import { safeNavigate } from '@store/utils/safeNavigate';
 // T3.D10 — init-order diagnostic helpers.
 import { hasInitOrderIssue, clearInitOrderDiagnostic } from '@store/utils/initOrderDiagnostic';
+// T2.D11 — layout-agnostic export.
+import { exportItemsAsCsv, exportItemsAsXlsx } from './exportShared';
 
 // T5.D1 — singleton DebugFab + Panel imported from the cross-bundle host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
@@ -929,6 +931,19 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onLayoutChange={handleLayoutChange}
             onSortChange={handleSortChange}
             onPreloadLayout={handlePreloadLayout}
+            selectionCount={bulkSelection.length}
+            onExportCsv={(selectionOnly): void => {
+              exportItemsAsCsv(items, {
+                selectedItemKeys: selectionOnly ? bulkSelection : undefined,
+                configuredColumns: selectedPropertyColumns,
+              });
+            }}
+            onExportXlsx={(selectionOnly): void => {
+              exportItemsAsXlsx(items, {
+                selectedItemKeys: selectionOnly ? bulkSelection : undefined,
+                configuredColumns: selectedPropertyColumns,
+              }).catch((err): void => { console.error('[SP Search] XLSX export failed', err); });
+            }}
           />
         )}
 
