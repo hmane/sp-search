@@ -48,6 +48,42 @@ const registries = store.getState().registries;
 registries.dataProviders.register(new MyCustomProvider());
 ```
 
+### Lifecycle: refcounted context dispose (T3.D1)
+
+Each web part that calls `getStore(searchContextId)` is a refcount
+holder for that context. The shipped SPFx web parts do this
+automatically (`onInit` increments, `onDispose` decrements). When the
+**last** holder unmounts, the context is disposed: URL sync teardown,
+orchestrator stop, AbortController abort on in-flight searches, and
+removal from the window-backed map.
+
+Third-party extensions that import `getStore` directly must follow the
+same contract:
+
+```typescript
+import {
+  getStore,
+  incrementContextRef,
+  decrementContextRef,
+} from 'sp-search-store';
+
+// On mount:
+const store = getStore('my-context-id');
+incrementContextRef('my-context-id');
+
+// On unmount:
+decrementContextRef('my-context-id');
+// (Context is disposed automatically when the last holder releases.
+//  A microtask defers the actual dispose so a new mount with the same
+//  context can re-increment before the teardown fires — handles the
+//  SPFx Modern "next page onInit before prior page onDispose" race.)
+```
+
+`disposeStore(id)` is still exported and force-disposes immediately
+(bypassing the refcount). Use it for tests and admin "force dispose"
+tooling; production lifecycle should always flow through
+`decrementContextRef`.
+
 ---
 
 ## 1. Custom Data Provider

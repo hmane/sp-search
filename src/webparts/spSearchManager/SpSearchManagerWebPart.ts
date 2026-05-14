@@ -21,7 +21,7 @@ import type { ISpSearchManagerProps } from './components/ISpSearchManagerProps';
 import styles from './components/SpSearchManager.module.scss';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore } from '@interfaces/index';
-import { getStore, initializeSearchContext } from '@store/store';
+import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -211,6 +211,9 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     // Get or create the shared Zustand store
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+    // T3.D1 — refcount holder. AdminManager extends this class so the
+    // increment fires once per AdminManager instance too via super.onInit().
+    incrementContextRef(contextId);
 
     // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
     const provider = new SharePointSearchProvider();
@@ -257,6 +260,11 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop refcount before unmounting. AdminManager subclass
+    // inherits this method; the increment happens once per instance in
+    // the inherited onInit(), so the single decrement here is correct.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 

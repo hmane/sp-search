@@ -19,7 +19,7 @@ import SpSearchBox from './components/SpSearchBox';
 import { ISpSearchBoxProps } from './components/ISpSearchBoxProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore, ISearchScope } from '@interfaces/index';
-import { getStore, initializeSearchContext, getManagerService } from '@store/store';
+import { getStore, initializeSearchContext, getManagerService, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
@@ -176,6 +176,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     // Get or create the shared Zustand store
     const contextId = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+    // T3.D1 — register this web part as a refcount holder. Drops in onDispose.
+    incrementContextRef(contextId);
 
     // Register the SharePoint Search data provider (uses SPContext.sp internally)
     const provider = new SharePointSearchProvider();
@@ -255,8 +257,14 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
   }
 
   protected onDispose(): void {
+    // T3.D1 — decrement the per-context refcount BEFORE unmounting the
+    // React tree. When the last web part on the context unmounts, the
+    // deferred dispose tears down URL sync, orchestrator, and the
+    // window-backed context entry. Cross-page SPA navigation order is
+    // handled by the microtask deferral in the registry.
+    const contextId = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     // Unmount React component tree
-    // Note: We don't stop the shared orchestrator here - it's managed by the registry
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 

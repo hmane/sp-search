@@ -37,7 +37,9 @@ import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
   getOrchestrator,
-  initializeSearchContext
+  initializeSearchContext,
+  incrementContextRef,
+  decrementContextRef
 } from '@store/store';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
 import { registerBuiltInActions } from './registerBuiltInActions';
@@ -271,6 +273,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
     this._orchestrator = getOrchestrator(contextId);
+    // T3.D1 — refcount holder for this web part instance.
+    incrementContextRef(contextId);
 
     if (this._store) {
       // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
@@ -1004,6 +1008,9 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop the refcount before unmounting React. See SearchBox.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 

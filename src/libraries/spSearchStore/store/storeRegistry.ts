@@ -56,6 +56,10 @@ export interface IInitializeContextOptions {
  */
 const CONTEXT_MAP_KEY = '__sp_search_context_map__';
 const INIT_PROMISES_KEY = '__sp_search_init_promises__';
+// T3.D1 — per-context refcount stored on window for cross-bundle visibility.
+// Each web part bundle imports this module independently; without the
+// window-backed map the refcounts would be per-bundle and never reach 0.
+const REFCOUNT_KEY = '__sp_search_context_refcount_v1__';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const _win = window as any;
@@ -65,6 +69,13 @@ function getContextMap(): Map<string, ISearchContext> {
     _win[CONTEXT_MAP_KEY] = new Map();
   }
   return _win[CONTEXT_MAP_KEY];
+}
+
+function getRefCountMap(): Map<string, number> {
+  if (!_win[REFCOUNT_KEY]) {
+    _win[REFCOUNT_KEY] = new Map<string, number>();
+  }
+  return _win[REFCOUNT_KEY];
 }
 
 function getInitPromises(): Map<string, Promise<void>> {
@@ -293,8 +304,65 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
 }
 
 /**
+ * T3.D1 — increment the per-context refcount. Call from each web part's
+ * `onInit()` after `getStore(searchContextId)` resolves. The refcount is
+ * keyed by `searchContextId` (NOT by web part instance) so that two web
+ * parts sharing one context release together when both unmount.
+ */
+export function incrementContextRef(searchContextId: string): void {
+  const refs = getRefCountMap();
+  refs.set(searchContextId, (refs.get(searchContextId) || 0) + 1);
+}
+
+/**
+ * T3.D1 — decrement the per-context refcount + schedule a deferred
+ * dispose. Call from each web part's `onDispose()` BEFORE
+ * `ReactDom.unmountComponentAtNode`.
+ *
+ * The dispose is deferred to a microtask so SPFx Modern's "next page
+ * onInit fires before old page onDispose" cross-page navigation order
+ * doesn't drop the context prematurely — a new mount has a chance to
+ * re-increment first. If after the microtask the refcount is still 0,
+ * the context is disposed.
+ */
+export function decrementContextRef(searchContextId: string): void {
+  const refs = getRefCountMap();
+  const current = refs.get(searchContextId) || 0;
+  if (current <= 0) {
+    // Already at zero — defensive; spurious onDispose with no prior
+    // onInit (e.g. early SPFx unmount during a failed init).
+    return;
+  }
+  const next = current - 1;
+  if (next > 0) {
+    refs.set(searchContextId, next);
+    return;
+  }
+  // Transition to zero — schedule the dispose for the next microtask.
+  // If a new mount with the same context arrives before then,
+  // `incrementContextRef` will set the count back to 1 and the deferred
+  // check below will skip the dispose.
+  refs.set(searchContextId, 0);
+  const scheduler: (cb: () => void) => void =
+    typeof queueMicrotask === 'function' ? queueMicrotask : ((cb): void => { setTimeout(cb, 0); });
+  scheduler((): void => {
+    if ((refs.get(searchContextId) || 0) === 0) {
+      refs.delete(searchContextId);
+      disposeStore(searchContextId);
+    }
+  });
+}
+
+/**
  * Dispose and remove a store for the given search context ID.
- * Call this when all web parts using this context are unmounted.
+ *
+ * T3.D1 — prefer `decrementContextRef` from web part `onDispose()` so the
+ * refcount + deferred-dispose contract handles the cross-page navigation
+ * race. Direct calls to `disposeStore` bypass the refcount and force
+ * immediate teardown — useful for tests and admin-driven "Force dispose"
+ * surfaces (e.g. DebugPanel Multi-Context tab). Library-component
+ * consumers (third-party extensions per `extensibility-guide.md`) should
+ * use the refcounted path.
  */
 export function disposeStore(searchContextId: string): void {
   const map = getContextMap();
@@ -309,6 +377,18 @@ export function disposeStore(searchContextId: string): void {
     context.store.getState().dispose();
     map.delete(searchContextId);
   }
+  // T3.D1 — also clear the refcount so a future fresh mount starts
+  // from 0 rather than inheriting any stale count.
+  const refs = getRefCountMap();
+  refs.delete(searchContextId);
+}
+
+/**
+ * T3.D1 — test/admin helper: read the current refcount for a context.
+ * Returns 0 when the context isn't tracked.
+ */
+export function getContextRefCount(searchContextId: string): number {
+  return getRefCountMap().get(searchContextId) || 0;
 }
 
 /**

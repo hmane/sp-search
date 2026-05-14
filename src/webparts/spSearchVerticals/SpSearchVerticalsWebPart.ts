@@ -20,7 +20,7 @@ import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
 import { type ISpSearchVerticalsProps } from './components/ISpSearchVerticalsProps';
 import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
-import { getStore, initializeSearchContext } from '@store/store';
+import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -130,6 +130,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+    // T3.D1 — refcount holder.
+    incrementContextRef(contextId);
 
     // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
     const provider = new SharePointSearchProvider();
@@ -228,6 +230,9 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop refcount before unmounting React.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 

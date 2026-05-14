@@ -18,7 +18,7 @@ import * as strings from 'SpSearchFiltersWebPartStrings';
 import SpSearchFilters from './components/SpSearchFilters';
 import type { ISpSearchFiltersProps } from './components/ISpSearchFiltersProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
-import { getStore, initializeSearchContext } from '@store/store';
+import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
@@ -192,6 +192,8 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchFilters');
       const contextId: string = this.properties.searchContextId || 'default';
       this._store = getStore(contextId);
+      // T3.D1 — refcount holder.
+      incrementContextRef(contextId);
 
       // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
       const provider = new SharePointSearchProvider();
@@ -295,6 +297,9 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop refcount before unmounting React.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 
