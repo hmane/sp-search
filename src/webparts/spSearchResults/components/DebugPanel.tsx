@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { DebugCollector } from '@store/debug';
+import { DebugCollector, getRegisteredDebugTabs } from '@store/debug';
 import type { IDebugEvent, IQueryDebugInfo, DebugEventType, INetworkEvent } from '@store/debug';
 import type { StoreApi } from 'zustand/vanilla';
 import type { ISearchStore } from '@interfaces/index';
@@ -462,7 +462,11 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 const DEFAULT_HEIGHT = 0.6;
 
 const DebugPanel: React.FC<IDebugPanelProps> = ({ store, onClose }) => {
-  const [activeTab, setActiveTab] = React.useState<TabKey>('query');
+  // T5.D4 — read contributed tabs from the registry. We snapshot on render
+  // so newly-registered tabs (e.g. T3.D8's Multi-Context tab loaded at
+  // module init) appear without a panel re-mount.
+  const registeredTabs = React.useMemo(() => getRegisteredDebugTabs(), []);
+  const [activeTab, setActiveTab] = React.useState<TabKey | string>('query');
   const [height, setHeight] = React.useState(DEFAULT_HEIGHT);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const dragRef = React.useRef<{ startY: number; startHeight: number } | null>(null);
@@ -493,6 +497,12 @@ const DebugPanel: React.FC<IDebugPanelProps> = ({ store, onClose }) => {
       case 'config': return <ConfigTab />;
       case 'log': return <LogTab />;
     }
+    // T5.D4 — registered tab. Look up by id in the snapshot.
+    const reg = registeredTabs.find((t) => t.id === activeTab);
+    if (reg) {
+      return reg.render({ store, debugCollector: DebugCollector });
+    }
+    return <div>Unknown tab</div>;
   };
 
   return (
@@ -516,6 +526,17 @@ const DebugPanel: React.FC<IDebugPanelProps> = ({ store, onClose }) => {
             key={tab.key}
             className={`${styles.tab}${activeTab === tab.key ? ' ' + styles.tabActive : ''}`}
             onClick={() => setActiveTab(tab.key)}
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+        {/* T5.D4 — contributed tabs from the registry (T3.D8 etc.). */}
+        {registeredTabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`${styles.tab}${activeTab === tab.id ? ' ' + styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab.id)}
             type="button"
           >
             {tab.label}

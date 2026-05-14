@@ -17,6 +17,10 @@ import * as React from 'react';
 import type { StoreApi } from 'zustand/vanilla';
 import type { ISearchStore } from '@interfaces/index';
 import { DebugCollector } from '@store/debug';
+// T3.D8 — registers the Multi-Context tab into the DebugPanel registry on
+// module load. Side-effect import; the registration happens at the top
+// of `MultiContextTab.tsx`.
+import '@store/debug/MultiContextTab';
 
 // Lazy-loaded — DebugFab + DebugPanel only land in the bundle when
 // the user activates the debug surface (?debug=1).
