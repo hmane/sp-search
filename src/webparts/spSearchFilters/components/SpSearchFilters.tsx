@@ -663,18 +663,29 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       })}
 
       {/* Apply button for manual mode */}
-      {applyMode === 'manual' && hasPendingChanges && (
-        <div className={styles.applyBar}>
-          <button
-            type="button"
-            className={styles.applyButton}
-            onClick={handleApply}
-            aria-label="Apply filters"
-          >
-            Apply filters
-          </button>
-        </div>
-      )}
+      {applyMode === 'manual' && hasPendingChanges && ((): React.ReactNode => {
+        // T1.D8 — pending-change count. Counts the symmetric difference
+        // between pendingFilters and store filters (an "applied" filter
+        // counts once whether it's an addition or a removal).
+        const pendingKeys = new Set(pendingFilters.map((f) => f.filterName + '|' + f.value));
+        const liveKeys = new Set(filters.map((f) => f.filterName + '|' + f.value));
+        let changeCount = 0;
+        pendingKeys.forEach((k) => { if (!liveKeys.has(k)) { changeCount++; } });
+        liveKeys.forEach((k) => { if (!pendingKeys.has(k)) { changeCount++; } });
+        const buttonText = changeCount === 1 ? 'Apply 1 change' : 'Apply ' + changeCount + ' changes';
+        return (
+          <div className={styles.applyBar}>
+            <button
+              type="button"
+              className={styles.applyButton}
+              onClick={handleApply}
+              aria-label={buttonText}
+            >
+              {buttonText}
+            </button>
+          </div>
+        );
+      })()}
     </>
   );
 

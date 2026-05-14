@@ -1,6 +1,9 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { TooltipHost, ITooltipHostStyles } from '@fluentui/react/lib/Tooltip';
 import styles from './SpSearchVerticals.module.scss';
+
+const TOOLTIP_HOST_STYLES: Partial<ITooltipHostStyles> = { root: { display: 'inline-block' } };
 
 export interface IVerticalTabProps {
   verticalKey: string;
@@ -86,20 +89,38 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
     );
   }
 
-  return (
+  const buttonEl = (
     <button
       className={classNames.join(' ')}
       role="tab"
       aria-selected={isActive}
-      aria-label={label + (hasCount ? ' (' + String(count) + ')' : '')}
+      aria-label={label + (hasCount ? ' (' + String(count) + ')' : '') + (isDimmed ? ' (no results)' : '')}
       tabIndex={isActive ? 0 : -1}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       data-vertical-key={verticalKey}
+      disabled={isDimmed}
     >
       {tabContent}
     </button>
   );
+
+  // T1.D8 — explain why dimmed tabs aren't clickable. Fluent TooltipHost
+  // wraps the disabled button so hovering surfaces the "no results in this
+  // vertical for the current query" message — closes the dimmed-tab
+  // silence the audit's Journey B Step 5 [Confusion] called out.
+  if (isDimmed) {
+    return (
+      <TooltipHost
+        content="No results in this vertical for the current query."
+        styles={TOOLTIP_HOST_STYLES}
+      >
+        {buttonEl}
+      </TooltipHost>
+    );
+  }
+
+  return buttonEl;
 };
 
 export default VerticalTab;
