@@ -854,16 +854,24 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 </TooltipHost>
               )}
               {config.enableSavedSearches && config.showSaveAction && (
-                <TooltipHost content="Save the current query and filters">
+                // T2.D10 — context-specific disabled tooltip. "Save the
+                // current query and filters" reads as instructional when
+                // canSave is true (button is enabled) but as a riddle when
+                // canSave is false (button greyed). Swapping the copy on
+                // disable closes Journey B Step 9 [Confusion] without a
+                // larger flow refactor.
+                <TooltipHost content={canSave
+                  ? 'Save the current query and filters'
+                  : 'Type a query or apply a filter to enable Save'}>
                   <button
                     type="button"
                     className={styles.headerActionBtnPrimary}
                     onClick={handleOpenSaveDialog}
                     disabled={!canSave}
-                    aria-label="Save current search"
+                    aria-label={canSave ? 'Save current search' : 'Save current search (disabled until a query or filter is set)'}
                   >
                     <Icon iconName="Save" />
-                    <span className={styles.headerActionLabel}>Save</span>
+                    <span className={styles.headerActionLabel}>Save search</span>
                   </button>
                 </TooltipHost>
               )}
@@ -1158,6 +1166,27 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                     <div className={styles.saveSummaryRow}>
                       <Icon iconName="Sort" className={styles.saveSummaryIcon} />
                       <span className={styles.saveSummaryValue}>Sort: {sort.property} ({sort.direction})</span>
+                    </div>
+                  )}
+                  {/* T2.D10 — surface the search scope so admins see whether
+                      the saved row will replay against "All", a specific
+                      site, hub, or list URL. */}
+                  {scope && scope.id && scope.id !== 'all' && (
+                    <div className={styles.saveSummaryRow}>
+                      <Icon iconName="Globe" className={styles.saveSummaryIcon} />
+                      <span className={styles.saveSummaryValue}>
+                        Scope: {scope.label || scope.id}
+                      </span>
+                    </div>
+                  )}
+                  {/* T2.D10 — active layout so admins know they're saving
+                      "Documents view with Grid layout" not just "Documents". */}
+                  {activeLayoutKey && (
+                    <div className={styles.saveSummaryRow}>
+                      <Icon iconName="GridViewMedium" className={styles.saveSummaryIcon} />
+                      <span className={styles.saveSummaryValue}>
+                        Layout: {activeLayoutKey}
+                      </span>
                     </div>
                   )}
                 </div>
