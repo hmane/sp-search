@@ -39,7 +39,7 @@ export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart 
 
   /** T4.D6 — admin-only header copy in the property pane. */
   protected _getPropertyPaneHeaderDescription(): string {
-    return 'Configure admin diagnostics: coverage profiles, expected sites, and admin-only tabs (coverage / health / insights). Requires ManageWeb (Owner/Admin) permission to render.';
+    return 'Configure admin diagnostics: coverage profiles, expected sites, and admin-only tabs (dashboard / health / insights / pre-flight). Requires ManageWeb (Owner/Admin) permission to render.';
   }
 
   /**
@@ -65,7 +65,7 @@ export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart 
       variant: 'admin',
       searchContextId: this.properties.searchContextId || 'default',
       mode: 'standalone',
-      defaultTab: this.properties.defaultTab || 'coverage',
+      defaultTab: this.properties.defaultTab || 'dashboard',
       headerTitle: 'Admin Search Manager',
       context: this.context,
       // User tabs — explicitly off for the admin variant.
@@ -78,8 +78,6 @@ export default class SpSearchAdminManagerWebPart extends SpSearchManagerWebPart 
       showResetAction: false,
       showSaveAction: false,
       // Admin tabs — projected from properties + manifest defaults.
-      enableCoverage: this.properties.enableCoverage !== false,
-      coverageSourcePageUrl: this.properties.coverageSourcePageUrl || '',
       coverageProfiles: this._normalizeCoverageProfiles(),
       enableHealth: this.properties.enableHealth !== false,
       enableInsights: this.properties.enableInsights !== false,

@@ -16,7 +16,6 @@
     "officeFabricIconFontName": "BIDashboard",
     "properties": {
       "searchContextId": "default",
-      "coverageSourcePageUrl": "",
       "mode": "standalone",
       "defaultTab": "dashboard",
       "enableSavedSearches": false,
@@ -24,7 +23,6 @@
       "enableCollections": false,
       "enableHistory": false,
       "enableDashboard": true,
-      "enableCoverage": false,
       "coverageProfilesCollection": [],
       "enableHealth": true,
       "enableInsights": true,

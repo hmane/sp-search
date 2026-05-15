@@ -12,7 +12,7 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import type { StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import { PropertyPaneFiltersCollection } from '../../propertyPaneControls/filtersCollection/PropertyPaneFiltersCollection';
 
 import * as strings from 'SpSearchFiltersWebPartStrings';
 import SpSearchFilters from './components/SpSearchFilters';
@@ -113,6 +113,12 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   private _store: StoreApi<ISearchStore> | undefined;
 
   public render(): void {
+    // SPFx can call render() during theme loading BEFORE onInit() completes.
+    // Return early so SPFx re-renders once onInit has wired up the store.
+    if (!this._store) {
+      return;
+    }
+
     const innerElement: React.ReactElement<ISpSearchFiltersProps> = React.createElement(
       SpSearchFilters,
       {
@@ -353,170 +359,11 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
               groupName: strings.FiltersGroupName,
               groupFields: [
                 propertyPaneGroupHelp('filters-config', 'Help: Configure refiners and filter types'),
-                PropertyFieldCollectionData('filtersCollection', {
-                  key: 'filtersCollection',
+                PropertyPaneFiltersCollection('filtersCollection', {
                   label: strings.FiltersFieldLabel,
                   panelHeader: strings.FiltersPanelHeader,
-                  manageBtnLabel: strings.FiltersManageBtn,
+                  manageButtonLabel: strings.FiltersManageBtn,
                   value: normalizeFiltersCollectionValue(this.properties.filtersCollection),
-                  enableSorting: true,
-                  fields: [
-                    {
-                      id: 'managedProperty',
-                      title: strings.FilterPropertyColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: true,
-                      placeholder: 'RefinableString00'
-                    },
-                    {
-                      id: 'displayName',
-                      title: strings.FilterDisplayNameColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: true,
-                      placeholder: 'File Type'
-                    },
-                    {
-                      id: 'urlAlias',
-                      title: strings.FilterUrlAliasColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'ft'
-                    },
-                    {
-                      id: 'filterType',
-                      title: strings.FilterTypeColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: true,
-                      options: [
-                        { key: 'checkbox', text: strings.FilterTypeCheckbox },
-                        { key: 'dropdown', text: strings.FilterTypeDropdown },
-                        { key: 'daterange', text: strings.FilterTypeDateRange },
-                        { key: 'text', text: strings.FilterTypeText },
-                        { key: 'people', text: strings.FilterTypePeople },
-                        { key: 'taxonomy', text: strings.FilterTypeTaxonomy },
-                        { key: 'slider', text: strings.FilterTypeSlider },
-                        { key: 'tagbox', text: strings.FilterTypeTagBox },
-                        { key: 'toggle', text: strings.FilterTypeToggle }
-                      ]
-                    },
-                    {
-                      id: 'operator',
-                      title: strings.FilterOperatorColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: false,
-                      options: [
-                        { key: 'OR', text: 'OR' },
-                        { key: 'AND', text: 'AND' }
-                      ]
-                    },
-                    {
-                      id: 'maxValues',
-                      title: strings.FilterMaxValuesColumn,
-                      type: CustomCollectionFieldType.number,
-                      required: false,
-                      defaultValue: 10
-                    },
-                    {
-                      id: 'showCount',
-                      title: strings.FilterShowCountColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: true
-                    },
-                    {
-                      id: 'defaultExpanded',
-                      title: strings.FilterExpandedColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: true
-                    },
-                    {
-                      id: 'sortBy',
-                      title: strings.FilterSortByColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: false,
-                      options: [
-                        { key: 'count', text: strings.FilterSortByCount },
-                        { key: 'alphabetical', text: strings.FilterSortByName }
-                      ]
-                    },
-                    {
-                      id: 'sortDirection',
-                      title: strings.FilterSortDirectionColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: false,
-                      options: [
-                        { key: 'desc', text: strings.FilterSortDescending },
-                        { key: 'asc', text: strings.FilterSortAscending }
-                      ]
-                    },
-                    {
-                      id: 'multiValues',
-                      title: strings.FilterMultiValuesColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: true
-                    },
-                    {
-                      id: 'dependsOn',
-                      title: strings.FilterDependsOnColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'ContentType'
-                    },
-                    {
-                      id: 'showWhenParentHasValue',
-                      title: strings.FilterShowWhenParentHasValueColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: false
-                    },
-                    {
-                      id: 'hideZeroCountValues',
-                      title: strings.FilterHideZeroCountValuesColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: false
-                    },
-                    {
-                      id: 'resetWhenParentChanges',
-                      title: strings.FilterResetWhenParentChangesColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: false
-                    },
-                    {
-                      id: 'trueLabel',
-                      title: strings.FilterTrueLabelColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'Yes'
-                    },
-                    {
-                      id: 'falseLabel',
-                      title: strings.FilterFalseLabelColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: 'No'
-                    },
-                    {
-                      id: 'invertBoolean',
-                      title: strings.FilterInvertBooleanColumn,
-                      type: CustomCollectionFieldType.boolean,
-                      required: false,
-                      defaultValue: false
-                    },
-                    // Stream D / #5 — audience targeting per refiner. Matches
-                    // the convention used by `SpSearchVerticalsWebPart.ts:305`
-                    // (comma-separated Azure AD group object IDs).
-                    {
-                      id: 'audience',
-                      title: strings.FilterAudienceColumn,
-                      type: CustomCollectionFieldType.string,
-                      required: false,
-                      placeholder: strings.FilterAudiencePlaceholder
-                    }
-                  ]
                 }),
               ]
             },

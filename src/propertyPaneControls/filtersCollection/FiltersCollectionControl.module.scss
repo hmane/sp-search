@@ -1,0 +1,273 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.host {
+  margin-bottom: 8px;
+}
+
+.triggerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid $ms-color-neutralLight;
+  border-radius: 2px;
+  background-color: $ms-color-neutralLighterAlt;
+}
+
+.summary {
+  flex: 1;
+  font-size: 13px;
+  color: $ms-color-neutralSecondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ─── Panel body: master-detail split ──────────────────────
+
+.panelBody {
+  display: flex;
+  height: 100%;
+  min-height: 480px;
+  gap: 12px;
+}
+
+.leftRail {
+  flex: 0 0 280px;
+  border-right: 1px solid $ms-color-neutralLight;
+  padding-right: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.refinerRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px 8px 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: transparent;
+  transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
+
+  &:hover {
+    background-color: $ms-color-neutralLighter;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $ms-color-themePrimary;
+  }
+}
+
+.refinerRowSelected {
+  background-color: $ms-color-themeLighter;
+  border-color: $ms-color-themePrimary;
+
+  &:hover {
+    background-color: $ms-color-themeLighter;
+  }
+}
+
+.refinerRowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refinerName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: $ms-color-neutralPrimary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refinerNameMuted {
+  font-style: italic;
+  font-weight: 400;
+  color: $ms-color-neutralSecondary;
+}
+
+.incompleteIcon {
+  color: $ms-color-orangeLighter;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.refinerMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: $ms-color-neutralSecondary;
+  overflow: hidden;
+}
+
+.typeChip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background-color: $ms-color-neutralLighter;
+  color: $ms-color-neutralPrimary;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.refinerProp {
+  font-family: 'Consolas', 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.refinerActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s ease-in-out;
+
+  // Always visible on touch / focus
+  .refinerRow:hover &,
+  .refinerRow:focus &,
+  .refinerRowSelected & {
+    opacity: 1;
+  }
+}
+
+.addButton {
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.emptyHint {
+  padding: 12px;
+  font-size: 12px;
+  color: $ms-color-neutralSecondary;
+  text-align: center;
+  border: 1px dashed $ms-color-neutralLight;
+  border-radius: 4px;
+}
+
+// ─── Right pane: editor form ──────────────────────────────
+
+.rightPane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 320px;
+  color: $ms-color-neutralSecondary;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.emptyStateIcon {
+  font-size: 48px;
+  color: $ms-color-neutralTertiary;
+}
+
+.editorForm {
+  display: flex;
+  flex-direction: column;
+}
+
+.editorHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 12px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid $ms-color-neutralLight;
+}
+
+.editorHeaderTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: $ms-color-neutralPrimary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.editorHeaderType {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background-color: $ms-color-themeLighter;
+  color: $ms-color-themePrimary;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+// ─── Collapsible section ──────────────────────────────────
+
+.section {
+  margin-bottom: 4px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: $ms-color-neutralPrimary;
+
+  &:hover {
+    background-color: $ms-color-neutralLighter;
+  }
+
+  &:focus {
+    outline: 1px solid $ms-color-themePrimary;
+    outline-offset: -1px;
+  }
+}
+
+.sectionChevron {
+  font-size: 12px;
+  color: $ms-color-neutralSecondary;
+}
+
+.sectionTitle {
+  flex: 1;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 4px 0 24px;
+}

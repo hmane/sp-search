@@ -12,7 +12,7 @@ export interface ISpSearchManagerProps {
   variant?: 'user' | 'admin';
   searchContextId?: string;
   mode: 'standalone' | 'panel';
-  defaultTab?: 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights' | 'dashboard';
+  defaultTab?: 'saved' | 'history' | 'collections' | 'health' | 'insights' | 'dashboard';
   headerTitle?: string;
   hideHeader?: boolean;
   /** Optional — when omitted, SPContext.context.context is used as fallback */
@@ -21,8 +21,6 @@ export interface ISpSearchManagerProps {
   enableSharedSearches?: boolean;
   enableCollections?: boolean;
   enableHistory?: boolean;
-  enableCoverage?: boolean;
-  coverageSourcePageUrl?: string;
   coverageProfiles?: ICoverageProfile[];
   enableHealth?: boolean;
   enableInsights?: boolean;

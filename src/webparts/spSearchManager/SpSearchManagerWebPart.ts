@@ -25,11 +25,10 @@ import { getStore, initializeSearchContext, incrementContextRef, decrementContex
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
-// T4.D8 — shared property-pane field validators (coverageSourcePageUrl,
-// expectedSiteUrls). Centralised so AdminManager (which inherits this
-// property-pane builder) gets identical validation copy.
+// T4.D8 — shared property-pane field validator (expectedSiteUrls).
+// Centralised so AdminManager (which inherits this property-pane builder)
+// gets identical validation copy.
 import {
-  validateCoverageSourcePageUrl,
   validateExpectedSiteUrlsField,
 } from '../../propertyPaneControls/fieldValidation';
 // T4.D11 — context-sensitive help link helper.
@@ -49,14 +48,12 @@ const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchManagerWebPartProps {
   searchContextId: string;
-  coverageSourcePageUrl: string;
   mode: 'standalone' | 'panel';
-  defaultTab: 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights';
+  defaultTab: 'saved' | 'history' | 'collections' | 'health' | 'insights' | 'dashboard';
   enableSavedSearches: boolean;
   enableSharedSearches: boolean;
   enableCollections: boolean;
   enableHistory: boolean;
-  enableCoverage: boolean;
   coverageProfilesCollection: ICoverageProfileCollectionItem[];
   enableHealth: boolean;
   enableInsights: boolean;
@@ -137,8 +134,6 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
       // Admin-only surface — force-disabled in the user variant. Even if
       // the property pane somehow has these flags set true, the user
       // variant renders without admin tabs.
-      enableCoverage: false,
-      coverageSourcePageUrl: '',
       coverageProfiles: [],
       enableHealth: false,
       enableInsights: false,
@@ -300,12 +295,11 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
    *
    * The base class (user-facing Manager) exposes only end-user toggles:
    * saved/shared/collections/history + maxHistoryItems. Admin fields
-   * (`coverage` / `health` / `insights` / `coverageProfilesCollection` /
-   * `expectedSiteUrls` / `coverageSourcePageUrl` / `enableDashboard`) live
-   * exclusively on the AdminManager subclass's property pane — the audit's
-   * "suppress all user-facing toggles from Admin Manager's pane at all"
-   * applies symmetrically: admin fields don't appear in user-Manager's pane
-   * either.
+   * (`health` / `insights` / `coverageProfilesCollection` /
+   * `expectedSiteUrls` / `enableDashboard`) live exclusively on the
+   * AdminManager subclass's property pane — the audit's "suppress all
+   * user-facing toggles from Admin Manager's pane at all" applies
+   * symmetrically: admin fields don't appear in user-Manager's pane either.
    */
   protected _buildPropertyPaneGroups(): IPropertyPaneConfiguration['pages'][0]['groups'] {
     return [
@@ -375,26 +369,12 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
         ]
       },
       {
-        groupName: strings.ConnectionGroupName,
-        groupFields: [
-          propertyPaneGroupHelp('adminmgr-connection', 'Help: Connecting Admin Manager to a search page'),
-          PropertyPaneTextField('coverageSourcePageUrl', {
-            label: strings.CoverageSourcePageUrlLabel,
-            description: strings.CoverageSourcePageUrlDescription,
-            placeholder: '/sites/search/SitePages/Search.aspx',
-            // T4.D8 — shared validator. Accepts server-relative /sites/ |
-            // /teams/ paths and absolute https://*.sharepoint.com URLs.
-            onGetErrorMessage: validateCoverageSourcePageUrl
-          })
-        ]
-      },
-      {
         groupName: strings.DisplayGroupName,
         groupFields: [
           PropertyPaneChoiceGroup('defaultTab', {
             label: strings.DefaultTabLabel,
             options: [
-              { key: 'coverage', text: strings.DefaultTabCoverage },
+              { key: 'dashboard', text: strings.DefaultTabDashboard },
               { key: 'health', text: strings.DefaultTabHealth },
               { key: 'insights', text: strings.DefaultTabInsights }
             ]
@@ -405,12 +385,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
         groupName: strings.SectionsGroupName,
         groupFields: [
           PropertyPaneToggle('enableDashboard', {
-            label: 'Enable Admin Dashboard',
-          }),
-          PropertyPaneToggle('enableCoverage', {
-            label: strings.EnableCoverageLabel,
-            onText: strings.ToggleOnText,
-            offText: strings.ToggleOffText
+            label: strings.EnableDashboardLabel,
           }),
           PropertyPaneToggle('enableHealth', {
             label: strings.EnableHealthLabel,

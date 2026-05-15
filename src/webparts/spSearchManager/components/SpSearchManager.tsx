@@ -67,7 +67,7 @@ const CATEGORY_OPTIONS: IDropdownOption[] = [
 ];
 const OTHER_CATEGORY_KEY = 'Other';
 
-type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights' | 'dashboard';
+type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'health' | 'insights' | 'dashboard' | 'preflight';
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -163,8 +163,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     'enableSharedSearches' |
     'enableCollections' |
     'enableHistory' |
-    'enableCoverage' |
-    'coverageSourcePageUrl' |
     'coverageProfiles' |
     'enableHealth' |
     'enableInsights' |
@@ -184,8 +182,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       enableSharedSearches: props.enableSharedSearches !== false,
       enableCollections: props.enableCollections !== false,
       enableHistory: props.enableHistory !== false,
-      enableCoverage: !!props.enableCoverage,
-      coverageSourcePageUrl: props.coverageSourcePageUrl || '',
       coverageProfiles: props.coverageProfiles || [],
       enableHealth: props.enableHealth !== false,
       enableInsights: props.enableInsights !== false,
@@ -199,14 +195,12 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     props.defaultTab,
     props.enableAnnotations,
     props.enableCollections,
-    props.enableCoverage,
     props.enableDashboard,
     props.enableHealth,
     props.enableHistory,
     props.enableInsights,
     props.enableSavedSearches,
     props.enableSharedSearches,
-    props.coverageSourcePageUrl,
     props.coverageProfiles,
     props.headerTitle,
     props.hideHeader,
@@ -221,9 +215,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       return baseConfig;
     }
 
-    let adminDefaultTab: typeof baseConfig.defaultTab = 'coverage';
+    let adminDefaultTab: typeof baseConfig.defaultTab = 'dashboard';
     if (
-      baseConfig.defaultTab === 'coverage' ||
       baseConfig.defaultTab === 'health' ||
       baseConfig.defaultTab === 'insights' ||
       baseConfig.defaultTab === 'dashboard'
@@ -301,9 +294,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (config.enableCollections) {
       tabs.push('collections');
     }
-    if (config.enableCoverage) {
-      tabs.push('coverage');
-    }
     if (config.enableHealth) {
       tabs.push('health');
     }
@@ -313,16 +303,22 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (config.enableDashboard) {
       tabs.push('dashboard');
     }
+    // Pre-Flight is always rendered for the admin variant — keep it in
+    // availableTabs so the selection-reset effect doesn't snap clicks
+    // on the Pre-Flight tab back to availableTabs[0].
+    if (config.variant === 'admin') {
+      tabs.push('preflight');
+    }
 
     return tabs;
   }, [
     config.enableCollections,
-    config.enableCoverage,
     config.enableDashboard,
     config.enableHealth,
     config.enableHistory,
     config.enableInsights,
-    config.enableSavedSearches
+    config.enableSavedSearches,
+    config.variant
   ]);
 
   // ─── Local state ──────────────────────────────────────────
@@ -1051,21 +1047,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                     enableAnnotations={config.enableAnnotations}
                     onDataChanged={handleCollectionDataChanged}
                   />
-                </PivotItem>
-              )}
-              {config.enableCoverage && (
-                <PivotItem
-                  itemKey="coverage"
-                  headerText="Coverage"
-                  itemIcon="DatabaseSync"
-                >
-                  <MessageBar messageBarType={MessageBarType.info} isMultiline={true}>
-                    Content coverage stats — indexed item count, freshness, file-type
-                    breakdown, and site distribution — are on the <strong>Dashboard</strong> tab
-                    (enable it in the property pane if it isn’t shown). Per-list / per-library
-                    coverage-profile inspection (the <em>Coverage profiles</em> configured in the
-                    property pane) is not yet surfaced here.
-                  </MessageBar>
                 </PivotItem>
               )}
               {config.enableHealth && (
