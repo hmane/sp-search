@@ -145,6 +145,7 @@ const GalleryItem: React.FC<{
                 href={linkProps.href}
                 target={linkProps.target}
                 rel={linkProps.rel}
+                data-interception="off"
                 onClick={(e: React.MouseEvent): void => {
                   e.stopPropagation();
                   handleClick(e);

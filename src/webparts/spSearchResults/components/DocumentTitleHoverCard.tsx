@@ -263,22 +263,53 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
             </div>
           </div>
           <div className={styles.previewModalFrame}>
-            {isImageType(previewItem) ? (
-              // Stream C / #8 — render the actual image (clean fullscreen view)
-              // instead of an iframe wrapping `?web=1` (SharePoint preview page).
-              <img
-                className={styles.previewModalImage}
-                src={previewItem.url}
-                alt={previewItem.title}
-              />
-            ) : (
-              <iframe
-                src={buildPreviewUrl(previewItem)}
-                title={previewItem.title}
-                // eslint-disable-next-line react/no-unknown-property
-                allowFullScreen
-              />
-            )}
+            {((): React.ReactElement => {
+              const ext: string = (previewItem.fileType || '').toLowerCase();
+              const urlExt: string = (previewItem.url || '').toLowerCase().split('?')[0].split('#')[0];
+              const isPdf: boolean = ext === 'pdf' || urlExt.endsWith('.pdf');
+
+              if (isImageType(previewItem)) {
+                // Stream C / #8 — render the image directly (clean fullscreen
+                // view) instead of an iframe wrapping `?web=1`.
+                return (
+                  <img
+                    className={styles.previewModalImage}
+                    src={previewItem.url}
+                    alt={previewItem.title}
+                  />
+                );
+              }
+
+              if (isPdf) {
+                // <embed> uses the browser's native PDF plugin directly —
+                // sidesteps Chrome's "This page has been blocked by Chrome"
+                // failure mode that hits sandboxed iframes loading PDFs.
+                // No iframe means no sandbox-vs-PDF-viewer conflict, and no
+                // top-frame-navigation risk either (no scripting context).
+                return (
+                  <embed
+                    src={previewItem.url}
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                  />
+                );
+              }
+
+              // Office / text / csv / json / xml — WopiFrame in a sandboxed
+              // iframe. allow-scripts + allow-same-origin: Office Online runtime.
+              // allow-popups: "Open in app" links. allow-top-navigation is
+              // deliberately omitted so the iframe can't break out of the Modal.
+              return (
+                <iframe
+                  src={buildPreviewUrl(previewItem)}
+                  title={previewItem.title}
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  // eslint-disable-next-line react/no-unknown-property
+                  allowFullScreen
+                />
+              );
+            })()}
           </div>
         </Modal>
       )}

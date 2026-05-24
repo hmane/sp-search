@@ -122,6 +122,7 @@ const CardItem: React.FC<{
                   href={linkProps.href}
                   target={linkProps.target}
                   rel={linkProps.rel}
+                  data-interception="off"
                   className={styles.docCardTitleLink}
                   onClick={handleClick}
                 >

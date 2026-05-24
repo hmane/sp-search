@@ -24,9 +24,6 @@ sharepoint/solution/
 .rush/
 *.tsbuildinfo
 
-# Fast-serve
-fast-serve/
-
 # Coverage directory
 coverage/
 

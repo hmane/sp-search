@@ -986,6 +986,12 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
                 href={linkProps.href}
                 target={linkProps.target}
                 rel={linkProps.rel}
+                // SharePoint Modern's SPA router intercepts <a> clicks in capture
+                // phase and navigates the current tab itself — bypassing target=_blank
+                // AND our React onClick's preventDefault. data-interception="off"
+                // opts this anchor out so the browser handles the click natively
+                // and our handleClick can Modal-ize the previewable.
+                data-interception="off"
                 className={titleDisplayMode === 'wrap' ? styles.gridTitleLinkWrap : styles.gridTitleLink}
                 onClick={(e: React.MouseEvent): void => {
                   e.stopPropagation();

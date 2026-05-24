@@ -169,10 +169,14 @@ the same refcount contract — see
 
 Two provisioning samples demonstrate the moat:
 
-- `test-multi-context` — Documents context + People context on
-  one page, same scope.
-- `test-multi-context-tenant-vs-site` — Tenant-wide Knowledge
-  Base + site-scoped Documents on one page, different scopes.
+- **Documents + People on one page, same scope.** Add two pairs of
+  Box / Results / Filters / Verticals with `searchContextId="docs"` and
+  `searchContextId="people"`. Configure the People context's verticals
+  to use the Graph data provider.
+- **Tenant-wide Knowledge Base + site-scoped Documents on one page,
+  different scopes.** Set the KB context's `searchScope` to the
+  tenant root URL and the Documents context's to the current site.
 
-Both ship via `scripts/Provision-TestPages.ps1`. See
+Build either layout by hand from the Search page produced by
+`Deploy-SPSearchSolution.ps1`. See
 [provisioning-guide.md](./provisioning-guide.md).

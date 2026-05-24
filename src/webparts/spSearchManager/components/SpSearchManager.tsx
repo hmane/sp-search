@@ -561,9 +561,24 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     // to grant access on. Save first with a generated title, then open
     // the share dialog against the real saved row.
     if (currentShareTarget.id <= 0) {
-      const generatedTitle = 'Untitled search — ' + new Date().toLocaleDateString('en-US', {
+      // Build a recognisable auto-title so recipients can tell what was
+      // shared. Falls through to date-only when the user hasn't typed a
+      // query and has no filters applied.
+      const dateStamp = new Date().toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric',
       });
+      const trimmedQuery = normalizedQueryText.length > 60
+        ? normalizedQueryText.slice(0, 60).replace(/\s+$/, '') + '…'
+        : normalizedQueryText;
+      let generatedTitle: string;
+      if (trimmedQuery) {
+        generatedTitle = '"' + trimmedQuery + '" — ' + dateStamp;
+      } else if (activeFilters.length > 0) {
+        const filterWord = activeFilters.length === 1 ? 'filter' : 'filters';
+        generatedTitle = 'Filtered search (' + activeFilters.length + ' ' + filterWord + ') — ' + dateStamp;
+      } else {
+        generatedTitle = 'Untitled search — ' + dateStamp;
+      }
       const searchState = JSON.stringify({
         queryText,
         activeFilters,
@@ -959,6 +974,17 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   headerText="Saved Searches"
                   itemIcon="SearchBookmark"
                   itemCount={filteredSavedSearches.length}
+                  // Roll the unread-share count into the tab's accessible
+                  // name so screen-reader users hear "Saved Searches, 12,
+                  // 3 unread shared searches" instead of just the count.
+                  headerButtonProps={unacknowledgedShares.length > 0 ? {
+                    'aria-label': 'Saved Searches, '
+                      + filteredSavedSearches.length
+                      + ', '
+                      + unacknowledgedShares.length
+                      + ' unread shared search'
+                      + (unacknowledgedShares.length === 1 ? '' : 'es'),
+                  } : undefined}
                   onRenderItemLink={unacknowledgedShares.length > 0 ? function (link, defaultRender): JSX.Element {
                     // T2.D1 — overlay the unread-share count as a small red badge
                     // on the tab header so the cue is visible without opening the tab.

@@ -63,6 +63,7 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
                         href={linkProps.href}
                         target={linkProps.target}
                         rel={linkProps.rel}
+                        data-interception="off"
                         className={titleDisplayMode === 'wrap' ? styles.resultTitleLinkWrap : styles.resultTitleLink}
                         onClick={handleClick}
                       >

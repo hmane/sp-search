@@ -1,4 +1,7 @@
 import 'spfx-toolkit/lib/utilities/context/pnpImports/lists';
+// Required for `SPContext.sp.profiles.getPropertiesFor(claim)` — the type
+// augmentation lives in `@pnp/sp/profiles`, surfaced via the `core` import.
+import 'spfx-toolkit/lib/utilities/context/pnpImports/core';
 import type { IFilterValueFormatter, IFilterConfig } from '@interfaces/index';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 

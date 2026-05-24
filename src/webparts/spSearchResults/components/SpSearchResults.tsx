@@ -603,8 +603,27 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     }
   }, [orchestrator]);
 
+  // Page-boundary Next-from-detail-panel handoff. When the user clicks
+  // Next on the last item of a page, we trigger a page load and set
+  // this ref; an effect below watches for the new page's items and
+  // jumps the panel forward to items[0] so the click feels responsive.
+  const pendingNextPageItemRef = React.useRef<boolean>(false);
+  const lastSeenPageRef = React.useRef<number>(currentPage);
+  React.useEffect((): void => {
+    if (lastSeenPageRef.current !== currentPage) {
+      lastSeenPageRef.current = currentPage;
+      if (pendingNextPageItemRef.current && items.length > 0) {
+        store.getState().setPreviewItem(items[0]);
+      }
+      pendingNextPageItemRef.current = false;
+    }
+  }, [currentPage, items, store]);
+
   const handleDismissPreviewPanel = React.useCallback((): void => {
     store.getState().setPreviewItem(undefined);
+    // Clear the page-boundary handoff so dismissing during the load
+    // doesn't re-open the panel when the new page arrives.
+    pendingNextPageItemRef.current = false;
   }, [store]);
 
   // ─── Filter pill bar handlers ──────────────────────────────
@@ -969,9 +988,11 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
               return;
             }
             // Forward past the last item — if a next page exists, page +1
-            // and keep the panel open so the user can advance into the
-            // newly-loaded page. (Pager bounds check upstream.)
+            // and arm the page-boundary handoff so the panel auto-advances
+            // to items[0] of the new page once it loads. (Pager bounds
+            // check upstream.)
             if (delta > 0 && currentPage * pageSize < totalCount) {
+              pendingNextPageItemRef.current = true;
               handlePageChange(currentPage + 1);
             }
           };

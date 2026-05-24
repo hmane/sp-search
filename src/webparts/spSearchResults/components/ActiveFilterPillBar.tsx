@@ -116,6 +116,16 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
   const [displayMap, setDisplayMap] = React.useState<Map<string, string>>(new Map());
   const displayMapRef = React.useRef<Map<string, string>>(displayMap);
   displayMapRef.current = displayMap;
+  // One-shot screen-reader announcement of the most recent removal —
+  // re-rendering the pill list under aria-live re-reads the new state but
+  // doesn't tell users what just happened. Cleared after 1.2s so the
+  // region is empty by the time the user takes the next action.
+  const [removalAnnouncement, setRemovalAnnouncement] = React.useState<string>('');
+  React.useEffect((): (() => void) | undefined => {
+    if (!removalAnnouncement) { return undefined; }
+    const t = window.setTimeout((): void => { setRemovalAnnouncement(''); }, 1200);
+    return (): void => { window.clearTimeout(t); };
+  }, [removalAnnouncement]);
 
   // Serialize filterConfig IDs to a stable string for comparison.
   // This avoids infinite re-renders when filterConfig is a new array reference
@@ -225,7 +235,10 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
             </span>
             <button
               className={styles.activeFilterPillRemove}
-              onClick={function (): void { onRemoveFilter(filter.filterName, filter.value); }}
+              onClick={function (): void {
+                setRemovalAnnouncement('Removed filter ' + displayName + ': ' + displayValue);
+                onRemoveFilter(filter.filterName, filter.value);
+              }}
               aria-label={'Remove filter ' + displayName + ' ' + displayValue}
               type="button"
             >
@@ -238,13 +251,34 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
       {activeFilters.length > 1 && (
         <button
           className={styles.activeFilterClearAll}
-          onClick={onClearAll}
+          onClick={function (): void {
+            setRemovalAnnouncement('Removed ' + activeFilters.length + ' filters');
+            onClearAll();
+          }}
           type="button"
           aria-label="Clear all filters"
         >
           Clear all
         </button>
       )}
+      {/* Screen-reader-only announcement of the most recent removal action. */}
+      <span
+        role="status"
+        aria-live="polite"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: 'hidden',
+          clip: 'rect(0,0,0,0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {removalAnnouncement}
+      </span>
     </div>
   );
 };

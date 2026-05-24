@@ -17,7 +17,7 @@
 4. **`npm run package`** — exits 0; `sharepoint/solution/sp-search.sppkg` exists with current timestamp (gated on Found.D1).
 5. **`npm run check:bundles`** — exits 0; all 6 web parts within budget (gated on Found.D7).
 6. **Tenant upload smoke** — upload `sp-search.sppkg` to the test-tenant app catalog (`https://pixelboy.sharepoint.com/sites/SPSearch`). Add each of the 6 web parts (Box, Results, Filters, Verticals, Manager, AdminManager) to a page. Verify zero console errors; basic search query returns ≥1 result; `?debug=1` opens DebugFab.
-7. **Multi-context smoke** — provision a multi-context page via `Provision-TestPages.ps1`; verify two independent search contexts maintain separate filter state and URL params.
+7. **Multi-context smoke** — provision a multi-context page manually (two pairs of Box/Results/Filters/Verticals with `searchContextId="ctx1"` and `searchContextId="ctx2"`); verify two independent search contexts maintain separate filter state and URL params.
 
 ## Result-log template
 

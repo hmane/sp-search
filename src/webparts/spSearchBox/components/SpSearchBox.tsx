@@ -766,6 +766,16 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 onChange={handleScopeChange}
                 ariaLabel="Search scope"
                 aria-describedby="sp-search-scope-description"
+                // Prefix the selected option's text with "Scope:" so sighted
+                // users can tell at a glance what the dropdown controls.
+                // Falls back to the plain option text if the renderer fires
+                // without any options (defensive).
+                onRenderTitle={(options): React.ReactElement => (
+                  <span>
+                    <span className={styles.scopeSelectorLabel}>Scope: </span>
+                    {options && options.length > 0 ? options[0].text : ''}
+                  </span>
+                )}
               />
             </div>
           )}

@@ -16,13 +16,30 @@ below, ordered by SharePoint's relevance ranking. If verticals are
 configured, you'll see tabs above the results (e.g. *All*,
 *Documents*, *Pages*, *People*) — click a tab to scope your search.
 
+If the search box shows a **Scope:** dropdown on its left edge (e.g.
+*Scope: All SharePoint* / *This site* / *This hub*), use it to
+narrow the search before typing. The scope label is always visible
+so you can tell at a glance where you're searching.
+
 **Tip:** Press `/` anywhere on the page to jump straight to the
 search box. Press `?` to see all keyboard shortcuts.
 
 ## Open a result
 
-Click the title of any result to open it. Most results open in a
-new tab; videos and images open in a side panel for preview.
+Click the title of any result to open it. The default behavior
+opens a **preview popup** on the page for Office documents
+(`.docx` / `.xlsx` / `.pptx`), PDFs, images, and text-like files
+(`.txt` / `.csv` / `.json` / `.xml`). The preview popup contains
+the document inline plus an "Open in new tab" button if you'd
+rather read it full-screen. Press `Esc` or click outside the popup
+to dismiss.
+
+Other result types (`.zip`, `.msg`, list items, pages, sites, etc.)
+open in a new tab.
+
+Your admin can change this behavior in the Results web part — the
+choices are: in-page preview popup (default), always new tab,
+always current tab, or in-page side panel.
 
 For Office documents, the **Detail panel** (opens by clicking the
 right-arrow icon on a row) gives you:

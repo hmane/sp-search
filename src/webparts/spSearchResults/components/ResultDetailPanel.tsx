@@ -225,6 +225,8 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
 
   const canPreview: boolean = supportsWopiPreview(item.fileType);
   const previewUrl: string = canPreview ? buildPreviewUrl(item) : '';
+  const isPdf: boolean = (item.fileType || '').toLowerCase() === 'pdf'
+    || (item.url || '').toLowerCase().split('?')[0].split('#')[0].endsWith('.pdf');
   const hasAuthorEmail: boolean = !!(item.author && item.author.email);
   const fileSizeStr: string = formatFileSize(item.fileSize);
   const viewUrl: string | undefined = buildFormUrl(item, 4);
@@ -329,17 +331,35 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                 />
               </div>
             )}
-            {/* allow-scripts + allow-same-origin: required for WOPI preview (Office Online).
-                allow-popups: required for "Open in app" links within WOPI.
-                allow-forms intentionally omitted — preview is read-only. */}
-            <iframe
-              className={styles.previewFrame}
-              src={previewUrl}
-              title={'Preview: ' + item.title}
-              onLoad={handleIframeLoad}
-              sandbox="allow-scripts allow-same-origin allow-popups"
-              style={{ display: isPreviewLoaded ? 'block' : 'none' }}
-            />
+            {isPdf ? (
+              // <embed> uses the browser's native PDF plugin directly —
+              // sidesteps Chrome's "This page has been blocked by Chrome"
+              // failure mode that hits sandboxed iframes loading PDFs, and
+              // has no scripting context to navigate the top frame from.
+              <embed
+                className={styles.previewFrame}
+                src={previewUrl}
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                onLoad={handleIframeLoad}
+                style={{ display: isPreviewLoaded ? 'block' : 'none' }}
+              />
+            ) : (
+              // Office docs — WopiFrame in a sandboxed iframe.
+              // allow-scripts + allow-same-origin: WOPI preview runtime.
+              // allow-popups: "Open in app" links within WOPI.
+              // allow-top-navigation deliberately omitted so WopiFrame can't
+              // break out of the side panel.
+              <iframe
+                className={styles.previewFrame}
+                src={previewUrl}
+                title={'Preview: ' + item.title}
+                onLoad={handleIframeLoad}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                style={{ display: isPreviewLoaded ? 'block' : 'none' }}
+              />
+            )}
           </div>
         )}
 

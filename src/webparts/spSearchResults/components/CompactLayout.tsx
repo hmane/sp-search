@@ -274,6 +274,7 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
                       href={linkProps.href}
                       target={linkProps.target}
                       rel={linkProps.rel}
+                      data-interception="off"
                       className={titleDisplayMode === 'wrap' ? styles.compactTitleLinkWrap : undefined}
                       onClick={handleClick}
                     >
