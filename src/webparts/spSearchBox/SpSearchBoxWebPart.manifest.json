@@ -44,7 +44,8 @@
       "newPageOpenBehavior": "sameTab",
       "newPageParameterLocation": "queryString",
       "newPageQueryParameter": "q",
-      "queryInputTransformation": "{searchTerms}"
+      "queryInputTransformation": "{searchTerms}",
+      "audienceGroups": ""
     }
   }]
 }

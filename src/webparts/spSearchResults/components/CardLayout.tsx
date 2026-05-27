@@ -6,9 +6,11 @@ import {
   DocumentCardType,
 } from '@fluentui/react/lib/DocumentCard';
 import { ImageFit } from '@fluentui/react/lib/Image';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { Icon } from '@fluentui/react/lib/Icon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatRelativeDate, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatRelativeDate, formatDateTime, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
@@ -19,6 +21,9 @@ export interface ICardLayoutProps {
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 /**
@@ -35,10 +40,10 @@ function getUserPhotoUrl(email: string): string {
 /**
  * Renders the file type icon as an image element for the preview fallback.
  */
-const FileTypeIconPreview: React.FC<{ url: string }> = (iconProps) => {
+const FileTypeIconPreview: React.FC<{ extension: string }> = (iconProps) => {
   return (
     <div className={styles.docCardIconPreview}>
-      <FileTypeIcon type={IconType.image} path={iconProps.url} size={ImageSize.large} />
+      <Icon {...getFileTypeIconProps({ extension: iconProps.extension || '', size: 48 })} />
     </div>
   );
 };
@@ -53,9 +58,11 @@ const CardItem: React.FC<{
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }> = (cardItemProps) => {
-  const { item, position, searchContextId, titleDisplayMode, onItemClick } = cardItemProps;
-  const linkProps = getResultAnchorProps(item);
+  const { item, position, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = cardItemProps;
+  const linkProps = resolveResultLink(item, linkConfig);
 
   // Build activity string (modified date + file type)
   const activityParts: string[] = [];
@@ -96,18 +103,26 @@ const CardItem: React.FC<{
             ]}
           />
         ) : (
-          <FileTypeIconPreview url={item.url} />
+          <FileTypeIconPreview extension={item.fileType || ''} />
         )}
 
         {/* Document title with HoverCard */}
         <div className={styles.docCardTitleWrapper} title={item.title}>
           <div className={styles.docCardTitleBar}>
-            <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick} hostDisplay="block">
+            <DocumentTitleHoverCard
+              item={item}
+              position={position}
+              onItemClick={onItemClick}
+              hostDisplay="block"
+              clickTarget={linkConfig.clickTarget}
+              onOpenInSidePanel={onOpenInSidePanel}
+            >
               {(handleClick): React.ReactNode => (
                 <a
                   href={linkProps.href}
                   target={linkProps.target}
                   rel={linkProps.rel}
+                  data-interception="off"
                   className={styles.docCardTitleLink}
                   onClick={handleClick}
                 >
@@ -145,7 +160,7 @@ const CardItem: React.FC<{
  *  - Mobile (< 640px): 1 column
  */
 const CardLayout: React.FC<ICardLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onPreviewItem, onItemClick } = props;
+  const { items, searchContextId, titleDisplayMode, onPreviewItem, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <div className={styles.cardGrid} role="list">
@@ -158,6 +173,8 @@ const CardLayout: React.FC<ICardLayoutProps> = (props) => {
           titleDisplayMode={titleDisplayMode}
           onPreviewItem={onPreviewItem}
           onItemClick={onItemClick}
+          linkConfig={linkConfig}
+          onOpenInSidePanel={onOpenInSidePanel}
         />
       ))}
     </div>

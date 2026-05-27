@@ -19,6 +19,7 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterUrlAliasColumn: string;
   FilterTypeColumn: string;
   FilterTypeCheckbox: string;
+  FilterTypeDropdown: string;
   FilterTypeDateRange: string;
   FilterTypeText: string;
   FilterTypeSlider: string;
@@ -37,11 +38,27 @@ declare interface ISpSearchFiltersWebPartStrings {
   FilterSortDescending: string;
   FilterSortAscending: string;
   FilterMultiValuesColumn: string;
+  FilterDependsOnColumn: string;
+  FilterShowWhenParentHasValueColumn: string;
+  FilterHideZeroCountValuesColumn: string;
+  FilterResetWhenParentChangesColumn: string;
+  FilterTrueLabelColumn: string;
+  FilterFalseLabelColumn: string;
+  FilterInvertBooleanColumn: string;
+  FilterAudienceColumn: string;
+  FilterAudiencePlaceholder: string;
   ApplyModeLabel: string;
   ApplyModeInstant: string;
   ApplyModeManual: string;
   OperatorLabel: string;
   ShowClearAllLabel: string;
+  ClearAllFiltersLabel: string;
+  // T1.D1 — phone-width drawer (≤639px). `ShowFiltersLabel` is the toggle
+  // affordance; `FiltersPanelHeaderLabel` is the drawer's Panel header;
+  // `CloseFiltersLabel` is the Panel's close-button aria-label.
+  ShowFiltersLabel: string;
+  FiltersPanelHeaderLabel: string;
+  CloseFiltersLabel: string;
   EnableVisualFilterBuilderLabel: string;
   ToggleOnText: string;
   ToggleOffText: string;
@@ -54,6 +71,9 @@ declare interface ISpSearchFiltersWebPartStrings {
   AppOfficeEnvironment: string;
   AppOutlookEnvironment: string;
   UnknownEnvironment: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchFiltersWebPartStrings' {

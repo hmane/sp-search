@@ -3,23 +3,33 @@
   "solution": {
     "name": "sp-search-client-side-solution",
     "id": "45db56d4-82af-4e61-b722-3b4766320c68",
-    "version": "1.0.13.0",
+    "version": "1.0.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
     "developer": {
       "name": "Hemant Mane",
-      "websiteUrl": "",
-      "privacyUrl": "",
-      "termsOfUseUrl": "",
-      "mpnId": "Undefined-1.21.1"
+      "websiteUrl": "https://github.com/hmane/sp-search",
+      "privacyUrl": "https://raw.githubusercontent.com/hmane/sp-search/main/docs/privacy-notice.md",
+      "termsOfUseUrl": "https://github.com/hmane/sp-search/blob/main/LICENSE",
+      "mpnId": ""
     },
+    "webApiPermissionRequests": [
+      {
+        "resource": "Microsoft Graph",
+        "scope": "People.Read"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "User.Read"
+      }
+    ],
     "metadata": {
       "shortDescription": {
         "default": "Enterprise SharePoint Search Solution"
       },
       "longDescription": {
-        "default": "SP Search delivers five interconnected web parts that communicate via a shared Zustand store, providing rich search layouts, saved searches, sharing, collections, and comprehensive result detail."
+        "default": "SP Search delivers six interconnected web parts that communicate via a shared Zustand store, providing rich search layouts, saved searches, sharing, collections, search history, comprehensive result detail, and an admin manager surface for telemetry and analytics."
       },
       "screenshotPaths": [],
       "videoUrl": "",
@@ -28,9 +38,9 @@
     "features": [
       {
         "title": "SP Search",
-        "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, and Search Manager web parts with shared Zustand store.",
+        "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, Search Manager, and Admin Manager web parts with shared Zustand store.",
         "id": "8051ab65-8eae-4408-b5ad-b61c9e6a0baf",
-        "version": "1.0.6.0"
+        "version": "1.0.7.0"
       }
     ]
   },

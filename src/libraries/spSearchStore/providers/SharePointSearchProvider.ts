@@ -1,13 +1,14 @@
 import 'spfx-toolkit/lib/utilities/context/pnpImports/search';
 import type { ISearchQuery as IPnPSearchQuery, ISearchResult as IPnPSearchResult, SearchResults } from '@pnp/sp/search';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
-import { fetchManagedProperties } from '@services/index';
+import { fetchManagedProperties, SearchService } from '@services/index';
 import {
   ISearchDataProvider,
   ISearchQuery,
   ISearchResponse,
   IManagedProperty,
   ISearchResult,
+  IActiveFilter,
   IRefiner,
   IRefinerValue,
   ISuggestion,
@@ -56,8 +57,13 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       searchRequest.Refiners = query.refiners.join(',');
     }
 
-    // Build refinement filters from active user filters
-    const refinementFilters = this._buildRefinementFilters(query.filters, query.operatorBetweenFilters);
+    // MISS-002 — Build refinement filters via the unified SearchService method.
+    // Quotes the filter values first (FQL-aware), then delegates the cross-
+    // property AND/OR combinator decision to `SearchService.buildRefinementFilters`.
+    const quotedFilters = (query.filters || []).map(function quoteFilter(f: IActiveFilter): IActiveFilter {
+      return { ...f, value: SharePointSearchProvider._quoteTokenValueStatic(f.value) };
+    });
+    const refinementFilters = SearchService.buildRefinementFilters(quotedFilters, query.operatorBetweenFilters || 'AND');
 
     // Merge persistent admin-configured refinement filters
     if (query.refinementFilters) {
@@ -190,58 +196,16 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   }
 
   /**
-   * Build refinement filter strings from active filters.
-   * Values within the same property are always OR'd (standard SharePoint behavior).
-   * Cross-property groups are AND'd by default; pass 'OR' to combine them with or().
-   */
-  private _buildRefinementFilters(
-    filters: ISearchQuery['filters'],
-    operator: 'AND' | 'OR' = 'AND'
-  ): string[] {
-    if (!filters || filters.length === 0) {
-      return [];
-    }
-
-    // Group filters by filterName
-    const grouped: Record<string, string[]> = {};
-    for (const filter of filters) {
-      if (!grouped[filter.filterName]) {
-        grouped[filter.filterName] = [];
-      }
-      grouped[filter.filterName].push(filter.value);
-    }
-
-    // Build per-property filter expressions.
-    // Values within the same property are combined with or() (multi-select within a facet).
-    const result: string[] = [];
-    const keys = Object.keys(grouped);
-    for (const key of keys) {
-      const values = grouped[key];
-      if (values.length === 1) {
-        result.push(key + ':' + this._quoteTokenValue(values[0]));
-      } else {
-        const encoded = values.map((v) => this._quoteTokenValue(v));
-        result.push(key + ':or(' + encoded.join(',') + ')');
-      }
-    }
-
-    // Cross-property operator: AND passes multiple array items (SharePoint AND's them by default).
-    // OR wraps all property expressions in a single or() FQL function.
-    if (operator === 'OR' && result.length > 1) {
-      return ['or(' + result.join(',') + ')'];
-    }
-
-    return result;
-  }
-
-  /**
    * Ensure a refinement token value is properly quoted for FQL.
    * FQL functions (range, string, and, or, not) pass through as-is.
    * Pre-quoted tokens ("...") pass through as-is.
    * Everything else gets wrapped in quotes — including ǂǂ hex tokens
    * and GP0|# taxonomy tokens that may arrive unquoted from PnPjs.
+   *
+   * Static so the `execute()` body can map filter values through it before
+   * delegating to `SearchService.buildRefinementFilters` (MISS-002).
    */
-  private _quoteTokenValue(value: string): string {
+  private static _quoteTokenValueStatic(value: string): string {
     // FQL functions — pass through as-is
     if (value.indexOf('range(') === 0 ||
       value.indexOf('string(') === 0 ||

@@ -4,10 +4,11 @@ import {
   IActiveFilter,
   IFilterConfig,
   ISortField,
-  ISearchScope,
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
-import { getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { assignFilterUrlAliases, getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { shouldPushHistory } from '@store/utils/historyMode';
+import { DebugCollector } from '../../debug';
 
 // ─── URL State Shape ────────────────────────────────────────────
 
@@ -23,7 +24,6 @@ interface IUrlState {
   currentVerticalKey?: string;
   sort?: ISortField;
   currentPage?: number;
-  scope?: string;
   activeLayoutKey?: string;
   /** If set, a ?sid= was found — caller should load the snapshot and apply it */
   stateId?: number;
@@ -38,23 +38,21 @@ interface IUrlFilterParam {
 
 /** Short parameter names kept terse for readable URLs. */
 const PARAM_QUERY = 'q';
-const PARAM_FILTERS = 'f';
 const PARAM_VERTICAL = 'v';
 const PARAM_SORT = 's';
 const PARAM_PAGE = 'p';
-const PARAM_SCOPE = 'c';
 const PARAM_LAYOUT = 'l';
 const PARAM_STATE_VERSION = 'x';
 const PARAM_STATE_ID = 'i';
-const LEGACY_PARAM_SCOPE = 'sc';
-const LEGACY_PARAM_STATE_VERSION = 'sv';
-const LEGACY_PARAM_STATE_ID = 'sid';
 
 /** Maximum URL length before falling back to ?sid= deep link. */
 const MAX_URL_LENGTH = 2000;
 
 /** Debounce delay (ms) for URL pushes to avoid excessive history entries. */
 const DEBOUNCE_MS = 300;
+
+/** Maximum time (ms) to wait for filterConfig before abandoning pending URL filters. */
+const URL_FILTER_RESTORE_TIMEOUT_MS = 5000;
 
 // ─── Store Type ─────────────────────────────────────────────────
 
@@ -83,27 +81,26 @@ function prefixKey(key: string, prefix?: string): string {
   return prefix ? `${prefix}.${key}` : key;
 }
 
-function getParam(params: URLSearchParams, key: string, prefix?: string, legacyKey?: string): string | null {
-  const currentValue = params.get(prefixKey(key, prefix));
-  if (currentValue !== null) {
-    return currentValue;
-  }
-  return legacyKey ? params.get(prefixKey(legacyKey, prefix)) : null;
+function getParam(params: URLSearchParams, key: string, prefix?: string): string | null {
+  return params.get(prefixKey(key, prefix));
 }
 
 const RESERVED_PARAM_KEYS = new Set([
   PARAM_QUERY,
-  PARAM_FILTERS,
   PARAM_VERTICAL,
   PARAM_SORT,
   PARAM_PAGE,
-  PARAM_SCOPE,
   PARAM_LAYOUT,
   PARAM_STATE_VERSION,
   PARAM_STATE_ID,
-  LEGACY_PARAM_SCOPE,
-  LEGACY_PARAM_STATE_VERSION,
-  LEGACY_PARAM_STATE_ID,
+  // SharePoint / SPFx / SP Search system params — never filter aliases.
+  // Without these, e.g. `?debug=1` (the Debug FAB activation param read by
+  // DebugCollector) is mistaken for a filter and the middleware waits
+  // URL_FILTER_RESTORE_TIMEOUT_MS for a `filterConfig` that never arrives.
+  'debug',                // SP Search Debug FAB (?debug=1)
+  'noredir',              // SPFx workbench: skip the workbench redirect
+  'loadSPFX',             // SPFx debug serve: load the framework
+  'debugManifestsFile',   // SPFx debug serve: local manifest override
 ]);
 
 function getFilterParamKey(urlKey: string, prefix?: string): string {
@@ -132,9 +129,12 @@ function clearFilterParams(
   const keysToDelete: string[] = [];
   const filterConfig = state.filterConfig || [];
   const filterKeys = new Set<string>();
+  // T3.D3 — single disambiguated alias per filter for the whole pass.
+  const aliasMap = assignFilterUrlAliases(filterConfig);
 
   for (let i = 0; i < filterConfig.length; i++) {
-    filterKeys.add(getFilterParamKey(getFilterUrlAlias(filterConfig[i]), prefix));
+    const alias = aliasMap.get(filterConfig[i].id) || getFilterUrlAlias(filterConfig[i]);
+    filterKeys.add(getFilterParamKey(alias, prefix));
     filterKeys.add(prefixKey(filterConfig[i].managedProperty, prefix));
   }
 
@@ -142,10 +142,11 @@ function clearFilterParams(
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
       const config = filterConfig.find((f) => f.managedProperty === filter.filterName);
-      filterKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+      const alias = config ? (aliasMap.get(config.id) || getFilterUrlAlias(config)) : getFilterUrlAlias({
         managedProperty: filter.filterName,
         filterType: 'checkbox',
-      } as IFilterConfig), prefix));
+      } as IFilterConfig);
+      filterKeys.add(getFilterParamKey(alias, prefix));
       filterKeys.add(prefixKey(filter.filterName, prefix));
     }
   }
@@ -173,14 +174,6 @@ function decodeUrlComponentSafely(value: string): string {
     return decodeURIComponent(value);
   } catch {
     return value;
-  }
-}
-
-function fromBase64(encoded: string): string {
-  try {
-    return decodeURIComponent(escape(atob(encoded)));
-  } catch {
-    return '';
   }
 }
 
@@ -213,41 +206,6 @@ function decodeHexRefinementToken(value: string): string {
 
 function compactUrlFilterValue(value: string): string {
   return decodeHexRefinementToken(stripWrappingQuotes(value));
-}
-
-function parseLegacyFiltersParam(filtersRaw: string): IActiveFilter[] | undefined {
-  try {
-    const decoded = fromBase64(filtersRaw);
-    if (!decoded) {
-      return undefined;
-    }
-
-    const parsed: unknown = JSON.parse(decoded);
-    if (!Array.isArray(parsed)) {
-      return undefined;
-    }
-
-    const filters: IActiveFilter[] = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const item = parsed[i] as Record<string, unknown>;
-      if (
-        typeof item.filterName === 'string' &&
-        typeof item.value === 'string' &&
-        (item.operator === 'AND' || item.operator === 'OR')
-      ) {
-        filters.push({
-          filterName: item.filterName,
-          value: item.value,
-          displayValue: typeof item.displayValue === 'string' ? item.displayValue : undefined,
-          operator: item.operator
-        });
-      }
-    }
-
-    return filters.length > 0 ? filters : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function serializeActiveFilterForUrl(
@@ -299,10 +257,14 @@ function resolveFilterConfigByUrlKey(
 ): IFilterConfig | undefined {
   const normalizedKey = normalizeFilterKey(key);
   const filterConfig = state.filterConfig || [];
+  // T3.D3 — use the same disambiguated alias map the serializer uses so
+  // `?au=` and `?au2=` find their respective configs on round-trip.
+  const aliasMap = assignFilterUrlAliases(filterConfig);
   for (let i = 0; i < filterConfig.length; i++) {
     const config = filterConfig[i];
+    const alias = aliasMap.get(config.id) || getFilterUrlAlias(config);
     if (
-      normalizeFilterKey(getFilterUrlAlias(config)) === normalizedKey ||
+      normalizeFilterKey(alias) === normalizedKey ||
       normalizeFilterKey(config.managedProperty) === normalizedKey
     ) {
       return config;
@@ -423,16 +385,23 @@ export function serializeToUrl(
   clearFilterParams(params, state, prefix);
   if (state.activeFilters && state.activeFilters.length > 0) {
     const filterConfig = state.filterConfig || [];
+    // T3.D3 — single disambiguated alias map drives every key emitted on
+    // this pass; matching deserialization uses the same map (via
+    // resolveFilterConfigByUrlKey) for round-trip consistency.
+    const aliasMap = assignFilterUrlAliases(filterConfig);
+    const resolveAlias = (config: IFilterConfig | undefined, filterName: string): string => {
+      if (config) {
+        return aliasMap.get(config.id) || getFilterUrlAlias(config);
+      }
+      return getFilterUrlAlias({ managedProperty: filterName, filterType: 'checkbox' } as IFilterConfig);
+    };
     const groupedValues = new Map<string, string[]>();
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
       const config = filterConfig.find(
         (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
       );
-      const key = getFilterParamKey(getFilterUrlAlias(config || {
-        managedProperty: filter.filterName,
-        filterType: 'checkbox',
-      } as IFilterConfig), prefix);
+      const key = getFilterParamKey(resolveAlias(config, filter.filterName), prefix);
       const serializedValue = serializeActiveFilterForUrl(filter, state);
       if (shouldUseMultiValueParam(config)) {
         const existing = groupedValues.get(key) || [];
@@ -451,6 +420,7 @@ export function serializeToUrl(
   // If a non-grouped key was also grouped later, grouped value wins.
   if (state.activeFilters && state.activeFilters.length > 0) {
     const filterConfig = state.filterConfig || [];
+    const aliasMap = assignFilterUrlAliases(filterConfig);
     const groupedKeys = new Set<string>();
     for (let i = 0; i < state.activeFilters.length; i++) {
       const filter = state.activeFilters[i];
@@ -458,10 +428,11 @@ export function serializeToUrl(
         (f) => normalizeFilterKey(f.managedProperty) === normalizeFilterKey(filter.filterName)
       );
       if (shouldUseMultiValueParam(config)) {
-        groupedKeys.add(getFilterParamKey(getFilterUrlAlias(config || {
+        const alias = config ? (aliasMap.get(config.id) || getFilterUrlAlias(config)) : getFilterUrlAlias({
           managedProperty: filter.filterName,
           filterType: 'checkbox',
-        } as IFilterConfig), prefix));
+        } as IFilterConfig);
+        groupedKeys.add(getFilterParamKey(alias, prefix));
       }
     }
     groupedKeys.forEach((key) => {
@@ -496,19 +467,6 @@ export function serializeToUrl(
     params.delete(prefixKey(PARAM_PAGE, prefix));
   }
 
-  // ── sc = scope id ──
-  // Only serialize scope when it's a user-facing change (not the web part
-  // property pane default). The scope is re-synced from property pane settings
-  // on every page load, so persisting the default to the URL is unnecessary
-  // and causes issues when the URL sync overwrites the scope before the
-  // Results web part can set the full scope object (including kqlPath).
-  // Scope is serialized only when it differs from common defaults.
-  if (state.scope && state.scope.id !== 'all' && state.scope.id !== 'currentsite') {
-    params.set(prefixKey(PARAM_SCOPE, prefix), state.scope.id);
-  } else {
-    params.delete(prefixKey(PARAM_SCOPE, prefix));
-  }
-
   // ── l = activeLayoutKey (only when not 'list') ──
   if (state.activeLayoutKey && state.activeLayoutKey !== 'list') {
     params.set(prefixKey(PARAM_LAYOUT, prefix), state.activeLayoutKey);
@@ -538,7 +496,7 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const state: IUrlState = {};
 
   // Check for ?sid= (StateId fallback) first
-  const stateIdRaw = getParam(params, PARAM_STATE_ID, prefix, LEGACY_PARAM_STATE_ID);
+  const stateIdRaw = getParam(params, PARAM_STATE_ID, prefix);
   if (stateIdRaw) {
     const stateId = parseInt(stateIdRaw, 10);
     if (!isNaN(stateId) && stateId > 0) {
@@ -551,12 +509,6 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
   const queryText = params.get(prefixKey(PARAM_QUERY, prefix));
   if (queryText) {
     state.queryText = queryText;
-  }
-
-  // ── legacy f = base64(JSON) activeFilters ──
-  const legacyFilters = params.get(prefixKey(PARAM_FILTERS, prefix));
-  if (legacyFilters) {
-    state.activeFilters = parseLegacyFiltersParam(legacyFilters);
   }
 
   // ── <alias> / <managedProperty> filter params ──
@@ -612,12 +564,6 @@ export function deserializeFromUrl(prefix?: string): IUrlState {
     }
   }
 
-  // ── sc ──
-  const scopeId = getParam(params, PARAM_SCOPE, prefix, LEGACY_PARAM_SCOPE);
-  if (scopeId) {
-    state.scope = scopeId;
-  }
-
   // ── l ──
   const layoutKey = params.get(prefixKey(PARAM_LAYOUT, prefix));
   if (layoutKey) {
@@ -657,7 +603,11 @@ export function setStateSnapshotHandler(handler: (stateJson: string) => Promise<
  */
 function pushStateToUrl(
   state: Partial<IUrlSyncStoreSlice>,
-  prefix?: string
+  prefix?: string,
+  // T2.D8 — `push` creates a new back/forward entry (navigational
+  // changes: queryText / vertical), `replace` updates the current
+  // entry silently (incremental tweaks: filters / sort / page / layout).
+  historyMode: 'push' | 'replace' = 'replace'
 ): void {
   if (!isBrowser()) {
     return;
@@ -676,15 +626,26 @@ function pushStateToUrl(
       ? `${window.location.pathname}?${qs}${window.location.hash}`
       : `${window.location.pathname}${window.location.hash}`;
 
-    // Check if URL exceeds max length — fall back to ?sid= if handler available
+    DebugCollector.logEvent('URL', { action: historyMode === 'push' ? 'pushState' : 'replaceState', params: qs });
+    // Check if URL exceeds max length — fall back to ?sid= if handler available.
+    // The ?sid= replacement always uses replaceState so the long-URL fallback
+    // doesn't double the history entry; the navigational entry was already
+    // created by the time we know the URL is too long.
     if (newUrl.length > MAX_URL_LENGTH && _saveSnapshotHandler) {
+      // Write the long URL first using the requested historyMode so a
+      // future Back navigation lands on the right query, then quietly
+      // replace it with the short ?sid= form.
+      if (historyMode === 'push') {
+        window.history.pushState(window.history.state, '', newUrl);
+      } else {
+        window.history.replaceState(window.history.state, '', newUrl);
+      }
       const stateJson = JSON.stringify({
         queryText: state.queryText,
         activeFilters: state.activeFilters,
         currentVerticalKey: state.currentVerticalKey,
         sort: state.sort,
         currentPage: state.currentPage,
-        scope: state.scope,
         activeLayoutKey: state.activeLayoutKey,
       });
 
@@ -698,15 +659,12 @@ function pushStateToUrl(
           }
         })
         .catch(function (): void {
-          // Fallback: use the long URL anyway
-          window.history.replaceState(window.history.state, '', newUrl);
+          // Long URL already written above — nothing to do on failure.
         });
+    } else if (historyMode === 'push') {
+      window.history.pushState(window.history.state, '', newUrl);
     } else {
-      window.history.replaceState(
-        window.history.state,
-        '',
-        newUrl
-      );
+      window.history.replaceState(window.history.state, '', newUrl);
     }
 
     delete debounceTimers[timerKey];
@@ -754,6 +712,11 @@ export function createUrlSyncSubscription(
   // ─── 1. Hydrate store from URL on init ──────────────────────
   const initial = deserializeFromUrl(prefix);
   let pendingUrlFilters: IUrlFilterParam[] | undefined;
+  let pendingFilterTimeout: ReturnType<typeof setTimeout> | undefined;
+  // T2.D8 — guard: when popstate (or any other URL-driven hydration)
+  // writes to the store, the subscription must NOT push another entry
+  // onto the history stack — that would corrupt Back/Forward.
+  let isApplyingUrlState: boolean = false;
 
   // Handle ?sid= fallback: load state snapshot from list
   if (initial.stateId && _loadSnapshotHandler) {
@@ -777,6 +740,19 @@ export function createUrlSyncSubscription(
     pendingUrlFilters = applyUrlStateToStore(store, initial, prefix).unresolvedUrlFilters;
   }
 
+  // Start a timeout to abandon pending URL filters if filterConfig never arrives
+  if (pendingUrlFilters && pendingUrlFilters.length > 0) {
+    pendingFilterTimeout = setTimeout((): void => {
+      if (pendingUrlFilters && pendingUrlFilters.length > 0) {
+        console.warn(
+          '[SP Search] URL filter restoration timed out after ' + URL_FILTER_RESTORE_TIMEOUT_MS + 'ms. ' +
+          'Unresolved filters:', pendingUrlFilters.map(function (f) { return f.key; }).join(', ')
+        );
+        pendingUrlFilters = undefined;
+      }
+    }, URL_FILTER_RESTORE_TIMEOUT_MS);
+  }
+
   // ─── 2. Store → URL subscription ───────────────────────────
   /**
    * Zustand subscribe returns an unsubscribe function.
@@ -789,6 +765,10 @@ export function createUrlSyncSubscription(
     if (pendingUrlFilters && pendingUrlFilters.length > 0) {
       if (state.activeFilters.length > 0) {
         pendingUrlFilters = undefined;
+        if (pendingFilterTimeout) {
+          clearTimeout(pendingFilterTimeout);
+          pendingFilterTimeout = undefined;
+        }
       } else if (state.filterConfig.length > 0) {
         const replayResult = applyUrlStateToStore(
           store,
@@ -796,6 +776,12 @@ export function createUrlSyncSubscription(
           prefix
         );
         pendingUrlFilters = replayResult.unresolvedUrlFilters;
+        if (!pendingUrlFilters || pendingUrlFilters.length === 0) {
+          if (pendingFilterTimeout) {
+            clearTimeout(pendingFilterTimeout);
+            pendingFilterTimeout = undefined;
+          }
+        }
         if (replayResult.didUpdate) {
           return;
         }
@@ -804,15 +790,37 @@ export function createUrlSyncSubscription(
 
     const snapshot = takeSnapshot(state);
     if (!shallowEqualSnapshot(previousSnapshot, snapshot)) {
+      // T2.D8 — navigational changes (queryText / vertical) create a new
+      // browser-history entry so Back/Forward walk distinct searches.
+      // Filter / sort / page / layout tweaks `replaceState` so they
+      // don't pollute the history stack. URL-driven hydration (popstate)
+      // updates `previousSnapshot` without writing back to the URL so the
+      // user's Back navigation isn't immediately overwritten by a push.
+      if (isApplyingUrlState) {
+        previousSnapshot = snapshot;
+        return;
+      }
+      const historyMode = shouldPushHistory(
+        { queryText: previousSnapshot.queryText, currentVerticalKey: previousSnapshot.currentVerticalKey },
+        { queryText: snapshot.queryText, currentVerticalKey: snapshot.currentVerticalKey }
+      ) ? 'push' : 'replace';
       previousSnapshot = snapshot;
-      pushStateToUrl(state, prefix);
+      pushStateToUrl(state, prefix, historyMode);
     }
   });
 
   // ─── 3. URL → Store (popstate) ─────────────────────────────
   const onPopState = (): void => {
     const urlState = deserializeFromUrl(prefix);
-    pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
+    DebugCollector.logEvent('URL', { action: 'popstate', params: window.location.search });
+    // T2.D8 — gate the subscription so the URL → store hydration doesn't
+    // bounce back as another store → URL push.
+    isApplyingUrlState = true;
+    try {
+      pendingUrlFilters = applyUrlStateToStore(store, urlState, prefix).unresolvedUrlFilters;
+    } finally {
+      isApplyingUrlState = false;
+    }
   };
 
   window.addEventListener('popstate', onPopState);
@@ -821,6 +829,12 @@ export function createUrlSyncSubscription(
   return (): void => {
     unsubStore();
     window.removeEventListener('popstate', onPopState);
+
+    // Clear pending URL filter restoration timeout
+    if (pendingFilterTimeout) {
+      clearTimeout(pendingFilterTimeout);
+      pendingFilterTimeout = undefined;
+    }
 
     // Clear any pending debounce timer
     const timerKey = prefix || '__default__';
@@ -883,17 +897,6 @@ function applyUrlStateToStore(
     patch.currentPage = urlState.currentPage;
   }
 
-  if (urlState.scope !== undefined) {
-    // The store expects a full ISearchScope. We can only restore the id
-    // from the URL; the consuming code should resolve the label later.
-    const currentScope = store.getState().scope;
-    if (currentScope && currentScope.id === urlState.scope) {
-      // Already matches — no need to update
-    } else {
-      patch.scope = { id: urlState.scope, label: urlState.scope } as ISearchScope;
-    }
-  }
-
   if (urlState.activeLayoutKey !== undefined) {
     // availableLayouts wins — coerce if the URL requests a disabled layout.
     const availableLayouts: string[] = store.getState().availableLayouts;
@@ -947,7 +950,6 @@ interface IUrlSnapshot {
   currentVerticalKey: string;
   sort: ISortField | undefined;
   currentPage: number;
-  scopeId: string;
   activeLayoutKey: string;
 }
 
@@ -958,7 +960,6 @@ function takeSnapshot(state: IUrlSyncStoreSlice): IUrlSnapshot {
     currentVerticalKey: state.currentVerticalKey,
     sort: state.sort,
     currentPage: state.currentPage,
-    scopeId: state.scope.id,
     activeLayoutKey: state.activeLayoutKey
   };
 }
@@ -975,7 +976,6 @@ function shallowEqualSnapshot(a: IUrlSnapshot, b: IUrlSnapshot): boolean {
     a.currentVerticalKey === b.currentVerticalKey &&
     a.sort === b.sort &&
     a.currentPage === b.currentPage &&
-    a.scopeId === b.scopeId &&
     a.activeLayoutKey === b.activeLayoutKey
   );
 }

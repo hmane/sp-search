@@ -11,7 +11,15 @@ import styles from './SpSearchManager.module.scss';
 export interface IZeroResultsPanelProps {
   service: SearchManagerService;
   /** Called when the user clicks "Try it" on a zero-result query */
-  onRunQuery: (queryText: string, vertical: string, scope: string) => void;
+  onRunQuery: (queryText: string, vertical: string) => void;
+  /** Number of days back to look for zero-result queries. Defaults to 90. */
+  daysBack?: number;
+  /**
+   * T4.D7 / UX-005 — auto-refresh interval in milliseconds. Defaults to 60000
+   * (60s, per audit acceptance signal). Set to 0 to disable polling and rely
+   * on the manual Refresh button alone.
+   */
+  pollIntervalMs?: number;
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -20,7 +28,6 @@ interface IZeroResultSummary {
   queryText: string;
   count: number;
   verticals: string[];
-  scope: string;
   lastSeen: Date;
 }
 
@@ -52,7 +59,6 @@ function aggregateEntries(entries: ISearchHistoryEntry[]): IZeroResultSummary[] 
         queryText: entry.queryText.trim(),
         count: 1,
         verticals: entry.vertical ? [entry.vertical] : [],
-        scope: entry.scope || '',
         lastSeen: entry.searchTimestamp,
       });
     }
@@ -86,12 +92,10 @@ function formatShortDate(date: Date): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const DAYS_BACK = 90;
-
 /**
  * ZeroResultsPanel — admin health surface for zero-result query tuning.
  *
- * Loads all zero-result queries from the last 90 days (cross-user, no Author
+ * Loads all zero-result queries from the last N days (cross-user, no Author
  * filter), aggregates them by query text, and displays a ranked table so
  * admins can identify which queries need query rules, synonyms, or content.
  *
@@ -99,39 +103,65 @@ const DAYS_BACK = 90;
  */
 const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
   const { service, onRunQuery } = props;
+  const effectiveDaysBack = props.daysBack || 90;
+  const pollIntervalMs = props.pollIntervalMs === undefined ? 60000 : props.pollIntervalMs;
 
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [summaries, setSummaries] = React.useState<IZeroResultSummary[]>([]);
   const [rawCount, setRawCount] = React.useState<number>(0);
+  // T4.D7 / UX-005 — small "last refreshed" indicator to reassure admins the
+  // panel is live without forcing them to watch the toolbar.
+  const [lastRefreshed, setLastRefreshed] = React.useState<Date | undefined>(undefined);
+
+  // T4.D7 / UX-005 — track whether the first load is complete so polled
+  // refreshes don't flash the full-panel spinner. Initial mount uses the
+  // spinner; subsequent polls update the table in place.
+  const initialLoadDoneRef = React.useRef<boolean>(false);
 
   const load = React.useCallback(function (): void {
-    setIsLoading(true);
+    if (!initialLoadDoneRef.current) {
+      setIsLoading(true);
+    }
     setError(undefined);
-    service.loadZeroResultQueries(DAYS_BACK, 200)
+    service.loadZeroResultQueries(effectiveDaysBack, 200)
       .then(function (entries): void {
         setRawCount(entries.length);
         setSummaries(aggregateEntries(entries));
         setIsLoading(false);
+        setLastRefreshed(new Date());
+        initialLoadDoneRef.current = true;
       })
       .catch(function (err): void {
+        // T4.D7 / UX-005 — on polled-refresh failure, keep the last good
+        // data visible and surface the error without losing the table.
         setError(err instanceof Error ? err.message : 'Failed to load zero-result data');
         setIsLoading(false);
+        initialLoadDoneRef.current = true;
       });
-  }, [service]);
+  }, [service, effectiveDaysBack]);
 
-  // Load on first mount only
   React.useEffect(function (): void {
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
+
+  // T4.D7 / UX-005 — polling subscription. Audit acceptance: "Zero-Results
+  // panel updates without manual refresh within 60s of a new zero-result
+  // query landing." Manual Refresh button stays available as on-demand
+  // override. `pollIntervalMs <= 0` disables polling for testing / admins
+  // who want explicit control.
+  React.useEffect((): (() => void) | undefined => {
+    if (pollIntervalMs <= 0) { return undefined; }
+    const id = window.setInterval((): void => { load(); }, pollIntervalMs);
+    return (): void => { window.clearInterval(id); };
+  }, [load, pollIntervalMs]);
 
   function handleRefresh(): void {
     load();
   }
 
   function handleTryQuery(summary: IZeroResultSummary): void {
-    onRunQuery(summary.queryText, summary.verticals[0] || '', summary.scope);
+    onRunQuery(summary.queryText, summary.verticals[0] || '');
   }
 
   // ─── Loading ────────────────────────────────────────────────────────────────
@@ -176,7 +206,7 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
           </div>
           <h3 className={styles.emptyTitle}>All clear</h3>
           <p className={styles.emptyDescription}>
-            No zero-result queries in the last {DAYS_BACK} days.
+            No zero-result queries in the last {effectiveDaysBack} days.
             Your search experience looks healthy.
           </p>
         </div>
@@ -193,7 +223,15 @@ const ZeroResultsPanel: React.FC<IZeroResultsPanelProps> = (props) => {
         <p className={styles.healthSummary}>
           <Icon iconName="Warning" className={styles.healthSummaryIcon} />
           <strong>{String(summaries.length)}</strong> unique {'quer' + (summaries.length === 1 ? 'y' : 'ies')} returned
-          no results across <strong>{String(rawCount)}</strong> searches in the last {DAYS_BACK} days.
+          no results across <strong>{String(rawCount)}</strong> searches in the last {effectiveDaysBack} days.
+          {/* T4.D7 / UX-005 — "last refreshed" indicator. Reassures admins
+              the panel is live + reduces redundant manual Refresh clicks. */}
+          {lastRefreshed && (
+            <span style={{ marginLeft: 8, color: '#605e5c', fontSize: 12 }}>
+              Updated {lastRefreshed.toLocaleTimeString()}
+              {pollIntervalMs > 0 && ' (auto-refresh ' + Math.round(pollIntervalMs / 1000) + 's)'}
+            </span>
+          )}
         </p>
         <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Refresh" onClick={handleRefresh} />
       </div>

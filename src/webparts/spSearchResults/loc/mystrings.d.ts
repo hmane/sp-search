@@ -62,6 +62,8 @@ declare interface ISpSearchResultsWebPartStrings {
   DefaultLayoutLabel: string;
   ScenarioPresetLabel: string;
   ScenarioPresetHint: string;
+  ScenarioPresetPeopleWarning: string;
+  GetStartedGroupName: string;
   ListLayoutText: string;
   CompactLayoutText: string;
   GridLayoutText: string;
@@ -93,6 +95,25 @@ declare interface ISpSearchResultsWebPartStrings {
   ConnectionsPageHeader: string;
   AdvancedPageHeader: string;
   AboutPageHeader: string;
+  ResultLinkGroupName: string;
+  ResultClickTargetLabel: string;
+  ResultClickTargetPanelText: string;
+  ResultClickTargetNewTabText: string;
+  ResultClickTargetSameTabText: string;
+  ResultClickTargetSidePanelText: string;
+  DocumentLinkModeLabel: string;
+  DocumentLinkModeFileText: string;
+  DocumentLinkModePropertiesFormText: string;
+  ListItemLinkModeLabel: string;
+  ListItemLinkModeDisplayFormText: string;
+  ListItemLinkModeEditFormText: string;
+  EmptyResultsMessageLabel: string;
+  EmptyResultsMessageDescription: string;
+  ShowColumnChooserLabel: string;
+  SelectedPropertiesAliasDeprecationNote: string;
+  AudienceTargetingGroupName: string;
+  AudienceTargetingLabel: string;
+  AudienceTargetingDescription: string;
 }
 
 declare module 'SpSearchResultsWebPartStrings' {

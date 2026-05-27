@@ -19,13 +19,24 @@
     .\Provision-SPSearchLists.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/search" -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 
-[CmdletBinding()]
+# T4.D1 — `SupportsShouldProcess` so the three `BreakRoleInheritance`
+# permission-overwrite calls prompt by default. Field creation /
+# index creation are already idempotent; the only state that survives
+# multiple runs and could be admin-customised is the permission scope
+# on each hidden list. `ConfirmImpact = 'Medium'` because permission
+# resets are recoverable (re-grant) — not catastrophic data loss.
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Mandatory = $true)]
     [string]$SiteUrl,
 
     [Parameter(Mandatory = $false)]
-    [string]$ClientId
+    [string]$ClientId,
+
+    # T4.D1 — bypass the BreakRoleInheritance confirmation. Idempotent
+    # for the field/index pieces; only matters on the permission resets.
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 # Ensure PnP.PowerShell is available
@@ -191,8 +202,12 @@ Ensure-Index -ListName "SearchSavedQueries" -FieldName "LastUsed"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "ExpiresAt"
 
 # Permissions: All authenticated users can Add Items
-Write-Host "  [PERM] Setting permissions for SearchSavedQueries..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchSavedQueries" -BreakRoleInheritance -CopyRoleAssignments
+# T4.D1 — `BreakRoleInheritance` resets any custom permissions an admin
+# has layered on the hidden list. Prompt before overwriting on re-run.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchSavedQueries', 'Break role inheritance and copy parent assignments')) {
+    Write-Host "  [PERM] Setting permissions for SearchSavedQueries..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchSavedQueries" -BreakRoleInheritance -CopyRoleAssignments
+}
 
 # ─── 2. SearchHistory ─────────────────────────────────────
 Write-Host "`n[2/3] SearchHistory" -ForegroundColor Magenta
@@ -203,7 +218,7 @@ Ensure-HiddenList -ListName "SearchHistory" -Description "SP Search: User search
 Ensure-Field -ListName "SearchHistory" -FieldName "QueryText" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "QueryHash" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "Vertical" -FieldType "Text"
-Ensure-Field -ListName "SearchHistory" -FieldName "Scope" -FieldType "Text"
+Ensure-Field -ListName "SearchHistory" -FieldName "SearchPageUrl" -FieldType "Text"
 Ensure-Field -ListName "SearchHistory" -FieldName "SearchState" -FieldType "Note"
 Ensure-Field -ListName "SearchHistory" -FieldName "UseCount" -FieldType "Number"
 Ensure-Field -ListName "SearchHistory" -FieldName "ResultCount" -FieldType "Number"
@@ -228,10 +243,15 @@ if (-not $authorField.Indexed -or -not $tsField.Indexed) {
 }
 
 # Permissions: Add Items + Edit Own Items (no Read All)
-Write-Host "  [PERM] Setting permissions for SearchHistory..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchHistory" -BreakRoleInheritance -ClearSubscopes
-# Users can add and edit their own items
-Set-PnPList -Identity "SearchHistory" -ReadSecurity 2 -WriteSecurity 2
+# T4.D1 — `BreakRoleInheritance -ClearSubscopes` is the most destructive of
+# the three: it also drops any item-level permission scopes admins set on
+# individual history rows. Prompt-by-default on re-run.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchHistory', 'Break role inheritance and clear all sub-scopes (item-level permissions will be reset)')) {
+    Write-Host "  [PERM] Setting permissions for SearchHistory..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchHistory" -BreakRoleInheritance -ClearSubscopes
+    # Users can add and edit their own items
+    Set-PnPList -Identity "SearchHistory" -ReadSecurity 2 -WriteSecurity 2
+}
 
 # ─── 3. SearchCollections ─────────────────────────────────
 Write-Host "`n[3/3] SearchCollections" -ForegroundColor Magenta
@@ -252,8 +272,62 @@ Ensure-Index -ListName "SearchCollections" -FieldName "Title"
 Ensure-Index -ListName "SearchCollections" -FieldName "CollectionName"
 
 # Permissions: All authenticated users can Add Items
-Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
-Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
+# T4.D1 — see SearchSavedQueries above.
+if ($Force -or $PSCmdlet.ShouldProcess('SearchCollections', 'Break role inheritance and copy parent assignments')) {
+    Write-Host "  [PERM] Setting permissions for SearchCollections..." -ForegroundColor Cyan
+    Set-PnPList -Identity "SearchCollections" -BreakRoleInheritance -CopyRoleAssignments
+}
+
+# ============================================================
+# Foundations Found.D9 — Telemetry lists
+# ============================================================
+
+function Add-SearchTelemetryLists {
+    Write-Host "`n[Found.D9] Provisioning SearchTelemetryConfig + SearchTelemetryOptIn..." -ForegroundColor Cyan
+
+    # SearchTelemetryConfig — single-row, hidden, default disabled
+    $configList = Get-PnPList -Identity 'SearchTelemetryConfig' -ErrorAction SilentlyContinue
+    if (-not $configList) {
+        $configList = New-PnPList -Title 'SearchTelemetryConfig' -Template GenericList -Url 'Lists/SearchTelemetryConfig' -OnQuickLaunch:$false
+        Set-PnPList -Identity 'SearchTelemetryConfig' -Hidden:$true
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'IsEnabled' -InternalName 'IsEnabled' -Type Boolean -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'DestinationEndpoint' -InternalName 'DestinationEndpoint' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchIntervalSeconds' -InternalName 'BatchIntervalSeconds' -Type Number -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchSizeMax' -InternalName 'BatchSizeMax' -Type Number -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedBy' -InternalName 'PrivacyAcknowledgedBy' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedAt' -InternalName 'PrivacyAcknowledgedAt' -Type DateTime -AddToDefaultView | Out-Null
+
+        # Single-row default (disabled). Admins toggle IsEnabled to opt in.
+        Add-PnPListItem -List 'SearchTelemetryConfig' -Values @{
+            'Title' = 'SP Search Telemetry Config (single row)'
+            'IsEnabled' = $false
+            'DestinationEndpoint' = ''
+            'BatchIntervalSeconds' = 300
+            'BatchSizeMax' = 50
+        } | Out-Null
+
+        Write-Host "[Found.D9] SearchTelemetryConfig provisioned (disabled, default row)." -ForegroundColor Green
+    }
+    else {
+        Write-Host "[Found.D9] SearchTelemetryConfig already exists; skipping." -ForegroundColor Yellow
+    }
+
+    # SearchTelemetryOptIn — per-user consent, anonymized hash only
+    $optInList = Get-PnPList -Identity 'SearchTelemetryOptIn' -ErrorAction SilentlyContinue
+    if (-not $optInList) {
+        New-PnPList -Title 'SearchTelemetryOptIn' -Template GenericList -Url 'Lists/SearchTelemetryOptIn' -OnQuickLaunch:$false | Out-Null
+        Set-PnPList -Identity 'SearchTelemetryOptIn' -Hidden:$true
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentTimestamp' -InternalName 'ConsentTimestamp' -Type DateTime -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentVersion' -InternalName 'ConsentVersion' -Type Text -AddToDefaultView | Out-Null
+        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'AnonHash' -InternalName 'AnonHash' -Type Text -AddToDefaultView | Out-Null
+        Write-Host "[Found.D9] SearchTelemetryOptIn provisioned." -ForegroundColor Green
+    }
+    else {
+        Write-Host "[Found.D9] SearchTelemetryOptIn already exists; skipping." -ForegroundColor Yellow
+    }
+}
+
+Add-SearchTelemetryLists
 
 # ─── Summary ──────────────────────────────────────────────
 Write-Host "`n================================================" -ForegroundColor Cyan
@@ -263,5 +337,7 @@ Write-Host "`nCreated/verified:"
 Write-Host "  - SearchSavedQueries (saved + shared searches)"
 Write-Host "  - SearchHistory (user history, indexed for >5K items)"
 Write-Host "  - SearchCollections (result pinboards)"
+Write-Host "  - SearchTelemetryConfig (single-row, disabled by default — Found.D9)"
+Write-Host "  - SearchTelemetryOptIn (per-user consent, anonymized — Found.D9)"
 
 Disconnect-PnPOnline

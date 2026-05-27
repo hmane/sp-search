@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useStore } from 'zustand';
 import { OverflowSet } from '@fluentui/react/lib/OverflowSet';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { type IOverflowSetItemProps } from '@fluentui/react/lib/OverflowSet';
 import { type IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
@@ -11,6 +12,11 @@ import type { ISpSearchVerticalsProps } from './ISpSearchVerticalsProps';
 import type { IVerticalDefinition } from '@interfaces/index';
 import { isInAudience } from '@services/index';
 import VerticalTab from './VerticalTab';
+// T3.D7 — edit-mode warning when a vertical references an unknown
+// data provider id. Reads the live registry via the store.
+import { validateVerticalDataProviderIds } from '@store/configValidation/dataProviderId';
+// T5.D1 — cross-bundle singleton DebugFab + Panel host.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 
 /**
  * Map of tabStyle prop to the corresponding CSS module class name.
@@ -33,7 +39,7 @@ interface IOverflowVerticalItem extends IOverflowSetItemProps {
  * with badge counts, overflow handling, and three visual styles (tabs, pills, underline).
  */
 const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSearchVerticalsProps): React.ReactElement => {
-  const { store, showCounts, hideEmptyVerticals, tabStyle } = props;
+  const { store, showCounts, hideEmptyVerticals, tabStyle, isEditMode } = props;
 
   // Subscribe to specific store slices
   const currentVerticalKey: string = useStore(store, function (s) { return s.currentVerticalKey; });
@@ -219,8 +225,45 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
 
   const hasOverflow: boolean = overflowSetItems.length > 0;
 
+  // T3.D7 — edit-mode dataProviderId validation. Reads the registered
+  // provider list from the store's registries (`getAll()` returns
+  // every provider currently registered with this context). Validator
+  // returns one issue per vertical whose dataProviderId is unknown.
+  const dataProviderValidation: React.ReactNode = isEditMode ? ((): React.ReactNode => {
+    let registeredIds: string[] = [];
+    try {
+      const reg = store.getState().registries?.dataProviders;
+      if (reg && typeof reg.getAll === 'function') {
+        registeredIds = reg.getAll().map((p) => p.id);
+      }
+    } catch { /* cold registry — validator passes when list is empty */ }
+
+    const rows = verticals.map((v) => ({
+      key: v.key,
+      label: v.label,
+      dataProviderId: v.dataProviderId,
+    }));
+    const issues = validateVerticalDataProviderIds(rows, registeredIds);
+    if (issues.length === 0) { return null; }
+    return (
+      <div style={{ marginBottom: 8 }}>
+        {issues.map((issue) => (
+          <MessageBar
+            key={issue.id}
+            messageBarType={MessageBarType.error}
+            isMultiline={true}
+            styles={{ root: { marginBottom: 4 } }}
+          >
+            {issue.message}
+          </MessageBar>
+        ))}
+      </div>
+    );
+  })() : null;
+
   return (
     <div className={styles.spSearchVerticals}>
+      {dataProviderValidation}
       <div
         className={styles.tabContainer + ' ' + styleClass}
         role="tablist"
@@ -257,6 +300,8 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
           />
         )}
       </div>
+      {/* T5.D1 — singleton DebugFab host. Owner-claim across bundles. */}
+      <DebugFabHost store={store} />
     </div>
   );
 };

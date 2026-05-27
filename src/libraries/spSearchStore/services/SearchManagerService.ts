@@ -69,6 +69,21 @@ function extractSharedWith(item: Record<string, unknown>): IPersonaInfo[] {
 }
 
 /**
+ * Extract the Url string from a SharePoint URL field value.
+ * URL fields return { Url: string, Description: string }, not a plain string.
+ */
+function extractUrlFieldValue(item: Record<string, unknown>, fieldName: string): string {
+  const raw = item[fieldName];
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (raw && typeof raw === 'object') {
+    return (raw as Record<string, unknown>).Url as string || '';
+  }
+  return '';
+}
+
+/**
  * Extract author IPersonaInfo from Author expand field.
  */
 function extractAuthor(item: Record<string, unknown>): IPersonaInfo {
@@ -95,7 +110,7 @@ function mapToSavedSearch(item: Record<string, unknown>): ISavedSearch {
     title: ext.string('Title', ''),
     queryText: ext.string('QueryText', ''),
     searchState: ext.string('SearchState', '{}'),
-    searchUrl: ext.string('SearchUrl', ''),
+    searchUrl: extractUrlFieldValue(item, 'SearchUrl'),
     entryType: (ext.string('EntryType', 'SavedSearch') as 'SavedSearch' | 'SharedSearch'),
     category: ext.string('Category', ''),
     sharedWith: extractSharedWith(item),
@@ -138,7 +153,7 @@ function mapToHistoryEntry(item: Record<string, unknown>): ISearchHistoryEntry {
     queryHash: ext.string('QueryHash', ''),
     queryText: ext.string('Title', '') || ext.string('QueryText', ''),
     vertical: ext.string('Vertical', ''),
-    scope: ext.string('Scope', ''),
+    searchPageUrl: ext.string('SearchPageUrl', ''),
     searchState: ext.string('SearchState', '{}'),
     useCount: Math.max(1, ext.number('UseCount', 1)),
     resultCount: ext.number('ResultCount', 0),
@@ -189,6 +204,19 @@ function buildHistoryTitle(
   }
 
   return title.length > 255 ? title.substring(0, 255) : title;
+}
+
+/**
+ * Stable hash of a collection name to produce a deterministic numeric ID.
+ * Avoids fragile dependency on the first list item's SharePoint ID.
+ */
+function _hashCollectionName(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
 }
 
 /**
@@ -244,7 +272,7 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
 
       collectionItems.push({
         id: giExt.number('Id', 0),
-        url: giExt.string('ItemUrl', ''),
+        url: extractUrlFieldValue(groupItems[i], 'ItemUrl'),
         title: giExt.string('ItemTitle', '') || giExt.string('Title', ''),
         metadata: (() => {
           try {
@@ -263,7 +291,7 @@ function mapToCollection(items: Array<Record<string, unknown>>): ISearchCollecti
     collectionItems.sort((a, b) => a.sortOrder - b.sortOrder);
 
     collections.push({
-      id: firstExt.number('Id', 0),
+      id: _hashCollectionName(collectionName),
       collectionName,
       items: collectionItems,
       sharedWith: extractSharedWith(first),
@@ -315,6 +343,7 @@ export class SearchManagerService {
         this._historySupportsUseCount = await this._detectHistoryUseCountField();
         SPContext.logger.info('SearchManagerService: Initialized', { userId: this._currentUserId });
         this._maybeAutoCleanupHistory().catch(function noop(): void { /* non-critical */ });
+        this._maybeAutoCleanupSnapshots().catch(function noop(): void { /* non-critical */ });
       }
     } catch (error) {
       this._initFailed = true;
@@ -465,7 +494,7 @@ export class SearchManagerService {
         Title: title,
         QueryText: queryText,
         SearchState: searchState,
-        SearchUrl: searchUrl,
+        SearchUrl: { Url: searchUrl || '', Description: title || 'Saved Search' },
         EntryType: 'SavedSearch',
         Category: category,
         ResultCount: resultCount,
@@ -500,7 +529,7 @@ export class SearchManagerService {
       payload.SearchState = updates.searchState;
     }
     if (updates.searchUrl !== undefined) {
-      payload.SearchUrl = updates.searchUrl;
+      payload.SearchUrl = { Url: updates.searchUrl || '', Description: updates.title || 'Saved Search' };
     }
     if (updates.category !== undefined) {
       payload.Category = updates.category;
@@ -570,7 +599,7 @@ export class SearchManagerService {
             <FieldRef Name="Title" />
             <FieldRef Name="QueryHash" />
             <FieldRef Name="Vertical" />
-            <FieldRef Name="Scope" />
+            <FieldRef Name="SearchPageUrl" />
             <FieldRef Name="SearchState" />
             ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
@@ -602,7 +631,7 @@ export class SearchManagerService {
   public async logSearch(
     queryText: string,
     vertical: string,
-    scope: string,
+    searchPageUrl: string,
     searchState: string,
     resultCount: number,
     isZeroResult?: boolean
@@ -649,7 +678,7 @@ export class SearchManagerService {
           Title: historyTitle,
           QueryText: queryText,
           Vertical: vertical,
-          Scope: scope,
+          SearchPageUrl: searchPageUrl,
           SearchState: searchState,
           ResultCount: resultCount,
           IsZeroResult: isZeroResult === true,
@@ -667,7 +696,7 @@ export class SearchManagerService {
           QueryText: queryText,
           QueryHash: queryHash,
           Vertical: vertical,
-          Scope: scope,
+          SearchPageUrl: searchPageUrl,
           SearchState: searchState,
           ResultCount: resultCount,
           IsZeroResult: isZeroResult === true,
@@ -723,6 +752,75 @@ export class SearchManagerService {
     }
   }
 
+  private async _maybeAutoCleanupSnapshots(): Promise<void> {
+    if (!this.isReady) {
+      return;
+    }
+
+    const cleanupKey = 'sp-search-snapshot-cleanup:' + SPContext.webAbsoluteUrl;
+    let lastRun = 0;
+
+    try {
+      lastRun = parseInt(localStorage.getItem(cleanupKey) || '0', 10) || 0;
+    } catch {
+      lastRun = 0;
+    }
+
+    const now = Date.now();
+    if (now - lastRun < HISTORY_CLEANUP_INTERVAL_MS) {
+      return;
+    }
+
+    try {
+      const camlQuery = `
+        <View>
+          <Query>
+            <Where>
+              <And>
+                <Eq>
+                  <FieldRef Name="EntryType" />
+                  <Value Type="Choice">StateSnapshot</Value>
+                </Eq>
+                <Lt>
+                  <FieldRef Name="ExpiresAt" />
+                  <Value Type="DateTime" IncludeTimeValue="TRUE">${new Date().toISOString()}</Value>
+                </Lt>
+              </And>
+            </Where>
+          </Query>
+          <RowLimit>100</RowLimit>
+          <ViewFields>
+            <FieldRef Name="Id" />
+          </ViewFields>
+        </View>
+      `;
+
+      const items = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
+        .getItemsByCAMLQuery({ ViewXml: camlQuery });
+
+      if (items && items.length > 0) {
+        const batch = new BatchBuilder(SPContext.sp);
+        const listOps = batch.list(SAVED_QUERIES_LIST);
+        for (let i = 0; i < items.length; i++) {
+          listOps.delete((items[i] as Record<string, unknown>).Id as number);
+        }
+        await batch.execute();
+
+        SPContext.logger.info('SearchManagerService: Auto-cleaned expired snapshots', {
+          deleted: items.length
+        });
+      }
+    } catch {
+      // Non-critical — swallow errors
+    }
+
+    try {
+      localStorage.setItem(cleanupKey, String(now));
+    } catch {
+      // ignore
+    }
+  }
+
   /**
    * Log a clicked item against a history entry.
    */
@@ -754,6 +852,11 @@ export class SearchManagerService {
         } catch {
           // Malformed JSON — start fresh
         }
+      }
+
+      const MAX_CLICKED_ITEMS = 10;
+      if (existing.length >= MAX_CLICKED_ITEMS) {
+        existing.splice(0, existing.length - MAX_CLICKED_ITEMS + 1);
       }
 
       existing.push({
@@ -899,41 +1002,93 @@ export class SearchManagerService {
 
       const fullSelectFields = coreSelectFields + ',SharedWith/Id,SharedWith/Title,SharedWith/EMail';
 
-      // Query 1: Items owned by current user
+      // Query 1: Items owned by current user (paginated via Id gt pattern)
       // Try with SharedWith expand first; fall back without if it fails
-      let ownedItems: Array<Record<string, unknown>>;
-      try {
-        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(fullSelectFields)
-          .expand('Author', 'SharedWith')
-          .filter('Author/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(500)() as Array<Record<string, unknown>>;
-      } catch {
-        console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
-        ownedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(coreSelectFields)
-          .expand('Author')
-          .filter('Author/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(500)() as Array<Record<string, unknown>>;
+      const PAGE_SIZE = 500;
+      let ownedItems: Array<Record<string, unknown>> = [];
+      let useSharedWithExpand = true;
+
+      {
+        let lastId = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const ownedFilter = lastId === 0
+            ? 'Author/Id eq ' + this._currentUserId
+            : 'Author/Id eq ' + this._currentUserId + ' and Id gt ' + lastId;
+
+          let batch: Array<Record<string, unknown>>;
+          try {
+            if (useSharedWithExpand) {
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(fullSelectFields)
+                .expand('Author', 'SharedWith')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            } else {
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(coreSelectFields)
+                .expand('Author')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            }
+          } catch {
+            if (useSharedWithExpand && lastId === 0) {
+              console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
+              useSharedWithExpand = false;
+              batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+                .items
+                .using(CacheNever())
+                .select(coreSelectFields)
+                .expand('Author')
+                .filter(ownedFilter)
+                .orderBy('Id', true)
+                .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+            } else {
+              throw new Error('Failed to load owned collection items');
+            }
+          }
+
+          ownedItems = ownedItems.concat(batch);
+          hasMore = batch.length === PAGE_SIZE;
+          if (batch.length > 0) {
+            const lastItem = createSPExtractor(batch[batch.length - 1]);
+            lastId = lastItem.number('Id', 0);
+          }
+        }
       }
 
-      // Query 2: Items shared with current user (non-fatal)
+      // Query 2: Items shared with current user (paginated, non-fatal)
       let sharedItems: Array<Record<string, unknown>> = [];
       try {
-        sharedItems = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
-          .items
-          .using(CacheNever())
-          .select(fullSelectFields)
-          .expand('Author', 'SharedWith')
-          .filter('SharedWith/Id eq ' + this._currentUserId)
-          .orderBy('CollectionName', true)
-          .top(200)() as Array<Record<string, unknown>>;
+        let lastId = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const sharedFilter = lastId === 0
+            ? 'SharedWith/Id eq ' + this._currentUserId
+            : 'SharedWith/Id eq ' + this._currentUserId + ' and Id gt ' + lastId;
+
+          const batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
+            .items
+            .using(CacheNever())
+            .select(fullSelectFields)
+            .expand('Author', 'SharedWith')
+            .filter(sharedFilter)
+            .orderBy('Id', true)
+            .top(PAGE_SIZE)() as Array<Record<string, unknown>>;
+
+          sharedItems = sharedItems.concat(batch);
+          hasMore = batch.length === PAGE_SIZE;
+          if (batch.length > 0) {
+            const lastItem = createSPExtractor(batch[batch.length - 1]);
+            lastId = lastItem.number('Id', 0);
+          }
+        }
       } catch {
         // SharedWith field query may fail if not indexed
       }
@@ -952,6 +1107,13 @@ export class SearchManagerService {
         }
       }
 
+      // Re-sort by CollectionName since pagination used Id ordering
+      allItems.sort(function (a: Record<string, unknown>, b: Record<string, unknown>): number {
+        const nameA = ((a.CollectionName as string) || '').toLowerCase();
+        const nameB = ((b.CollectionName as string) || '').toLowerCase();
+        return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
+      });
+
       console.log('[SP Search] loadCollections: loaded ' + allItems.length + ' items');
       return mapToCollection(allItems);
     } catch (error) {
@@ -967,11 +1129,14 @@ export class SearchManagerService {
     if (!this.isReady) {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
     }
+    if (name.length > 200) {
+      throw new Error('Collection name must not exceed 200 characters');
+    }
     await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
       .items.add({
         Title: name,
         CollectionName: name,
-        ItemUrl: '',
+        ItemUrl: { Url: '', Description: '' },
         ItemTitle: '',
         SortOrder: 0,
         Tags: '[]',
@@ -1030,7 +1195,7 @@ export class SearchManagerService {
       .items.add({
         Title: itemTitle,
         CollectionName: collectionName,
-        ItemUrl: itemUrl,
+        ItemUrl: { Url: itemUrl || '', Description: itemTitle || '' },
         ItemTitle: itemTitle,
         ItemMetadata: JSON.stringify(metadata),
         SortOrder: maxOrder,
@@ -1181,9 +1346,14 @@ export class SearchManagerService {
    * Share a saved search with specific users.
    * Updates SharedWith field and sets item-level read permissions.
    */
-  public async shareToUsers(savedSearchId: number, userEmails: string[]): Promise<void> {
+  public async shareToUsers(
+    savedSearchId: number,
+    userEmails: string[]
+  ): Promise<{ succeeded: string[]; failed: string[] }> {
+    const result: { succeeded: string[]; failed: string[] } = { succeeded: [], failed: [] };
+
     if (userEmails.length === 0) {
-      return;
+      return result;
     }
     if (!this.isReady) {
       throw new Error('SearchManagerService is not ready — current user could not be resolved');
@@ -1194,21 +1364,26 @@ export class SearchManagerService {
     const list = SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST);
     const item = list.items.getById(savedSearchId);
 
-    // Resolve user IDs
+    // Resolve user IDs — track which emails succeeded and which failed
     const userIds: number[] = [];
     for (let i = 0; i < userEmails.length; i++) {
       try {
         const user = await SPContext.sp.web.ensureUser(userEmails[i]);
         if (user.data && user.data.Id) {
           userIds.push(user.data.Id);
+          result.succeeded.push(userEmails[i]);
+        } else {
+          result.failed.push(userEmails[i]);
+          SPContext.logger.warn('SearchManagerService: Could not resolve user', { email: userEmails[i] });
         }
       } catch {
+        result.failed.push(userEmails[i]);
         SPContext.logger.warn('SearchManagerService: Could not resolve user', { email: userEmails[i] });
       }
     }
 
     if (userIds.length === 0) {
-      return;
+      return result;
     }
 
     // Update SharedWith field
@@ -1229,6 +1404,8 @@ export class SearchManagerService {
       // Permission operations may fail; SharedWith update still succeeded
       SPContext.logger.warn('SearchManagerService: Could not set item-level permissions', { savedSearchId });
     }
+
+    return result;
   }
 
   // ─── History Cleanup ────────────────────────────────────────
@@ -1349,7 +1526,7 @@ export class SearchManagerService {
             <FieldRef Name="Title" />
             <FieldRef Name="QueryHash" />
             <FieldRef Name="Vertical" />
-            <FieldRef Name="Scope" />
+            <FieldRef Name="SearchPageUrl" />
             <FieldRef Name="SearchState" />
             ${this._historySupportsUseCount ? '<FieldRef Name="UseCount" />' : ''}
             <FieldRef Name="ResultCount" />
@@ -1449,7 +1626,7 @@ export class SearchManagerService {
         Title: 'StateSnapshot-' + new Date().getTime(),
         EntryType: 'StateSnapshot',
         SearchState: stateJson,
-        SearchUrl: '',
+        SearchUrl: { Url: '', Description: '' },
         QueryText: '',
         Category: '',
         ResultCount: 0,

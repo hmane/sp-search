@@ -1,14 +1,15 @@
 import * as React from 'react';
 import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index';
 import DataGridContent from './DataGridContent';
-import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import type { IColumnConfigItem } from './ColumnConfigField/columnConfig';
 import { TitleDisplayMode } from './documentTitleUtils';
+import type { IResultLinkConfig } from './resultLink';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridLayoutProps {
   items: ISearchResult[];
   searchContextId: string;
-  gridPropertyColumns: ISelectedPropertyColumn[];
+  gridPropertyColumns: IColumnConfigItem[];
   titleDisplayMode: TitleDisplayMode;
   totalCount: number;
   pageSize: number;
@@ -16,6 +17,8 @@ export interface IDataGridLayoutProps {
   showPaging: boolean;
   pageRange: number;
   showDeleteConfirmation: boolean;
+  /** Stream B / Phase 3 — when false, the "Columns" toolbar button is hidden. */
+  showColumnChooser: boolean;
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   onPreviewItem?: (item: ISearchResult) => void;
@@ -28,6 +31,9 @@ export interface IDataGridLayoutProps {
    * Use this to switch to a safe fallback layout (e.g. list).
    */
   onFallback?: () => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 interface IDataGridRenderErrorState {
@@ -97,7 +103,7 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
         <DataGridContent
           items={props.items}
           searchContextId={props.searchContextId}
-          selectedPropertyColumns={props.gridPropertyColumns}
+          columns={props.gridPropertyColumns}
           titleDisplayMode={props.titleDisplayMode}
           totalCount={props.totalCount}
           pageSize={props.pageSize}
@@ -105,12 +111,15 @@ const DataGridLayout: React.FC<IDataGridLayoutProps> = (props) => {
           showPaging={props.showPaging}
           pageRange={props.pageRange}
           showDeleteConfirmation={props.showDeleteConfirmation}
+          showColumnChooser={props.showColumnChooser}
           sort={props.sort}
           sortableProperties={props.sortableProperties}
           onPreviewItem={props.onPreviewItem}
           onItemClick={props.onItemClick}
           onPageChange={props.onPageChange}
           onSortChange={props.onSortChange}
+          linkConfig={props.linkConfig}
+          onOpenInSidePanel={props.onOpenInSidePanel}
         />
       </DataGridRenderErrorBoundary>
     </div>

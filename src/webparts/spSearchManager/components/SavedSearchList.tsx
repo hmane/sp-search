@@ -6,12 +6,15 @@ import { TextField } from '@fluentui/react/lib/TextField';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+// T2.D6 — Owned / Shared-with-me / All ownership toggle on the saved-search list.
+import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import {
   ISavedSearch,
   ISearchStore,
   IActiveFilter
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { validateSearchState } from '@store/utils/searchStateSchema';
 import styles from './SpSearchManager.module.scss';
 
 export interface ISavedSearchListProps {
@@ -116,6 +119,12 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
   const [deleteError, setDeleteError] = React.useState<string | undefined>(undefined);
   const [isRenaming, setIsRenaming] = React.useState<boolean>(false);
+  // T2.D3 — set when a saved-search restore fails schema validation; rendered as a MessageBar.
+  const [restoreError, setRestoreError] = React.useState<{ title: string; errors: string[] } | undefined>(undefined);
+  // T2.D6 — Owned / Shared-with-me / All ownership filter. "All" matches
+  // today's behaviour; "Owned" filters to entryType === 'SavedSearch';
+  // "Shared with me" filters to entryType === 'SharedSearch'.
+  const [ownershipFilter, setOwnershipFilter] = React.useState<'all' | 'owned' | 'shared'>('all');
 
   // ─── Initialize expanded categories ──────────────────────
   React.useEffect(() => {
@@ -154,50 +163,39 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
     if (renamingId === search.id) {
       return; // Don't load if renaming
     }
-    try {
-      const state: {
-        queryText?: string;
-        activeFilters?: IActiveFilter[];
-        currentVerticalKey?: string;
-        sort?: { property: string; direction: 'Ascending' | 'Descending' };
-        scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
-        activeLayoutKey?: string;
-      } = JSON.parse(search.searchState);
 
-      // Set ALL state atomically via store.setState() so the orchestrator
-      // sees a single change notification and fires ONE search with
-      // complete state. Calling individual methods (clearAllFilters,
-      // setQueryText, setRefiner) would trigger multiple orchestrator
-      // reactions, causing a search WITHOUT filters before filters are set.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const update: Record<string, any> = {
-        activeFilters: state.activeFilters || [],
-        currentPage: 1,
-      };
-      if (state.queryText !== undefined) {
-        update.queryText = state.queryText;
-      }
-      if (state.currentVerticalKey !== undefined) {
-        update.currentVerticalKey = state.currentVerticalKey;
-      }
-      if (state.sort !== undefined) {
-        update.sort = state.sort;
-      }
-      if (state.scope !== undefined) {
-        update.scope = state.scope;
-      }
-      if (state.activeLayoutKey !== undefined) {
-        update.activeLayoutKey = state.activeLayoutKey;
-      }
-      store.setState(update);
-    } catch {
-      // If searchState JSON is invalid, fall back to just setting query text
-      store.setState({
-        queryText: search.queryText,
-        activeFilters: [],
-        currentPage: 1,
-      });
+    // T2.D3 — schema-validate before applying. A malformed `searchState`
+    // (wrong field types, prototype-pollution, etc.) is now flagged with a
+    // MessageBar instead of silently corrupting the store.
+    const validation = validateSearchState(search.searchState);
+    if (!validation.ok) {
+      setRestoreError({ title: search.title, errors: validation.errors });
+      console.warn('[SP Search] Skipping saved-search restore — schema validation failed:', validation.errors);
+      return;
     }
+    const state = validation.state;
+
+    // Set ALL state atomically via store.setState() so the orchestrator
+    // sees a single change notification and fires ONE search with
+    // complete state. Calling individual methods (clearAllFilters,
+    // setQueryText, setRefiner) would trigger multiple orchestrator
+    // reactions, causing a search WITHOUT filters before filters are set.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const update: Record<string, any> = {
+      activeFilters: (state.activeFilters || []) as IActiveFilter[],
+      currentPage: 1,
+    };
+    if (state.queryText !== undefined) {
+      update.queryText = state.queryText;
+    }
+    if (state.currentVerticalKey !== undefined) {
+      update.currentVerticalKey = state.currentVerticalKey;
+    }
+    if (state.sort !== undefined) {
+      update.sort = state.sort;
+    }
+    store.setState(update);
+    setRestoreError(undefined);
 
     // Update lastUsed in the background
     service.updateSavedSearch(search.id, {}).catch(function noop(): void { /* swallow */ });
@@ -306,8 +304,19 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
     );
   }
 
+  // T2.D6 — apply the ownership filter before grouping.
+  const filteredSavedSearches: ISavedSearch[] = ownershipFilter === 'all'
+    ? savedSearches
+    : ownershipFilter === 'owned'
+      ? savedSearches.filter((s) => s.entryType !== 'SharedSearch')
+      : savedSearches.filter((s) => s.entryType === 'SharedSearch');
+
+  // Counts for the toggle labels (computed against the unfiltered set).
+  const ownedCount = savedSearches.filter((s) => s.entryType !== 'SharedSearch').length;
+  const sharedCount = savedSearches.filter((s) => s.entryType === 'SharedSearch').length;
+
   // ─── Group by category ────────────────────────────────────
-  const grouped = groupByCategory(savedSearches);
+  const grouped = groupByCategory(filteredSavedSearches);
   const categoryKeys = Object.keys(grouped);
 
   return (
@@ -315,6 +324,34 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
       <div className={styles.sectionIntro}>
         <strong>Saved searches keep your search setup.</strong> Save the query, filters, and vertical so you can rerun the same search later or share that setup with someone else.
       </div>
+      {restoreError && (
+        <MessageBar
+          messageBarType={MessageBarType.error}
+          isMultiline={true}
+          onDismiss={(): void => setRestoreError(undefined)}
+          dismissButtonAriaLabel="Dismiss"
+        >
+          <strong>Could not restore &quot;{restoreError.title}&quot;.</strong> The saved
+          search data is malformed and was not applied. Details: {restoreError.errors.join('; ')}
+        </MessageBar>
+      )}
+      {/* T2.D6 — ownership toggle. Hidden when there are zero shared
+          searches (a single-state toggle adds clutter without context). */}
+      {sharedCount > 0 && (
+        <Pivot
+          selectedKey={ownershipFilter}
+          onLinkClick={(item): void => {
+            if (item && item.props.itemKey) {
+              setOwnershipFilter(item.props.itemKey as 'all' | 'owned' | 'shared');
+            }
+          }}
+          styles={{ root: { marginBottom: 12 } }}
+        >
+          <PivotItem itemKey="all" headerText={'All (' + (ownedCount + sharedCount) + ')'} />
+          <PivotItem itemKey="owned" headerText={'Owned (' + ownedCount + ')'} />
+          <PivotItem itemKey="shared" headerText={'Shared with me (' + sharedCount + ')'} />
+        </Pivot>
+      )}
       {categoryKeys.map(function (category): React.ReactElement {
         const items = grouped[category];
         const isExpanded = expandedCategories[category] !== false;
@@ -406,6 +443,18 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
                             <span>{String(search.resultCount) + ' results'}</span>
                             <span className={styles.metaDot} />
                             <span>{formatRelativeDate(search.lastUsed)}</span>
+                            {/* T2.D6 — "Shared by <Name>" badge surfaces
+                                the sender on every shared-with-me row.
+                                Skipped for owned rows. */}
+                            {search.entryType === 'SharedSearch' && search.author && search.author.displayText && (
+                              <>
+                                <span className={styles.metaDot} />
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#0078d4' }}>
+                                  <Icon iconName="People" style={{ fontSize: 11 }} />
+                                  Shared by {search.author.displayText}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}

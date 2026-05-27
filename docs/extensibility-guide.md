@@ -48,11 +48,67 @@ const registries = store.getState().registries;
 registries.dataProviders.register(new MyCustomProvider());
 ```
 
+### Lifecycle: refcounted context dispose (T3.D1)
+
+Each web part that calls `getStore(searchContextId)` is a refcount
+holder for that context. The shipped SPFx web parts do this
+automatically (`onInit` increments, `onDispose` decrements). When the
+**last** holder unmounts, the context is disposed: URL sync teardown,
+orchestrator stop, AbortController abort on in-flight searches, and
+removal from the window-backed map.
+
+Third-party extensions that import `getStore` directly must follow the
+same contract:
+
+```typescript
+import {
+  getStore,
+  incrementContextRef,
+  decrementContextRef,
+} from 'sp-search-store';
+
+// On mount:
+const store = getStore('my-context-id');
+incrementContextRef('my-context-id');
+
+// On unmount:
+decrementContextRef('my-context-id');
+// (Context is disposed automatically when the last holder releases.
+//  A microtask defers the actual dispose so a new mount with the same
+//  context can re-increment before the teardown fires — handles the
+//  SPFx Modern "next page onInit before prior page onDispose" race.)
+```
+
+`disposeStore(id)` is still exported and force-disposes immediately
+(bypassing the refcount). Use it for tests and admin "force dispose"
+tooling; production lifecycle should always flow through
+`decrementContextRef`.
+
 ---
 
 ## 1. Custom Data Provider
 
 Data providers abstract over search backends. The default `SharePointSearchProvider` uses PnPjs; you can add providers for Microsoft Graph, external APIs, or mock data.
+
+### Built-in provider ids (T3.D7)
+
+The Verticals web part's `dataProviderId` cell on each row routes the
+vertical to the named provider. The three providers shipped today are:
+
+| Provider | id | Source |
+|----------|----|--------|
+| SharePoint Search (PnPjs) | `sharepoint-search` | `src/libraries/spSearchStore/providers/SharePointSearchProvider.ts` |
+| Graph Search (files) | `graph-search` | `src/libraries/spSearchStore/providers/GraphSearchProvider.ts` (configurable via `config.id`) |
+| Graph Search (people) | `graph-people` | `src/libraries/spSearchStore/providers/GraphSearchProvider.ts` (people entity-type variant) |
+
+Empty `dataProviderId` falls back to whatever provider the orchestrator
+registered as the default for the context — usually `sharepoint-search`.
+Custom providers must register with a unique id; the Verticals property
+pane edit-mode validator (`validateDataProviderId` at
+`src/libraries/spSearchStore/configValidation/dataProviderId.ts`)
+flags typos with a Did-You-Mean suggestion against the registered
+provider list.
+
 
 ### Interface
 

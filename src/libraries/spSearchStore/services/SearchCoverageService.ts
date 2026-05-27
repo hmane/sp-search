@@ -648,24 +648,24 @@ export class SearchCoverageService {
     let page = await itemQuery.getPaged<ISourceItemRaw[]>();
     const items: ISourceItemRaw[] = [];
 
-    while (true) {
+    let hasMorePages = true;
+    while (hasMorePages) {
       for (let i = 0; i < page.results.length; i++) {
         items.push(page.results[i]);
       }
 
       if (!page.hasNext) {
-        break;
-      }
-
-      if (signal.aborted) {
+        hasMorePages = false;
+      } else if (signal.aborted) {
         throw createAbortError();
+      } else {
+        const nextPage = await page.getNext();
+        if (!nextPage) {
+          hasMorePages = false;
+        } else {
+          page = nextPage;
+        }
       }
-
-      const nextPage = await page.getNext();
-      if (!nextPage) {
-        break;
-      }
-      page = nextPage;
     }
 
     const sourceTitle = listInfo.Title || sourceUrl;

@@ -14,17 +14,30 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { type StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import { PropertyFieldCollectionData, CustomCollectionFieldType, type ICustomCollectionField } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 
 import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
 import { type ISpSearchVerticalsProps } from './components/ISpSearchVerticalsProps';
 import { type ISearchStore, type IVerticalDefinition } from '@interfaces/index';
-import { getStore, initializeSearchContext } from '@store/store';
+import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { SharePointSearchProvider } from '@providers/index';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+import { DebugCollector } from '@store/debug';
+import { DisplayMode } from '@microsoft/sp-core-library';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchVerticalsWebPartProps {
   searchContextId: string;
@@ -34,6 +47,8 @@ export interface ISpSearchVerticalsWebPartProps {
   showCounts: boolean;
   hideEmptyVerticals: boolean;
   tabStyle: 'tabs' | 'pills' | 'underline';
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 interface IVerticalCollectionItem {
@@ -64,26 +79,61 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       return;
     }
 
-    const element: React.ReactElement<ISpSearchVerticalsProps> = React.createElement(
+    const innerElement: React.ReactElement<ISpSearchVerticalsProps> = React.createElement(
       SpSearchVerticals,
       {
         store: this._store,
         showCounts: this.properties.showCounts,
         hideEmptyVerticals: this.properties.hideEmptyVerticals,
         tabStyle: this.properties.tabStyle || 'tabs',
-        theme: this._theme
+        theme: this._theme,
+        isEditMode: this.displayMode === DisplayMode.Edit
       }
+    );
+
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const gatedElement: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      innerElement
+    );
+
+    // T3.D2 — edit-mode mismatch banner above the gated tree.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Verticals',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
+    // for the per-web-part-state-isolation note.
+    const element: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      bannerWrapped
     );
 
     ReactDom.render(element, this.domElement);
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchVerticals');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchVerticals');
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+    // T3.D1 — refcount holder.
+    incrementContextRef(contextId);
 
     // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
     const provider = new SharePointSearchProvider();
@@ -102,6 +152,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     // Initialize the shared search context (ensures library bundle's SPContext is ready)
     // Idempotent — if already initialized by another web part, this is a no-op
     await initializeSearchContext(contextId, this.context);
+    DebugCollector.registerWebPart('SPSearchVerticalsWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   private _migrateJsonToCollection(): void {
@@ -181,6 +232,9 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop refcount before unmounting React.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 
@@ -188,8 +242,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     return Version.parse('1.0');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any): void {
+  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: unknown, newValue: unknown): void {
     super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
     if (this._store) {
       const contextId: string = this.properties.searchContextId || 'default';
@@ -205,7 +258,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
       .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
     // PropertyFieldCollectionData field configs have a broad union type; build them in steps
     // so TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
-    const verticalFields: any[] = [
+    const verticalFields: ICustomCollectionField[] = [
       {
         id: 'key',
         title: strings.VerticalKeyColumn,
@@ -312,18 +365,18 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
             description: strings.VerticalsPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Shared helper.
             {
-              groupName: strings.ConnectionGroupName,
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdFieldLabel,
-                  description: strings.SearchContextIdFieldDescription
-                })
+                propertyPaneSearchContextIdField()
               ]
             },
             {
               groupName: strings.VerticalsGroupName,
               groupFields: [
+                propertyPaneGroupHelp('verticals-config', 'Help: Configure vertical tabs and data providers'),
                 PropertyPaneLabel('verticalsIntro', {
                   text: strings.VerticalsIntroLabel
                 }),
@@ -373,6 +426,22 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                     { key: 'pills', text: strings.TabStylePills },
                     { key: 'underline', text: strings.TabStyleUnderline }
                   ]
+                })
+              ]
+            },
+            // Stream D / #10 — per-web-part audience targeting. Independent of
+            // the per-vertical `audience` column already on the verticals
+            // collection (that controls individual tab visibility; this one
+            // controls whether the entire tab strip renders).
+            {
+              groupName: strings.AudienceTargetingGroupName,
+              groupFields: [
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             }

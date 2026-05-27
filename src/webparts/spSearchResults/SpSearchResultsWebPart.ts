@@ -18,38 +18,82 @@ import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
 import { ISpSearchResultsProps, ISelectedPropertyColumn } from './components/ISpSearchResultsProps';
+import {
+  IColumnConfigItem,
+  ILegacyColumnItem,
+  normalizeColumnConfigItem,
+} from './components/ColumnConfigField/columnConfig';
+import { PropertyPaneColumnConfigField } from './components/ColumnConfigField/ColumnConfigField';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import { propertyPaneSearchContextIdField } from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
+// T4.D11 — context-sensitive help link surface.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
+// T3.D10 — initialization-order diagnostic; records this web part's
+// registration + the filterConfig length at first-search time so the
+// Results component can surface an edit-mode warning when Filters
+// arrives late.
+import { recordWebPartInit, recordFirstSearch } from '@store/utils/initOrderDiagnostic';
 import { ISearchStore } from '@interfaces/index';
 import {
   getStore,
   getOrchestrator,
-  initializeSearchContext
+  initializeSearchContext,
+  incrementContextRef,
+  decrementContextRef
 } from '@store/store';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
 import { registerBuiltInActions } from './registerBuiltInActions';
 import { SharePointSearchProvider, GraphSearchProvider } from '@providers/index';
 import { PropertyPaneSchemaHelper } from '../../propertyPaneControls/PropertyPaneSchemaHelper';
 import { SCENARIO_PRESETS } from './presets/searchPresets';
+// T4.D12 — cross-web-part preset propagation. Results publishes
+// filterSuggestions for the Filters web part to consume via an edit-mode
+// MessageBar.
+import { recordPresetSuggestion } from '@store/utils/presetSuggestionRegistry';
 import { GraphOrgService } from './components/GraphOrgService';
 import { TitleDisplayMode } from './components/documentTitleUtils';
+import { DebugCollector } from '@store/debug';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('devextreme/dist/css/dx.common.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('devextreme/dist/css/dx.light.css');
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchResultsWebPartProps {
   searchContextId: string;
   queryTemplate: string;
   selectedProperties: string;
   selectedPropertiesCollection: ISelectedPropertyItem[];
-  compactPropertiesCollection: ILayoutPropertyItem[];
-  gridPropertiesCollection: ILayoutPropertyItem[];
+  /**
+   * Stream B / Phase 3 — IColumnConfigItem[] replacing the legacy
+   * `{ uniqueId, property }` shape (Phase 1 did this for grid; Phase 3
+   * brings compact along). Migration is handled at read time by
+   * `normalizeColumnConfigItem`, so stored pages don't need to be migrated.
+   */
+  compactPropertiesCollection: IColumnConfigItem[];
+  /**
+   * Stream B / Phase 1 — column-config items, replacing the legacy
+   * `{ uniqueId, property }` shape. Migration is handled at read time by
+   * `normalizeColumnConfigItem`, so stored pages don't need to be migrated.
+   */
+  gridPropertiesCollection: IColumnConfigItem[];
+  /**
+   * Stream B / Phase 3 — when true (default), the DataGrid layout shows its
+   * built-in column chooser. Columns with `visibility === 'always'` never
+   * appear in the chooser; the rest pre-check based on
+   * `visibility === 'defaultOn'`.
+   */
+  showColumnChooser: boolean;
   resultSourceId: string;
   refinementFilters: string;
   refinementFiltersCollection: IRefinementFilterItem[];
@@ -66,7 +110,19 @@ export interface ISpSearchResultsWebPartProps {
   showDeleteConfirmation: boolean;
   enablePreviewPanel: boolean;
   hideWebPartWhenNoResults: boolean;
+  /**
+   * Admin-supplied HTML rendered in place of the default contextual empty
+   * state when a search returns zero results. Empty = use the default
+   * messaging. Sanitized via spfx-toolkit's `sanitizeHtml` before render.
+   */
+  emptyResultsMessage: string;
   titleDisplayMode: TitleDisplayMode;
+  // Stream C / #7 — result link behaviour. Defaults preserve today's behaviour:
+  // 'panel' keeps the existing DocumentTitleHoverCard Modal-for-previewables;
+  // 'file' / 'displayForm' keep today's URL resolution.
+  resultClickTarget: 'panel' | 'newTab' | 'sameTab' | 'sidePanel';
+  documentLinkMode: 'file' | 'propertiesForm';
+  listItemLinkMode: 'displayForm' | 'editForm';
   searchScope: string;
   searchScopePath: string;
   showListLayout: boolean;
@@ -77,6 +133,8 @@ export interface ISpSearchResultsWebPartProps {
   showGalleryLayout: boolean;
   /** Active scenario preset. 'custom' means individual toggles are in control. */
   layoutPreset: string;
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 interface ISortCollectionItem {
@@ -97,11 +155,6 @@ interface IRefinementFilterItem {
   property: string;
   operator: string;
   value: string;
-}
-
-interface ILayoutPropertyItem {
-  uniqueId: string;
-  property: string;
 }
 
 function normalizeCollectionValue<T>(raw: T[] | string | undefined): T[] {
@@ -145,8 +198,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     }
 
     const selectedPropertyColumns: ISelectedPropertyColumn[] = this._getSelectedPropertyColumns();
-    const compactPropertyColumns: ISelectedPropertyColumn[] = this._getCompactPropertyColumns();
-    const gridPropertyColumns: ISelectedPropertyColumn[] = this._getGridPropertyColumns();
+    const compactPropertyColumns: IColumnConfigItem[] = this._getCompactPropertyColumns();
+    const gridPropertyColumns: IColumnConfigItem[] = this._getGridPropertyColumns();
     const contextId: string = this.properties.searchContextId || 'default';
     const element: React.ReactElement<ISpSearchResultsProps> = React.createElement(
       SpSearchResults,
@@ -161,6 +214,8 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         showDeleteConfirmation: this.properties.showDeleteConfirmation !== false,
         enablePreviewPanel: this.properties.enablePreviewPanel !== false,
         hideWebPartWhenNoResults: this.properties.hideWebPartWhenNoResults === true,
+        emptyResultsMessage: this.properties.emptyResultsMessage || '',
+        showColumnChooser: this.properties.showColumnChooser !== false,
         titleDisplayMode: this.properties.titleDisplayMode || 'wrap',
         defaultLayout: this.properties.defaultLayout,
         pageSize: this.properties.pageSize,
@@ -169,20 +224,64 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
         gridPropertyColumns,
         compactPropertyColumns,
         queryTemplate: this.properties.queryTemplate || '{searchTerms}',
-        graphOrgService: this._graphOrgService
+        graphOrgService: this._graphOrgService,
+        // Stream C / #7 — assemble the link-behaviour config with safe defaults
+        // (preserves today's behaviour byte-for-byte for missing properties).
+        linkConfig: {
+          clickTarget: this.properties.resultClickTarget || 'panel',
+          documentLinkMode: this.properties.documentLinkMode || 'file',
+          listItemLinkMode: this.properties.listItemLinkMode || 'displayForm',
+        }
       }
     );
 
-    ReactDom.render(element, this.domElement);
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const gatedElement: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      element
+    );
+
+    // T3.D2 — edit-mode banner warning admins when the contextId doesn't
+    // match peer web parts on the same page.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Results',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel. See SpSearchBox
+    // for the per-web-part-state-isolation note. Coexists with this web
+    // part's existing DebugFab + DebugPanel (those live inside the React
+    // tree below — DebugCollector is window-backed so they share state).
+    const wrappedElement: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      bannerWrapped
+    );
+
+    ReactDom.render(wrappedElement, this.domElement);
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchResults');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchResults');
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
     this._orchestrator = getOrchestrator(contextId);
+    // T3.D1 — refcount holder for this web part instance.
+    incrementContextRef(contextId);
 
     if (this._store) {
       // Register the SharePoint Search data provider (idempotent — skips if already registered by another web part)
@@ -279,14 +378,25 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     // This triggers the first search — all store config must be set above
     await initializeSearchContext(contextId, this.context);
 
+    // T3.D10 — record this web part's registration + measure the
+    // filterConfig length at first-search time so the edit-mode
+    // diagnostic can surface an init-order MessageBar when Filters
+    // arrives late.
+    recordWebPartInit(contextId, 'SpSearchResultsWebPart');
+
     // Always trigger a search after initialization. The initial search inside
     // initializeSearchContext may have been skipped if another web part
     // (e.g., Filters) called initializeSearchContext before the Results web
     // part registered the data provider. This call is safe — triggerSearch
     // cancels any pending/in-flight search before starting a new one.
     if (this._orchestrator) {
+      const filterConfigLength = this._store
+        ? (this._store.getState().filterConfig || []).length
+        : 0;
+      recordFirstSearch(contextId, filterConfigLength);
       this._orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
     }
+    DebugCollector.registerWebPart('SPSearchResultsWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   private _getSelectedPropertyColumns(): ISelectedPropertyColumn[] {
@@ -298,12 +408,12 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     }));
   }
 
-  private _getCompactPropertyColumns(): ISelectedPropertyColumn[] {
-    return this._mapLayoutPropertyColumns(this._getCompactLayoutProperties());
+  private _getCompactPropertyColumns(): IColumnConfigItem[] {
+    return this._getCompactLayoutProperties();
   }
 
-  private _getGridPropertyColumns(): ISelectedPropertyColumn[] {
-    return this._mapLayoutPropertyColumns(this._getGridLayoutProperties());
+  private _getGridPropertyColumns(): IColumnConfigItem[] {
+    return this._getGridLayoutProperties();
   }
 
   private _normalizeSelectedPropertiesCollection(): ISelectedPropertyItem[] {
@@ -358,84 +468,133 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       }));
   }
 
-  private _normalizeLayoutPropertyCollection(raw: ILayoutPropertyItem[], fallbackProperties: string[] = []): ILayoutPropertyItem[] {
-    const options = this._getLayoutPropertyOptions();
-    const allowed = new Set<string>(options.map((item) => String(item.key).toLowerCase()));
-    const result: ILayoutPropertyItem[] = [];
+  private _getCompactLayoutProperties(): IColumnConfigItem[] {
+    // Stream B / Phase 3 — same shape + migration approach as the grid path
+    // in `_getGridLayoutProperties`. The Compact layout's tight visual
+    // budget caps the visible columns at 4; the editor list reflects that.
+    const raw = normalizeCollectionValue<Partial<IColumnConfigItem> & ILegacyColumnItem>(
+      this.properties.compactPropertiesCollection as unknown as Array<Partial<IColumnConfigItem> & ILegacyColumnItem>
+    );
+
+    const masterAliasMap = new Map<string, { property: string; alias: string }>();
+    const master = this._normalizeSelectedPropertiesCollection();
+    for (let i: number = 0; i < master.length; i++) {
+      const property = master[i].property;
+      if (!isTitleProperty(property)) {
+        masterAliasMap.set(property.toLowerCase(), {
+          property,
+          alias: master[i].alias || property,
+        });
+      }
+    }
+
+    const result: IColumnConfigItem[] = [];
     const seen = new Set<string>();
 
     for (let i: number = 0; i < raw.length; i++) {
       const property = String(raw[i].property || '').trim();
       const lookup = property.toLowerCase();
-      if (!property || isTitleProperty(property) || seen.has(lookup) || !allowed.has(lookup)) {
+      if (!property || isTitleProperty(property) || seen.has(lookup) || !masterAliasMap.has(lookup)) {
         continue;
       }
       seen.add(lookup);
-      result.push({
-        uniqueId: raw[i].uniqueId || ('lp-' + String(i)),
-        property
-      });
+
+      const normalized: IColumnConfigItem = normalizeColumnConfigItem(raw[i]);
+      const aliasOnRaw = typeof raw[i].alias === 'string' ? String(raw[i].alias).trim() : '';
+      if (!aliasOnRaw) {
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry && masterEntry.alias && masterEntry.alias !== property) {
+          normalized.alias = masterEntry.alias;
+        }
+      }
+      result.push(normalized);
     }
 
-    if (result.length === 0 && fallbackProperties.length > 0) {
-      for (let i: number = 0; i < fallbackProperties.length; i++) {
-        const property = String(fallbackProperties[i] || '').trim();
-        const lookup = property.toLowerCase();
-        if (!property || seen.has(lookup) || !allowed.has(lookup)) {
-          continue;
+    // Fallback: seed from the Compact-friendly defaults if no items configured.
+    if (result.length === 0) {
+      const defaults = ['Author', 'LastModifiedTime', 'Size', 'FileType'];
+      for (let i: number = 0; i < defaults.length; i++) {
+        const lookup = defaults[i].toLowerCase();
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry) {
+          result.push(
+            normalizeColumnConfigItem({
+              uniqueId: 'compact-fallback-' + String(i),
+              property: masterEntry.property,
+              alias: masterEntry.alias,
+            })
+          );
         }
-        seen.add(lookup);
-        result.push({
-          uniqueId: 'lp-fallback-' + String(i),
-          property
+      }
+    }
+
+    this.properties.compactPropertiesCollection = result;
+    return result;
+  }
+
+  private _getGridLayoutProperties(): IColumnConfigItem[] {
+    // Stream B / Phase 1 — accepts both legacy `{ uniqueId, property }` items
+    // and the new `IColumnConfigItem` shape. Whichever is on disk is wrapped
+    // via `normalizeColumnConfigItem`; missing aliases are seeded from
+    // `selectedPropertiesCollection` so out-of-box display labels (e.g.
+    // "Modified", "Type") survive migration.
+    const raw = normalizeCollectionValue<Partial<IColumnConfigItem> & ILegacyColumnItem>(
+      this.properties.gridPropertiesCollection as unknown as Array<Partial<IColumnConfigItem> & ILegacyColumnItem>
+    );
+
+    const masterAliasMap = new Map<string, { property: string; alias: string }>();
+    const master = this._normalizeSelectedPropertiesCollection();
+    for (let i: number = 0; i < master.length; i++) {
+      const property = master[i].property;
+      if (!isTitleProperty(property)) {
+        masterAliasMap.set(property.toLowerCase(), {
+          property,
+          alias: master[i].alias || property,
         });
       }
     }
 
-    return result;
-  }
+    const result: IColumnConfigItem[] = [];
+    const seen = new Set<string>();
 
-  private _getCompactLayoutProperties(): ILayoutPropertyItem[] {
-    const raw = normalizeCollectionValue<ILayoutPropertyItem>(this.properties.compactPropertiesCollection);
-    const normalized = this._normalizeLayoutPropertyCollection(raw, [
-      'Author',
-      'LastModifiedTime',
-      'Size',
-      'FileType'
-    ]);
-    this.properties.compactPropertiesCollection = normalized;
-    return normalized;
-  }
+    for (let i: number = 0; i < raw.length; i++) {
+      const property = String(raw[i].property || '').trim();
+      const lookup = property.toLowerCase();
+      if (!property || isTitleProperty(property) || seen.has(lookup) || !masterAliasMap.has(lookup)) {
+        continue;
+      }
+      seen.add(lookup);
 
-  private _getGridLayoutProperties(): ILayoutPropertyItem[] {
-    const raw = normalizeCollectionValue<ILayoutPropertyItem>(this.properties.gridPropertiesCollection);
-    const selected = this._normalizeSelectedPropertiesCollection()
-      .map((item) => item.property)
-      .filter((property) => !isTitleProperty(property));
-    const normalized = this._normalizeLayoutPropertyCollection(raw, selected);
-    this.properties.gridPropertiesCollection = normalized;
-    return normalized;
-  }
-
-  private _mapLayoutPropertyColumns(layoutProperties: ILayoutPropertyItem[]): ISelectedPropertyColumn[] {
-    const master = this._normalizeSelectedPropertiesCollection();
-    const masterMap = new Map<string, ISelectedPropertyItem>();
-    for (let i: number = 0; i < master.length; i++) {
-      masterMap.set(master[i].property.toLowerCase(), master[i]);
+      const normalized: IColumnConfigItem = normalizeColumnConfigItem(raw[i]);
+      // Seed alias from the master collection when the column item carries no
+      // explicit alias (i.e. legacy items where normalizer fell back to property).
+      const aliasOnRaw = typeof raw[i].alias === 'string' ? String(raw[i].alias).trim() : '';
+      if (!aliasOnRaw) {
+        const masterEntry = masterAliasMap.get(lookup);
+        if (masterEntry && masterEntry.alias && masterEntry.alias !== property) {
+          normalized.alias = masterEntry.alias;
+        }
+      }
+      result.push(normalized);
     }
 
-    return layoutProperties
-      .map((item: ILayoutPropertyItem): ISelectedPropertyColumn | undefined => {
-        const match = masterMap.get(String(item.property || '').toLowerCase());
-        if (!match) {
-          return undefined;
-        }
-        return {
-          property: match.property,
-          alias: match.alias || match.property
-        };
-      })
-      .filter((item: ISelectedPropertyColumn | undefined): item is ISelectedPropertyColumn => !!item);
+    // Fallback: seed from selectedPropertiesCollection when no grid items configured.
+    if (result.length === 0) {
+      let idx = 0;
+      masterAliasMap.forEach((entry) => {
+        result.push(
+          normalizeColumnConfigItem({
+            uniqueId: 'lp-fallback-' + String(idx),
+            property: entry.property,
+            alias: entry.alias,
+          })
+        );
+        idx++;
+      });
+    }
+
+    this.properties.gridPropertiesCollection = result;
+    return result;
   }
 
   private _syncQueryTemplateToStore(): void {
@@ -724,18 +883,46 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       (p, idx) => ({ uniqueId: 'preset-sp-' + String(idx), property: p.property, alias: p.alias })
     );
 
+    // Stream B / Phase 3 — compact items now carry the IColumnConfigItem
+    // shape. Map alias through from the matching selectedProperty when
+    // available, so out-of-box labels (Modified / Type / Size) survive.
+    const presetAliasMap = new Map<string, string>(
+      preset.selectedProperties.map((p) => [p.property.toLowerCase(), p.alias])
+    );
     this.properties.compactPropertiesCollection = preset.compactProperties.map(
-      (p, idx) => ({ uniqueId: 'preset-compact-' + String(idx), property: p.property })
+      (p, idx) =>
+        normalizeColumnConfigItem({
+          uniqueId: 'preset-compact-' + String(idx),
+          property: p.property,
+          alias: presetAliasMap.get(p.property.toLowerCase()) || p.property,
+        })
     );
 
     this.properties.gridPropertiesCollection = preset.selectedProperties
       .filter((p) => !isTitleProperty(p.property))
-      .map((p, idx) => ({ uniqueId: 'preset-grid-' + String(idx), property: p.property }));
+      .map((p, idx) =>
+        normalizeColumnConfigItem({
+          uniqueId: 'preset-grid-' + String(idx),
+          property: p.property,
+          alias: p.alias,
+        })
+      );
 
     // Sortable properties — map to the collection format
     this.properties.sortablePropertiesCollection = preset.sortableProperties.map(
       (s, idx) => ({ uniqueId: 'preset-sort-' + String(idx), property: s.property, label: s.label, direction: s.direction })
     );
+
+    // T4.D12 — record the preset's filter suggestions in the cross-web-part
+    // registry so the Filters web part can offer to apply them via an
+    // edit-mode MessageBar. Peers subscribed to the registry re-render and
+    // surface the "Apply N filters from preset" CTA.
+    recordPresetSuggestion(this.properties.searchContextId || 'default', {
+      id: preset.id,
+      label: preset.label,
+      filterSuggestions: preset.filterSuggestions,
+      recordedAt: 0, // overwritten by recordPresetSuggestion
+    });
   }
 
   private _getAvailableLayoutsFromProperties(): string[] {
@@ -775,7 +962,11 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   private _buildPresetOptions(): Array<{ key: string; text: string; iconProps: { officeFabricIconFontName: string } }> {
-    const options = [
+    // T4.D2 — surface all 9 presets unconditionally. The People preset
+    // is shown even when Graph isn't available so admins can discover the
+    // capability and select it; `_isPeoplePresetBlocked` then renders a
+    // graceful warning explaining what's missing.
+    return [
       { key: 'custom',          text: 'Custom',         iconProps: { officeFabricIconFontName: 'Settings' } },
       { key: 'general',         text: 'General',        iconProps: { officeFabricIconFontName: 'Search' } },
       { key: 'documents',       text: 'Documents',      iconProps: { officeFabricIconFontName: 'DocLibrary' } },
@@ -783,16 +974,19 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
       { key: 'knowledge-base',  text: 'Knowledge Base', iconProps: { officeFabricIconFontName: 'BookAnswers' } },
       { key: 'policy-search',   text: 'Policy Search',  iconProps: { officeFabricIconFontName: 'Shield' } },
       { key: 'news',            text: 'News',           iconProps: { officeFabricIconFontName: 'News' } },
-      { key: 'media',           text: 'Media',          iconProps: { officeFabricIconFontName: 'Photo2' } }
+      { key: 'media',           text: 'Media',          iconProps: { officeFabricIconFontName: 'Photo2' } },
+      { key: 'people',          text: 'People',         iconProps: { officeFabricIconFontName: 'Group' } }
     ];
+  }
 
-    const currentPreset = this.properties.layoutPreset || 'custom';
-    const shouldShowPeople = !!this._graphOrgService || currentPreset === 'people';
-    if (shouldShowPeople) {
-      options.push({ key: 'people', text: 'People', iconProps: { officeFabricIconFontName: 'Group' } });
-    }
-
-    return options;
+  /**
+   * T4.D2 — true when the admin has selected `people` but no Graph
+   * client is available (most commonly: the tenant hasn't approved the
+   * Microsoft Graph permission at SharePoint admin → API access).
+   * Drives the graceful-warning label below the preset picker.
+   */
+  private _isPeoplePresetBlocked(): boolean {
+    return this.properties.layoutPreset === 'people' && !this._graphOrgService;
   }
 
   private _shouldShowSpecializedViews(): boolean {
@@ -831,6 +1025,9 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected onDispose(): void {
+    // T3.D1 — drop the refcount before unmounting React. See SearchBox.
+    const contextId: string = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 
@@ -935,9 +1132,38 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             description: strings.DataSourcePageHeader
           },
           groups: [
+            // T4.D2 — "Get started" hoists the scenario preset picker to
+            // the first field on page 1, ahead of any data-source detail.
+            // T3.D4 — `searchContextId` follows the picker in the same group
+            // so both first-impression knobs are visible without a scroll.
+            {
+              groupName: strings.GetStartedGroupName,
+              groupFields: [
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('quick-start', 'Help: Quick Start presets'),
+                PropertyPaneChoiceGroup('layoutPreset', {
+                  label: strings.ScenarioPresetLabel,
+                  options: this._buildPresetOptions()
+                }),
+                PropertyPaneLabel('layoutPresetHint', {
+                  text: strings.ScenarioPresetHint
+                }),
+                // T4.D2 — graceful warning when admin selects `people` but
+                // Graph isn't available. The preset still applies; this
+                // label tells admins what to fix.
+                ...(this._isPeoplePresetBlocked() ? [
+                  PropertyPaneLabel('layoutPresetPeopleWarning', {
+                    text: strings.ScenarioPresetPeopleWarning
+                  })
+                ] : []),
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.DataGroupName,
               groupFields: [
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('results-data', 'Help: Search scope and managed properties'),
                 PropertyPaneDropdown('searchScope', {
                   label: strings.SearchScopeLabel,
                   options: [
@@ -989,6 +1215,12 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                       placeholder: 'Date Modified'
                     }
                   ]
+                }),
+                // Stream B / Phase 3 — quiet-deprecation note. `alias` here
+                // is no longer read by the column-render path; per-column
+                // display labels live on the Grid / Compact column editors.
+                PropertyPaneLabel('selectedPropertiesAliasDeprecation', {
+                  text: strings.SelectedPropertiesAliasDeprecationNote
                 })
               ]
             },
@@ -1068,13 +1300,9 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.MainLayoutsGroupName,
               groupFields: [
-                PropertyPaneChoiceGroup('layoutPreset', {
-                  label: strings.ScenarioPresetLabel,
-                  options: this._buildPresetOptions()
-                }),
-                PropertyPaneLabel('layoutPresetHint', {
-                  text: strings.ScenarioPresetHint
-                }),
+                // T4.D11 — context-sensitive help link.
+                propertyPaneGroupHelp('results-layouts', 'Help: Layouts and presets'),
+                // T4.D2 — preset picker moved to page-1 "Get started" group.
                 PropertyPaneChoiceGroup('defaultLayout', {
                   label: strings.DefaultLayoutLabel,
                   options: this._buildDefaultLayoutOptions()
@@ -1119,44 +1347,32 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             ...(this.properties.showCompactLayout !== false ? [{
               groupName: strings.CompactViewGroupName,
               groupFields: [
-                PropertyFieldCollectionData('compactPropertiesCollection', {
-                  key: 'compactPropertiesCollection',
+                // Stream B / Phase 3 — Compact adopts the same custom field
+                // as the grid. Renderer dispatch flows through the unified
+                // `renderCell.tsx` module via `CompactLayout`.
+                PropertyPaneColumnConfigField('compactPropertiesCollection', {
                   label: strings.CompactPropertiesLabel,
-                  panelHeader: strings.CompactPropertiesPanelHeader,
-                  manageBtnLabel: strings.CompactPropertiesManageBtn,
                   value: this._getCompactLayoutProperties(),
-                  enableSorting: true,
-                  fields: [
-                    {
-                      id: 'property',
-                      title: strings.SelectedPropertyColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: true,
-                      options: this._getLayoutPropertyOptions()
-                    }
-                  ]
+                  availableProperties: this._getLayoutPropertyOptions(),
                 })
               ]
             }] : []),
             ...(this.properties.showGridLayout !== false ? [{
               groupName: strings.GridViewGroupName,
               groupFields: [
-                PropertyFieldCollectionData('gridPropertiesCollection', {
-                  key: 'gridPropertiesCollection',
+                // Stream B / Phase 1 — custom column-config field with a
+                // side-panel editor in place of PnP's flat collection-data
+                // table. Phase 2 added richText / tags / number / boolean
+                // renderer types; Phase 3 added the column-chooser toggle.
+                PropertyPaneColumnConfigField('gridPropertiesCollection', {
                   label: strings.GridPropertiesLabel,
-                  panelHeader: strings.GridPropertiesPanelHeader,
-                  manageBtnLabel: strings.GridPropertiesManageBtn,
                   value: this._getGridLayoutProperties(),
-                  enableSorting: true,
-                  fields: [
-                    {
-                      id: 'property',
-                      title: strings.SelectedPropertyColumn,
-                      type: CustomCollectionFieldType.dropdown,
-                      required: true,
-                      options: this._getLayoutPropertyOptions()
-                    }
-                  ]
+                  availableProperties: this._getLayoutPropertyOptions(),
+                }),
+                PropertyPaneToggle('showColumnChooser', {
+                  label: strings.ShowColumnChooserLabel,
+                  onText: strings.ToggleOnText,
+                  offText: strings.ToggleOffText
                 })
               ]
             }] : []),
@@ -1191,28 +1407,66 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   onText: strings.ToggleOnText,
                   offText: strings.ToggleOffText
                 }),
+                PropertyPaneTextField('emptyResultsMessage', {
+                  label: strings.EmptyResultsMessageLabel,
+                  description: strings.EmptyResultsMessageDescription,
+                  multiline: true,
+                  rows: 4,
+                  resizable: true
+                }),
+              ]
+            },
+            // ─── Result link behaviour (Stream C / #7) ──────────
+            {
+              groupName: strings.ResultLinkGroupName,
+              groupFields: [
+                PropertyPaneChoiceGroup('resultClickTarget', {
+                  label: strings.ResultClickTargetLabel,
+                  options: [
+                    { key: 'panel',     text: strings.ResultClickTargetPanelText },
+                    { key: 'newTab',    text: strings.ResultClickTargetNewTabText },
+                    { key: 'sameTab',   text: strings.ResultClickTargetSameTabText },
+                    { key: 'sidePanel', text: strings.ResultClickTargetSidePanelText }
+                  ]
+                }),
+                ...((this.properties.resultClickTarget || 'panel') !== 'sidePanel' ? [
+                  PropertyPaneDropdown('documentLinkMode', {
+                    label: strings.DocumentLinkModeLabel,
+                    options: [
+                      { key: 'file',            text: strings.DocumentLinkModeFileText },
+                      { key: 'propertiesForm', text: strings.DocumentLinkModePropertiesFormText }
+                    ]
+                  }),
+                  PropertyPaneDropdown('listItemLinkMode', {
+                    label: strings.ListItemLinkModeLabel,
+                    options: [
+                      { key: 'displayForm', text: strings.ListItemLinkModeDisplayFormText },
+                      { key: 'editForm',    text: strings.ListItemLinkModeEditFormText }
+                    ]
+                  })
+                ] : [])
               ]
             }
           ]
         },
         // ─── Page 3: Connections ───────────────────────────
+        // T3.D4 — searchContextId moved to page-1 group-1; this page now
+        // hosts audience targeting only.
         {
           header: {
             description: strings.ConnectionsPageHeader
           },
           groups: [
+            // Stream D / #10 — per-web-part audience targeting.
             {
-              groupName: strings.ConnectionsGroupName,
+              groupName: strings.AudienceTargetingGroupName,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdLabel,
-                  description: strings.SearchContextIdDescription,
-                  onGetErrorMessage: (value: string): string => {
-                    if (!value || value.trim() === '') {
-                      return 'Required — enter an ID to connect search web parts on this page (e.g. "hr-search").';
-                    }
-                    return '';
-                  }
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             }
@@ -1278,9 +1532,18 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                     }
                   ]
                 }),
-                PropertyPaneTextField('collapseSpecification', {
+                // T4.D3 — schema-helper-backed editor with sortable filter.
+                // The browser pivot opens to the Sortable tab and admins
+                // can browse only sortable managed properties; the field's
+                // `onGetErrorMessage` adds did-you-mean / non-sortable
+                // validation against the cached schema (closes the audit's
+                // "Collapse spec rejects non-sortable" acceptance signal).
+                PropertyPaneSchemaHelper('collapseSpecification', {
                   label: strings.CollapseSpecificationLabel,
-                  description: strings.CollapseSpecificationDescription
+                  description: strings.CollapseSpecificationDescription,
+                  value: this.properties.collapseSpecification || '',
+                  filterHint: 'sortable',
+                  validation: { requireSortable: true },
                 }),
                 PropertyPaneToggle('showDeleteConfirmation', {
                   label: strings.ShowDeleteConfirmationLabel,

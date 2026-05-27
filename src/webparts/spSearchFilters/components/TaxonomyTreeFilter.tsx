@@ -5,6 +5,24 @@ import 'spfx-toolkit/lib/utilities/context/pnpImports/taxonomy';
 import styles from './SpSearchFilters.module.scss';
 import type { IActiveFilter, IFilterConfig, IRefinerValue } from '@interfaces/index';
 
+/** Shape of a PnP taxonomy term tree node returned by getAllChildrenAsOrderedTree */
+interface IPnPTermTreeNode {
+  id: string;
+  defaultLabel?: string;
+  labels?: Array<{ name: string; isDefault: boolean }>;
+  children?: IPnPTermTreeNode[];
+}
+
+/** Typed shape for PnP taxonomy term store API accessed via SPContext.sp.termStore */
+interface IPnPTermStoreApi {
+  getTermById(id: string): () => Promise<{ set?: { id?: string } } | undefined>;
+  sets: {
+    getById(id: string): {
+      getAllChildrenAsOrderedTree(): Promise<IPnPTermTreeNode[]>;
+    };
+  };
+}
+
 interface ITaxonomyTreeItem {
   id: string;
   text: string;
@@ -49,7 +67,7 @@ function buildCountMap(values: IRefinerValue[]): Map<string, number> {
 }
 
 function mapTermTree(
-  term: any,
+  term: IPnPTermTreeNode,
   countMap: Map<string, number>,
   showCount: boolean
 ): ITaxonomyTreeItem {
@@ -60,7 +78,7 @@ function mapTermTree(
     : label;
 
   const children = term.children && term.children.length
-    ? term.children.map((child: any) => mapTermTree(child, countMap, showCount))
+    ? term.children.map((child: IPnPTermTreeNode) => mapTermTree(child, countMap, showCount))
     : undefined;
 
   return {
@@ -148,14 +166,16 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
         if (!termSetId) {
           const firstGuid = values.length > 0 ? extractGuid(values[0].value) : undefined;
           if (firstGuid) {
-            const term = await (SPContext.sp as any).termStore.getTermById(firstGuid)();
+            const termStoreApi = (SPContext.sp as unknown as { termStore: IPnPTermStoreApi }).termStore;
+            const term = await termStoreApi.getTermById(firstGuid)();
             termSetId = term?.set?.id;
           }
         }
 
         if (termSetId) {
-          const tree = await (SPContext.sp as any).termStore.sets.getById(termSetId).getAllChildrenAsOrderedTree();
-          const mapped = tree.map((term: any) => mapTermTree(term, countMap, showCount));
+          const termStoreApi = (SPContext.sp as unknown as { termStore: IPnPTermStoreApi }).termStore;
+          const tree = await termStoreApi.sets.getById(termSetId).getAllChildrenAsOrderedTree();
+          const mapped = tree.map((term: IPnPTermTreeNode) => mapTermTree(term, countMap, showCount));
           if (!cancelled) {
             setTreeItems(mapped);
           }
@@ -177,7 +197,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
       }
     }
 
-    void loadTree();
+    loadTree().catch(() => { /* fire-and-forget */ });
 
     return () => {
       cancelled = true;
@@ -200,7 +220,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
     return selected;
   }, [activeFilters, filterName]);
 
-  function handleSelectionChanged(e: any): void {
+  function handleSelectionChanged(e: { component?: { getSelectedNodeKeys(): string[] } }): void {
     if (!e || !e.component) {
       return;
     }

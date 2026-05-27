@@ -4,6 +4,9 @@ import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Bu
 import { Icon } from '@fluentui/react/lib/Icon';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
+// T2.D6 — Owned / Shared-with-me / All ownership toggle on collections.
+import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import {
@@ -45,6 +48,33 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
   const [deleteTarget, setDeleteTarget] = React.useState<ISearchCollection | undefined>(undefined);
   const [isDeleting, setIsDeleting] = React.useState<boolean>(false);
   const [filterTag, setFilterTag] = React.useState<string | undefined>(undefined);
+  // T2.D6 — ownership filter, parallels SavedSearchList. Collections don't
+  // carry an entryType discriminator, so "owned" is inferred via
+  // author.email === current user; "shared with me" is the complement.
+  const [ownershipFilter, setOwnershipFilter] = React.useState<'all' | 'owned' | 'shared'>('all');
+
+  // Current user identity for ownership computation. Falls back to empty
+  // string when SPContext isn't initialised (test harnesses), in which
+  // case every row counts as "owned" and the toggle hides itself.
+  const currentUserEmail: string = React.useMemo((): string => {
+    try {
+      return (SPContext.currentUser && SPContext.currentUser.email) || '';
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const isOwnedByCurrentUser = React.useCallback((c: ISearchCollection): boolean => {
+    if (!currentUserEmail) { return true; }
+    const authorEmail = (c.author && c.author.email) || '';
+    return authorEmail.toLowerCase() === currentUserEmail.toLowerCase();
+  }, [currentUserEmail]);
+
+  const ownedCount = React.useMemo((): number =>
+    collections.filter(isOwnedByCurrentUser).length,
+    [collections, isOwnedByCurrentUser]
+  );
+  const sharedCount = collections.length - ownedCount;
 
   // ─── Computed values ────────────────────────────────────────
 
@@ -61,19 +91,19 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
     return result;
   }, [collections]);
 
-  // Filter collections by selected tag
+  // Filter collections by selected tag, then by ownership.
   const filteredCollections: ISearchCollection[] = React.useMemo(function (): ISearchCollection[] {
-    if (!filterTag) {
-      return collections;
+    let working: ISearchCollection[] = collections;
+    if (filterTag) {
+      working = working.filter((c) => c.tags.indexOf(filterTag) >= 0);
     }
-    const filtered: ISearchCollection[] = [];
-    for (let i = 0; i < collections.length; i++) {
-      if (collections[i].tags.indexOf(filterTag) >= 0) {
-        filtered.push(collections[i]);
-      }
+    if (ownershipFilter === 'owned') {
+      working = working.filter(isOwnedByCurrentUser);
+    } else if (ownershipFilter === 'shared') {
+      working = working.filter((c) => !isOwnedByCurrentUser(c));
     }
-    return filtered;
-  }, [collections, filterTag]);
+    return working;
+  }, [collections, filterTag, ownershipFilter, isOwnedByCurrentUser]);
 
   // Build filter dropdown options
   const filterOptions: IDropdownOption[] = React.useMemo(function (): IDropdownOption[] {
@@ -271,6 +301,23 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
       <div className={styles.sectionIntro}>
         <strong>Collections keep the results you found.</strong> Add selected documents and links from the results list into named collections for later review or sharing.
       </div>
+      {/* T2.D6 — ownership toggle. Hidden when there are zero shared
+          collections; collapses to a single-state toggle otherwise. */}
+      {sharedCount > 0 && (
+        <Pivot
+          selectedKey={ownershipFilter}
+          onLinkClick={(item): void => {
+            if (item && item.props.itemKey) {
+              setOwnershipFilter(item.props.itemKey as 'all' | 'owned' | 'shared');
+            }
+          }}
+          styles={{ root: { marginBottom: 12 } }}
+        >
+          <PivotItem itemKey="all" headerText={'All (' + collections.length + ')'} />
+          <PivotItem itemKey="owned" headerText={'Owned (' + ownedCount + ')'} />
+          <PivotItem itemKey="shared" headerText={'Shared with me (' + sharedCount + ')'} />
+        </Pivot>
+      )}
       {/* Toolbar */}
       <div className={styles.collectionToolbar}>
         {allTags.length > 0 && (

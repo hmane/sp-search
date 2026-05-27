@@ -1,17 +1,14 @@
 declare interface ISpSearchManagerWebPartStrings {
   PropertyPaneDescription: string;
-  ConnectionGroupName: string;
   DisplayGroupName: string;
   SectionsGroupName: string;
   SearchContextIdLabel: string;
   SearchContextIdDescription: string;
-  CoverageSourcePageUrlLabel: string;
-  CoverageSourcePageUrlDescription: string;
   DefaultTabLabel: string;
-  DefaultTabCoverage: string;
+  DefaultTabDashboard: string;
   DefaultTabHealth: string;
   DefaultTabInsights: string;
-  EnableCoverageLabel: string;
+  EnableDashboardLabel: string;
   EnableHealthLabel: string;
   EnableInsightsLabel: string;
   MonitoringGroupName: string;

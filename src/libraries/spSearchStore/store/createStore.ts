@@ -30,7 +30,11 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
     registries,
 
     reset: (): void => {
-      const [set] = a;
+      const [set, get] = a;
+      const currentAbort = get().abortController;
+      if (currentAbort) {
+        currentAbort.abort();
+      }
       set({
         // Query slice defaults
         queryText: '',
@@ -63,7 +67,6 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
         activeLayoutKey: 'list',
         isSearchManagerOpen: false,
         previewPanel: { isOpen: false, item: undefined },
-        bulkSelection: [],
         // User slice defaults
         savedSearches: [],
         searchHistory: [],

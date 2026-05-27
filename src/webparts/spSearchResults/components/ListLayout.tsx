@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { IconButton } from '@fluentui/react/lib/Button';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UserPersona: any = _UserPersona;
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, sanitizeSummaryHtml, formatDateTime, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
+import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import AddToCollectionButton from './AddToCollectionButton';
+import { buildRowActionMenu } from './buildRowActionMenu';
 import styles from './SpSearchResults.module.scss';
 
 export interface IListLayoutProps {
@@ -15,33 +19,51 @@ export interface IListLayoutProps {
   searchContextId: string;
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onItemClick } = props;
+  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <ul className={styles.resultList} role="list">
       {items.map((item: ISearchResult, index: number) => {
         const sizeDisplay: string = formatFileSize(item.fileSize);
-        const linkProps = getResultAnchorProps(item);
+        const linkProps = resolveResultLink(item, linkConfig);
 
         return (
-          <li key={item.key} className={styles.resultCard} role="listitem">
-
+          <li
+            key={item.key}
+            className={styles.resultCard}
+            role="listitem"
+          >
             <div className={styles.resultIcon}>
-              <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.medium} />
+              {isImageType(item) && item.thumbnailUrl ? (
+                // Stream C / #8 — show the image itself for image results.
+                <img className={styles.resultIconImage} src={item.thumbnailUrl} alt="" loading="lazy" />
+              ) : (
+                <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 32 })} />
+              )}
             </div>
 
             <div className={styles.resultBody}>
               <h3 className={styles.resultTitle}>
                 <div className={styles.resultTitleRow}>
-                  <DocumentTitleHoverCard item={item} position={index + 1} onItemClick={onItemClick}>
+                  <DocumentTitleHoverCard
+                    item={item}
+                    position={index + 1}
+                    onItemClick={onItemClick}
+                    clickTarget={linkConfig.clickTarget}
+                    onOpenInSidePanel={onOpenInSidePanel}
+                  >
                     {(handleClick): React.ReactNode => (
                       <a
                         href={linkProps.href}
                         target={linkProps.target}
                         rel={linkProps.rel}
+                        data-interception="off"
                         className={titleDisplayMode === 'wrap' ? styles.resultTitleLinkWrap : styles.resultTitleLink}
                         onClick={handleClick}
                       >
@@ -66,7 +88,7 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
               {item.summary && (
                 <div
                   className={styles.resultSummary}
-                  dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(item.summary) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.summary) }}
                 />
               )}
               <div className={styles.resultMeta}>
@@ -107,6 +129,24 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
                   </>
                 )}
               </div>
+            </div>
+            {/* ECB — per-row contextual action menu at the trailing edge.
+                Open / Download / Copy link via the shared menu builder.
+                The existing AddToCollectionButton stays inside the title
+                row for the most common "pin to a collection" action; the
+                ECB covers the longer tail. */}
+            <div className={styles.resultRowEcb}>
+              <IconButton
+                iconProps={{ iconName: 'MoreVertical' }}
+                ariaLabel={'More actions for ' + item.title}
+                title="More actions"
+                menuProps={{
+                  items: buildRowActionMenu(item, {
+                    position: index + 1,
+                    onItemClick,
+                  }),
+                }}
+              />
             </div>
           </li>
         );

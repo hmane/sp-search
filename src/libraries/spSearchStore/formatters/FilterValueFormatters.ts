@@ -2,6 +2,22 @@ import 'spfx-toolkit/lib/utilities/context/pnpImports/taxonomy';
 import type { IFilterConfig, IFilterValueFormatter } from '@interfaces/index';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
+/** Typed shape for PnP taxonomy term store API */
+interface IPnPTermStoreApi {
+  getTermById(id: string): () => Promise<{
+    labels?: Array<{ name: string; isDefault: boolean }>;
+    parent?: { id?: string };
+  } | undefined>;
+}
+
+/** Typed shape for PnP user profiles API */
+interface IPnPProfilesApi {
+  getPropertiesFor(loginName: string): Promise<{
+    DisplayName?: string;
+    UserProfileProperties?: Array<{ Key: string; Value: string }>;
+  } | undefined>;
+}
+
 interface ITaxonomyLabel {
   label: string;
   path: string;
@@ -68,7 +84,8 @@ async function resolveTaxonomyLabel(termId: string): Promise<ITaxonomyLabel> {
 
   const promise = (async (): Promise<ITaxonomyLabel> => {
     try {
-      const term = await (SPContext.sp as any).termStore.getTermById(termId)();
+      const termStoreApi = (SPContext.sp as unknown as { termStore: IPnPTermStoreApi }).termStore;
+      const term = await termStoreApi.getTermById(termId)();
       const label = getDefaultLabel(term?.labels);
       if (term && term.parent && term.parent.id) {
         const parentLabel = await resolveTaxonomyLabel(term.parent.id as string);
@@ -102,11 +119,12 @@ async function resolvePeopleDisplayName(claim: string): Promise<string> {
 
   const promise = (async (): Promise<string> => {
     try {
-      const profile = await (SPContext.sp as any).profiles.getPropertiesFor(claim);
+      const profilesApi = (SPContext.sp as unknown as { profiles: IPnPProfilesApi }).profiles;
+      const profile = await profilesApi.getPropertiesFor(claim);
       if (profile && profile.DisplayName) {
-        return profile.DisplayName as string;
+        return profile.DisplayName;
       }
-      const properties = profile?.UserProfileProperties as Array<{ Key: string; Value: string }> | undefined;
+      const properties = profile?.UserProfileProperties;
       if (properties) {
         const preferred = properties.find((prop) => prop.Key === 'PreferredName');
         if (preferred && preferred.Value) {
@@ -408,25 +426,32 @@ export const BooleanFilterFormatter: IFilterValueFormatter = {
   id: 'toggle',
   formatForDisplay: (rawValue: string, config: IFilterConfig): string => {
     const stripped = stripStringWrapper(rawValue);
+    const trueLabel = config.invertBoolean ? (config.falseLabel || 'No') : (config.trueLabel || 'Yes');
+    const falseLabel = config.invertBoolean ? (config.trueLabel || 'Yes') : (config.falseLabel || 'No');
     if (stripped === '1' || stripped.toLowerCase() === 'true') {
-      return config.trueLabel || 'Yes';
+      return trueLabel;
     }
     if (stripped === '0' || stripped.toLowerCase() === 'false') {
-      return config.falseLabel || 'No';
+      return falseLabel;
     }
     return stripped;
   },
   formatForQuery: (displayValue: unknown, config: IFilterConfig): string => {
     if (typeof displayValue === 'boolean') {
+      if (config.invertBoolean) {
+        return displayValue ? '0' : '1';
+      }
       return displayValue ? '1' : '0';
     }
     if (typeof displayValue === 'string') {
       const normalized = displayValue.toLowerCase();
-      if (normalized === 'yes' || normalized === (config.trueLabel || '').toLowerCase()) {
-        return '1';
+      const trueLabel = (config.trueLabel || '').toLowerCase();
+      const falseLabel = (config.falseLabel || '').toLowerCase();
+      if (normalized === 'yes' || normalized === trueLabel) {
+        return config.invertBoolean ? '0' : '1';
       }
-      if (normalized === 'no' || normalized === (config.falseLabel || '').toLowerCase()) {
-        return '0';
+      if (normalized === 'no' || normalized === falseLabel) {
+        return config.invertBoolean ? '1' : '0';
       }
       if (normalized === '1' || normalized === '0') {
         return normalized;
@@ -445,6 +470,7 @@ const formatterRegistry: Map<string, IFilterValueFormatter> = new Map([
   ['toggle', BooleanFilterFormatter],
   ['daterange', DateFilterFormatter],
   ['checkbox', DefaultFilterFormatter],
+  ['dropdown', DefaultFilterFormatter],
   ['tagbox', DefaultFilterFormatter],
   ['default', DefaultFilterFormatter],
 ]);

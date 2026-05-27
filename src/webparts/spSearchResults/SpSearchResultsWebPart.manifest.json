@@ -20,7 +20,7 @@
     "group": { "default": "Advanced" },
     "title": { "default": "SP Search Results" },
     "description": { "default": "Search results with PnP-style starter defaults, multiple layouts, detail preview, and bulk actions" },
-    "officeFabricIconFontName": "Search",
+    "officeFabricIconFontName": "GroupedList",
     "properties": {
       "searchContextId": "default",
       "searchScope": "currentsite",
@@ -36,18 +36,18 @@
         { "uniqueId": "starter-sp-6", "property": "SiteName", "alias": "Site" }
       ],
       "compactPropertiesCollection": [
-        { "uniqueId": "starter-compact-0", "property": "Author", "alias": "Author" },
-        { "uniqueId": "starter-compact-1", "property": "LastModifiedTime", "alias": "Modified" },
-        { "uniqueId": "starter-compact-2", "property": "Size", "alias": "Size" },
-        { "uniqueId": "starter-compact-3", "property": "FileType", "alias": "Type" }
+        { "uniqueId": "starter-compact-0", "property": "Author",           "alias": "Author",   "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-1", "property": "LastModifiedTime", "alias": "Modified", "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-2", "property": "Size",             "alias": "Size",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-compact-3", "property": "FileType",         "alias": "Type",     "visibility": "defaultOn", "renderer": "" }
       ],
       "gridPropertiesCollection": [
-        { "uniqueId": "starter-grid-0", "property": "Author" },
-        { "uniqueId": "starter-grid-1", "property": "LastModifiedTime" },
-        { "uniqueId": "starter-grid-2", "property": "FileType" },
-        { "uniqueId": "starter-grid-3", "property": "Size" },
-        { "uniqueId": "starter-grid-4", "property": "Path" },
-        { "uniqueId": "starter-grid-5", "property": "SiteName" }
+        { "uniqueId": "starter-grid-0", "property": "Author",           "alias": "Author",   "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-1", "property": "LastModifiedTime", "alias": "Modified", "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-2", "property": "FileType",         "alias": "Type",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-3", "property": "Size",             "alias": "Size",     "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-4", "property": "Path",             "alias": "URL",      "visibility": "defaultOn", "renderer": "" },
+        { "uniqueId": "starter-grid-5", "property": "SiteName",         "alias": "Site",     "visibility": "defaultOn", "renderer": "" }
       ],
       "refinementFilters": "",
       "refinementFiltersCollection": [],
@@ -71,7 +71,13 @@
       "showDeleteConfirmation": true,
       "enablePreviewPanel": true,
       "hideWebPartWhenNoResults": false,
-      "titleDisplayMode": "wrap"
+      "emptyResultsMessage": "",
+      "showColumnChooser": true,
+      "titleDisplayMode": "wrap",
+      "resultClickTarget": "panel",
+      "documentLinkMode": "file",
+      "listItemLinkMode": "displayForm",
+      "audienceGroups": ""
     }
   }]
 }

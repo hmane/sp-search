@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { ISearchStore, IVerticalSlice } from '@interfaces/index';
+import { DebugCollector } from '../../debug';
 
 export const createVerticalSlice: StateCreator<ISearchStore, [], [], IVerticalSlice> = (set) => ({
   currentVerticalKey: 'all',
@@ -8,6 +9,7 @@ export const createVerticalSlice: StateCreator<ISearchStore, [], [], IVerticalSl
 
   setVertical: (key: string): void => {
     set({ currentVerticalKey: key, currentPage: 1, activeFilters: [] });
+    DebugCollector.logEvent('VERTICAL', { key });
   },
 
   setVerticalCounts: (counts: Record<string, number>): void => {

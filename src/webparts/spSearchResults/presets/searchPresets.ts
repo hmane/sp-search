@@ -329,6 +329,56 @@ const POLICY_SEARCH: IScenarioPreset = {
   ],
 };
 
+/** Account documents search — document-type centric search with content-type-specific subtype refinement. */
+const ACCOUNT_DOCUMENTS: IScenarioPreset = {
+  id: 'account-documents',
+  label: 'Account Documents',
+  description: 'Account-document libraries with document type, subtype, account, review, region, date, and inactive refiners. Requires the managed property mappings documented by the provisioning script.',
+  iconName: 'PageList',
+  queryTemplate: '{searchTerms} IsDocument:1',
+  defaultLayout: 'list',
+  showListLayout: true, showCompactLayout: true, showGridLayout: true,
+  showCardLayout: false, showPeopleLayout: false, showGalleryLayout: false,
+  selectedProperties: [
+    { property: 'Title',               alias: 'Title'         },
+    { property: 'ContentType',         alias: 'Document Type' },
+    { property: 'RefinableString120',  alias: 'Sub Type'      },
+    { property: 'RefinableString121',  alias: 'Account'       },
+    { property: 'RefinableString123',  alias: 'Review Status' },
+    { property: 'RefinableString125',  alias: 'Region'        },
+    { property: 'RefinableDate11',     alias: 'Effective Date'},
+    { property: 'RefinableDate10',     alias: 'Expiry Date'   },
+    { property: 'RefinableString122',  alias: 'Inactive'      },
+    { property: 'FileType',            alias: 'Type'          },
+    { property: 'LastModifiedTime',    alias: 'Modified'      },
+    { property: 'Path',                alias: 'URL'           },
+  ],
+  compactProperties: [
+    { property: 'ContentType',        alias: 'Document Type' },
+    { property: 'RefinableString120', alias: 'Sub Type'      },
+    { property: 'RefinableString121', alias: 'Account'       },
+    { property: 'RefinableDate10',    alias: 'Expiry Date'   },
+    { property: 'FileType',           alias: 'Type'          },
+  ],
+  sortableProperties: [
+    { property: 'LastModifiedTime', label: 'Date Modified', direction: 'Descending' },
+    { property: 'Title',            label: 'Title',         direction: 'Ascending'  },
+    { property: 'RefinableDate11',  label: 'Effective Date',direction: 'Descending' },
+    { property: 'RefinableDate10',  label: 'Expiry Date',   direction: 'Ascending'  },
+    { property: 'RefinableString121', label: 'Account',     direction: 'Ascending'  },
+    { property: 'ContentType',      label: 'Document Type', direction: 'Ascending'  },
+  ],
+  dataProviderHint: 'sharepoint-search',
+  filterSuggestions: [
+    { managedProperty: 'FileType',           label: 'File type',     urlAlias: 'ft', filterType: 'checkbox' },
+    { managedProperty: 'ContentType',        label: 'Document type', urlAlias: 'dt', filterType: 'dropdown' },
+    { managedProperty: 'RefinableString120', label: 'Sub type',      urlAlias: 'st', filterType: 'dropdown' },
+    { managedProperty: 'RefinableString121', label: 'Account',       urlAlias: 'ac', filterType: 'taxonomy' },
+    { managedProperty: 'RefinableDate10',    label: 'Expiry date',   urlAlias: 'ed', filterType: 'daterange' },
+    { managedProperty: 'RefinableString122', label: 'Is active',     urlAlias: 'ia', filterType: 'toggle' },
+  ],
+};
+
 /** Media gallery — image and video assets, Gallery + Card layouts, thumbnail-optimised. */
 const MEDIA: IScenarioPreset = {
   id: 'media',
@@ -380,4 +430,5 @@ export const SCENARIO_PRESETS: Record<string, IScenarioPreset> = {
   'hub-search':   HUB_SEARCH,
   'knowledge-base': KNOWLEDGE_BASE,
   'policy-search':  POLICY_SEARCH,
+  'account-documents': ACCOUNT_DOCUMENTS,
 };

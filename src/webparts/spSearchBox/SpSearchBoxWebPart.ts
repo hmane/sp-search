@@ -6,9 +6,9 @@ import {
   PropertyPaneTextField,
   PropertyPaneSlider,
   PropertyPaneChoiceGroup,
-  PropertyPaneLabel,
   PropertyPaneToggle
 } from '@microsoft/sp-property-pane';
+import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
@@ -19,11 +19,26 @@ import SpSearchBox from './components/SpSearchBox';
 import { ISpSearchBoxProps } from './components/ISpSearchBoxProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { ISearchStore, ISearchScope } from '@interfaces/index';
-import { getStore, initializeSearchContext, getManagerService } from '@store/store';
+import { getStore, initializeSearchContext, getManagerService, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
+import { DebugCollector } from '@store/debug';
+import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+// T4.D8 — shared validator for the newPageQueryParameter URL-key field.
+import { validateNewPageQueryParameter } from '../../propertyPaneControls/fieldValidation';
+// T4.D11 — context-sensitive help link helper.
+import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
+import { DisplayMode } from '@microsoft/sp-core-library';
+import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
+import { SearchContextIdBannerWrapper } from '../../utilities/SearchContextIdMismatchBanner';
+import { SPDebugProvider } from 'spfx-toolkit/lib/components/debug';
+import {
+  propertyPaneSearchContextIdField,
+  SEARCH_CONTEXT_ID_GROUP_NAME,
+} from '../../propertyPaneControls/PropertyPaneSearchContextIdField';
 
-void spfxToolkitStylesLoaded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _ensureStyles = spfxToolkitStylesLoaded;
 
 export interface ISpSearchBoxWebPartProps {
   searchContextId: string;
@@ -49,6 +64,8 @@ export interface ISpSearchBoxWebPartProps {
   newPageParameterLocation: 'queryString' | 'hash';
   newPageQueryParameter: string;
   queryInputTransformation: string;
+  /** Stream D / #10 — comma/newline-separated Azure AD group IDs. Empty = visible to everyone. */
+  audienceGroups: string;
 }
 
 function normalizeSearchScopes(raw: unknown): ISearchScope[] {
@@ -80,7 +97,8 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
       return;
     }
 
-    const element: React.ReactElement<ISpSearchBoxProps> = React.createElement(
+    const audienceGroups = parseAudienceGroups(this.properties.audienceGroups);
+    const innerElement: React.ReactElement<ISpSearchBoxProps> = React.createElement(
       SpSearchBox,
       {
         store: this._store,
@@ -112,16 +130,56 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
       }
     );
 
+    // Stream D / #10 — wrap with AudienceGate so the web part hides itself
+    // when the current user isn't in any of the configured groups.
+    const gatedElement: React.ReactElement = React.createElement(
+      AudienceGate,
+      { audienceGroups, store: this._store },
+      innerElement
+    );
+
+    // T3.D2 — edit-mode banner above the gated tree warning admins when
+    // this web part's searchContextId doesn't match other search web parts
+    // on the page. View-mode renders nothing.
+    const bannerWrapped: React.ReactElement = React.createElement(
+      SearchContextIdBannerWrapper,
+      {
+        webPartId: this.instanceId,
+        contextId: this.properties.searchContextId || 'default',
+        webPartLabel: 'SP Search Box',
+        isEditMode: this.displayMode === DisplayMode.Edit,
+      },
+      gatedElement
+    );
+
+    // SPDebug — toolkit's debug runtime + lazy-loaded panel.
+    // Per-web-part state isolation: each web part bundles its own copy of
+    // the toolkit, so each SPDebugProvider has its own SPDebugStore. URL
+    // activation (`?debug=1` / `?isDebug=1`) toggles every web part on the
+    // page in lockstep; keyboard shortcut `Ctrl+Alt+D` toggles the panel of
+    // whichever web part has focus. Coexists with the project's existing
+    // DebugCollector + DebugFab (window-backed) on the Results web part.
+    const element: React.ReactElement = React.createElement(
+      SPDebugProvider,
+      { logger: SPContext.logger, allowInProduction: false },
+      bannerWrapped
+    );
+
     ReactDom.render(element, this.domElement);
   }
 
   protected async onInit(): Promise<void> {
+    ensurePnpPropertyControlStyles();
+
     // Initialize SPContext for PnPjs
-    await SPContext.basic(this.context, 'SPSearchBox');
+    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchBox');
 
     // Get or create the shared Zustand store
     const contextId = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
+    // T3.D1 — register this web part as a refcount holder. Drops in onDispose.
+    incrementContextRef(contextId);
 
     // Register the SharePoint Search data provider (uses SPContext.sp internally)
     const provider = new SharePointSearchProvider();
@@ -145,10 +203,14 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     if (managerService) {
       const suggestions = this._store.getState().registries.suggestions;
       const dataProviders = this._store.getState().registries.dataProviders;
+      // Safe to register after initializeSearchContext — suggestion providers are
+      // UI-only (not involved in search execution) so the suggestion registry is
+      // intentionally NOT frozen by SearchOrchestrator.freezeRegistries().
       registerBuiltInSuggestions(suggestions, managerService, dataProviders);
     }
 
     this.properties.searchScopes = normalizeSearchScopes(this.properties.searchScopes);
+    DebugCollector.registerWebPart('SPSearchBoxWebPart', this.properties as unknown as Record<string, unknown>);
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -197,8 +259,14 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
   }
 
   protected onDispose(): void {
+    // T3.D1 — decrement the per-context refcount BEFORE unmounting the
+    // React tree. When the last web part on the context unmounts, the
+    // deferred dispose tears down URL sync, orchestrator, and the
+    // window-backed context entry. Cross-page SPA navigation order is
+    // handled by the microtask deferral in the registry.
+    const contextId = this.properties.searchContextId || 'default';
+    decrementContextRef(contextId);
     // Unmount React component tree
-    // Note: We don't stop the shared orchestrator here - it's managed by the registry
     ReactDom.unmountComponentAtNode(this.domElement);
   }
 
@@ -215,9 +283,20 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             description: strings.SearchPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId is the first field every admin sees
+            // on every search web part. Hoisted to page-1 / group-1 via the
+            // shared helper so the label / description / required-error
+            // string match across all six panes.
+            {
+              groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
+              groupFields: [
+                propertyPaneSearchContextIdField()
+              ]
+            },
             {
               groupName: strings.SearchGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-search', 'Help: Search input behaviour'),
                 PropertyPaneTextField('placeholder', {
                   label: strings.PlaceholderFieldLabel,
                 }),
@@ -248,6 +327,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             {
               groupName: strings.NavigationGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-navigation', 'Help: Same-page vs new-page navigation'),
                 PropertyPaneToggle('searchInNewPage', {
                   label: strings.SearchInNewPageLabel,
                   onText: strings.ToggleOnText,
@@ -260,6 +340,10 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                     onGetErrorMessage: (value: string): string => {
                       if (!value || value.trim() === '') {
                         return strings.NewPageUrlRequiredMessage;
+                      }
+                      const trimmed = value.trim();
+                      if (!trimmed.startsWith('/') && !trimmed.startsWith('https://') && !trimmed.startsWith('http://')) {
+                        return 'URL must start with /, https://, or http://';
                       }
                       return '';
                     }
@@ -280,7 +364,11 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                   }),
                   PropertyPaneTextField('newPageQueryParameter', {
                     label: strings.NewPageQueryParameterLabel,
-                    description: strings.NewPageQueryParameterDescription
+                    description: strings.NewPageQueryParameterDescription,
+                    // T4.D8 — alphanumeric + dash + underscore only.
+                    // Special URL characters (?, &, =, #, space) corrupt
+                    // the query string the search box constructs.
+                    onGetErrorMessage: validateNewPageQueryParameter
                   })
                 ] : [])
               ]
@@ -295,6 +383,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             {
               groupName: strings.SuggestionsGroupName,
               groupFields: [
+                propertyPaneGroupHelp('box-suggestions', 'Help: Search suggestions and quick results'),
                 PropertyPaneToggle('enableSuggestions', {
                   label: strings.EnableSuggestionsFieldLabel,
                   onText: strings.ToggleOnText,
@@ -344,18 +433,18 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             description: strings.ConnectionsPageHeader
           },
           groups: [
+            // T3.D4 — searchContextId moved to page-1 group-1 via the shared
+            // helper. The Connections page now hosts only audience targeting.
+            // Stream D / #10 — per-web-part audience targeting.
             {
-              groupName: strings.ConnectionGroupName,
+              groupName: strings.AudienceTargetingGroupName,
               groupFields: [
-                PropertyPaneTextField('searchContextId', {
-                  label: strings.SearchContextIdFieldLabel,
-                  description: strings.SearchContextIdFieldDescription,
-                  onGetErrorMessage: (value: string): string => {
-                    if (!value || value.trim() === '') {
-                      return 'Required — must match the Search Context ID set on the Search Results web part.';
-                    }
-                    return '';
-                  }
+                PropertyPaneTextField('audienceGroups', {
+                  label: strings.AudienceTargetingLabel,
+                  description: strings.AudienceTargetingDescription,
+                  multiline: true,
+                  rows: 3,
+                  resizable: true
                 })
               ]
             },
@@ -368,8 +457,36 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                   offText: strings.ToggleOffText
                 }),
                 ...(this.properties.enableScopeSelector ? [
-                  PropertyPaneLabel('scopeInfo', {
-                    text: strings.ScopeInfoLabel
+                  PropertyFieldCollectionData('searchScopes', {
+                    key: 'searchScopes',
+                    label: 'Search scopes',
+                    panelHeader: 'Configure search scopes',
+                    panelDescription: 'Define the scopes available in the scope selector dropdown. Each scope needs a unique ID, a display label, and an optional KQL path filter.',
+                    manageBtnLabel: 'Manage scopes',
+                    value: this.properties.searchScopes as unknown as Array<Record<string, unknown>>,
+                    fields: [
+                      {
+                        id: 'id',
+                        title: 'ID',
+                        type: CustomCollectionFieldType.string,
+                        required: true,
+                        placeholder: 'e.g. allsites'
+                      },
+                      {
+                        id: 'label',
+                        title: 'Label',
+                        type: CustomCollectionFieldType.string,
+                        required: true,
+                        placeholder: 'e.g. All sites'
+                      },
+                      {
+                        id: 'kqlPath',
+                        title: 'KQL Path',
+                        type: CustomCollectionFieldType.string,
+                        required: false,
+                        placeholder: 'e.g. path:"https://tenant.sharepoint.com/sites/hr"'
+                      }
+                    ]
                   })
                 ] : [])
               ]

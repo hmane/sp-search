@@ -2,8 +2,6 @@ import * as React from 'react';
 import { Card, Header, Content } from 'spfx-toolkit/lib/components/Card';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import styles from './SpSearchFilters.module.scss';
-import CheckboxFilter from './CheckboxFilter';
-import DateRangeFilter from './DateRangeFilter';
 import TextFilter from './TextFilter';
 import ToggleFilter from './ToggleFilter';
 import type {
@@ -12,11 +10,14 @@ import type {
   IFilterConfig
 } from '@interfaces/index';
 
-// Lazy-load heavy filter components (DevExtreme RangeSlider, TagBox, TreeView; PnP PeoplePicker)
-const LazySliderFilter = React.lazy(function () { return import('./SliderFilter'); });
-const LazyTagBoxFilter = React.lazy(function () { return import('./TagBoxFilter'); });
-const LazyTaxonomyTreeFilter = React.lazy(function () { return import('./TaxonomyTreeFilter'); });
-const LazyPeoplePickerFilter = React.lazy(function () { return import('./PeoplePickerFilter'); });
+// Lazy-load heavy filter components (DevExtreme DateBox, RangeSlider, TagBox, TreeView; PnP FileTypeIcon, PeoplePicker)
+const LazyCheckboxFilter = React.lazy(function () { return import(/* webpackChunkName: 'CheckboxFilter' */ './CheckboxFilter'); });
+const LazyDateRangeFilter = React.lazy(function () { return import(/* webpackChunkName: 'DateRangeFilter' */ './DateRangeFilter'); });
+const LazySliderFilter = React.lazy(function () { return import(/* webpackChunkName: 'SliderFilter' */ './SliderFilter'); });
+const LazyTagBoxFilter = React.lazy(function () { return import(/* webpackChunkName: 'TagBoxFilter' */ './TagBoxFilter'); });
+const LazyTaxonomyTreeFilter = React.lazy(function () { return import(/* webpackChunkName: 'TaxonomyTreeFilter' */ './TaxonomyTreeFilter'); });
+const LazyPeoplePickerFilter = React.lazy(function () { return import(/* webpackChunkName: 'PeoplePickerFilter' */ './PeoplePickerFilter'); });
+const LazyDropdownFilter = React.lazy(function () { return import(/* webpackChunkName: 'DropdownFilter' */ './DropdownFilter'); });
 
 export interface IFilterGroupProps {
   refiner: IRefiner;
@@ -63,8 +64,18 @@ function renderFilterComponent(
   };
 
   switch (filterType) {
+    case 'dropdown':
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyDropdownFilter, commonProps)
+      );
     case 'daterange':
-      return React.createElement(DateRangeFilter, commonProps);
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyDateRangeFilter, commonProps)
+      );
     case 'text':
       return React.createElement(TextFilter, commonProps);
     case 'toggle':
@@ -95,7 +106,11 @@ function renderFilterComponent(
       );
     case 'checkbox':
     default:
-      return React.createElement(CheckboxFilter, commonProps);
+      return React.createElement(
+        React.Suspense,
+        { fallback: LazyFallback },
+        React.createElement(LazyCheckboxFilter, commonProps)
+      );
   }
 }
 

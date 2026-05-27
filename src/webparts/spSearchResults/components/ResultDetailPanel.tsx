@@ -16,6 +16,17 @@ export interface IResultDetailPanelProps {
   isOpen: boolean;
   item: ISearchResult | undefined;
   onDismiss: () => void;
+  // T2.D7 — next/previous result navigation. `currentIndex` is the
+  // position of the open item in the current page's items array (-1 when
+  // the item isn't on-page); `totalOnPage` is the items count; `hasNextPage`
+  // indicates whether the parent can advance into a fresh page when the
+  // user clicks Next at the end. `onNavigate(delta)` is called with +1
+  // (next) or -1 (previous); the parent updates `item` and the panel
+  // stays mounted (no close animation between rows).
+  currentIndex?: number;
+  totalOnPage?: number;
+  hasNextPage?: boolean;
+  onNavigate?: (delta: number) => void;
 }
 
 /**
@@ -119,7 +130,34 @@ const PanelShimmer: React.FC = () => (
  * selected search result, including document preview, metadata, and actions.
  */
 const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
-  const { isOpen, item, onDismiss } = props;
+  const { isOpen, item, onDismiss, currentIndex, totalOnPage, hasNextPage, onNavigate } = props;
+
+  // T2.D7 — derived navigation flags.
+  const canGoPrevious: boolean = (currentIndex !== undefined && currentIndex > 0);
+  const canGoNext: boolean = (
+    (currentIndex !== undefined && totalOnPage !== undefined && currentIndex < totalOnPage - 1) ||
+    !!hasNextPage
+  );
+  const isAtEndOfPage: boolean = (
+    currentIndex !== undefined && totalOnPage !== undefined && currentIndex === totalOnPage - 1
+  );
+
+  // T2.D7 — Alt+Left / Alt+Right keyboard navigation while the panel is open.
+  React.useEffect((): (() => void) | undefined => {
+    if (!isOpen || !onNavigate) { return undefined; }
+    const handler = (event: KeyboardEvent): void => {
+      if (!event.altKey) { return; }
+      if (event.key === 'ArrowLeft' && canGoPrevious) {
+        event.preventDefault();
+        onNavigate(-1);
+      } else if (event.key === 'ArrowRight' && canGoNext) {
+        event.preventDefault();
+        onNavigate(1);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return (): void => { document.removeEventListener('keydown', handler); };
+  }, [isOpen, onNavigate, canGoPrevious, canGoNext]);
   const [isPreviewLoaded, setIsPreviewLoaded] = React.useState<boolean>(false);
   const [linkCopied, setLinkCopied] = React.useState<boolean>(false);
   const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
@@ -165,22 +203,10 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   }, []);
 
-  // ─── Render header content ─────────────────────────────
-  const onRenderNavigationContent = React.useCallback(
-    (): React.ReactElement => {
-      return (
-        <div className={styles.detailPanelNav}>
-          <IconButton
-            iconProps={{ iconName: 'Cancel' }}
-            ariaLabel="Close panel"
-            onClick={onDismiss}
-            title="Close"
-          />
-        </div>
-      );
-    },
-    [onDismiss]
-  );
+  // T1.D6 (a) — Fluent's default close button is preferred over a custom
+  // override. Removed the previous `onRenderNavigationContent` that
+  // hand-rolled an IconButton (lost the keyboard hint + alignment Fluent
+  // provides). Panel below now uses `hasCloseButton={true}` + `headerText`.
 
   if (!item) {
     return (
@@ -199,6 +225,8 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
 
   const canPreview: boolean = supportsWopiPreview(item.fileType);
   const previewUrl: string = canPreview ? buildPreviewUrl(item) : '';
+  const isPdf: boolean = (item.fileType || '').toLowerCase() === 'pdf'
+    || (item.url || '').toLowerCase().split('?')[0].split('#')[0].endsWith('.pdf');
   const hasAuthorEmail: boolean = !!(item.author && item.author.email);
   const fileSizeStr: string = formatFileSize(item.fileSize);
   const viewUrl: string | undefined = buildFormUrl(item, 4);
@@ -212,8 +240,8 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
       type={PanelType.medium}
       onDismiss={onDismiss}
       isLightDismiss={true}
-      hasCloseButton={false}
-      onRenderNavigationContent={onRenderNavigationContent}
+      hasCloseButton={true}
+      closeButtonAriaLabel="Close detail panel"
     >
       <div className={styles.detailPanel}>
         {/* ─── Header Section ───────────────────────────── */}
@@ -255,6 +283,38 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                 className={linkCopied ? styles.detailPanelActionIconSuccess : styles.detailPanelActionIcon}
               />
             </TooltipHost>
+            {/* T2.D7 — Next/Previous navigation. Only mounted when the
+                parent passed `onNavigate` so the panel can be reused
+                stand-alone (without an items list) without breaking. */}
+            {onNavigate && (
+              <>
+                <TooltipHost content="Previous result (Alt+Left)">
+                  <IconButton
+                    iconProps={{ iconName: 'ChevronLeft' }}
+                    ariaLabel="Previous result"
+                    onClick={(): void => onNavigate(-1)}
+                    disabled={!canGoPrevious}
+                    className={styles.detailPanelActionIcon}
+                  />
+                </TooltipHost>
+                <TooltipHost content={isAtEndOfPage && hasNextPage ? 'Load next page (Alt+Right)' : 'Next result (Alt+Right)'}>
+                  <IconButton
+                    iconProps={{ iconName: 'ChevronRight' }}
+                    ariaLabel={isAtEndOfPage && hasNextPage ? 'Load next page' : 'Next result'}
+                    onClick={(): void => onNavigate(1)}
+                    disabled={!canGoNext}
+                    className={styles.detailPanelActionIcon}
+                  />
+                </TooltipHost>
+                {/* Position indicator: "3 of 10" — shows the admin where
+                    in the page they are. Hidden when index is unknown. */}
+                {currentIndex !== undefined && totalOnPage !== undefined && currentIndex >= 0 && (
+                  <span style={{ fontSize: 12, color: '#605e5c', marginLeft: 8, alignSelf: 'center' }}>
+                    {(currentIndex + 1) + ' of ' + totalOnPage}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -271,27 +331,63 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                 />
               </div>
             )}
-            <iframe
-              className={styles.previewFrame}
-              src={previewUrl}
-              title={'Preview: ' + item.title}
-              onLoad={handleIframeLoad}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              style={{ display: isPreviewLoaded ? 'block' : 'none' }}
-            />
+            {isPdf ? (
+              // <embed> uses the browser's native PDF plugin directly —
+              // sidesteps Chrome's "This page has been blocked by Chrome"
+              // failure mode that hits sandboxed iframes loading PDFs, and
+              // has no scripting context to navigate the top frame from.
+              <embed
+                className={styles.previewFrame}
+                src={previewUrl}
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                onLoad={handleIframeLoad}
+                style={{ display: isPreviewLoaded ? 'block' : 'none' }}
+              />
+            ) : (
+              // Office docs — WopiFrame in a sandboxed iframe.
+              // allow-scripts + allow-same-origin: WOPI preview runtime.
+              // allow-popups: "Open in app" links within WOPI.
+              // allow-top-navigation deliberately omitted so WopiFrame can't
+              // break out of the side panel.
+              <iframe
+                className={styles.previewFrame}
+                src={previewUrl}
+                title={'Preview: ' + item.title}
+                onLoad={handleIframeLoad}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                style={{ display: isPreviewLoaded ? 'block' : 'none' }}
+              />
+            )}
           </div>
         )}
 
-        {/* ─── Non-previewable fallback ─────────────────── */}
+        {/* T1.D6 (b) — Non-previewable fallback. Centered card layout with
+            file-type icon, file-type + size sub-line, and a two-button row
+            (Open in browser + Download). Covers .eml/.msg/images/video/
+            zip which are the audit's named-out "common types with empty
+            pane" cases. */}
         {!canPreview && (
-          <div className={styles.detailPanelNoPreview}>
-            <Icon iconName={getFileTypeIcon(item.fileType)} style={{ fontSize: 48 }} />
-            <p>Preview is not available for this file type.</p>
-            <DefaultButton
-              text="Open in browser"
-              iconProps={{ iconName: 'OpenInNewTab' }}
-              onClick={handleOpenInBrowser}
-            />
+          <div className={styles.detailPanelNoPreviewCard}>
+            <Icon iconName={getFileTypeIcon(item.fileType)} className={styles.detailPanelNoPreviewIcon} />
+            <p className={styles.detailPanelNoPreviewTitle}>Preview not available</p>
+            <p className={styles.detailPanelNoPreviewSubtitle}>
+              {(item.fileType || 'This file type').toUpperCase()}
+              {fileSizeStr ? ' · ' + fileSizeStr : ''}
+            </p>
+            <div className={styles.detailPanelNoPreviewActions}>
+              <DefaultButton
+                text="Open in browser"
+                iconProps={{ iconName: 'OpenInNewTab' }}
+                onClick={handleOpenInBrowser}
+              />
+              <DefaultButton
+                text="Download"
+                iconProps={{ iconName: 'Download' }}
+                onClick={handleDownload}
+              />
+            </div>
           </div>
         )}
 
@@ -306,10 +402,21 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
               showSecondaryText={true}
               showLivePersona={false}
             />
-          ) : (
+          ) : item.author && item.author.displayText ? (
+            // T1.D6 (c) — author display name present but no email (Graph
+            // people lookup failed, or the field was indexed as a plain
+            // string). Render the name without the persona avatar — better
+            // than a generic Contact icon + "Unknown" placeholder.
             <div className={styles.detailPanelAuthorFallback}>
               <Icon iconName="Contact" className={styles.detailPanelAuthorFallbackIcon} />
-              <span>{item.author?.displayText || 'Unknown'}</span>
+              <span>{item.author.displayText}</span>
+            </div>
+          ) : (
+            // T1.D6 (c) — author entirely missing. Graceful copy instead
+            // of the bare "Unknown" word that read as a broken state.
+            <div className={styles.detailPanelAuthorFallback}>
+              <Icon iconName="Info" className={styles.detailPanelAuthorFallbackIcon} />
+              <span style={{ color: '#605e5c' }}>Author not indexed for this result</span>
             </div>
           )}
 

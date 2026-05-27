@@ -10,6 +10,7 @@ import {
   setStateSnapshotLoader
 } from './middleware';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { initializeFileTypeIcons } from '@fluentui/react-file-type-icons';
 
 /**
  * Context instance that holds the store, orchestrator, and services.
@@ -20,6 +21,29 @@ interface ISearchContext {
   managerService: SearchManagerService | undefined;
   urlSyncUnsubscribe: (() => void) | undefined;
   isInitialized: boolean;
+  /** Stable URL prefix computed at context creation time (before initialization). */
+  urlPrefix: string;
+  /**
+   * T3.D6 — admin-provided URL prefix override. When set, wins over
+   * the auto-computed `urlPrefix`. Admins configure short readable
+   * prefixes like `ctx1` instead of the auto-generated 6+6-char hash.
+   */
+  urlPrefixOverride?: string;
+  /**
+   * T3.D6 — URL sync opt-out. When `false`, the context never
+   * subscribes to URL changes / pushes state to the URL — useful
+   * for embedded "saved-search runner" widgets that must not stomp
+   * the page URL. Default true.
+   */
+  enableUrlSync: boolean;
+}
+
+// T3.D6 — initialization options surface admins can set per-context.
+export interface IInitializeContextOptions {
+  /** Explicit URL prefix override (e.g. "ctx1"). */
+  urlPrefix?: string;
+  /** Opt out of URL sync entirely. Default true. */
+  enableUrlSync?: boolean;
 }
 
 /**
@@ -32,6 +56,10 @@ interface ISearchContext {
  */
 const CONTEXT_MAP_KEY = '__sp_search_context_map__';
 const INIT_PROMISES_KEY = '__sp_search_init_promises__';
+// T3.D1 — per-context refcount stored on window for cross-bundle visibility.
+// Each web part bundle imports this module independently; without the
+// window-backed map the refcounts would be per-bundle and never reach 0.
+const REFCOUNT_KEY = '__sp_search_context_refcount_v1__';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const _win = window as any;
@@ -41,6 +69,13 @@ function getContextMap(): Map<string, ISearchContext> {
     _win[CONTEXT_MAP_KEY] = new Map();
   }
   return _win[CONTEXT_MAP_KEY];
+}
+
+function getRefCountMap(): Map<string, number> {
+  if (!_win[REFCOUNT_KEY]) {
+    _win[REFCOUNT_KEY] = new Map<string, number>();
+  }
+  return _win[REFCOUNT_KEY];
 }
 
 function getInitPromises(): Map<string, Promise<void>> {
@@ -90,9 +125,24 @@ export function getManagerService(searchContextId: string): SearchManagerService
 export async function initializeSearchContext(
   searchContextId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  spfxContext?: any
+  spfxContext?: any,
+  options?: IInitializeContextOptions
 ): Promise<void> {
   const context = getOrCreateContext(searchContextId);
+
+  // T3.D6 — admin URL-prefix override + sync opt-out. These are
+  // recorded on the context BEFORE the urlSync subscription is created
+  // below. Re-init with different options is allowed; the most recent
+  // wins because re-init creates a new subscription with the new prefix.
+  if (options) {
+    if (typeof options.urlPrefix === 'string') {
+      const trimmed = options.urlPrefix.trim();
+      context.urlPrefixOverride = trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (typeof options.enableUrlSync === 'boolean') {
+      context.enableUrlSync = options.enableUrlSync;
+    }
+  }
 
   // Initialize SPContext in the library's own webpack bundle.
   // Each web part bundle has its own copy of SPContext (due to webpack entry-point
@@ -103,6 +153,9 @@ export async function initializeSearchContext(
   if (spfxContext && !SPContext.isReady()) {
     await SPContext.basic(spfxContext, 'SpSearchStore');
   }
+
+  // Register Fluent UI file type icons (SVGs from Office CDN). Idempotent.
+  initializeFileTypeIcons();
 
   // Skip if already initialized
   if (context.isInitialized) {
@@ -164,14 +217,22 @@ async function _doInitializeContext(
     return managerService.loadStateSnapshot(stateId);
   });
 
-  // Create the URL sync subscription.
-  // Prefer clean unprefixed URLs for the common single-search-page case.
-  // If multiple independent search contexts exist, fall back to a stable prefix.
-  const urlPrefix = getContextMap().size > 1 ? _buildStableUrlPrefix(searchContextId) : undefined;
-  context.urlSyncUnsubscribe = createUrlSyncSubscription(
-    context.store as StoreApi<ISearchStore>,
-    urlPrefix
-  );
+  // T3.D6 — when the admin opts out of URL sync (`enableUrlSync: false`),
+  // skip the subscription entirely. The store still functions; only URL
+  // round-trips are disabled (useful for embedded saved-search runners
+  // that must not stomp the page URL).
+  if (context.enableUrlSync !== false) {
+    // Create the URL sync subscription.
+    // Prefer clean unprefixed URLs for the common single-search-page case.
+    // If multiple independent search contexts exist, use the stored prefix.
+    // T3.D6 — admin override wins over the auto-computed prefix.
+    const autoPrefix = getContextMap().size > 1 ? context.urlPrefix : undefined;
+    const effectivePrefix = context.urlPrefixOverride !== undefined ? context.urlPrefixOverride : autoPrefix;
+    context.urlSyncUnsubscribe = createUrlSyncSubscription(
+      context.store,
+      effectivePrefix
+    );
+  }
 
   // Resolve Azure AD group memberships for audience targeting (non-blocking)
   resolveUserGroupIds()
@@ -208,8 +269,34 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
       managerService: undefined,
       urlSyncUnsubscribe: undefined,
       isInitialized: false,
+      urlPrefix: _buildStableUrlPrefix(searchContextId),
+      // T3.D6 — defaults; admins override via initializeSearchContext options.
+      enableUrlSync: true,
+      urlPrefixOverride: undefined,
     };
     map.set(searchContextId, context);
+
+    // When a second context arrives (map.size transitions from 1 → 2+), the
+    // first context was initialized without a URL prefix. Re-subscribe ALL
+    // previously-initialized contexts so they pick up their stored prefix.
+    // T3.D6 — also respect the admin override + enableUrlSync flag.
+    if (map.size === 2) {
+      map.forEach(function (existingCtx: ISearchContext, _existingId: string): void {
+        if (existingCtx.isInitialized && existingCtx.urlSyncUnsubscribe) {
+          existingCtx.urlSyncUnsubscribe();
+          existingCtx.urlSyncUnsubscribe = undefined;
+        }
+        if (existingCtx.isInitialized && existingCtx.enableUrlSync !== false) {
+          const prefix = existingCtx.urlPrefixOverride !== undefined
+            ? existingCtx.urlPrefixOverride
+            : existingCtx.urlPrefix;
+          existingCtx.urlSyncUnsubscribe = createUrlSyncSubscription(
+            existingCtx.store,
+            prefix
+          );
+        }
+      });
+    }
   } else {
     console.log('[SP Search] v1.0.12 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
   }
@@ -217,8 +304,65 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
 }
 
 /**
+ * T3.D1 — increment the per-context refcount. Call from each web part's
+ * `onInit()` after `getStore(searchContextId)` resolves. The refcount is
+ * keyed by `searchContextId` (NOT by web part instance) so that two web
+ * parts sharing one context release together when both unmount.
+ */
+export function incrementContextRef(searchContextId: string): void {
+  const refs = getRefCountMap();
+  refs.set(searchContextId, (refs.get(searchContextId) || 0) + 1);
+}
+
+/**
+ * T3.D1 — decrement the per-context refcount + schedule a deferred
+ * dispose. Call from each web part's `onDispose()` BEFORE
+ * `ReactDom.unmountComponentAtNode`.
+ *
+ * The dispose is deferred to a microtask so SPFx Modern's "next page
+ * onInit fires before old page onDispose" cross-page navigation order
+ * doesn't drop the context prematurely — a new mount has a chance to
+ * re-increment first. If after the microtask the refcount is still 0,
+ * the context is disposed.
+ */
+export function decrementContextRef(searchContextId: string): void {
+  const refs = getRefCountMap();
+  const current = refs.get(searchContextId) || 0;
+  if (current <= 0) {
+    // Already at zero — defensive; spurious onDispose with no prior
+    // onInit (e.g. early SPFx unmount during a failed init).
+    return;
+  }
+  const next = current - 1;
+  if (next > 0) {
+    refs.set(searchContextId, next);
+    return;
+  }
+  // Transition to zero — schedule the dispose for the next microtask.
+  // If a new mount with the same context arrives before then,
+  // `incrementContextRef` will set the count back to 1 and the deferred
+  // check below will skip the dispose.
+  refs.set(searchContextId, 0);
+  const scheduler: (cb: () => void) => void =
+    typeof queueMicrotask === 'function' ? queueMicrotask : ((cb): void => { setTimeout(cb, 0); });
+  scheduler((): void => {
+    if ((refs.get(searchContextId) || 0) === 0) {
+      refs.delete(searchContextId);
+      disposeStore(searchContextId);
+    }
+  });
+}
+
+/**
  * Dispose and remove a store for the given search context ID.
- * Call this when all web parts using this context are unmounted.
+ *
+ * T3.D1 — prefer `decrementContextRef` from web part `onDispose()` so the
+ * refcount + deferred-dispose contract handles the cross-page navigation
+ * race. Direct calls to `disposeStore` bypass the refcount and force
+ * immediate teardown — useful for tests and admin-driven "Force dispose"
+ * surfaces (e.g. DebugPanel Multi-Context tab). Library-component
+ * consumers (third-party extensions per `extensibility-guide.md`) should
+ * use the refcounted path.
  */
 export function disposeStore(searchContextId: string): void {
   const map = getContextMap();
@@ -233,6 +377,18 @@ export function disposeStore(searchContextId: string): void {
     context.store.getState().dispose();
     map.delete(searchContextId);
   }
+  // T3.D1 — also clear the refcount so a future fresh mount starts
+  // from 0 rather than inheriting any stale count.
+  const refs = getRefCountMap();
+  refs.delete(searchContextId);
+}
+
+/**
+ * T3.D1 — test/admin helper: read the current refcount for a context.
+ * Returns 0 when the context isn't tracked.
+ */
+export function getContextRefCount(searchContextId: string): number {
+  return getRefCountMap().get(searchContextId) || 0;
 }
 
 /**

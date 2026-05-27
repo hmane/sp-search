@@ -1,0 +1,39 @@
+// T1.D2 — single source of truth for responsive breakpoints across every
+// SP Search web part. Prior state: 16 inline media queries scattered
+// across the six panes using 6 different pixel values (480 / 639 / 640 /
+// 768 / 900 / 1023) — admins couldn't predict which size triggered a
+// layout change. Consolidating to two breakpoints (mobile and tablet)
+// gives the solution one consistent responsive rhythm.
+//
+// Audit acceptance signal: "Single `src/styles/breakpoints.scss`
+// imported by every web part; no stray 480/640/768/900 media queries".
+//
+// Convention: `mobile` = 0–639px (phones, narrow web-part columns);
+// `tablet` = 640–1023px (split-screen, small laptops); `desktop` =
+// 1024px and up. Use the mixins below in every `.module.scss` —
+// never write a raw `@media (max-width: Npx)` query in a module
+// stylesheet again.
+
+$bp-mobile-max: 639px;
+$bp-tablet-max: 1023px;
+
+/// Styles inside this mixin apply to viewports 0–639px (phones).
+@mixin mobile-and-below {
+  @media (max-width: $bp-mobile-max) {
+    @content;
+  }
+}
+
+/// Styles inside this mixin apply to viewports 0–1023px (phones + tablets).
+@mixin tablet-and-below {
+  @media (max-width: $bp-tablet-max) {
+    @content;
+  }
+}
+
+/// Styles inside this mixin apply only to viewports 1024px+ (desktop).
+@mixin desktop-and-above {
+  @media (min-width: ($bp-tablet-max + 1)) {
+    @content;
+  }
+}

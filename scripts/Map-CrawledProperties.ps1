@@ -29,7 +29,13 @@
     .\Map-CrawledProperties.ps1 -SiteUrl "https://pixelboy.sharepoint.com/sites/SPSearch"
 #>
 
-[CmdletBinding()]
+# T4.D1 — `SupportsShouldProcess` with `ConfirmImpact = 'High'` so the
+# `Set-PnPSearchConfiguration` overwrite path prompts by default — this is
+# the most consequential script in the suite because each XML import rewrites
+# the *tenant* search schema for the site collection scope. Any mappings an
+# admin made out-of-band (via Search Admin Center, third-party tools, or a
+# prior manual config import) are silently overwritten without the prompt.
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
     [Parameter(Mandatory = $true)]
     [string]$SiteUrl,
@@ -38,7 +44,11 @@ param(
 
     [switch]$RequestReindex,
 
-    [switch]$SkipValidation
+    [switch]$SkipValidation,
+
+    # T4.D1 — bypass the per-mapping confirmation. Re-running the script
+    # against a clean tenant is safe; bypass is for CI / batch re-runs.
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -252,9 +262,18 @@ try {
 
         try {
             $xml = Get-MappingXml -CrawledPropertyName $cp -PropsetGuid $ps -ManagedPid $mpid
-            Set-PnPSearchConfiguration -Configuration $xml -Scope Site
-            Write-Host " [OK]" -ForegroundColor Green
-            $succeeded++
+            # T4.D1 — destructive: each Set-PnPSearchConfiguration call overwrites
+            # the tenant-scoped search schema for this site. Wrap in ShouldProcess
+            # so `-WhatIf` previews mappings and `-Force` bypasses interactively.
+            $target = "$cp -> $mp (Scope: Site)"
+            if ($Force -or $PSCmdlet.ShouldProcess($target, 'Apply search configuration mapping (overwrites any existing mapping for this property at site scope)')) {
+                Set-PnPSearchConfiguration -Configuration $xml -Scope Site
+                Write-Host " [OK]" -ForegroundColor Green
+                $succeeded++
+            } else {
+                Write-Host " [SKIPPED]" -ForegroundColor Yellow
+                $failed++
+            }
         }
         catch {
             Write-Host " [FAILED]" -ForegroundColor Red

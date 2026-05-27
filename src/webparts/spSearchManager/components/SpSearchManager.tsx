@@ -7,6 +7,7 @@ import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
+import { Shimmer, ShimmerElementType } from '@fluentui/react/lib/Shimmer';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
@@ -23,14 +24,36 @@ import {
   ISortField,
   ISearchScope
 } from '@interfaces/index';
+import { safeNavigate } from '@store/utils/safeNavigate';
+// T4.D5 — edit-mode validators for coverageProfiles + expectedSiteUrls.
+import {
+  validateCoverageProfileSourceUrls,
+  validateExpectedSiteUrls,
+} from '@store/configValidation/sharedValidators';
+// T5.D1 — cross-bundle singleton DebugFab + Panel host.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
+import {
+  computeUnacknowledgedShares,
+  loadAcknowledgedShareIds,
+  acknowledgeShareIds,
+} from '@store/utils/sharedSearchNotifications';
 import SavedSearchList from './SavedSearchList';
 import SearchHistory from './SearchHistory';
 import SearchCollections from './SearchCollections';
 import ShareSearchDialog from './ShareSearchDialog';
-import CoveragePanel from './CoveragePanel';
 import ZeroResultsPanel from './ZeroResultsPanel';
 import SearchInsightsPanel from './SearchInsightsPanel';
 import styles from './SpSearchManager.module.scss';
+
+const AdminDashboard = React.lazy(
+  () => import(/* webpackChunkName: 'AdminDashboard' */ './AdminDashboard') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
+
+// T4.D9 — Pre-Flight tab is admin-only. Lazy-loaded so user-variant pages
+// don't pay for the readiness service code.
+const PreFlightPanel = React.lazy(
+  () => import(/* webpackChunkName: 'PreFlightPanel' */ './PreFlightPanel') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>
+);
 
 // ─── Category options for save dialog ───────────────────────
 const CATEGORY_OPTIONS: IDropdownOption[] = [
@@ -44,7 +67,7 @@ const CATEGORY_OPTIONS: IDropdownOption[] = [
 ];
 const OTHER_CATEGORY_KEY = 'Other';
 
-type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'coverage' | 'health' | 'insights';
+type SearchManagerTabKey = 'saved' | 'history' | 'collections' | 'health' | 'insights' | 'dashboard' | 'preflight';
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -140,12 +163,11 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     'enableSharedSearches' |
     'enableCollections' |
     'enableHistory' |
-    'enableCoverage' |
-    'coverageSourcePageUrl' |
     'coverageProfiles' |
     'enableHealth' |
     'enableInsights' |
     'enableAnnotations' |
+    'enableDashboard' |
     'maxHistoryItems' |
     'showResetAction' |
     'showSaveAction'
@@ -160,12 +182,11 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       enableSharedSearches: props.enableSharedSearches !== false,
       enableCollections: props.enableCollections !== false,
       enableHistory: props.enableHistory !== false,
-      enableCoverage: !!props.enableCoverage,
-      coverageSourcePageUrl: props.coverageSourcePageUrl || '',
       coverageProfiles: props.coverageProfiles || [],
       enableHealth: props.enableHealth !== false,
       enableInsights: props.enableInsights !== false,
       enableAnnotations: !!props.enableAnnotations,
+      enableDashboard: !!props.enableDashboard,
       maxHistoryItems: props.maxHistoryItems || 50,
       showResetAction: props.showResetAction !== false,
       showSaveAction: props.showSaveAction !== false
@@ -174,13 +195,12 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     props.defaultTab,
     props.enableAnnotations,
     props.enableCollections,
-    props.enableCoverage,
+    props.enableDashboard,
     props.enableHealth,
     props.enableHistory,
     props.enableInsights,
     props.enableSavedSearches,
     props.enableSharedSearches,
-    props.coverageSourcePageUrl,
     props.coverageProfiles,
     props.headerTitle,
     props.hideHeader,
@@ -195,13 +215,21 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       return baseConfig;
     }
 
+    let adminDefaultTab: typeof baseConfig.defaultTab = 'dashboard';
+    if (
+      baseConfig.defaultTab === 'health' ||
+      baseConfig.defaultTab === 'insights' ||
+      baseConfig.defaultTab === 'dashboard'
+    ) {
+      adminDefaultTab = baseConfig.defaultTab;
+    }
+    if (props.enableDashboard) {
+      adminDefaultTab = 'dashboard';
+    }
+
     return {
       ...baseConfig,
-      defaultTab: (
-        baseConfig.defaultTab === 'coverage' ||
-        baseConfig.defaultTab === 'health' ||
-        baseConfig.defaultTab === 'insights'
-      ) ? baseConfig.defaultTab : 'coverage',
+      defaultTab: adminDefaultTab,
       headerTitle: props.headerTitle || 'Admin Search Manager',
       enableSavedSearches: false,
       enableSharedSearches: false,
@@ -219,7 +247,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       return props.context;
     }
     try {
-      return SPContext.context.context as WebPartContext;
+      // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+      return SPContext.context.context as unknown as WebPartContext;
     } catch {
       return undefined;
     }
@@ -265,24 +294,31 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (config.enableCollections) {
       tabs.push('collections');
     }
-    if (config.enableCoverage) {
-      tabs.push('coverage');
-    }
     if (config.enableHealth) {
       tabs.push('health');
     }
     if (config.enableInsights) {
       tabs.push('insights');
     }
+    if (config.enableDashboard) {
+      tabs.push('dashboard');
+    }
+    // Pre-Flight is always rendered for the admin variant — keep it in
+    // availableTabs so the selection-reset effect doesn't snap clicks
+    // on the Pre-Flight tab back to availableTabs[0].
+    if (config.variant === 'admin') {
+      tabs.push('preflight');
+    }
 
     return tabs;
   }, [
     config.enableCollections,
-    config.enableCoverage,
+    config.enableDashboard,
     config.enableHealth,
     config.enableHistory,
     config.enableInsights,
-    config.enableSavedSearches
+    config.enableSavedSearches,
+    config.variant
   ]);
 
   // ─── Local state ──────────────────────────────────────────
@@ -346,6 +382,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
         scope,
         activeLayoutKey
       }),
+      // safe: read-only URL capture for serialization (Found.D4 exempt)
       searchUrl: window.location.href,
       entryType: 'SavedSearch',
       category: 'General',
@@ -418,6 +455,52 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     };
   }, []);
 
+  // ─── T2.D1: shared-search notifications ───────────────────
+  // Polls `loadSavedSearches` every 60s while the panel is mounted so
+  // recipients see new shares without a manual refresh. Acknowledgement
+  // is per-user (localStorage). The audit acceptance signal calls out a
+  // visible MessageBar + count within the polling interval — see render
+  // path below for the rendered banner.
+  const currentUserKey = React.useMemo(function (): string {
+    try {
+      return (SPContext.currentUser && SPContext.currentUser.email) || 'anonymous';
+    } catch {
+      return 'anonymous';
+    }
+  }, []);
+  const [acknowledgedShares, setAcknowledgedShares] = React.useState<Set<number>>(
+    function () { return loadAcknowledgedShareIds(currentUserKey); }
+  );
+  const unacknowledgedShares = React.useMemo(function (): ISavedSearch[] {
+    return computeUnacknowledgedShares(filteredSavedSearches, acknowledgedShares);
+  }, [filteredSavedSearches, acknowledgedShares]);
+
+  React.useEffect(function (): () => void {
+    if (!shouldLoadManagerData || !config.enableSharedSearches) {
+      return function (): void { /* no poll */ };
+    }
+    const POLL_MS = 60 * 1000;
+    const intervalId = window.setInterval(function (): void {
+      reloadData();
+    }, POLL_MS);
+    return function cleanup(): void {
+      window.clearInterval(intervalId);
+    };
+  // reloadData is stable for the lifetime of the panel; the deps below
+  // gate whether to poll at all (admin disabling shared-searches turns
+  // it off entirely).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldLoadManagerData, config.enableSharedSearches]);
+
+  function handleAcknowledgeShares(): void {
+    if (unacknowledgedShares.length === 0) {
+      return;
+    }
+    const ids = unacknowledgedShares.map(function (s) { return s.id; });
+    const next = acknowledgeShareIds(currentUserKey, ids);
+    setAcknowledgedShares(next);
+  }
+
   // ─── Show success message with auto-dismiss ───────────────
   function showSuccess(message: string): void {
     setSuccessMessage(message);
@@ -473,6 +556,63 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     if (!hasShareableCurrentSearch) {
       return;
     }
+    // T2.D10(c) — auto-save on share for unsaved current-search.
+    // Without a saved row (`id <= 0`), `shareToUsers` has no list-item
+    // to grant access on. Save first with a generated title, then open
+    // the share dialog against the real saved row.
+    if (currentShareTarget.id <= 0) {
+      // Build a recognisable auto-title so recipients can tell what was
+      // shared. Falls through to date-only when the user hasn't typed a
+      // query and has no filters applied.
+      const dateStamp = new Date().toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      });
+      const trimmedQuery = normalizedQueryText.length > 60
+        ? normalizedQueryText.slice(0, 60).replace(/\s+$/, '') + '…'
+        : normalizedQueryText;
+      let generatedTitle: string;
+      if (trimmedQuery) {
+        generatedTitle = '"' + trimmedQuery + '" — ' + dateStamp;
+      } else if (activeFilters.length > 0) {
+        const filterWord = activeFilters.length === 1 ? 'filter' : 'filters';
+        generatedTitle = 'Filtered search (' + activeFilters.length + ' ' + filterWord + ') — ' + dateStamp;
+      } else {
+        generatedTitle = 'Untitled search — ' + dateStamp;
+      }
+      const searchState = JSON.stringify({
+        queryText,
+        activeFilters,
+        currentVerticalKey,
+        sort,
+        scope,
+        activeLayoutKey,
+      });
+      // safe: read-only URL capture for serialization (Found.D4 exempt).
+      const searchUrl = window.location.href;
+      service.saveSearch(
+        generatedTitle,
+        queryText,
+        searchState,
+        searchUrl,
+        'General',
+        totalCount
+      )
+        .then((newSearch: ISavedSearch): void => {
+          // Optimistically add to the store so the row exists for the
+          // share-dialog row lookup on the next render.
+          const current = store.getState().savedSearches;
+          store.setState({ savedSearches: [newSearch].concat(current) });
+          setSharingCurrentSearch(true);
+          setShareTarget(newSearch);
+          showSuccess('Saved as "' + generatedTitle + '". Pick recipients to share.');
+          reloadData();
+        })
+        .catch((err): void => {
+          const message = err instanceof Error ? err.message : 'Failed to save current search';
+          setError(message);
+        });
+      return;
+    }
     setSharingCurrentSearch(true);
     setShareTarget(currentShareTarget);
   }
@@ -524,7 +664,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       activeLayoutKey
     });
 
-    // Build the search URL from the current page URL
+    // Build the search URL from the current page URL.
+    // safe: read-only URL capture for serialization (Found.D4 exempt).
     const searchUrl = window.location.href;
 
     service.saveSearch(
@@ -598,7 +739,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   }
 
   // ─── Health panel: re-run zero-result query ───────────────
-  function handleRunZeroResultQuery(queryText: string, vertical: string, scope: string): void {
+  function handleRunZeroResultQuery(queryText: string, vertical: string): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const update: Record<string, any> = {
       queryText,
@@ -607,9 +748,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
     };
     if (vertical) {
       update.currentVerticalKey = vertical;
-    }
-    if (scope) {
-      update.scope = { id: scope, label: scope };
     }
     store.setState(update);
 
@@ -623,10 +761,11 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
 
   // ─── Reset handler — navigate to base page without params ─
   function handleReset(): void {
-    // Navigate to the current page without any search params
+    // Navigate to the current page without any search params.
+    // safe: read-only URL capture for serialization (Found.D4 exempt).
     const url = new URL(window.location.href);
     url.search = '';
-    window.location.href = url.toString();
+    safeNavigate(url.toString());
   }
 
   // ─── Dismiss error ────────────────────────────────────────
@@ -645,16 +784,48 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   }
 
   // ─── Determine if save button should be enabled ───────────
-  const canSave = config.enableSavedSearches && config.showSaveAction && normalizedQueryText.length > 0;
-  const canOpenShare = config.enableSavedSearches && config.enableSharedSearches && normalizedQueryText.length > 0;
+  const hasSearchState = normalizedQueryText.length > 0 || activeFilters.length > 0;
+  const canSave = config.enableSavedSearches && config.showSaveAction && hasSearchState;
+  const canOpenShare = config.enableSavedSearches && config.enableSharedSearches && hasSearchState;
 
   // ─── Render content ───────────────────────────────────────
   let content: React.ReactElement;
 
   if (isLoading) {
+    // T1.D3 — shape-matched Shimmer replaces the big centered Spinner.
+    // Pivot-tab strip skeleton on top + 3 list-row skeletons below match
+    // the actual Manager layout admins see post-load. Reads as "we're
+    // building this surface" rather than "we have nothing for you."
     content = (
-      <div className={styles.loadingContainer}>
-        <Spinner size={SpinnerSize.large} label="Loading search manager..." />
+      <div className={styles.loadingContainer} role="status" aria-label="Loading search manager">
+        <div style={{ marginBottom: 16 }}>
+          <Shimmer
+            shimmerElements={[
+              { type: ShimmerElementType.line, height: 28, width: '60%' },
+            ]}
+            width="100%"
+          />
+        </div>
+        {[0, 1, 2].map((idx): React.ReactElement => (
+          <div key={idx} style={{ marginBottom: 12 }}>
+            <Shimmer
+              shimmerElements={[
+                { type: ShimmerElementType.circle, height: 24 },
+                { type: ShimmerElementType.gap, width: 12 },
+                { type: ShimmerElementType.line, height: 16, width: '80%' },
+              ]}
+              width="100%"
+            />
+            <div style={{ marginTop: 6 }}>
+              <Shimmer
+                shimmerElements={[
+                  { type: ShimmerElementType.line, height: 12, width: '50%' },
+                ]}
+                width="100%"
+              />
+            </div>
+          </div>
+        ))}
       </div>
     );
   } else {
@@ -682,6 +853,46 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
           </div>
         )}
 
+        {/* T4.D5 — edit-mode-only config validation. Runs both coverage-source
+            and expected-sites validators and renders one MessageBar per issue.
+            Both validators are pure functions; their results re-compute on
+            every property pane change because props.coverageProfiles /
+            expectedSiteUrls change. */}
+        {props.isEditMode && ((): React.ReactNode => {
+          const coverageIssues = validateCoverageProfileSourceUrls(
+            (props.coverageProfiles || []).map((p) => ({
+              title: p.title,
+              sourceUrls: (p.sourceUrls || []).join(', '),
+            })),
+            props.tenantRoot || ''
+          );
+          const expectedIssues = validateExpectedSiteUrls(
+            props.expectedSiteUrls || [],
+            props.tenantRoot || ''
+          );
+          const allIssues = coverageIssues.concat(expectedIssues);
+          if (allIssues.length === 0) { return null; }
+          const severityToType = (s: 'error' | 'warning' | 'info'): MessageBarType => {
+            if (s === 'error')   { return MessageBarType.error; }
+            if (s === 'warning') { return MessageBarType.warning; }
+            return MessageBarType.info;
+          };
+          return (
+            <>
+              {allIssues.map((issue) => (
+                <MessageBar
+                  key={issue.id}
+                  messageBarType={severityToType(issue.severity)}
+                  isMultiline={true}
+                  styles={{ root: { marginBottom: 4 } }}
+                >
+                  {issue.message}
+                </MessageBar>
+              ))}
+            </>
+          );
+        })()}
+
         {!config.hideHeader && (
           <div className={styles.header}>
             <h2 className={styles.headerTitle}>{config.headerTitle}</h2>
@@ -696,20 +907,40 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                 </TooltipHost>
               )}
               {config.enableSavedSearches && config.showSaveAction && (
-                <PrimaryButton
-                  iconProps={{ iconName: 'Save' }}
-                  text="Save Current Search"
-                  onClick={handleOpenSaveDialog}
-                  disabled={!canSave}
-                />
+                // T2.D10 — context-specific disabled tooltip. "Save the
+                // current query and filters" reads as instructional when
+                // canSave is true (button is enabled) but as a riddle when
+                // canSave is false (button greyed). Swapping the copy on
+                // disable closes Journey B Step 9 [Confusion] without a
+                // larger flow refactor.
+                <TooltipHost content={canSave
+                  ? 'Save the current query and filters'
+                  : 'Type a query or apply a filter to enable Save'}>
+                  <button
+                    type="button"
+                    className={styles.headerActionBtnPrimary}
+                    onClick={handleOpenSaveDialog}
+                    disabled={!canSave}
+                    aria-label={canSave ? 'Save current search' : 'Save current search (disabled until a query or filter is set)'}
+                  >
+                    <Icon iconName="Save" />
+                    <span className={styles.headerActionLabel}>Save search</span>
+                  </button>
+                </TooltipHost>
               )}
               {config.enableSavedSearches && config.enableSharedSearches && (
-                <DefaultButton
-                  iconProps={{ iconName: 'Share' }}
-                  text="Share Current Search"
-                  onClick={handleShareCurrentSearch}
-                  disabled={!canOpenShare}
-                />
+                <TooltipHost content="Share the current search with others">
+                  <button
+                    type="button"
+                    className={styles.headerActionBtn}
+                    onClick={handleShareCurrentSearch}
+                    disabled={!canOpenShare}
+                    aria-label="Share current search"
+                  >
+                    <Icon iconName="Share" />
+                    <span className={styles.headerActionLabel}>Share</span>
+                  </button>
+                </TooltipHost>
               )}
             </div>
           </div>
@@ -743,7 +974,64 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   headerText="Saved Searches"
                   itemIcon="SearchBookmark"
                   itemCount={filteredSavedSearches.length}
+                  // Roll the unread-share count into the tab's accessible
+                  // name so screen-reader users hear "Saved Searches, 12,
+                  // 3 unread shared searches" instead of just the count.
+                  headerButtonProps={unacknowledgedShares.length > 0 ? {
+                    'aria-label': 'Saved Searches, '
+                      + filteredSavedSearches.length
+                      + ', '
+                      + unacknowledgedShares.length
+                      + ' unread shared search'
+                      + (unacknowledgedShares.length === 1 ? '' : 'es'),
+                  } : undefined}
+                  onRenderItemLink={unacknowledgedShares.length > 0 ? function (link, defaultRender): JSX.Element {
+                    // T2.D1 — overlay the unread-share count as a small red badge
+                    // on the tab header so the cue is visible without opening the tab.
+                    return (
+                      <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                        {defaultRender ? defaultRender(link) : null}
+                        <span
+                          aria-label={unacknowledgedShares.length + ' unread shared searches'}
+                          style={{
+                            marginLeft: 6,
+                            minWidth: 18,
+                            height: 18,
+                            padding: '0 5px',
+                            borderRadius: 9,
+                            background: '#a4262c',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {unacknowledgedShares.length}
+                        </span>
+                      </span>
+                    );
+                  } : undefined}
                 >
+                  {unacknowledgedShares.length > 0 && (
+                    <MessageBar
+                      messageBarType={MessageBarType.info}
+                      isMultiline={true}
+                      onDismiss={handleAcknowledgeShares}
+                      dismissButtonAriaLabel="Got it"
+                      styles={{ root: { marginBottom: 8 } }}
+                    >
+                      <strong>
+                        {unacknowledgedShares.length === 1
+                          ? '1 new search has been shared with you'
+                          : unacknowledgedShares.length + ' new searches have been shared with you'}.
+                      </strong>{' '}
+                      {unacknowledgedShares.slice(0, 3).map(function (s) { return '“' + s.title + '”'; }).join(', ')}
+                      {unacknowledgedShares.length > 3 ? ', and ' + (unacknowledgedShares.length - 3) + ' more.' : '.'}
+                      {' '}Dismiss this notice to mark them as read.
+                    </MessageBar>
+                  )}
                   <SavedSearchList
                     store={store}
                     service={service}
@@ -787,19 +1075,6 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                   />
                 </PivotItem>
               )}
-              {config.enableCoverage && (
-                <PivotItem
-                  itemKey="coverage"
-                  headerText="Coverage"
-                  itemIcon="DatabaseSync"
-                >
-                  <CoveragePanel
-                    profiles={config.coverageProfiles}
-                    searchContextId={props.searchContextId}
-                    sourcePageUrl={config.coverageSourcePageUrl}
-                  />
-                </PivotItem>
-              )}
               {config.enableHealth && (
                 <PivotItem
                   itemKey="health"
@@ -822,6 +1097,39 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                     service={service}
                     onRunQuery={handleRunZeroResultQuery}
                   />
+                </PivotItem>
+              )}
+              {config.enableDashboard && (
+                <PivotItem
+                  itemKey="dashboard"
+                  headerText="Dashboard"
+                  itemIcon="ViewDashboard"
+                >
+                  <React.Suspense fallback={<Spinner size={SpinnerSize.medium} label="Loading dashboard..." />}>
+                    <AdminDashboard
+                      store={props.store}
+                      service={props.service}
+                      expectedSiteUrls={props.expectedSiteUrls || []}
+                      coverageProfileCount={(props.coverageProfiles || []).length}
+                      onRunQuery={handleRunZeroResultQuery}
+                    />
+                  </React.Suspense>
+                </PivotItem>
+              )}
+              {/* T4.D9 — Pre-Flight tab. Admin-only. Renders the
+                  tenant-readiness checklist (Graph permission, hidden lists,
+                  SearchHistory item permissions, schema mappings, content
+                  source). The single-screenshot acceptance signal lives
+                  here. */}
+              {config.variant === 'admin' && (
+                <PivotItem
+                  itemKey="preflight"
+                  headerText="Pre-Flight"
+                  itemIcon="Diagnostic"
+                >
+                  <React.Suspense fallback={<Spinner size={SpinnerSize.medium} label="Loading pre-flight checks..." />}>
+                    <PreFlightPanel />
+                  </React.Suspense>
                 </PivotItem>
               )}
             </Pivot>
@@ -909,6 +1217,27 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                       <span className={styles.saveSummaryValue}>Sort: {sort.property} ({sort.direction})</span>
                     </div>
                   )}
+                  {/* T2.D10 — surface the search scope so admins see whether
+                      the saved row will replay against "All", a specific
+                      site, hub, or list URL. */}
+                  {scope && scope.id && scope.id !== 'all' && (
+                    <div className={styles.saveSummaryRow}>
+                      <Icon iconName="Globe" className={styles.saveSummaryIcon} />
+                      <span className={styles.saveSummaryValue}>
+                        Scope: {scope.label || scope.id}
+                      </span>
+                    </div>
+                  )}
+                  {/* T2.D10 — active layout so admins know they're saving
+                      "Documents view with Grid layout" not just "Documents". */}
+                  {activeLayoutKey && (
+                    <div className={styles.saveSummaryRow}>
+                      <Icon iconName="GridViewMedium" className={styles.saveSummaryIcon} />
+                      <span className={styles.saveSummaryValue}>
+                        Layout: {activeLayoutKey}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -954,6 +1283,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
   return (
     <ErrorBoundary enableRetry={true} maxRetries={3}>
       {content}
+      {/* T5.D1 — singleton DebugFab host. */}
+      <DebugFabHost store={props.store} />
     </ErrorBoundary>
   );
 };

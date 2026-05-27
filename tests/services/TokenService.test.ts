@@ -184,6 +184,57 @@ describe('TokenService', () => {
       });
     });
   });
+
+  describe('applyQueryInputTransformation (MISS-001)', () => {
+    it('substitutes {searchTerms} with the raw user query', () => {
+      const result = TokenService.applyQueryInputTransformation('{searchTerms}', 'budget', context);
+      expect(result).toBe('budget');
+    });
+
+    it('resolves NON-{searchTerms} tokens in the transformation — fixes the MISS-001 silent-noop', () => {
+      const result = TokenService.applyQueryInputTransformation(
+        '({searchTerms}) AND owner:{User.Email}',
+        'annual report',
+        context
+      );
+      expect(result).toBe('(annual report) AND owner:jane.smith@contoso.com');
+    });
+
+    it('resolves multiple tokens including {Site.URL} + {Today}', () => {
+      const result = TokenService.applyQueryInputTransformation(
+        '{searchTerms} path:{Site.URL} after:{Today-7}',
+        'invoices',
+        context
+      );
+      expect(result).toMatch(/^invoices path:https:\/\/contoso\.sharepoint\.com\/sites\/intranet after:\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('treats empty/whitespace transformation as the default {searchTerms}', () => {
+      expect(TokenService.applyQueryInputTransformation('', 'hello', context)).toBe('hello');
+      expect(TokenService.applyQueryInputTransformation('   ', 'hello', context)).toBe('hello');
+    });
+
+    it('falls back to * (match-all) when both rawQuery and resolved template are empty', () => {
+      const result = TokenService.applyQueryInputTransformation('{searchTerms}', '', context);
+      expect(result).toBe('*');
+    });
+
+    it('preserves non-{searchTerms} parts when rawQuery is empty', () => {
+      const result = TokenService.applyQueryInputTransformation(
+        '{searchTerms} owner:{User.Email}',
+        '',
+        context
+      );
+      // {searchTerms} → '', leftover "owner:jane.smith@contoso.com" survives.
+      expect(result).toBe('owner:jane.smith@contoso.com');
+    });
+
+    it('overrides the context queryText with the supplied rawQuery', () => {
+      const ctxWithStaleQuery = createMockTokenContext({ queryText: 'stale-from-context' });
+      const result = TokenService.applyQueryInputTransformation('{searchTerms}', 'fresh-rawquery', ctxWithStaleQuery);
+      expect(result).toBe('fresh-rawquery');
+    });
+  });
 });
 
 /** Helper to format date as YYYY-MM-DD matching TokenService._formatDate */

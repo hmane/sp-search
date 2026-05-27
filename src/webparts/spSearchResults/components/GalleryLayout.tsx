@@ -2,9 +2,10 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { IContextualMenuProps, IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, getResultAnchorProps, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { formatFileSize, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
 import styles from './SpSearchResults.module.scss';
 
@@ -13,14 +14,9 @@ export interface IGalleryLayoutProps {
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
-}
-
-/**
- * Determines if a file type is an image.
- */
-function isImageType(fileType: string): boolean {
-  const ft: string = (fileType || '').toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].indexOf(ft) >= 0;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 /**
@@ -32,10 +28,12 @@ const GalleryItem: React.FC<{
   titleDisplayMode: TitleDisplayMode;
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }> = (galleryProps) => {
-  const { item, position, titleDisplayMode, onPreviewItem, onItemClick } = galleryProps;
+  const { item, position, titleDisplayMode, onPreviewItem, onItemClick, linkConfig, onOpenInSidePanel } = galleryProps;
   const isImage: boolean = isImageType(item.fileType);
-  const linkProps = getResultAnchorProps(item);
+  const linkProps = resolveResultLink(item, linkConfig);
 
   const handlePreviewClick = React.useCallback((): void => {
     if (onPreviewItem) {
@@ -106,8 +104,10 @@ const GalleryItem: React.FC<{
         onClick={handleImageClick}
         role="button"
         tabIndex={0}
+        aria-label={'View ' + item.title}
         onKeyDown={(e: React.KeyboardEvent): void => {
           if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             handleImageClick();
           }
         }}
@@ -121,7 +121,7 @@ const GalleryItem: React.FC<{
           />
         ) : (
           <div className={styles.galleryThumbnailFallback}>
-            <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.large} />
+            <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 48 })} />
           </div>
         )}
         {/* Hover overlay */}
@@ -133,12 +133,19 @@ const GalleryItem: React.FC<{
       {/* Info bar */}
       <div className={styles.galleryInfo}>
         <div className={styles.galleryTitle} title={item.title}>
-          <DocumentTitleHoverCard item={item} position={position} onItemClick={onItemClick}>
+          <DocumentTitleHoverCard
+            item={item}
+            position={position}
+            onItemClick={onItemClick}
+            clickTarget={linkConfig.clickTarget}
+            onOpenInSidePanel={onOpenInSidePanel}
+          >
             {(handleClick): React.ReactNode => (
               <a
                 href={linkProps.href}
                 target={linkProps.target}
                 rel={linkProps.rel}
+                data-interception="off"
                 onClick={(e: React.MouseEvent): void => {
                   e.stopPropagation();
                   handleClick(e);
@@ -179,7 +186,7 @@ const GalleryItem: React.FC<{
  *  - Mobile (< 640px): 2 columns
  */
 const GalleryLayout: React.FC<IGalleryLayoutProps> = (props) => {
-  const { items, titleDisplayMode, onPreviewItem, onItemClick } = props;
+  const { items, titleDisplayMode, onPreviewItem, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <div className={styles.galleryGrid} role="list">
@@ -191,6 +198,8 @@ const GalleryLayout: React.FC<IGalleryLayoutProps> = (props) => {
           titleDisplayMode={titleDisplayMode}
           onPreviewItem={onPreviewItem}
           onItemClick={onItemClick}
+          linkConfig={linkConfig}
+          onOpenInSidePanel={onOpenInSidePanel}
         />
       ))}
     </div>

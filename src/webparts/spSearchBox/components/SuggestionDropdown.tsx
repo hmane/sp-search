@@ -36,9 +36,12 @@ function getGroupDisplay(groupName: string): { title: string; description: strin
         description: 'Your recent search history'
       };
     case 'Trending':
+      // T2.D13 — "Popular Searches" was a misnomer: TrendingQueryProvider
+      // filters by Author = currentUser.id, so the list is per-user
+      // frequency. Renamed until org-aggregation actually lands.
       return {
-        title: 'Popular Searches',
-        description: 'Frequently used terms from your history'
+        title: 'Frequent for you',
+        description: 'Search terms you have run most often'
       };
     case 'Properties':
       return {
@@ -117,6 +120,12 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
       } else if (e.key === 'Enter' && activeIndex >= 0 && activeIndex < flatItems.length) {
         e.preventDefault();
         onSelect(flatItems[activeIndex]);
+      } else if (e.key === 'Delete' && activeIndex >= 0 && activeIndex < flatItems.length) {
+        const activeSuggestion = flatItems[activeIndex];
+        if (activeSuggestion.removeAction) {
+          e.preventDefault();
+          onRemove(activeSuggestion);
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         onDismiss();
@@ -180,6 +189,7 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
       ref={listRef}
       role="listbox"
       aria-label="Search suggestions"
+      aria-activedescendant={activeIndex >= 0 ? 'suggestion-' + activeIndex : undefined}
     >
       {groups.map(function (group): React.ReactElement {
         const groupDisplay = getGroupDisplay(group.groupName);
@@ -203,6 +213,7 @@ const SuggestionDropdown: React.FC<ISuggestionDropdownProps> = (props: ISuggesti
               return (
                 <div
                   key={group.groupName + '-' + String(currentIndex)}
+                  id={'suggestion-' + currentIndex}
                   className={
                     isActive
                       ? styles.suggestionItem + ' ' + styles.suggestionItemActive

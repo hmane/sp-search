@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "policy": "per-web-part-byte-ceiling-production",
+  "owner": "Foundations.Found.D7 (amended via Task 3.5)",
+  "_comment_baselineRationale": "Budgets anchored to 1.5x current production output (heft build --production minified hashed bundles). Original D7 budgets at 1.5x non-production sizes were retired in Task 3.5 after Task 4 Phase A discovered the audit's bundle inventory captured cached debug-build sizes. See docs/performance-budgets.md for current vs budget table.",
+  "budgets": {
+    "sp-search-filters-web-part.js": 1300000,
+    "sp-search-results-web-part.js": 1100000,
+    "sp-search-admin-manager-web-part.js": 900000,
+    "sp-search-manager-web-part.js": 900000,
+    "sp-search-box-web-part.js": 850000,
+    "sp-search-verticals-web-part.js": 750000
+  }
+}

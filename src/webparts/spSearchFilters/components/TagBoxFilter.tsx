@@ -35,10 +35,10 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   const showCount: boolean = config ? config.showCount : true;
   const configSortBy: SortBy = config ? config.sortBy : 'count';
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
-  const maxValues: number = config && config.maxValues > 0 ? config.maxValues : values.length;
   const allowMultiple: boolean = config?.multiValues !== false;
 
   const [sortBy, setSortBy] = React.useState<SortBy>(configSortBy);
+  const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
 
   const sortedValues: IRefinerValue[] = React.useMemo(function (): IRefinerValue[] {
     const sorted: IRefinerValue[] = values.slice();
@@ -60,10 +60,14 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     setEditorValues(selectedValues);
   }, [selectedValues]);
 
+  const maxVisible: number = config && config.maxValues > 0 ? config.maxValues : 10;
+  const hasMore: boolean = sortedValues.length > maxVisible;
+
   const items = React.useMemo(function (): Array<{ value: string; displayName: string }> {
     const selectedSet = new Set(selectedValues);
+    const limit = isExpanded ? sortedValues.length : maxVisible;
     const limitedValues = sortedValues.filter(function (value: IRefinerValue, index: number): boolean {
-      return index < maxValues || selectedSet.has(value.value);
+      return index < limit || selectedSet.has(value.value);
     });
 
     return limitedValues.map((value) => {
@@ -73,7 +77,7 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
         displayName: showCount ? name + ' (' + String(value.count) + ')' : name,
       };
     });
-  }, [maxValues, selectedValues, showCount, sortedValues]);
+  }, [isExpanded, maxVisible, selectedValues, showCount, sortedValues]);
 
   // Guard against re-entrant onValueChanged calls from programmatic value updates
   const isUpdatingRef = React.useRef<boolean>(false);
@@ -174,6 +178,16 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
         maxDisplayedTags={5}
         showMultiTagOnly={false}
       />
+      {hasMore && (
+        <button
+          type="button"
+          className={styles.showMoreBtn}
+          onClick={function (): void { setIsExpanded(!isExpanded); }}
+          aria-expanded={isExpanded}
+        >
+          {isExpanded ? 'Show less' : 'Show more (' + (sortedValues.length - maxVisible) + ')'}
+        </button>
+      )}
     </div>
   );
 };

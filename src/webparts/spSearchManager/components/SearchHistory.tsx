@@ -10,6 +10,8 @@ import {
   ISearchStore
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+import { validateSearchState } from '@store/utils/searchStateSchema';
 import styles from './SpSearchManager.module.scss';
 
 export interface ISearchHistoryProps {
@@ -62,65 +64,42 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
   // ─── Local state ──────────────────────────────────────────
   const [showClearDialog, setShowClearDialog] = React.useState<boolean>(false);
   const [isClearing, setIsClearing] = React.useState<boolean>(false);
+  // T2.D3 — set when a history-entry restore fails schema validation.
+  const [restoreError, setRestoreError] = React.useState<{ queryText: string; errors: string[] } | undefined>(undefined);
 
   // ─── Handlers ─────────────────────────────────────────────
 
   function handleReExecuteSearch(entry: ISearchHistoryEntry): void {
+    // T2.D3 — schema-validate before applying. Malformed history rows are
+    // surfaced via MessageBar instead of silently corrupting the store.
+    const validation = validateSearchState(entry.searchState);
+    if (!validation.ok) {
+      setRestoreError({ queryText: entry.queryText, errors: validation.errors });
+      console.warn('[SP Search] Skipping history-entry restore — schema validation failed:', validation.errors);
+      return;
+    }
+    const savedState = validation.state;
+
     // Set ALL state atomically via store.setState() so the orchestrator
     // sees a single change notification and fires ONE search with
     // complete state (including filters).
-    try {
-      const savedState: {
-        queryText?: string;
-        activeFilters?: Array<{ filterName: string; value: string; displayValue?: string; operator: 'AND' | 'OR' }>;
-        currentVerticalKey?: string;
-        sort?: { property: string; direction: 'Ascending' | 'Descending' };
-        scope?: { id: string; label: string; kqlPath?: string; resultSourceId?: string };
-        activeLayoutKey?: string;
-      } = JSON.parse(entry.searchState || '{}');
-      const hasSavedQueryText = Object.prototype.hasOwnProperty.call(savedState, 'queryText');
-      const restoredQueryText = hasSavedQueryText ? (savedState.queryText || '') : '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const update: Record<string, any> = {
+      queryText: savedState.queryText !== undefined ? savedState.queryText : entry.queryText,
+      activeFilters: savedState.activeFilters || [],
+      currentPage: 1,
+    };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const update: Record<string, any> = {
-        queryText: restoredQueryText,
-        activeFilters: savedState.activeFilters || [],
-        currentPage: 1,
-      };
-
-      if (savedState.currentVerticalKey) {
-        update.currentVerticalKey = savedState.currentVerticalKey;
-      } else if (entry.vertical) {
-        update.currentVerticalKey = entry.vertical;
-      }
-      if (savedState.sort) {
-        update.sort = savedState.sort;
-      }
-      if (savedState.scope) {
-        update.scope = savedState.scope;
-      } else if (entry.scope) {
-        update.scope = { id: entry.scope, label: entry.scope };
-      }
-      if (savedState.activeLayoutKey) {
-        update.activeLayoutKey = savedState.activeLayoutKey;
-      }
-      store.setState(update);
-    } catch {
-      // Fallback: just set query text atomically
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const update: Record<string, any> = {
-        queryText: entry.queryText,
-        activeFilters: [],
-        currentPage: 1,
-      };
-      if (entry.vertical) {
-        update.currentVerticalKey = entry.vertical;
-      }
-      if (entry.scope) {
-        update.scope = { id: entry.scope, label: entry.scope };
-      }
-      store.setState(update);
+    if (savedState.currentVerticalKey) {
+      update.currentVerticalKey = savedState.currentVerticalKey;
+    } else if (entry.vertical) {
+      update.currentVerticalKey = entry.vertical;
     }
+    if (savedState.sort) {
+      update.sort = savedState.sort;
+    }
+    store.setState(update);
+    setRestoreError(undefined);
 
     // Notify parent (e.g., close panel in panel mode)
     if (onSearchLoaded) {
@@ -167,6 +146,17 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
 
   return (
     <div>
+      {restoreError && (
+        <MessageBar
+          messageBarType={MessageBarType.error}
+          isMultiline={true}
+          onDismiss={(): void => setRestoreError(undefined)}
+          dismissButtonAriaLabel="Dismiss"
+        >
+          <strong>Could not restore the search for &quot;{restoreError.queryText}&quot;.</strong> The
+          history entry is malformed and was not applied. Details: {restoreError.errors.join('; ')}
+        </MessageBar>
+      )}
       {/* Toolbar with clear button */}
       <div className={styles.historyToolbar}>
         <DefaultButton

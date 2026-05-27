@@ -80,22 +80,28 @@ function findTokenAtCursor(tokens: IKqlToken[], cursorPosition: number): number 
 /**
  * Checks whether a token text contains a property:value delimiter.
  * Returns the index of the delimiter character within the token, or -1.
+ * Skips delimiters that appear inside quoted strings (single or double)
+ * so that e.g. Title:"Meeting: Q4" doesn't split on the inner colon.
  */
 function findPropertyDelimiter(text: string): number {
+  let inQuote: boolean = false;
+  let quoteChar: string = '';
+
   // Check for multi-char operators first: <>, >=, <=
-  const twoCharOps: string[] = ['<>', '>=', '<='];
-  for (let j: number = 0; j < twoCharOps.length; j++) {
-    const idx: number = text.indexOf(twoCharOps[j]);
-    if (idx > 0) {
-      return idx;
-    }
-  }
-  // Single-char operators: :, =, >, <
+  // (scan quote-aware — only match outside quotes)
   for (let i: number = 0; i < text.length; i++) {
     const ch: string = text[i];
-    if (ch === ':' || ch === '=' || ch === '>' || ch === '<') {
-      // Make sure it's not at position 0 (would be an operator token, not property:value)
-      if (i > 0) {
+    if (!inQuote && (ch === '"' || ch === "'")) {
+      inQuote = true;
+      quoteChar = ch;
+    } else if (inQuote && ch === quoteChar) {
+      inQuote = false;
+    } else if (!inQuote && i > 0) {
+      const twoChar: string = text.substring(i, i + 2);
+      if (twoChar === '<>' || twoChar === '>=' || twoChar === '<=') {
+        return i;
+      }
+      if (ch === ':' || ch === '=' || ch === '>' || ch === '<') {
         return i;
       }
     }

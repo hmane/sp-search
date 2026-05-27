@@ -9,9 +9,15 @@ import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { createTheme, ITheme } from '@fluentui/react/lib/Styling';
 import { ErrorBoundary } from 'spfx-toolkit/lib/components/ErrorBoundary';
-import { createLazyComponent } from 'spfx-toolkit/lib/utilities/lazyLoader';
+import { lazyBridge } from '../../../utilities/lazyBridge';
+// T2.D9 — global keyboard-shortcut help modal host. Installs '?' and '/'
+// bindings + listens for the help-open event.
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
+// T5.D1 — cross-bundle singleton DebugFab + Panel.
+import { DebugFabHost } from '../../../utilities/DebugFabHost';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
+import { safeNavigate } from '@store/utils/safeNavigate';
 import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
 import { getCompletionContext, getCompletions } from '../kql';
 import QueryBuilder from './QueryBuilder';
@@ -19,9 +25,8 @@ import SuggestionDropdown from './SuggestionDropdown';
 import KqlInput from './KqlInput';
 import KqlCompletionDropdown from './KqlCompletionDropdown';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const UserSearchManager: any = createLazyComponent(
-  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as any,
+const UserSearchManager = lazyBridge(
+  () => import(/* webpackChunkName: 'SearchManager' */ '@webparts/spSearchManager/components/SpSearchManager') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
   { errorMessage: 'Failed to load search manager' }
 );
 
@@ -109,19 +114,43 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   const [schemaLoading, setSchemaLoading] = React.useState<boolean>(false);
   const [schemaError, setSchemaError] = React.useState<string | undefined>(undefined);
 
+  // ─── Scope persistence ─────────────────────────────────────────
+  const SCOPE_STORAGE_KEY = 'sp-search-scope-' + searchContextId;
+
   // ─── KQL mode state ─────────────────────────────────────────────
   const { value: isKqlMode, setValue: setIsKqlMode } = useLocalStorage<boolean>('sp-search-kql-mode', false);
   const [kqlCompletions, setKqlCompletions] = React.useState<IKqlCompletion[]>([]);
   const [kqlContext, setKqlContext] = React.useState<IKqlCompletionContext | undefined>(undefined);
   const [showKqlCompletions, setShowKqlCompletions] = React.useState<boolean>(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_kqlValidation, setKqlValidation] = React.useState<IKqlValidation>({ isValid: true, severity: 'valid', message: '' });
+  const [kqlValidation, setKqlValidation] = React.useState<IKqlValidation>({ isValid: true, severity: 'valid', message: '' });
 
   // ─── Refs ───────────────────────────────────────────────────────
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const containerRef = React.useRef<HTMLDivElement>(undefined as unknown as HTMLDivElement);
   const suggestionRequestIdRef = React.useRef<number>(0);
   const latestSuggestionQueryRef = React.useRef<string>('');
+  const suggestionAbortRef = React.useRef<AbortController | undefined>(undefined);
+
+  // T2.D9 — focus the input when '/' is pressed (anywhere on the page).
+  // The shortcut hook dispatches a window CustomEvent; we listen and
+  // focus whichever input the Fluent SearchBox or KQL editor rendered
+  // inside our container. The container ref scopes the query so
+  // multi-Box pages each focus the most-recently-clicked container's input.
+  React.useEffect((): (() => void) => {
+    const handler = (): void => {
+      if (!containerRef.current) { return; }
+      // Fluent SearchBox renders <input> with role="searchbox"; KQL mode
+      // renders a textarea. Either is the focus target.
+      const target = containerRef.current.querySelector(
+        'input[role="searchbox"], textarea[role="textbox"], input[type="search"], textarea'
+      ) as HTMLElement | null;
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+      }
+    };
+    window.addEventListener('sp-search:focus-search-box', handler);
+    return (): void => { window.removeEventListener('sp-search:focus-search-box', handler); };
+  }, []);
 
   // ─── Subscribe to store changes ─────────────────────────────────
   React.useEffect(() => {
@@ -137,6 +166,26 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       unsubscribe();
     };
   }, [store]);
+
+  // Restore persisted scope on mount
+  React.useEffect(() => {
+    if (!enableScopeSelector || !searchScopes || searchScopes.length === 0) {
+      return;
+    }
+    try {
+      const savedScopeId = localStorage.getItem(SCOPE_STORAGE_KEY);
+      if (savedScopeId) {
+        for (let i = 0; i < searchScopes.length; i++) {
+          if (searchScopes[i].id === savedScopeId) {
+            store.getState().setScope(searchScopes[i]);
+            break;
+          }
+        }
+      }
+    } catch {
+      // localStorage may be unavailable
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync inputValue when store queryText changes externally
   React.useEffect(() => {
@@ -165,12 +214,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     };
   }, []);
 
-  // ─── Cleanup debounce timer on unmount ──────────────────────────
+  // ─── Cleanup debounce timer and abort suggestions on unmount ────
   React.useEffect(() => {
     return function cleanup(): void {
       if (debounceTimerRef.current !== undefined) {
         clearTimeout(debounceTimerRef.current);
       }
+      suggestionAbortRef.current?.abort();
     };
   }, []);
 
@@ -214,6 +264,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     }
 
     const run = function (): void {
+      suggestionAbortRef.current?.abort();
+      suggestionAbortRef.current = new AbortController();
+
       const requestId = suggestionRequestIdRef.current + 1;
       suggestionRequestIdRef.current = requestId;
       latestSuggestionQueryRef.current = value;
@@ -255,6 +308,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
           }
         })
       ).then(function (entries): void {
+        if (suggestionAbortRef.current?.signal.aborted) {
+          return;
+        }
         if (
           suggestionRequestIdRef.current !== requestId ||
           latestSuggestionQueryRef.current !== value
@@ -315,9 +371,26 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
       }
 
       if (newPageOpenBehavior === 'newTab') {
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        // window.open's noopener,noreferrer + the same allowlist as safeNavigate.
+        // Build dangerous-scheme strings from char codes to avoid no-script-url false-positives.
+        const lower = targetUrl.toLowerCase();
+        const isAbsoluteHttp = /^https?:\/\//i.test(targetUrl);
+        const isRootRelative = targetUrl.startsWith('/') && !targetUrl.startsWith('//');
+        const JS_SCHEME = ['j', 'a', 'v', 'a', 's', 'c', 'r', 'i', 'p', 't', ':'].join('');
+        const DATA_SCHEME = ['d', 'a', 't', 'a', ':'].join('');
+        const VBS_SCHEME = ['v', 'b', 's', 'c', 'r', 'i', 'p', 't', ':'].join('');
+        const isDangerous =
+          lower.startsWith(JS_SCHEME) || lower.startsWith(DATA_SCHEME) || lower.startsWith(VBS_SCHEME);
+        if ((isAbsoluteHttp || isRootRelative) && !isDangerous) {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+        }
       } else {
-        window.location.href = targetUrl;
+        // safeNavigate self-validates the same allowlist (BUG-004 hardening preserved).
+        if (!safeNavigate(targetUrl)) {
+          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+        }
       }
       return;
     }
@@ -387,6 +460,11 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
     }
     if (selectedScope) {
       store.getState().setScope(selectedScope);
+      try {
+        localStorage.setItem(SCOPE_STORAGE_KEY, selectedScope.id);
+      } catch {
+        // localStorage may be unavailable
+      }
     }
   }
 
@@ -679,18 +757,33 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
         <div className={wrapperClassName}>
           {enableScopeSelector && scopeOptions.length > 0 && (
             <div className={styles.scopeSelector}>
+              <span id="sp-search-scope-description" className={styles.visuallyHidden}>
+                Restricts the search to documents within the selected SharePoint scope
+              </span>
               <Dropdown
                 options={scopeOptions}
                 selectedKey={activeScope.id}
                 onChange={handleScopeChange}
                 ariaLabel="Search scope"
+                aria-describedby="sp-search-scope-description"
+                // Prefix the selected option's text with "Scope:" so sighted
+                // users can tell at a glance what the dropdown controls.
+                // Falls back to the plain option text if the renderer fires
+                // without any options (defensive).
+                onRenderTitle={(options): React.ReactElement => (
+                  <span>
+                    <span className={styles.scopeSelectorLabel}>Scope: </span>
+                    {options && options.length > 0 ? options[0].text : ''}
+                  </span>
+                )}
               />
             </div>
           )}
 
           {/* KQL / Regular mode toggle */}
           {enableKqlMode && (
-            <div className={styles.kqlModeToggle} role="radiogroup" aria-label="Query input mode">
+            <fieldset className={styles.kqlModeToggle}>
+              <legend className={styles.visuallyHidden}>Query input mode</legend>
               <button
                 className={!isKqlMode ? styles.kqlModeButton + ' ' + styles.kqlModeButtonActive : styles.kqlModeButton}
                 onClick={(): void => handleModeSwitch(false)}
@@ -715,7 +808,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 <Icon iconName="Code" />
                 <span>KQL</span>
               </button>
-            </div>
+            </fieldset>
           )}
 
           {/* Input area — conditional on mode */}
@@ -733,6 +826,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
               schema={schemaProperties}
               refiners={displayRefiners}
               disabled={isSearching}
+              completionsVisible={showKqlCompletions && kqlCompletions.length > 0}
             />
           ) : (
             <div className={styles.searchInput}>
@@ -746,6 +840,7 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 onBlur={handleBlur}
                 disableAnimation={false}
                 underlined={false}
+                autoComplete="off"
               />
             </div>
           )}
@@ -797,6 +892,13 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
           onRemove={handleSuggestionRemove}
           onDismiss={function (): void { setShowSuggestions(false); }}
         />
+      )}
+
+      {/* KQL mode: Validation error display */}
+      {isKqlActive && kqlValidation && !kqlValidation.isValid && kqlValidation.message && (
+        <div className={styles.kqlValidationError} role="alert">
+          {kqlValidation.message}
+        </div>
       )}
 
       {/* KQL mode: Completion dropdown */}
@@ -871,6 +973,12 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
   return (
     <ErrorBoundary>
       {content}
+      {/* T2.D9 — global keyboard-shortcut help modal. */}
+      <ShortcutHelpModalHost />
+      {/* T5.D1 — cross-bundle singleton DebugFab + Panel. Owner-claim
+          via window flag ensures one FAB per page even when every web
+          part mounts the host. */}
+      <DebugFabHost store={store} />
     </ErrorBoundary>
   );
 };

@@ -1,5 +1,6 @@
 import { ISearchDataProvider, ISearchContext, ISearchQuery, ISearchResult, ISuggestion, ISuggestionProvider } from '@interfaces/index';
 import type { IRegistry } from '@interfaces/index';
+import { safeNavigate } from '@store/utils/safeNavigate';
 
 const QUICK_RESULT_PROPERTIES = ['Title', 'Path', 'SiteName', 'FileType'];
 
@@ -77,7 +78,7 @@ export class QuickResultsSuggestionProvider implements ISuggestionProvider {
           filePath: item.url,
           iconName: 'Page',
           action: function (): void {
-            window.location.href = item.url;
+            safeNavigate(item.url);
           }
         });
       }

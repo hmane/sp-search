@@ -12,6 +12,17 @@ import { ISavedSearch } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
 import styles from './SpSearchManager.module.scss';
 
+/**
+ * Returns the correct Teams base URL for the current cloud environment.
+ * Detects GCC High (.us) and DoD sovereign clouds from the page hostname.
+ */
+function getTeamsBaseUrl(): string {
+  const host = window.location.hostname.toLowerCase();
+  if (host.includes('dod.online.us')) return 'https://dod.teams.microsoft.us';
+  if (host.includes('.us')) return 'https://teams.microsoft.us';
+  return 'https://teams.microsoft.com';
+}
+
 export interface IShareSearchDialogProps {
   isOpen: boolean;
   search: ISavedSearch | undefined;
@@ -38,6 +49,8 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
   const [isSharing, setIsSharing] = React.useState<boolean>(false);
   const [shareError, setShareError] = React.useState<string | undefined>(undefined);
   const [shareSuccess, setShareSuccess] = React.useState<boolean>(false);
+  // T2.D1 — recipient count for the success MessageBar copy.
+  const [sharedRecipientCount, setSharedRecipientCount] = React.useState<number>(0);
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ─── Cleanup copy timeout on unmount ──────────────────────
@@ -142,7 +155,7 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
     }
 
     const message = 'Check out this search: ' + search.title + ' - ' + shareUrl;
-    const teamsUrl = 'https://teams.microsoft.com/l/chat/0/0?message=' + encodeURIComponent(message);
+    const teamsUrl = getTeamsBaseUrl() + '/l/chat/0/0?message=' + encodeURIComponent(message);
     window.open(teamsUrl, '_blank');
     setTeamsSent(true);
   }
@@ -170,9 +183,17 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
     setShareSuccess(false);
 
     service.shareToUsers(search.id, selectedUsers)
-      .then(function (): void {
+      .then(function (result: { succeeded: string[]; failed: string[] }): void {
         setIsSharing(false);
-        setShareSuccess(true);
+        setSharedRecipientCount(result.succeeded.length);
+        if (result.failed.length > 0 && result.succeeded.length > 0) {
+          setShareSuccess(true);
+          setShareError('Could not resolve the following users: ' + result.failed.join(', '));
+        } else if (result.failed.length > 0 && result.succeeded.length === 0) {
+          setShareError('Could not resolve any of the selected users: ' + result.failed.join(', '));
+        } else {
+          setShareSuccess(true);
+        }
         setSelectedUsers([]);
         if (onShareComplete) {
           onShareComplete();
@@ -279,17 +300,35 @@ const ShareSearchDialog: React.FC<IShareSearchDialogProps> = function ShareSearc
           {enableUserSharing !== false && (
             <PivotItem headerText="Users" itemIcon="People">
               <div className={styles.shareUserContainer}>
-                {shareSuccess && (
+                {shareSuccess && !shareError && (
                   <MessageBar
                     messageBarType={MessageBarType.success}
                     onDismiss={function (): void { setShareSuccess(false); }}
                     dismissButtonAriaLabel="Close"
                   >
-                    Search shared successfully
+                    {/* T2.D1 — explicit count so the sender knows the share landed. */}
+                    {sharedRecipientCount === 1
+                      ? '1 recipient notified.'
+                      : sharedRecipientCount + ' recipients notified.'}
+                    {' '}They’ll see a badge on the Saved Searches tab within a minute.
                   </MessageBar>
                 )}
 
-                {shareError && (
+                {shareSuccess && shareError && (
+                  <MessageBar
+                    messageBarType={MessageBarType.warning}
+                    onDismiss={function (): void { setShareSuccess(false); setShareError(undefined); }}
+                    dismissButtonAriaLabel="Close"
+                  >
+                    {/* T2.D1 — partial-success: confirm count + name the unresolved users. */}
+                    {sharedRecipientCount === 1
+                      ? '1 recipient notified.'
+                      : sharedRecipientCount + ' recipients notified.'}
+                    {' '}{shareError}
+                  </MessageBar>
+                )}
+
+                {!shareSuccess && shareError && (
                   <MessageBar
                     messageBarType={MessageBarType.error}
                     onDismiss={function (): void { setShareError(undefined); }}

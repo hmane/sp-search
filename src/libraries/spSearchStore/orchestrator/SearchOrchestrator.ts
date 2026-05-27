@@ -6,6 +6,10 @@ import {
   ISearchDataProvider
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
+import { TokenService, ITokenContext } from '@services/TokenService';
+import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { DebugCollector } from '../debug';
+import { spLog } from '@store/utils/spLog';
 
 /**
  * SearchOrchestrator — subscribes to store changes and triggers
@@ -72,6 +76,8 @@ export class SearchOrchestrator {
     // same filterConfig array (new reference, same content) on mount, which
     // triggers a false-positive change detection and aborts in-flight searches.
     let prevFilterConfigJson = JSON.stringify(this._store.getState().filterConfig);
+    let prevOperatorBetweenFilters = this._store.getState().operatorBetweenFilters;
+    let prevQueryInputTransformation = this._store.getState().queryInputTransformation;
 
     this._unsubscribe = this._store.subscribe((state) => {
       const queryChanged = state.queryText !== prevQueryText;
@@ -90,6 +96,8 @@ export class SearchOrchestrator {
       const refinementFiltersChanged = state.refinementFilters !== prevRefinementFilters;
       const currentFilterConfigJson = JSON.stringify(state.filterConfig);
       const filterConfigChanged = currentFilterConfigJson !== prevFilterConfigJson;
+      const operatorChanged = state.operatorBetweenFilters !== prevOperatorBetweenFilters;
+      const transformationChanged = state.queryInputTransformation !== prevQueryInputTransformation;
 
       prevQueryText = state.queryText;
       prevQueryTemplate = state.queryTemplate;
@@ -106,15 +114,21 @@ export class SearchOrchestrator {
       prevCollapseSpecification = state.collapseSpecification;
       prevRefinementFilters = state.refinementFilters;
       prevFilterConfigJson = currentFilterConfigJson;
+      prevOperatorBetweenFilters = state.operatorBetweenFilters;
+      prevQueryInputTransformation = state.queryInputTransformation;
 
       // Auto-switch to the vertical's configured defaultLayout when the vertical changes.
-      // Deferred via setTimeout to avoid Zustand subscriber re-entry during state propagation.
       if (verticalChanged && state.currentVerticalKey) {
         const newVertical = state.verticals.find((v) => v.key === state.currentVerticalKey);
         const targetLayout = newVertical?.defaultLayout;
         if (targetLayout &&
             state.availableLayouts.indexOf(targetLayout) >= 0 &&
             state.activeLayoutKey !== targetLayout) {
+          // setTimeout(0) is REQUIRED here — do not change to queueMicrotask().
+          // setLayout() triggers a Zustand setState inside a subscription callback.
+          // setTimeout defers to the next macro task, breaking the re-entry cycle.
+          // queueMicrotask would run within the same subscription call stack, causing
+          // infinite re-entry. The one-frame flicker is an acceptable trade-off.
           setTimeout((): void => {
             this._store.getState().setLayout(targetLayout);
           }, 0);
@@ -135,7 +149,9 @@ export class SearchOrchestrator {
         trimDuplicatesChanged ||
         collapseChanged ||
         refinementFiltersChanged ||
-        filterConfigChanged
+        filterConfigChanged ||
+        operatorChanged ||
+        transformationChanged
       ) {
         // Reset to page 1 for non-page changes (page is already set by the slice)
         this._debouncedSearch();
@@ -187,6 +203,8 @@ export class SearchOrchestrator {
     if (this._debounceTimer !== undefined) {
       clearTimeout(this._debounceTimer);
     }
+    // _executeSearch() reads fresh state via this._store.getState()
+    // at call time, so state changes during debounce window are captured.
     this._debounceTimer = setTimeout(() => {
       this._debounceTimer = undefined;
       this._executeSearch().catch(() => { /* handled in _executeSearch */ });
@@ -209,20 +227,75 @@ export class SearchOrchestrator {
    * PnPjs caching middleware may throw when storage is full during its
    * cache-write step, even though the API returned valid data. This
    * aggressively cleans both localStorage and sessionStorage then retries once.
+   *
+   * T5.D2 — emits a `logNetworkEvent` entry per call (including the
+   * retry-after-quota path) so the DebugPanel's Network tab can render
+   * timing badges. `kind` distinguishes the main search from vertical-
+   * count fan-out; `verticalKey` is set for vertical counts only.
    */
   private async _executeProviderWithRetry(
     provider: ISearchDataProvider,
     query: ISearchQuery,
-    signal: AbortSignal
+    signal: AbortSignal,
+    kind: 'search' | 'verticalCount' = 'search',
+    verticalKey?: string
   ): Promise<ISearchResponse> {
+    const start = performance.now();
+    const baseEntry = {
+      providerId: provider.id,
+      kind,
+      queryTemplate: query.queryTemplate,
+      currentPage: query.page,
+      pageSize: query.pageSize,
+      verticalKey,
+    };
     try {
-      return await provider.execute(query, signal);
+      const response = await provider.execute(query, signal);
+      DebugCollector.logNetworkEvent({
+        ...baseEntry,
+        status: 'ok',
+        durationMs: Math.round(performance.now() - start),
+        totalCount: response.totalCount,
+        itemCount: response.items.length,
+        errorMessage: undefined,
+      });
+      return response;
     } catch (error) {
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        // Retry once — space should now be available.
         this._cleanupStorage();
-        // Retry once — space should now be available
-        return provider.execute(query, signal);
+        const retryStart = performance.now();
+        try {
+          const retryResponse = await provider.execute(query, signal);
+          DebugCollector.logNetworkEvent({
+            ...baseEntry,
+            status: 'ok',
+            durationMs: Math.round(performance.now() - retryStart),
+            totalCount: retryResponse.totalCount,
+            itemCount: retryResponse.items.length,
+            errorMessage: 'recovered after QuotaExceededError retry',
+          });
+          return retryResponse;
+        } catch (retryError) {
+          DebugCollector.logNetworkEvent({
+            ...baseEntry,
+            status: signal.aborted ? 'aborted' : 'error',
+            durationMs: Math.round(performance.now() - retryStart),
+            totalCount: undefined,
+            itemCount: undefined,
+            errorMessage: retryError instanceof Error ? retryError.message : String(retryError),
+          });
+          throw retryError;
+        }
       }
+      DebugCollector.logNetworkEvent({
+        ...baseEntry,
+        status: error instanceof DOMException && error.name === 'AbortError' ? 'aborted' : 'error',
+        durationMs: Math.round(performance.now() - start),
+        totalCount: undefined,
+        itemCount: undefined,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -264,21 +337,19 @@ export class SearchOrchestrator {
       // No provider yet — this is normal when the Filters or Verticals web part
       // initializes before the Results web part registers the data provider.
       // Skip silently; the Results web part will trigger a search after registering.
-      console.warn(
-        '[SP Search] Search skipped — no data provider registered.',
-        'Register a provider (e.g. SharePointSearchProvider) before calling triggerSearch().'
-      );
+      spLog.warn('Search skipped — no data provider registered. Register a provider (e.g. SharePointSearchProvider) before calling triggerSearch().');
       return;
     }
 
     if (!this._firstSearchCompleted) {
-      console.log(
-        '[SP Search] First search starting.',
-        'Provider:', provider.id,
-        '| Query:', state.queryText || '*',
-        '| Filters:', state.activeFilters.length,
-        '| Page:', state.currentPage
-      );
+      // T5.D6 — `queryText` is auto-redacted by spLog so the F12 console
+      // never sees a literal user query, even in debug mode.
+      spLog.info('First search starting', {
+        providerId: provider.id,
+        queryText: state.queryText,
+        activeFilterCount: state.activeFilters.length,
+        currentPage: state.currentPage,
+      });
     }
 
     // Create new AbortController for this search cycle
@@ -293,6 +364,25 @@ export class SearchOrchestrator {
     try {
       // Build the search query
       const query = this._buildQuery(state);
+
+      // Debug: capture query info before execution
+      DebugCollector.setLastQuery({
+        kql: query.queryText,
+        queryTemplate: query.queryTemplate,
+        resultSourceId: query.resultSourceId,
+        refinementFilters: query.filters.map((f) => f.filterName + ':' + f.value),
+        providerId: provider.id,
+        startTime: searchStart,
+        duration: undefined,
+        totalCount: undefined,
+        itemsReturned: undefined,
+        currentPage: query.page,
+        pageSize: query.pageSize,
+        refiners: [],
+        error: undefined,
+        request: query as unknown as Record<string, unknown>,
+        response: undefined,
+      });
 
       // Detect first search after URL restore with active filters.
       // displayRefiners is empty on page load, so the merge in filterSlice has
@@ -316,7 +406,7 @@ export class SearchOrchestrator {
             filters: [],             // No filters — get full refiner set
             sort: undefined,
             page: 1,
-            pageSize: 1,             // Minimal results — we only need refiners
+            pageSize: 0,             // No results needed — we only need refiners
             selectedProperties: ['Title'],
             refiners: query.refiners,
             resultSourceId: query.resultSourceId,
@@ -372,21 +462,62 @@ export class SearchOrchestrator {
       state.setLoading(false);
 
       const elapsed = Math.round(performance.now() - searchStart);
+
+      // Debug: update query info with results + log SEARCH event
+      DebugCollector.setLastQuery({
+        kql: query.queryText,
+        queryTemplate: query.queryTemplate,
+        resultSourceId: query.resultSourceId,
+        refinementFilters: query.filters.map((f) => f.filterName + ':' + f.value),
+        providerId: provider.id,
+        startTime: searchStart,
+        duration: elapsed,
+        totalCount: adjustedTotal,
+        itemsReturned: response.items.length,
+        currentPage: query.page,
+        pageSize: query.pageSize,
+        refiners: response.refiners.map((r) => ({
+          name: r.filterName,
+          values: r.values.map((v) => ({ value: v.value, count: v.count })),
+        })),
+        error: undefined,
+        request: query as unknown as Record<string, unknown>,
+        response: {
+          totalCount: adjustedTotal,
+          itemCount: response.items.length,
+          refinersCount: response.refiners.length,
+          promotedResultsCount: response.promotedResults.length,
+          querySuggestion: response.querySuggestion || undefined,
+          items: response.items.slice(0, 5).map((item) => ({
+            title: item.title,
+            url: item.url,
+            fileType: item.fileType,
+          })),
+        },
+      });
+      DebugCollector.logEvent('SEARCH', {
+        duration: elapsed,
+        resultCount: response.items.length,
+        totalCount: adjustedTotal,
+        providerId: provider.id,
+        query: query.queryText,
+      });
+
       if (!this._firstSearchCompleted) {
         this._firstSearchCompleted = true;
-        console.log(
-          '[SP Search] First search complete.',
-          'Results:', response.items.length + '/' + adjustedTotal,
-          '| Time:', elapsed + 'ms',
-          '| Provider:', provider.id
-        );
+        spLog.info('First search complete', {
+          resultCount: response.items.length,
+          totalCount: adjustedTotal,
+          durationMs: elapsed,
+          providerId: provider.id,
+        });
       } else {
-        console.debug(
-          '[SP Search] Search complete.',
-          'Results:', response.items.length + '/' + adjustedTotal,
-          '| Time:', elapsed + 'ms',
-          '| Query:', state.queryText || '*'
-        );
+        spLog.debug('Search complete', {
+          resultCount: response.items.length,
+          totalCount: adjustedTotal,
+          durationMs: elapsed,
+          queryText: state.queryText,
+        });
       }
 
       // Fetch vertical counts in parallel
@@ -412,14 +543,19 @@ export class SearchOrchestrator {
         return;
       }
 
-      console.error(
-        '[SP Search] Search failed.',
-        'Provider:', provider.id,
-        '| Query:', state.queryText || '*',
-        '| Error:', error instanceof Error ? error.message : String(error)
-      );
+      spLog.error('Search failed', {
+        providerId: provider.id,
+        queryText: state.queryText,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       const message = error instanceof Error ? error.message : 'Search failed';
       state.setError(message);
+      DebugCollector.logEvent('ERROR', {
+        message,
+        providerId: provider.id,
+        query: state.queryText || '*',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       state.setLoading(false);
     }
   }
@@ -505,7 +641,9 @@ export class SearchOrchestrator {
           trimDuplicates: true,
         };
 
-        const response = await this._executeProviderWithRetry(provider, countQuery, signal);
+        // T5.D2 — label vertical-count traffic so the DebugPanel Network
+        // tab distinguishes it from the main search request.
+        const response = await this._executeProviderWithRetry(provider, countQuery, signal, 'verticalCount', vertical.key);
         return { key: vertical.key, count: response.totalCount };
       } catch {
         return { key: vertical.key, count: 0 };
@@ -584,6 +722,7 @@ export class SearchOrchestrator {
 
   private _usesBucketedRefiners(filterType: ISearchStore['filterConfig'][number]['filterType']): boolean {
     return filterType === 'checkbox' ||
+      filterType === 'dropdown' ||
       filterType === 'tagbox' ||
       filterType === 'slider' ||
       filterType === 'taxonomy';
@@ -614,15 +753,44 @@ export class SearchOrchestrator {
     return { textFilters, refinementFilters };
   }
 
+  /**
+   * MISS-001 — build an ITokenContext from SPContext for resolving tokens
+   * other than `{searchTerms}` in admin-configured templates. Returns
+   * empty strings for fields when SPContext isn't ready (e.g. during the
+   * very first render before `onInit` resolves) — TokenService treats
+   * empty replacements as no-ops, so this degrades gracefully.
+   */
+  private _buildTokenContext(rawQuery: string): ITokenContext {
+    const pageContext = SPContext.isReady() ? SPContext.pageContext : undefined;
+    const user = pageContext?.user;
+    return {
+      queryText: rawQuery || '',
+      siteId: pageContext?.site?.id?.toString() || '',
+      siteUrl: pageContext?.site?.absoluteUrl || '',
+      webId: pageContext?.web?.id?.toString() || '',
+      webUrl: pageContext?.web?.absoluteUrl || '',
+      hubSiteUrl: (pageContext?.legacyPageContext as { hubSiteId?: string; hubSiteUrl?: string })?.hubSiteUrl || '',
+      userDisplayName: user?.displayName || '',
+      userEmail: user?.email || user?.loginName || '',
+      listId: pageContext?.list?.id?.toString() || '',
+    };
+  }
+
   private _buildEffectiveQueryText(
     state: ISearchStore,
     textFilters: ISearchStore['activeFilters']
   ): string {
     const rawQuery = state.queryText;
     const transformation = state.queryInputTransformation || '{searchTerms}';
-    let queryText = rawQuery
-      ? transformation.replace(/\{searchTerms\}/gi, rawQuery)
-      : '*';
+    // MISS-001 — full token resolution (not just `{searchTerms}`). Admin
+    // patterns like `({searchTerms}) AND owner:{User.Email}` now expand
+    // every token client-side before the provider sees the query.
+    const tokenContext = this._buildTokenContext(rawQuery);
+    const queryText = TokenService.applyQueryInputTransformation(
+      transformation,
+      rawQuery,
+      tokenContext
+    );
 
     if (textFilters.length === 0) {
       return queryText;
@@ -705,16 +873,16 @@ export class SearchOrchestrator {
       activeFilters: state.activeFilters,
       currentVerticalKey: state.currentVerticalKey,
       sort: state.sort,
-      scope: state.scope,
-      activeLayoutKey: state.activeLayoutKey,
     });
+
+    const searchPageUrl = typeof window !== 'undefined' ? window.location.pathname : '';
 
     // Log async - don't await, don't block
     this._historyService
       .logSearch(
         state.queryText,
         state.currentVerticalKey,
-        state.scope.id,
+        searchPageUrl,
         searchState,
         resultCount,
         resultCount === 0

@@ -1,4 +1,5 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Outer container (positions suggestions dropdown) ────
 .searchBoxOuter {
@@ -47,10 +48,16 @@
 }
 
 // ─── Scope selector (left partition) ─────────────────────
+.scopeSelectorLabel {
+  color: "[theme:neutralSecondary, default: #605e5c]";
+  color: var(--neutralSecondary, #605e5c);
+  font-weight: 600;
+}
+
 .scopeSelector {
   flex: 0 0 auto;
-  min-width: 120px;
-  max-width: 180px;
+  min-width: 150px;
+  max-width: 220px;
   border-right: 1px solid "[theme:neutralLight, default: #edebe9]";
   border-right: 1px solid var(--neutralLight, #edebe9);
 
@@ -444,13 +451,29 @@
   margin-top: 12px;
 }
 
+// ─── Visually-hidden helper (used by <legend> + scope-selector aria-describedby span) ─
+// Foundations Found.D6 — A11Y-004 / A11Y-005
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 // ─── KQL Mode Toggle (segmented pill control) ──────────
+// Rendered as <fieldset> for A11Y-004 — reset native fieldset styling so it visually matches the prior <div> shape.
 .kqlModeToggle {
   display: flex;
   align-items: center;
   flex-shrink: 0;
   margin: 0 2px 0 6px;
   padding: 2px;
+  border: 0;
   border-radius: 6px;
   background-color: "[theme:neutralLighter, default: #f3f2f1]";
   background-color: var(--neutralLighter, #f3f2f1);
@@ -458,6 +481,7 @@
   border-right: 1px solid var(--neutralLight, #edebe9);
   margin-right: 4px;
   padding-right: 2px;
+  min-inline-size: auto; // override Chrome default fieldset min-width
 }
 
 .kqlModeButton {
@@ -770,8 +794,8 @@
   text-align: center;
 }
 
-// ─── Responsive ──────────────────────────────────────────
-@media (max-width: 480px) {
+// ─── Responsive (T1.D2 — uses the shared `mobile-and-below` breakpoint) ────
+@include mobile-and-below {
   .searchBoxContainer {
     max-width: 100%;
     padding: 8px 0;
@@ -786,11 +810,73 @@
     max-width: 140px;
   }
 
+  // T1.D10 — iOS Safari auto-zooms inputs whose font-size is below 16px.
+  // Forcing 16px on the SearchBox input + KQL textarea keeps the page
+  // stable on focus (no scroll jump, no zoom-in). Desktop ergonomics are
+  // unaffected — 16px reads identically to 14px at typical desktop
+  // distances and only fires inside the mobile media query.
   .searchInput {
     :global {
-      .ms-SearchBox-field {
-        font-size: 14px;
+      .ms-SearchBox-field,
+      .ms-SearchBox-field input,
+      textarea {
+        font-size: 16px;
       }
     }
+  }
+
+  // Same iOS auto-zoom protection for the scope selector. Fluent Dropdown
+  // can include a hidden <select> for native accessibility — focusing it
+  // is enough to trigger iOS Safari's auto-zoom. Bump the visible title
+  // and any nested input/select to 16px on mobile.
+  .scopeSelector {
+    :global {
+      .ms-Dropdown-title,
+      select,
+      input {
+        font-size: 16px;
+      }
+    }
+  }
+
+  // T1.D10 — ensure the input has at least 260px to render the placeholder
+  // and active query without truncating. iPhone-13 (390px) - scope (140px) -
+  // action buttons (~80px) - container padding leaves ~170px without help;
+  // bumping the input's flex-basis recovers the budget while still allowing
+  // the scope dropdown to shrink to its min-content.
+  .searchInput {
+    min-width: 260px;
+    flex: 1 1 260px;
+  }
+
+  .scopeSelector {
+    flex: 0 1 auto;
+  }
+
+  // T1.D10 — collapse the auxiliary toolbar (KQL toggle, Save action,
+  // Query Builder toggle, Save Search button) into a hidden state on
+  // mobile widths. The audit's "overflow menu" framing implies a full
+  // refactor; the simpler shipping approach is to drop them below the
+  // search row and stack them in a horizontally-scrollable strip so
+  // they're still reachable without consuming horizontal budget the
+  // input needs. Buttons remain individually tappable.
+  .actionToolbar,
+  .toolbarRow {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+// Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }

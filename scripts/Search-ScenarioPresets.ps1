@@ -308,6 +308,54 @@ $PRESET_REGISTRY = @{
       @{ key='word';       label='Word';       queryTemplate='{searchTerms} IsDocument:1 (FileType:docx OR FileType:doc)'                                   }
     )
   }
+
+  'account-documents' = @{
+    id              = 'account-documents'
+    label           = 'Account Documents'
+    description     = 'Account-document libraries with document type, subtype, account, review, region, date, and inactive refiners. Requires the managed property mappings documented by the provisioning script.'
+    queryTemplate   = '{searchTerms} IsDocument:1'
+    defaultLayout   = 'list'
+    layouts         = @{ list=$true; compact=$true; grid=$true; card=$false; people=$false; gallery=$false }
+    selectedProperties = @(
+      @{ property='Title';              alias='Title'         }
+      @{ property='ContentType';        alias='Document Type' }
+      @{ property='RefinableString120'; alias='Sub Type'      }
+      @{ property='RefinableString121'; alias='Account'       }
+      @{ property='RefinableString123'; alias='Review Status' }
+      @{ property='RefinableString125'; alias='Region'        }
+      @{ property='RefinableDate11';    alias='Effective Date' }
+      @{ property='RefinableDate10';    alias='Expiry Date'   }
+      @{ property='RefinableString122'; alias='Inactive'      }
+      @{ property='FileType';           alias='Type'          }
+      @{ property='LastModifiedTime';   alias='Modified'      }
+      @{ property='Path';               alias='URL'           }
+    )
+    sortableProperties = @(
+      @{ property='LastModifiedTime'; label='Date Modified'; direction='Descending' }
+      @{ property='Title';            label='Title';         direction='Ascending'  }
+      @{ property='RefinableDate11';  label='Effective Date'; direction='Descending' }
+      @{ property='RefinableDate10';  label='Expiry Date';   direction='Ascending'  }
+      @{ property='RefinableString121'; label='Account';     direction='Ascending'  }
+      @{ property='ContentType';      label='Document Type'; direction='Ascending'  }
+    )
+    dataProviderHint   = 'sharepoint-search'
+    filterSuggestions  = @(
+      @{ managedProperty='FileType';           label='File type';     urlAlias='ft'; filterType='checkbox' }
+      @{ managedProperty='ContentType';        label='Document type'; urlAlias='dt'; filterType='dropdown' }
+      @{ managedProperty='RefinableString120'; label='Sub type';      urlAlias='st'; filterType='dropdown' }
+      @{ managedProperty='RefinableString121'; label='Account';       urlAlias='ac'; filterType='taxonomy' }
+      @{ managedProperty='RefinableDate10';    label='Expiry date';   urlAlias='ed'; filterType='daterange' }
+      @{ managedProperty='RefinableString122'; label='Is active';     urlAlias='ia'; filterType='toggle' }
+    )
+    verticalSuggestions = @(
+      @{ key='all';         label='All';              queryTemplate='{searchTerms} IsDocument:1' }
+      @{ key='agreements';  label='Agreements';       queryTemplate='{searchTerms} IsDocument:1 (ContentType:"Account Agreement" OR ContentType:"Account Mandate")' }
+      @{ key='entity';      label='Entity';           queryTemplate='{searchTerms} IsDocument:1 (ContentType:"Entity Formation" OR ContentType:"Entity Compliance")' }
+      @{ key='operational'; label='Operational';      queryTemplate='{searchTerms} IsDocument:1 ContentType:"Operational Procedure"' }
+      @{ key='compliance';  label='Compliance';       queryTemplate='{searchTerms} IsDocument:1 (ContentType:"Tax Certificate" OR ContentType:"Regulatory Filing" OR ContentType:"Audit Support")' }
+      @{ key='closure';     label='Closure';          queryTemplate='{searchTerms} IsDocument:1 ContentType:"Account Closure"' }
+    )
+  }
 }
 
 $PROVISIONED_DOCUMENT_LIBRARIES = @(

@@ -3,23 +3,42 @@ import * as ReactDom from 'react-dom';
 import DataGrid, { Column, Scrolling, Sorting, StateStoring, Toolbar, Item, Paging, Pager, LoadPanel } from 'devextreme-react/data-grid';
 import { IconButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { confirm } from 'spfx-toolkit/lib/utilities/dialogService';
 import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index';
 import { PermissionKind } from '@pnp/sp/security';
 import { hasPermissions } from '@pnp/sp/security/funcs';
 import { buildDownloadUrl, copyTextToClipboard } from '@providers/actions/actionUtils';
-import { formatRelativeDate, formatDateTime, formatFileSize, getResultAnchorProps, buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
+import { resolveResultLink, type IResultLinkConfig } from './resultLink';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
-import { ISelectedPropertyColumn } from './ISpSearchResultsProps';
+import {
+  IColumnConfigItem,
+  ColumnRenderer,
+  normalizeColumnConfigItem,
+} from './ColumnConfigField/columnConfig';
+import {
+  renderText,
+  renderRichText,
+  renderNumber,
+  renderFileSize,
+  renderBoolean,
+  renderTags,
+  renderPersona,
+  renderDate,
+  renderUrl,
+  renderFileType,
+} from './renderCell';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridContentProps {
   items: ISearchResult[];
-  selectedPropertyColumns: ISelectedPropertyColumn[];
+  /** Stream B / Phase 1 — full IColumnConfigItem[] (alias / width / renderer / etc.). */
+  columns: IColumnConfigItem[];
   titleDisplayMode: TitleDisplayMode;
   /** Total result count from the store — used to decide whether to activate virtual scrolling. */
   totalCount: number;
@@ -31,20 +50,40 @@ export interface IDataGridContentProps {
   /** Used to scope the localStorage key for column preferences — one entry per context per page. */
   searchContextId: string;
   showDeleteConfirmation: boolean;
+  /** Stream B / Phase 3 — when false, the "Columns" toolbar button is hidden. */
+  showColumnChooser: boolean;
   sort: ISortField | undefined;
   sortableProperties: ISortableProperty[];
   onPreviewItem?: (item: ISearchResult) => void;
   onItemClick?: (item: ISearchResult, position: number) => void;
   onPageChange: (page: number) => void;
   onSortChange: (sort: ISortField) => void;
+  // Stream C / #7
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
-type ColumnKind = 'title' | 'author' | 'date' | 'fileType' | 'fileSize' | 'url' | 'text';
+type ColumnKind =
+  | 'title'
+  | 'author'      // auto-detected from property name (Author / DisplayAuthor) — uses the in-component avatar render
+  | 'date'
+  | 'fileType'
+  | 'fileSize'
+  | 'url'
+  | 'text'
+  // Stream B / Phase 2 — admin-picked renderer types dispatched via renderCell.tsx
+  | 'persona'
+  | 'richText'
+  | 'number'
+  | 'tags'
+  | 'boolean';
 
 interface IGridColumnConfig {
   property: string;
   caption: string;
   kind: ColumnKind;
+  /** Carries the source column-config item through to the renderer dispatch. */
+  column: IColumnConfigItem;
   width?: number;
   minWidth?: number;
   alignment?: 'left' | 'center' | 'right';
@@ -62,12 +101,12 @@ interface IItemPermissionState {
   canDelete: boolean;
 }
 
-const DEFAULT_COLUMNS: ISelectedPropertyColumn[] = [
-  { property: 'Author', alias: 'Author' },
-  { property: 'LastModifiedTime', alias: 'Modified' },
-  { property: 'FileType', alias: 'Type' },
-  { property: 'Size', alias: 'Size' },
-  { property: 'SiteTitle', alias: 'Site' }
+const DEFAULT_COLUMNS: IColumnConfigItem[] = [
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-0', property: 'Author', alias: 'Author' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-1', property: 'LastModifiedTime', alias: 'Modified' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-2', property: 'FileType', alias: 'Type' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-3', property: 'Size', alias: 'Size' }),
+  normalizeColumnConfigItem({ uniqueId: 'dx-default-4', property: 'SiteTitle', alias: 'Site' }),
 ];
 
 const GRID_HEADER_HEIGHT = 44;
@@ -102,10 +141,17 @@ function getInitialsColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function getConfiguredColumns(selectedPropertyColumns: ISelectedPropertyColumn[]): ISelectedPropertyColumn[] {
-  const source = [{ property: 'Title', alias: 'Name' }, ...(selectedPropertyColumns.length > 0 ? selectedPropertyColumns : DEFAULT_COLUMNS)];
+const TITLE_COLUMN: IColumnConfigItem = normalizeColumnConfigItem({
+  uniqueId: 'dx-title',
+  property: 'Title',
+  alias: 'Name',
+  visibility: 'always',
+});
+
+function getConfiguredColumns(columns: IColumnConfigItem[]): IColumnConfigItem[] {
+  const source = [TITLE_COLUMN, ...(columns.length > 0 ? columns : DEFAULT_COLUMNS)];
   const seen = new Set<string>();
-  const unique: ISelectedPropertyColumn[] = [];
+  const unique: IColumnConfigItem[] = [];
 
   for (let i: number = 0; i < source.length; i++) {
     const property = (source[i].property || '').trim();
@@ -117,37 +163,84 @@ function getConfiguredColumns(selectedPropertyColumns: ISelectedPropertyColumn[]
       continue;
     }
     seen.add(lookupKey);
-    unique.push({
-      property,
-      alias: (source[i].alias || '').trim()
-    });
+    unique.push(source[i]);
   }
 
   return unique;
 }
 
-function getColumnConfig(property: string, alias: string): IGridColumnConfig {
+/**
+ * Auto-detect a column's kind by property name. This is the pre-Phase-1
+ * behaviour, reachable when `IColumnConfigItem.renderer === ''` (the migration
+ * sentinel) and for the Title column.
+ */
+function autoDetectColumnKind(property: string): { kind: ColumnKind; width?: number; minWidth?: number; alignment?: 'left' | 'center' | 'right' } {
   const normalized = property.toLowerCase();
 
   if (normalized === 'title' || normalized === 'filename') {
-    return { property, caption: alias || 'Name', kind: 'title', minWidth: 220 };
+    return { kind: 'title', minWidth: 220 };
   }
   if (normalized === 'author' || normalized === 'authorowsuser' || normalized === 'displayauthor') {
-    return { property, caption: alias || 'Author', kind: 'author', width: 180 };
+    return { kind: 'author', width: 180 };
   }
   if (normalized === 'lastmodifiedtime' || normalized === 'modified' || normalized === 'created') {
-    return { property, caption: alias || property, kind: 'date', width: 140 };
+    return { kind: 'date', width: 140 };
   }
   if (normalized === 'filetype' || normalized === 'fileextension') {
-    return { property, caption: alias || 'Type', kind: 'fileType', width: 80, alignment: 'center' };
+    return { kind: 'fileType', width: 80, alignment: 'center' };
   }
   if (normalized === 'size' || normalized === 'filesize') {
-    return { property, caption: alias || 'Size', kind: 'fileSize', width: 90, alignment: 'right' };
+    return { kind: 'fileSize', width: 90, alignment: 'right' };
   }
   if (normalized === 'path' || normalized.indexOf('url') >= 0 || normalized.indexOf('link') >= 0) {
-    return { property, caption: alias || property, kind: 'url', minWidth: 220 };
+    return { kind: 'url', minWidth: 220 };
   }
-  return { property, caption: alias || property, kind: 'text', minWidth: 140 };
+  return { kind: 'text', minWidth: 140 };
+}
+
+/**
+ * Map an explicit `IColumnConfigItem.renderer` choice onto a cell renderer
+ * kind. `''` defers to the auto-detect path so migrated items render
+ * identically to today. The Phase-2 renderer types (`persona`, `richText`,
+ * `number`, `tags`, `boolean`) each have their own kind dispatched via the
+ * pure renderers in `renderCell.tsx`.
+ */
+function kindFromRenderer(renderer: ColumnRenderer, property: string): { kind: ColumnKind; width?: number; minWidth?: number; alignment?: 'left' | 'center' | 'right' } {
+  switch (renderer) {
+    case 'text':     return { kind: 'text', minWidth: 140 };
+    case 'date':     return { kind: 'date', width: 140 };
+    case 'fileType': return { kind: 'fileType', width: 80, alignment: 'center' };
+    case 'fileSize': return { kind: 'fileSize', width: 90, alignment: 'right' };
+    case 'url':      return { kind: 'url', minWidth: 220 };
+    case 'persona':  return { kind: 'persona', width: 200 };
+    case 'richText': return { kind: 'richText', minWidth: 200 };
+    case 'number':   return { kind: 'number', width: 100, alignment: 'right' };
+    case 'tags':     return { kind: 'tags', minWidth: 160 };
+    case 'boolean':  return { kind: 'boolean', width: 70, alignment: 'center' };
+    case '':
+    default:
+      return autoDetectColumnKind(property);
+  }
+}
+
+function getColumnConfig(column: IColumnConfigItem): IGridColumnConfig {
+  const property = column.property;
+  const isTitle = property.toLowerCase() === 'title' || property.toLowerCase() === 'filename';
+  // Title always renders via the title cell renderer regardless of admin choice.
+  const dispatch = isTitle ? autoDetectColumnKind(property) : kindFromRenderer(column.renderer, property);
+  const alias = (column.alias || '').trim();
+  const caption = alias || property;
+  const adminWidth = column.width;
+
+  return {
+    property,
+    caption,
+    kind: dispatch.kind,
+    column,
+    width: adminWidth !== undefined ? adminWidth : dispatch.width,
+    minWidth: dispatch.minWidth,
+    alignment: dispatch.alignment,
+  };
 }
 
 function resolvePropertyValue(item: ISearchResult, property: string): unknown {
@@ -479,7 +572,7 @@ async function loadItemPermissions(item: ISearchResult): Promise<IItemPermission
 const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   const {
     items,
-    selectedPropertyColumns,
+    columns,
     titleDisplayMode,
     totalCount,
     pageSize,
@@ -488,11 +581,14 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     pageRange,
     searchContextId,
     showDeleteConfirmation,
+    showColumnChooser,
     sort,
     sortableProperties,
     onItemClick,
     onPageChange,
-    onSortChange
+    onSortChange,
+    linkConfig,
+    onOpenInSidePanel
   } = props;
 
   // Activate virtual scrolling only for larger page sizes where DOM virtualization
@@ -530,10 +626,8 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   }, [isFullscreen]);
 
   const columnConfigs = React.useMemo(
-    (): IGridColumnConfig[] => getConfiguredColumns(selectedPropertyColumns).map((column) => {
-      return getColumnConfig(column.property, column.alias);
-    }),
-    [selectedPropertyColumns]
+    (): IGridColumnConfig[] => getConfiguredColumns(columns).map(getColumnConfig),
+    [columns]
   );
 
   const gridData = React.useMemo(
@@ -737,25 +831,43 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   }, [columnConfigs, onSortChange, sort, sortableProperties, syncVisibleColumnsFromGrid]);
 
   const columnMenuItems = React.useMemo((): IContextualMenuItem[] => {
+    // Stream B / Phase 3 — visibility-aware filter + initial-check derivation.
+    // `always` columns never appear in the menu; `defaultOff` columns start
+    // unchecked unless the user has saved their state otherwise.
     return columnConfigs
-      .filter((column) => column.kind !== 'title')
-      .map((column) => ({
-        key: column.property,
-        text: column.caption,
-        canCheck: true,
-        checked: columnVisibility[column.property] !== false,
-        onClick: (): void => {
-          handleToggleColumnVisibility(column.property);
-        }
-      }));
+      .filter((column) => column.kind !== 'title' && column.column.visibility !== 'always')
+      .map((column) => {
+        const saved = columnVisibility[column.property];
+        const isOnByDefault = column.column.visibility !== 'defaultOff';
+        const checked = saved === undefined ? isOnByDefault : saved !== false;
+        return {
+          key: column.property,
+          text: column.caption,
+          canCheck: true,
+          checked,
+          onClick: (): void => {
+            handleToggleColumnVisibility(column.property);
+          }
+        };
+      });
   }, [columnConfigs, columnVisibility, handleToggleColumnVisibility]);
+
+  const handleExportXlsx = React.useCallback((): void => {
+    import(/* webpackChunkName: 'xlsxExport' */ './exportXlsx')
+      .then((m): void => {
+        m.triggerXlsxDownload(gridData, columnConfigs, 'search-results.xlsx');
+      })
+      .catch((): void => {
+        console.error('[SP Search] Failed to load XLSX export module');
+      });
+  }, [gridData, columnConfigs]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const titleCellRender = React.useCallback((cellData: { value: unknown; data: IGridRow; rowIndex?: number }): React.ReactElement => {
     const matchingItem = cellData.data.__item;
     const position = (cellData.rowIndex !== undefined ? cellData.rowIndex : 0) + 1;
     const title = formatTitleText(formatTextValue(cellData.value), titleDisplayMode);
-    const linkProps = getResultAnchorProps(matchingItem);
+    const linkProps = resolveResultLink(matchingItem, linkConfig);
     const permissionState = permissionCache[matchingItem.key];
     const viewUrl = buildFormUrl(matchingItem, 4);
     const editUrl = buildFormUrl(matchingItem, 6);
@@ -856,17 +968,30 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     ];
 
     return (
-      <DocumentTitleHoverCard item={matchingItem} position={position} onItemClick={onItemClick} hostDisplay="block">
+      <DocumentTitleHoverCard
+        item={matchingItem}
+        position={position}
+        onItemClick={onItemClick}
+        hostDisplay="block"
+        clickTarget={linkConfig.clickTarget}
+        onOpenInSidePanel={onOpenInSidePanel}
+      >
         {(handleClick): React.ReactNode => (
           <div className={styles.gridTitleCell}>
             <span className={styles.gridTitleIcon}>
-              <FileTypeIcon type={IconType.image} path={matchingItem.url} size={ImageSize.small} />
+              <Icon {...getFileTypeIconProps({ extension: matchingItem.fileType || '', size: 16 })} />
             </span>
             <div className={styles.gridTitleMain}>
               <a
                 href={linkProps.href}
                 target={linkProps.target}
                 rel={linkProps.rel}
+                // SharePoint Modern's SPA router intercepts <a> clicks in capture
+                // phase and navigates the current tab itself — bypassing target=_blank
+                // AND our React onClick's preventDefault. data-interception="off"
+                // opts this anchor out so the browser handles the click natively
+                // and our handleClick can Modal-ize the previewable.
+                data-interception="off"
                 className={titleDisplayMode === 'wrap' ? styles.gridTitleLinkWrap : styles.gridTitleLink}
                 onClick={(e: React.MouseEvent): void => {
                   e.stopPropagation();
@@ -922,72 +1047,14 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     );
   }, []);
 
-  const dateCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const rawValue = typeof cellData.value === 'string' ? cellData.value : '';
-    if (!rawValue) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span className={styles.gridDateCell} title={formatDateTime(rawValue)}>
-        {formatRelativeDate(rawValue)}
-      </span>
-    );
-  }, []);
-
-  const typeCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const label = formatTextValue(cellData.value).toUpperCase();
-    if (!cellData.value) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span className={styles.gridTypeBadge}>
-        {label}
-      </span>
-    );
-  }, []);
-
-  const fileSizeCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const size = typeof cellData.value === 'number'
-      ? cellData.value
-      : parseInt(String(cellData.value || '0'), 10) || 0;
-
-    if (!size) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <span title={String(size) + ' bytes'}>
-        {formatFileSize(size)}
-      </span>
-    );
-  }, []);
-
-  const urlCellRender = React.useCallback((cellData: { value: unknown; data: IGridRow }): React.ReactElement => {
-    const href = typeof cellData.value === 'string' && cellData.value ? cellData.value : cellData.data.__item.url;
-    if (!href) {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={styles.gridTitleLink}>
-        {href}
-      </a>
-    );
-  }, []);
-
-  const textCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const text = formatTextValue(cellData.value);
-    if (text === '--') {
-      return <span className={styles.gridCellMuted}>--</span>;
-    }
-
-    return <span title={text}>{text}</span>;
-  }, []);
+  // Date / fileType / fileSize / url / text renderers have moved to the pure
+  // `renderCell.tsx` module as part of Stream B / Phase 2 — they're dispatched
+  // directly inside `renderColumn`. The title and author cell renders stay
+  // here because they close over local state (hover-card, permissions, etc.).
 
   const renderColumn = React.useCallback((column: IGridColumnConfig, index: number): React.ReactElement => {
     const sortProperty = resolveColumnSortProperty(column.property, sortableProperties);
+    const cfg = column.column;
     let cellRender:
       | ((cellData: { value: unknown; data: IGridRow; rowIndex?: number }) => React.ReactElement)
       | undefined;
@@ -997,24 +1064,55 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         cellRender = titleCellRender;
         break;
       case 'author':
+        // Auto-detected author column — keep today's simple initials avatar.
         cellRender = authorCellRender;
         break;
       case 'date':
-        cellRender = dateCellRender;
+        cellRender = (cellData): React.ReactElement => renderDate(cellData.value, cfg);
         break;
       case 'fileType':
-        cellRender = typeCellRender;
+        cellRender = (cellData): React.ReactElement => renderFileType(cellData.value, cfg);
         break;
       case 'fileSize':
-        cellRender = fileSizeCellRender;
+        cellRender = (cellData): React.ReactElement => renderFileSize(cellData.value, cfg);
         break;
       case 'url':
-        cellRender = urlCellRender;
+        cellRender = (cellData): React.ReactElement => {
+          const value = typeof cellData.value === 'string' && cellData.value ? cellData.value : cellData.data.__item.url;
+          return renderUrl(value, cfg);
+        };
+        break;
+      // Stream B / Phase 2 — admin-picked explicit renderers
+      case 'persona':
+        cellRender = (cellData): React.ReactElement => renderPersona(cellData.value, cfg);
+        break;
+      case 'richText':
+        cellRender = (cellData): React.ReactElement => renderRichText(cellData.value, cfg);
+        break;
+      case 'number':
+        cellRender = (cellData): React.ReactElement => renderNumber(cellData.value, cfg);
+        break;
+      case 'tags':
+        cellRender = (cellData): React.ReactElement => renderTags(cellData.value, cfg);
+        break;
+      case 'boolean':
+        cellRender = (cellData): React.ReactElement => renderBoolean(cellData.value, cfg);
         break;
       default:
-        cellRender = textCellRender;
+        cellRender = (cellData): React.ReactElement => renderText(cellData.value, cfg);
         break;
     }
+
+    const isTitle = column.kind === 'title';
+    const isAlways = cfg.visibility === 'always';
+    const allowHiding = !isTitle && !isAlways;
+    // Initial visibility: derived from the column-config item's `visibility`
+    // (defaultOff starts hidden, defaultOn/always start visible). Saved state
+    // from localStorage takes precedence via StateStoring once it loads.
+    const savedVisible = columnVisibility[column.property];
+    const initialVisible = savedVisible === undefined
+      ? cfg.visibility !== 'defaultOff'
+      : savedVisible !== false;
 
     return (
       <Column
@@ -1025,14 +1123,15 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         width={column.width}
         minWidth={column.minWidth}
         alignment={column.alignment}
-        allowHiding={column.kind !== 'title'}
-        showInColumnChooser={column.kind !== 'title'}
+        allowHiding={allowHiding}
+        showInColumnChooser={allowHiding}
+        visible={initialVisible}
         allowSorting={!!sortProperty}
         sortOrder={sortProperty ? getDxSortOrder(sort, sortProperty) : undefined}
         sortIndex={sortProperty && getDxSortOrder(sort, sortProperty) ? 0 : undefined}
       />
     );
-  }, [authorCellRender, dateCellRender, fileSizeCellRender, sort, sortableProperties, textCellRender, titleCellRender, typeCellRender, urlCellRender]);
+  }, [authorCellRender, columnVisibility, sort, sortableProperties, titleCellRender]);
 
   return (
     <div
@@ -1091,33 +1190,47 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
       {/* Scrolling — virtual mode when there are multiple pages of results */}
       <Scrolling mode={useVirtualScrolling ? 'virtual' : 'standard'} />
 
-      {/* Toolbar — fullscreen toggle and column chooser */}
+      {/* Toolbar — fullscreen toggle, column chooser, and XLSX export */}
       <Toolbar>
+        {showColumnChooser && (
+          <Item
+            location="after"
+            render={(): React.ReactElement => (
+              <DefaultButton
+                iconProps={{ iconName: 'BulletedList' }}
+                text="Columns"
+                title="Choose visible columns"
+                ariaLabel="Choose visible columns"
+                className={styles.gridToolbarButton}
+                menuProps={{ items: columnMenuItems }}
+              />
+            )}
+          />
+        )}
         <Item
-          location="before"
+          location="after"
           render={(): React.ReactElement => (
-            <button
-              className={styles.gridToolbarButton}
-              onClick={(): void => setIsFullscreen((prev) => !prev)}
-              title={isFullscreen ? 'Exit full view' : 'Open grid in full view'}
-              type="button"
-            >
-              <span className={styles.gridToolbarIcon} aria-hidden="true">{isFullscreen ? '⤢' : '⤢'}</span>
-              {isFullscreen ? 'Exit full view' : 'Full view'}
-            </button>
+            <TooltipHost content="Export to Excel">
+              <IconButton
+                iconProps={{ iconName: 'ExcelDocument' }}
+                ariaLabel="Export to Excel"
+                className={styles.gridToolbarIconBtn}
+                onClick={handleExportXlsx}
+              />
+            </TooltipHost>
           )}
         />
         <Item
-          location="before"
+          location="after"
           render={(): React.ReactElement => (
-            <DefaultButton
-              iconProps={{ iconName: 'BulletedList' }}
-              text="Columns"
-              title="Choose visible columns"
-              ariaLabel="Choose visible columns"
-              className={styles.gridToolbarButton}
-              menuProps={{ items: columnMenuItems }}
-            />
+            <TooltipHost content={isFullscreen ? 'Exit full view' : 'Expand to full view'}>
+              <IconButton
+                iconProps={{ iconName: isFullscreen ? 'BackToWindow' : 'FullScreen' }}
+                ariaLabel={isFullscreen ? 'Exit full view' : 'Expand to full view'}
+                onClick={(): void => setIsFullscreen((prev) => !prev)}
+                className={styles.gridToolbarIconBtn}
+              />
+            </TooltipHost>
           )}
         />
       </Toolbar>

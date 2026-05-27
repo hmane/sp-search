@@ -36,6 +36,8 @@ function evaluateMatch(queryText: string, matchType: string, matchValue: string)
 
     case 'regex':
       try {
+        // matchValue is admin-configured regex pattern, not user input — safe to construct
+        // eslint-disable-next-line @rushstack/security/no-unsafe-regexp
         const regex = new RegExp(matchValue, 'i');
         return regex.test(queryText);
       } catch {

@@ -1,6 +1,8 @@
 # SP Search — Admin Configuration Guide
 
-This guide documents the current SharePoint search solution as shipped after the product cleanup and Sprint 4 work. The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
+This guide documents the current SharePoint search solution as shipped through Sprint 4 (audit fixes). The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
+
+**Sprint 4 highlights:** operatorBetweenFilters now functional, queryInputTransformation triggers re-search, Clear All Filters button, XLSX export in DataGrid, scope collection editor in property pane, accessibility improvements, sovereign cloud Teams sharing.
 
 ## Core Setup Rule
 
@@ -127,6 +129,28 @@ Preset selection updates:
 
 Changing any individual layout toggle or the default layout reverts the preset selection to `custom`.
 
+### Result Link Behavior
+
+The Results web part lets the admin pick what happens when a user clicks a result title.
+
+| Property | Options | Default | Notes |
+|----------|---------|---------|-------|
+| `resultClickTarget` | `panel` / `newTab` / `sameTab` / `sidePanel` | `panel` | See table below |
+| `documentLinkMode` | `file` / `propertiesForm` | `file` | For document results: open the file (Office Online / PDF viewer) or the SharePoint properties form |
+| `listItemLinkMode` | `displayForm` / `editForm` | `displayForm` | For list-item results: open the read-only display form or the edit form |
+
+| `clickTarget` | Previewable files (Office / PDF / image / txt / csv / json / xml) | Everything else |
+|---|---|---|
+| `panel` (default) | Opens an in-page **Modal popup preview** | New tab |
+| `newTab` | New tab | New tab |
+| `sameTab` | Current tab (replaces the search page) | Current tab |
+| `sidePanel` | Opens the result Detail Panel on the right of the page (requires `enablePreviewPanel = true`) | Opens the Detail Panel |
+
+Behind the scenes:
+
+- All result anchors carry `data-interception="off"` so SharePoint Modern's SPA navigation hijacker does not intercept the click. Without this, `target="_blank"` and `e.preventDefault()` would both be ignored by the SP shell. (Internal — admins don't configure this; documented here so support knows the mechanism.)
+- The Modal popup uses `<embed type="application/pdf">` for PDFs and a sandboxed `<iframe>` for Office docs. Sandbox tokens deliberately omit `allow-top-navigation` so a misbehaving Office Online runtime can't break out of the Modal.
+
 ### DataGrid Notes
 
 The DataGrid is meant for power users and includes:
@@ -208,14 +232,15 @@ Example:
 
 This gives a true Graph-backed People vertical instead of a SharePoint-file result set filtered to people-like properties.
 
-## Search Manager
+## Search Manager (user-facing)
 
-The Search Manager is not a PnP parity feature. It is a product extension that consolidates saved searches, history, collections, zero-result health, and insights.
+The Search Manager is not a PnP parity feature. It is a product extension that consolidates saved searches, shared searches, history, and collections. The manager surface forked into two web parts — the **user-facing** Search Manager (this section) and the **SP Search Admin Manager** (see [Admin Manager](#admin-manager)). The user-facing variant surfaces only end-user tabs; admin diagnostics live in the Admin Manager.
 
 | Property | Default | Notes |
 |----------|---------|-------|
 | `searchContextId` | `default` | Must match Results |
 | `mode` | `panel` | `panel` or `standalone` |
+| `defaultTab` | `saved` | One of `saved` / `history` / `collections` |
 | `enableSavedSearches` | `true` | Saved searches tab |
 | `enableSharedSearches` | `true` | Shared searches tab |
 | `enableCollections` | `true` | Collections tab |
@@ -223,28 +248,100 @@ The Search Manager is not a PnP parity feature. It is a product extension that c
 | `enableAnnotations` | `false` | Extra annotations surface |
 | `maxHistoryItems` | `50` | History page size |
 
-### Tabs
+### Tabs (user variant)
 
 - `Saved Searches`
 - `History`
 - `Collections`
-- `Health`
-- `Insights`
+
+## Admin Manager
+
+The SP Search Admin Manager is the admin-only diagnostics web part. It renders **only** when the current user has `ManageWeb` (Owner/Admin) permission; everyone else sees nothing. It shares the store with the rest of the page via `searchContextId`, so the diagnostics reflect the active search experience.
+
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Match the Results web part to inspect that experience |
+| `defaultTab` | `dashboard` | One of `dashboard` / `health` / `insights` |
+| `enableDashboard` | `true` | Admin Dashboard tab (Content Coverage, Search Quality, Zero-Result Queries) |
+| `enableHealth` | `true` | Health tab — zero-result queries replay panel |
+| `enableInsights` | `true` | Insights tab — stat cards, top queries, CTR, daily volume |
+| `coverageProfilesCollection` | seeded by `Setup-SPSearchSite.ps1` | See [Coverage Profiles](#coverage-profiles-admin-manager) |
+| `expectedSiteUrls` | empty | Drives gap-analysis on the Dashboard tab |
+| `audienceGroups` | empty | Azure AD group object IDs; leave blank to show to all Owners/Admins |
+
+### Tabs (admin variant)
+
+| Tab | Purpose |
+|---|---|
+| `Dashboard` | Aggregated metrics: Content Coverage (item count, freshness, file-type breakdown, site distribution), Search Quality (CTR, zero-result rate), Zero-Result Queries |
+| `Health` | Zero-result queries with one-click replay and the underlying ranked list |
+| `Insights` | Search activity over time: stat cards, top queries, daily volume |
+| `Pre-Flight` | Tenant readiness checklist — Graph permission, hidden lists, SearchHistory item-level security, schema mappings, content source. Single-page diagnostic admins run after install. |
+
+Pre-Flight is admin-variant-only and always renders for the admin variant — there's no toggle for it.
+
+## Coverage Profiles (Admin Manager)
+
+The Admin Manager's **Dashboard → Content Coverage** section visualises item
+count, freshness, and per-site gap analysis. It is driven by the
+`coverageProfilesCollection` property pane field — a list of profiles that
+each name one or more SharePoint URLs to enumerate.
+
+### Default seeding (T4.D4)
+
+When you run `Setup-SPSearchSite.ps1`, the script seeds **one tenant-aware
+coverage profile** that points at the actual top-5 document libraries on the
+target site (any list with `BaseTemplate = 101` that is not hidden). The
+discovery uses `Get-PnPList -Includes BaseTemplate, Hidden, RootFolder` and
+converts each `RootFolder.ServerRelativeUrl` to an absolute URL against the
+tenant root.
+
+```powershell
+# Default — discover and seed top-5 actual libraries on the site
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id>
+
+# Configure how many libraries to seed (1-50)
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id> -MaxSeededLibraries 10
+
+# Legacy test-tenant flag (kept for backward compatibility; expects libraries
+# named per the retired test-data fixture)
+.\scripts\Setup-SPSearchSite.ps1 -SiteUrl <site> -ClientId <id> -UseTestData
+```
+
+### Empty state (no profiles configured)
+
+If you add the Admin Manager web part to a page **without** running
+`Setup-SPSearchSite.ps1`, the manifest default for
+`coverageProfilesCollection` is `[]` — and the Dashboard's Content Coverage
+section renders a help message:
+
+> **No coverage profiles configured.**
+> Configure coverage profiles in the web part property pane to begin
+> monitoring item count, freshness, and gap analysis against your expected
+> sites.
+
+To configure profiles by hand, open the web part property pane → **Coverage
+profiles** → **Manage profiles**, then add entries with at least a `title`
+and one or more `sourceUrls` (comma-separated).
 
 ## Graph Requirements
 
-Graph-backed People search and org-chart traversal require Microsoft Graph permissions.
+Graph-backed People search, org-chart traversal, and audience targeting require Microsoft Graph permissions.
 
 | Capability | Requirement |
 |------------|-------------|
 | Graph People vertical | `People.Read` / configured Graph search permission path for `/search/query` |
 | Org chart manager/direct reports | `User.Read.All` |
+| Audience targeting (verticals, refiners, web parts, promoted results) | `User.Read` — least-privilege scope for `/me/memberOf` per [Microsoft Learn](https://learn.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0) |
+
+Approve each permission at **SharePoint admin centre → Advanced → API access**. Pending approval, audience-targeted content stays hidden (fail-closed): verticals / refiners / web parts gated to specific Azure AD groups will be invisible to every user until the scope is approved.
 
 If Graph permission is not approved:
 
 - SharePoint search still works
 - Graph people verticals fall back to registered SharePoint providers where possible
 - org-chart UI hides itself gracefully
+- audience-targeted items hide for all users (fail-closed); non-targeted items remain visible
 
 ## Recommended Authoring Patterns
 
@@ -281,3 +378,118 @@ The Results web part shows edit-mode `MessageBar` warnings for common misconfigu
 - invalid managed property names
 
 These warnings are advisory. They do not block rendering, but they should be resolved before production rollout.
+
+## Property pane help anchors (T4.D11)
+
+Each property pane group on the SP Search web parts renders a "Help:
+&lt;topic&gt;" link as its first field. The link opens this guide at the
+relevant section. Anchors used by the help links:
+
+<a id="quick-start"></a>
+
+### quick-start
+
+Results web part → **Get started** group. Documents scenario presets
+(general / documents / news / people / media / hub-search /
+knowledge-base / policy-search / account-documents) and how the
+preset picker rewrites layouts + selected properties + filter
+suggestions in one step. See [Starter Experience](#starter-experience).
+
+<a id="results-data"></a>
+
+### results-data
+
+Results web part → **Data** group. Covers search scope (all / site /
+hub / list-by-url), query template tokens (`{searchTerms}`,
+`{Site.URL}`), and managed property pickers (selected, compact,
+grid, sortable, refinement). See [Search Results](#search-results)
+and [Validation and Edit-Mode Warnings](#validation-and-edit-mode-warnings).
+
+<a id="results-layouts"></a>
+
+### results-layouts
+
+Results web part → **Layouts** group. Documents the six layouts
+(List, Compact, Card, People, Grid, Gallery), which preset enables
+which layout, and how the DataGrid column chooser works. See
+[Search Results](#search-results).
+
+<a id="box-search"></a>
+
+### box-search
+
+Search Box → **Search** group. Placeholder text, search-on-Enter vs
+search-on-button, debounce, scope selector. See [Search Box](#search-box).
+
+<a id="box-navigation"></a>
+
+### box-navigation
+
+Search Box → **Navigation** group. Toggle between same-page search
+(replaces results in place) and new-page navigation (sends the
+query to a dedicated results page via the configured query
+parameter name). See [Search Box](#search-box).
+
+<a id="box-suggestions"></a>
+
+### box-suggestions
+
+Search Box → **Suggestions** group. Recent searches, frequent
+queries (per-user), SharePoint search suggestions, managed-property
+shortcuts, quick results. See [Search Box](#search-box).
+
+<a id="filters-config"></a>
+
+### filters-config
+
+Filters → **Filters** group. Manage the refiner collection
+(checkbox / dropdown / date-range / slider / people / taxonomy /
+tag-box / toggle). Configure managed property, display name, URL
+alias, max values, sort, dependencies. See [Search Filters](#search-filters).
+
+<a id="filters-behavior"></a>
+
+### filters-behavior
+
+Filters → **Behavior** group. Apply mode (Instant vs Manual),
+Show Clear All button, operator between filters (AND vs OR),
+visual filter builder toggle. See [Search Filters](#search-filters).
+
+<a id="verticals-config"></a>
+
+### verticals-config
+
+Verticals → **Verticals** group. Configure the vertical collection
+(key, label, icon, KQL query template, result-source ID, data
+provider id). See [Search Verticals](#search-verticals).
+
+<a id="manager-user-tabs"></a>
+
+### manager-user-tabs
+
+Search Manager → **User tabs** group. Toggle the four user-facing
+tabs: Saved Searches, Shared Searches, Collections, History. See
+[Search Manager (user-facing)](#search-manager-user-facing).
+
+<a id="adminmgr-coverage"></a>
+
+### adminmgr-coverage
+
+Admin Manager → **Monitoring** group. Add and configure coverage
+profiles. Each profile names one or more SharePoint URLs and a
+query template; the Dashboard tab's Content Coverage section reports
+item count and freshness per profile. See [Coverage Profiles (Admin
+Manager)](#coverage-profiles-admin-manager).
+
+> Help links surface a subset of groups today (Quick Start, Data,
+> Layouts on Results). Coverage will expand to every group on every
+> web part in future passes; the helper `propertyPaneGroupHelp` is
+> the durable contract for adding new ones —
+> `propertyPaneGroupHelp('anchor-id', 'Help: <topic>')` returns a
+> `PropertyPaneLink` field admin authors paste at the top of a
+> group's `groupFields` array.
+
+To override the link base URL (e.g. for tenants that mirror SP
+Search docs internally), call
+`setPropertyPaneHelpBaseUrl('https://intranet.contoso.com/wikis/sp-search/admin-guide')`
+from the web part's `onInit()` before the property pane builds.

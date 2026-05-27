@@ -14,13 +14,10 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
     isOpen: false,
     item: undefined,
   },
-  bulkSelection: [],
   currentUserGroups: [],
 
   setLayout: (key: string): void => {
-    // Clear bulk selection when switching layouts — selections are layout-specific
-    // and invisible on layouts that don't render checkboxes.
-    set({ activeLayoutKey: key, bulkSelection: [] });
+    set({ activeLayoutKey: key });
   },
 
   setAvailableLayouts: (layouts: string[]): void => {
@@ -39,28 +36,6 @@ export const createUISlice: StateCreator<ISearchStore, [], [], IUISlice> = (set,
         item,
       },
     });
-  },
-
-  toggleSelection: (itemKey: string, multiSelect: boolean): void => {
-    const current = get().bulkSelection;
-    const index = current.indexOf(itemKey);
-
-    if (index >= 0) {
-      // Deselect
-      const updated = [...current];
-      updated.splice(index, 1);
-      set({ bulkSelection: updated });
-    } else if (multiSelect) {
-      // Add to selection
-      set({ bulkSelection: [...current, itemKey] });
-    } else {
-      // Replace selection
-      set({ bulkSelection: [itemKey] });
-    }
-  },
-
-  clearSelection: (): void => {
-    set({ bulkSelection: [] });
   },
 
   setCurrentUserGroups: (groups: string[]): void => {

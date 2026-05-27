@@ -4,7 +4,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 ## Quick Reference
 
-1. **SPFx 1.21.1 solution** — 5 web parts + 1 library component in a single .sppkg
+1. **SPFx 1.22.2 solution** — 5 web parts + 1 library component in a single .sppkg
 2. **React 17 + TypeScript 4.7+** — Functional components only, strict mode
 3. **Zustand store via Library Component** — Shared state across web parts, NOT SPFx Dynamic Data
 4. **Multi-instance isolation** — `searchContextId` property on every web part; same ID = shared store
@@ -45,7 +45,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| SharePoint Framework | 1.21.1 | SPFx web part platform |
+| SharePoint Framework | 1.22.2 | SPFx web part platform |
 | React | 17.0.1 | UI framework |
 | TypeScript | 4.7+ | Type safety |
 | PnPjs (SP) | 3.x | SharePoint Search API (default provider) |
@@ -55,7 +55,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 | Library | Version | Usage |
 |---------|---------|-------|
-| spfx-toolkit | Latest | Card, VersionHistory, DocumentLink, ErrorBoundary, Toast, UserPersona, FormContainer, hooks, utilities |
+| spfx-toolkit | Latest | Card, VersionHistory, DocumentLink, ErrorBoundary, UserPersona, FormContainer, hooks, utilities |
 | DevExtreme | 22.2.x | DataGrid, FilterBuilder, TagBox, TreeView, DateRangeBox |
 | devextreme-react | 22.2.x | React wrappers for DevExtreme |
 | Fluent UI v8 | 8.106.x | Panel, CommandBar, Persona, Shimmer, Icons, Theme |
@@ -112,7 +112,7 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 7. **Lazy load heavy components** — DataGrid, Preview Panel, Search Manager panel
 8. **Code split per layout** — Each layout is a separate chunk via `React.lazy()`
 9. **External CSS from node_modules must exclude sp-css-loader** — SPFx registers an `sp-css-loader` rule that matches all non-module `.css` files. `sp-css-loader` uses css-loader's `urlParser` internally and will try to import binary font files (woff2 etc.) as webpack modules. Any external CSS library (DevExtreme, etc.) must be excluded from the sp-css-loader rule in `gulpfile.js`, then handled by a dedicated `css-loader { url: false, import: false }` rule. See `gulpfile.js` `additionalConfiguration` for the pattern. Failing to do this produces `Module parse failed: Unexpected character` errors on binary font files.
-10. **Stale webpack filesystem cache causes phantom `ENOENT` errors** — When `npm install` changes a package's entry point, the dev-mode filesystem cache (`node_modules/.cache/webpack`) retains the old path. Run `gulp clean-cache` (or `rm -rf node_modules/.cache/webpack`) whenever `@pnp/*` or other dependency packages are updated.
+10. **Stale webpack filesystem cache causes phantom `ENOENT` errors** — When `npm install` changes a package's entry point, the dev-mode filesystem cache (`node_modules/.cache/webpack`) retains the old path. Run `npm run clean:cache` (which invokes `rimraf node_modules/.cache`) whenever `@pnp/*` or other dependency packages are updated.
 
 ### Data Rules
 
@@ -167,14 +167,13 @@ const store = getStore(this.properties.searchContextId);
 | Param | Slice Property | Example |
 |-------|---------------|---------|
 | q | querySlice.queryText | ?q=annual+report |
-| f | filterSlice.activeFilters | &f=FileType:docx,pptx |
 | v | verticalSlice.activeVertical | &v=documents |
 | s | resultSlice.sort | &s=LastModifiedTime:desc |
 | p | resultSlice.currentPage | &p=3 |
-| sc | querySlice.scope | &sc=currentsite |
 | l | uiSlice.activeLayout | &l=grid |
-| sv | state version | &sv=1 |
-| sid | state ID (fallback) | ?sid=42 |
+| x | state version | &x=1 |
+| i | state ID (fallback) | ?i=42 |
+| \<alias\> | filter values (per filterConfig) | &ft=docx,pptx |
 
 Multi-context pages namespace params: `?ctx1.q=budget&ctx2.q=john`
 
@@ -432,12 +431,9 @@ sp-search/
 - Mobile hardening: gallery single-column at 399px, overlay backdrop-filter, iOS DataGrid momentum scroll, layout chunk preloading on hover
 
 ### Phase 5: Sprint 4 Backlog
-- Fix Jest harness (`ts-jest`/`jest-util` resolution failure) and add smoke tests
-- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied)
-- Implement `operatorBetweenFilters` in filter execution path or remove from property pane
-- Excel (XLSX) export for DataGrid
-- Knowledge Base, Hub Search, Policy Search provisioning presets
-- Admin-time property validation in edit mode
+- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied) — MISS-001
+- Implement `operatorBetweenFilters` in filter execution path or remove from property pane — MISS-002
+- Admin-time property validation in edit mode — T4.D5
 
 ---
 
@@ -462,7 +458,6 @@ sp-search/
 | DocumentLink | All layouts, Detail Panel | File type-aware document links |
 | UserPersona | People Layout, Detail Panel | User profile with photo, presence |
 | ErrorBoundary | All web parts | Root-level error wrapping |
-| Toast / ToastProvider | All web parts | Save/share/export notifications |
 | FormContainer / FormItem | Detail Panel, Search Manager | Metadata display, config forms |
 | WorkflowStepper | Detail Panel | Workflow status display |
 
@@ -490,12 +485,13 @@ sp-search/
 
 ```bash
 # Development
-gulp serve                                    # Start local workbench
-gulp bundle --ship && gulp package-solution --ship  # Production build
+npm start                                     # heft start --clean (local workbench)
+npm run package                               # heft build --clean --production && heft package-solution --production
 
 # Testing
-npx jest                                      # Run unit tests
-npx jest --watch                              # Watch mode
+npm test                                      # heft test (Heft-managed Jest invocation)
+npm test -- --watch                           # watch mode
+npm test -- --test-path-pattern <pattern>     # filtered run
 
 # spfx-toolkit (in toolkit directory)
 cd /Users/hemantmane/Development/spfx-toolkit && npm run build

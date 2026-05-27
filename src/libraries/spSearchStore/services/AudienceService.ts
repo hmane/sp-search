@@ -1,6 +1,21 @@
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 
-const GRAPH_MEMBER_OF_URL = 'https://graph.microsoft.com/v1.0/me/memberOf?$select=id,@odata.type';
+// `/me/memberOf` returns a heterogeneous Collection(directoryObject). `@odata.type`
+// is an OData annotation, NOT a selectable property — putting it in `$select` makes
+// Graph reject the request with HTTP 400. It is emitted automatically for the
+// derived types (group / directoryRole / …), so `$select=id` alone keeps the type
+// discriminator below working.
+//
+// Permission: `User.Read` (delegated, work/school) — the documented least-
+// privilege scope for the signed-in user's own direct memberships per
+// learn.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0
+// (table "Permissions for the signed-in user's direct memberships"). Declared
+// in `config/package-solution.json` → `webApiPermissionRequests`. Tenants
+// upgrading from a pre-Stream-D build must approve the added scope at
+// SharePoint admin → "API access"; until approved the call returns 401/403
+// and `resolveUserGroupIds()` resolves to [] (fail-closed: audience-targeted
+// content stays hidden).
+const GRAPH_MEMBER_OF_URL = 'https://graph.microsoft.com/v1.0/me/memberOf?$select=id';
 
 /** Cached group IDs — groups don't change mid-session */
 let cachedGroupIds: string[] | undefined;
@@ -33,8 +48,9 @@ export async function resolveUserGroupIds(): Promise<string[]> {
     // SPContext.http.get does NOT throw on non-2xx — check response.ok
     if (!response.ok) {
       SPContext.logger.warn('AudienceService: Graph API returned HTTP ' + String(response.status));
-      cachedGroupIds = [];
-      return [];
+      const empty: string[] = [];
+      cachedGroupIds = empty; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+      return empty;
     }
 
     const groupIds: string[] = [];
@@ -51,15 +67,17 @@ export async function resolveUserGroupIds(): Promise<string[]> {
       }
     }
 
-    cachedGroupIds = groupIds;
-    SPContext.logger.info('AudienceService: Resolved user groups', { count: groupIds.length });
-    return groupIds;
+    const result = groupIds;
+    cachedGroupIds = result; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+    SPContext.logger.info('AudienceService: Resolved user groups', { count: result.length });
+    return result;
   } catch (error) {
     SPContext.logger.warn('AudienceService: Failed to resolve user groups', { error });
     // On failure, return empty — all audience-targeted items will be hidden
     // This is safer than showing everything (fail-closed)
-    cachedGroupIds = [];
-    return [];
+    const fallback: string[] = [];
+    cachedGroupIds = fallback; // eslint-disable-line require-atomic-updates -- intentional last-write-wins cache
+    return fallback;
   }
 }
 

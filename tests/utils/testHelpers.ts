@@ -178,7 +178,7 @@ export function createMockHistoryEntry(
     queryHash: 'abc123def456',
     queryText: 'budget report',
     vertical: 'all',
-    scope: 'all',
+    searchPageUrl: '',
     searchState: '{}',
     useCount: 1,
     resultCount: 25,

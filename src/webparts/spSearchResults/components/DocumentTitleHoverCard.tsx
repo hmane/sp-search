@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { HoverCard, HoverCardType } from '@fluentui/react/lib/HoverCard';
 import { Modal } from '@fluentui/react/lib/Modal';
-import { FileTypeIcon, IconType, ImageSize } from '@pnp/spfx-controls-react/lib/FileTypeIcon';
+import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 import { LazyVersionHistory as _LazyVersionHistory } from './LazyVersionHistory';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -11,7 +12,8 @@ const UserPersona: any = _UserPersona;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VersionHistory: any = _LazyVersionHistory;
 import { ISearchResult } from '@interfaces/index';
-import { formatFileSize, formatDateTime, buildPreviewUrl, buildFormUrl } from './documentTitleUtils';
+import { formatFileSize, formatDateTime, buildPreviewUrl, buildFormUrl, isImageType } from './documentTitleUtils';
+import type { ResultClickTarget } from './resultLink';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDocumentTitleHoverCardProps {
@@ -21,10 +23,19 @@ export interface IDocumentTitleHoverCardProps {
   children: (handleClick: (e: React.MouseEvent) => void) => React.ReactNode;
   hostDisplay?: 'inline' | 'block';
   disabled?: boolean;
+  /**
+   * Stream C / #7. When omitted, behaves as 'panel' (today's behaviour):
+   * previewable files open the centred preview Modal on click. In
+   * 'newTab'/'sameTab' the Modal is suppressed (`<a>` navigates). In
+   * 'sidePanel' the click is intercepted and `onOpenInSidePanel` is invoked
+   * (to call `store.setPreviewItem(item)` and open `ResultDetailPanel`).
+   */
+  clickTarget?: ResultClickTarget;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) => {
-  const { item, position, onItemClick, children, hostDisplay, disabled } = props;
+  const { item, position, onItemClick, children, hostDisplay, disabled, clickTarget, onOpenInSidePanel } = props;
   const [previewItem, setPreviewItem] = React.useState<ISearchResult | undefined>(undefined);
   const [versionHistoryItem, setVersionHistoryItem] = React.useState<ISearchResult | undefined>(undefined);
 
@@ -33,21 +44,36 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
   }, []);
 
   const handleClick = React.useCallback((e: React.MouseEvent): void => {
-    const previewUrl = buildPreviewUrl(item);
-    if (previewUrl) {
+    // Always log the click (history) — regardless of mode.
+    if (onItemClick) {
+      onItemClick(item, position);
+    }
+
+    const mode: ResultClickTarget = clickTarget || 'panel';
+
+    // sidePanel — intercept and open ResultDetailPanel via the parent callback.
+    if (mode === 'sidePanel' && onOpenInSidePanel) {
       e.preventDefault();
       e.nativeEvent.preventDefault();
       e.stopPropagation();
-      if (onItemClick) {
-        onItemClick(item, position);
-      }
-      setPreviewItem(item);
-    } else {
-      if (onItemClick) {
-        onItemClick(item, position);
-      }
+      onOpenInSidePanel(item);
+      return;
     }
-  }, [item, position, onItemClick]);
+
+    // panel (default) — today's behaviour: previewable files → centred Modal.
+    if (mode === 'panel') {
+      const previewUrl = buildPreviewUrl(item);
+      if (previewUrl) {
+        e.preventDefault();
+        e.nativeEvent.preventDefault();
+        e.stopPropagation();
+        setPreviewItem(item);
+      }
+      return;
+    }
+
+    // newTab / sameTab — let the <a> navigate naturally. No Modal even for previewable files.
+  }, [item, position, onItemClick, clickTarget, onOpenInSidePanel]);
 
   const openFormInNewTab = React.useCallback((url: string): void => {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -65,7 +91,7 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
         {/* Header: file icon + title + size */}
         <div className={styles.hoverCardHeader}>
           <div className={styles.hoverCardFileIcon}>
-            <FileTypeIcon type={IconType.image} path={item.url} size={ImageSize.small} />
+            <Icon {...getFileTypeIconProps({ extension: item.fileType || '', size: 16 })} />
           </div>
           <div className={styles.hoverCardTitleInfo}>
             <p className={styles.hoverCardTitle}>{item.title}</p>
@@ -221,19 +247,69 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
         >
           <div className={styles.previewModalHeader}>
             <span className={styles.previewModalTitle}>{previewItem.title}</span>
-            <IconButton
-              iconProps={{ iconName: 'Cancel' }}
-              ariaLabel="Close preview"
-              onClick={handleDismissPreview}
-            />
+            <div className={styles.previewModalActions}>
+              <TooltipHost content="Open in new tab">
+                <IconButton
+                  iconProps={{ iconName: 'OpenInNewTab' }}
+                  ariaLabel="Open in new tab"
+                  onClick={(): void => { window.open(previewItem.url, '_blank', 'noopener,noreferrer'); }}
+                />
+              </TooltipHost>
+              <IconButton
+                iconProps={{ iconName: 'Cancel' }}
+                ariaLabel="Close preview"
+                onClick={handleDismissPreview}
+              />
+            </div>
           </div>
           <div className={styles.previewModalFrame}>
-            <iframe
-              src={buildPreviewUrl(previewItem)}
-              title={previewItem.title}
-              // eslint-disable-next-line react/no-unknown-property
-              allowFullScreen
-            />
+            {((): React.ReactElement => {
+              const ext: string = (previewItem.fileType || '').toLowerCase();
+              const urlExt: string = (previewItem.url || '').toLowerCase().split('?')[0].split('#')[0];
+              const isPdf: boolean = ext === 'pdf' || urlExt.endsWith('.pdf');
+
+              if (isImageType(previewItem)) {
+                // Stream C / #8 — render the image directly (clean fullscreen
+                // view) instead of an iframe wrapping `?web=1`.
+                return (
+                  <img
+                    className={styles.previewModalImage}
+                    src={previewItem.url}
+                    alt={previewItem.title}
+                  />
+                );
+              }
+
+              if (isPdf) {
+                // <embed> uses the browser's native PDF plugin directly —
+                // sidesteps Chrome's "This page has been blocked by Chrome"
+                // failure mode that hits sandboxed iframes loading PDFs.
+                // No iframe means no sandbox-vs-PDF-viewer conflict, and no
+                // top-frame-navigation risk either (no scripting context).
+                return (
+                  <embed
+                    src={previewItem.url}
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                  />
+                );
+              }
+
+              // Office / text / csv / json / xml — WopiFrame in a sandboxed
+              // iframe. allow-scripts + allow-same-origin: Office Online runtime.
+              // allow-popups: "Open in app" links. allow-top-navigation is
+              // deliberately omitted so the iframe can't break out of the Modal.
+              return (
+                <iframe
+                  src={buildPreviewUrl(previewItem)}
+                  title={previewItem.title}
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  // eslint-disable-next-line react/no-unknown-property
+                  allowFullScreen
+                />
+              );
+            })()}
           </div>
         </Modal>
       )}

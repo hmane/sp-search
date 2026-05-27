@@ -10,7 +10,12 @@ export const createResultSlice: StateCreator<ISearchStore, [], [], IResultSlice>
   sortableProperties: [],
   promotedResults: [],
   querySuggestion: undefined,
-  isLoading: true,
+  // T1.D4 — initial `false` so a freshly-mounted Results web part with no
+  // auto-search renders the idle EmptyState ("Enter a search term to get
+  // started.") instead of a misleading 5-row shimmer. The orchestrator
+  // calls `setLoading(true)` before each search and `setLoading(false)`
+  // after, so the shimmer still appears during real in-flight loads.
+  isLoading: false,
   hasSearched: false,
   error: undefined,
   resultSourceId: '',

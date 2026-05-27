@@ -17,6 +17,7 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
   const operator: 'AND' | 'OR' = config ? config.operator : 'OR';
   const trueLabel = config?.trueLabel || 'Yes';
   const falseLabel = config?.falseLabel || 'No';
+  const invertBoolean = config?.invertBoolean === true;
 
   const currentActive: IActiveFilter | undefined = React.useMemo(() => {
     for (let i = 0; i < activeFilters.length; i++) {
@@ -28,8 +29,10 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
   }, [activeFilters, filterName]);
 
   const currentValue = currentActive ? currentActive.value : undefined;
-  const isYes = currentValue === '1' || currentValue === 'true';
-  const isNo = currentValue === '0' || currentValue === 'false';
+  const rawIsTrue = currentValue === '1' || currentValue === 'true';
+  const rawIsFalse = currentValue === '0' || currentValue === 'false';
+  const isYes = invertBoolean ? rawIsFalse : rawIsTrue;
+  const isNo = invertBoolean ? rawIsTrue : rawIsFalse;
 
   function clearFilter(): void {
     if (currentActive) {
@@ -44,7 +47,9 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
     const next: IActiveFilter = {
       filterName,
       value,
-      displayValue: value === '1' || value === 'true' ? trueLabel : falseLabel,
+      displayValue: (value === '1' || value === 'true')
+        ? (invertBoolean ? falseLabel : trueLabel)
+        : (invertBoolean ? trueLabel : falseLabel),
       operator,
     };
     onToggleRefiner(next);
@@ -52,14 +57,14 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
 
   function handleToggleChange(_: React.MouseEvent<HTMLElement>, checked?: boolean): void {
     if (checked) {
-      setFilterValue('1');
+      setFilterValue(invertBoolean ? '0' : '1');
     } else {
       clearFilter();
     }
   }
 
   function handleNoClick(): void {
-    setFilterValue('0');
+    setFilterValue(invertBoolean ? '1' : '0');
   }
 
   function handleAllClick(): void {

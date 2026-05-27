@@ -1,4 +1,6 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/rowSurface.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Container ──────────────────────────────────────────────
 .spSearchResults {
@@ -18,8 +20,8 @@
   margin-bottom: 12px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   background-color: var(--neutralLighterAlt, #faf9f8);
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
-  border: 1px solid var(--neutralLight, #edebe9);
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border: 1px solid var(--neutralLighter, #f3f2f1);
   border-radius: 6px;
   font-size: 14px;
   color: "[theme:neutralSecondary, default: #605e5c]";
@@ -159,7 +161,7 @@
   }
 
   &:hover {
-    background-color: "[theme:neutralLight, default: #edebe9]";
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
     color: "[theme:bodyText, default: #323130]";
   }
 
@@ -282,7 +284,7 @@
   justify-content: space-between;
   padding: 6px 0;
   margin-bottom: 4px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -305,7 +307,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 999px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
   color: "[theme:bodyText, default: #323130]";
@@ -422,7 +424,7 @@
   padding: 10px 12px;
   border-radius: 6px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 12px;
   line-height: 18px;
   color: "[theme:bodySubtext, default: #605e5c]";
@@ -443,13 +445,10 @@
   display: flex;
   align-items: flex-start;
   padding: 12px 10px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 }
 
 .resultCardSelected {
@@ -467,13 +466,51 @@
   opacity: 0;
   transition: opacity 150ms ease;
 
-  .resultCard:hover & {
+  .resultCard:hover &,
+  .resultCard:focus-within & {
     opacity: 1;
   }
 }
 
 .resultCheckboxVisible {
   opacity: 1;
+}
+
+// T2.D2 — selection checkbox rendered as direct child of .resultCard.
+// Visible on hover/focus, on a selected row, or when the checkbox itself is
+// already checked. The grid-layout sibling (.resultIcon) keeps its column.
+.resultSelectCheckbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 4px 6px 0 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .resultCard:hover &,
+  .resultCard:focus-within &,
+  .resultCardSelected &,
+  &:checked {
+    opacity: 1;
+  }
+}
+
+// Per-row ECB ("...") menu at the trailing edge of List rows.
+// Visible on hover/focus or when the menu is open. The IconButton
+// inside opens a Fluent ContextualMenu fed by `buildRowActionMenu`.
+.resultRowEcb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .resultCard:hover &,
+  .resultCard:focus-within & {
+    opacity: 1;
+  }
 }
 
 .resultIcon {
@@ -490,6 +527,15 @@
     max-width: 100%;
     max-height: 100%;
   }
+}
+
+// Stream C / #8 — image-result thumbnail in List layout's leading cell.
+.resultIconImage {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  background-color: var(--neutralLighterAlt, #faf9f8);
 }
 
 // ─── Title Hover Card ──────────────────────────────────────
@@ -536,7 +582,7 @@
 
 .hoverCardDivider {
   border: none;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   margin: 12px -16px;
 }
 
@@ -675,7 +721,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  flex-shrink: 0;
+}
+
+.previewModalActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -706,12 +759,23 @@
   }
 }
 
+// Stream C / #8 — image-result preview inside the click-Modal.
+// Dark backdrop + object-fit: contain so the actual image fills the frame
+// without distortion, instead of the SharePoint `?web=1` wrapper page.
+.previewModalImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background-color: #1b1a19;
+}
+
 .previewModalFooter {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 8px 16px;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   flex-shrink: 0;
 }
@@ -916,7 +980,7 @@
 // ─── Compact Layout ─────────────────────────────────────────
 .compactTable {
   width: 100%;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow: hidden;
 }
@@ -931,7 +995,7 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: "[theme:neutralSecondary, default: #605e5c]";
-  border-bottom: 2px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
   user-select: none;
   width: 100%;
@@ -940,6 +1004,11 @@
 
 .compactHeaderIcon {
   width: 20px;
+}
+
+// T2.D2 — compact-layout select column header (24px column in the grid template).
+.compactHeaderSelect {
+  width: 24px;
 }
 
 .compactHeaderTitle {
@@ -958,40 +1027,79 @@
 
 .compactRow {
   display: grid;
-  align-items: center;
+  align-items: start;
   padding: 7px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 13px;
-  transition: background-color 150ms ease;
   cursor: default;
   gap: 12px;
   width: 100%;
   box-sizing: border-box;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
-
+  // Zebra at rest — a row-tracking aid for the dense compact view, kept now that
+  // the separator border is gone (Stream C / #9).
   &:nth-child(even) {
     background-color: rgba(0, 0, 0, 0.01);
-
-    &:hover {
-      background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-    }
   }
+
+  // No separator border; hover/focus carries the affordance. Declared after the
+  // zebra rule so the hover background wins (equal specificity → source order).
+  @include interactive-row;
+}
+
+// T2.D2 — selected-row background, mirroring .resultCardSelected. Declared
+// after .compactRow so its background wins over the zebra alt-row rule.
+.compactRowSelected,
+.compactRowSelected:nth-child(even) {
+  background-color: "[theme:themeLighterAlt, default: #eff6fc]";
+  background-color: var(--themeLighterAlt, #eff6fc);
 }
 
 .compactIcon {
   width: 20px;
   height: 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+// T2.D2 — compact-layout selection cell + checkbox. Checkbox is revealed on
+// hover/focus or when the row is selected, mirroring the List layout pattern.
+.compactSelect {
+  width: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.compactSelectCheckbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .compactRow:hover &,
+  .compactRow:focus-within &,
+  .compactRowSelected &,
+  &:checked {
+    opacity: 1;
+  }
+}
+
+// Stream C / #8 — image-result thumbnail in Compact layout's leading cell.
+.compactIconImage {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 2px;
+  background-color: var(--neutralLighterAlt, #faf9f8);
 }
 
 .compactTitle {
@@ -1198,6 +1306,24 @@
   text-align: center;
 }
 
+// Container for admin-supplied HTML in the empty state. Inherits theme colours
+// from the wrapper; max-width keeps long messages readable.
+.emptyCustom {
+  font-size: 14px;
+  color: "[theme:bodyText, default: #323130]";
+  max-width: 560px;
+  text-align: center;
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 8px 0;
+  }
+
+  a {
+    color: "[theme:link, default: #0078d4]";
+  }
+}
+
 // Recovery section shown when active filters are the likely cause.
 .emptyRecovery {
   display: flex;
@@ -1326,11 +1452,11 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 1023px) {
+  @include tablet-and-below {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: 1fr;
   }
 }
@@ -1381,7 +1507,7 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: 1fr;
   }
 }
@@ -1390,7 +1516,7 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   background-color: "[theme:white, default: #ffffff]";
   transition: box-shadow 200ms ease, border-color 200ms ease;
@@ -1676,8 +1802,19 @@
 
 .detailPanelNav {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 4px;
   padding: 8px 12px;
+}
+
+.detailPanelNavAction {
+  color: "[theme:neutralSecondary, default: #605e5c]";
+
+  &:hover {
+    color: "[theme:themePrimary, default: #0078d4]";
+    background: "[theme:themeLighterAlt, default: #eff6fc]";
+  }
 }
 
 .detailPanelShimmer {
@@ -1771,7 +1908,7 @@
 // ─── Detail Panel: Preview ──────────────────────────────────
 .detailPanelPreview {
   position: relative;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow: hidden;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
@@ -1795,7 +1932,7 @@
   gap: 12px;
   padding: 32px 16px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
   text-align: center;
@@ -1807,9 +1944,50 @@
   }
 }
 
+// T1.D6 (b) — richer non-previewable fallback card. Replaces the sparse
+// pane with a centered file-type icon, type + size sub-line, and a
+// two-button row (Open + Download). Covers .eml/.msg/images/video/zip
+// — common file types that previously hit the empty placeholder.
+.detailPanelNoPreviewCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 40px 24px;
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 6px;
+  text-align: center;
+}
+
+.detailPanelNoPreviewIcon {
+  font-size: 56px;
+  color: "[theme:themePrimary, default: #0078d4]";
+}
+
+.detailPanelNoPreviewTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+  margin: 0;
+}
+
+.detailPanelNoPreviewSubtitle {
+  font-size: 13px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  margin: 0;
+}
+
+.detailPanelNoPreviewActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 // ─── Detail Panel: Author & Dates ──────────────────────────
 .detailPanelAuthorSection {
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -1866,7 +2044,7 @@
 
 // ─── Detail Panel: Properties ───────────────────────────────
 .detailPanelPropsSection {
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
 }
 
@@ -1929,7 +2107,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-top: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding-top: 16px;
 }
 
@@ -2051,7 +2229,7 @@
   overflow: hidden;
   background-color: "[theme:white, default: #ffffff]";
   background-color: var(--white, #ffffff);
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
 
@@ -2077,7 +2255,7 @@
 
 .gridTitleCell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
 }
@@ -2225,6 +2403,51 @@
   color: "[theme:neutralSecondary, default: #605e5c]";
 }
 
+// Stream B / Phase 2 — explicit renderer styles
+
+.gridRichText {
+  font-size: 13px;
+  color: "[theme:bodyText, default: #323130]";
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    color: "[theme:link, default: #0078d4]";
+  }
+}
+
+.gridBooleanTrue {
+  color: "[theme:successText, default: #107c10]";
+  font-size: 16px;
+}
+
+.gridBooleanFalse {
+  color: "[theme:redDark, default: #a4262c]";
+  font-size: 16px;
+}
+
+.gridTagsCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.gridTagPill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: "[theme:neutralLighter, default: #f3f2f1]";
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
 .gridToolbarButton {
   :global(.ms-Button) {
     min-width: auto;
@@ -2255,9 +2478,18 @@
   }
 }
 
-.gridToolbarIcon {
-  font-style: normal;
-  font-size: 12px;
+.gridToolbarIconBtn {
+  width: 30px;
+  height: 30px;
+
+  :global(.ms-Button-icon) {
+    font-size: 14px;
+    color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  &:hover {
+    background: "[theme:themeLighter, default: #deecf9]";
+  }
 }
 
 :global(.ms-ContextualMenu-list .ms-ContextualMenu-linkText) {
@@ -2271,11 +2503,11 @@
   gap: 16px;
   padding: 0;
 
-  @media (max-width: 1023px) {
+  @include tablet-and-below {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  @media (max-width: 639px) {
+  @include mobile-and-below {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -2287,7 +2519,7 @@
 .galleryItem {
   display: flex;
   flex-direction: column;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   overflow: hidden;
   background-color: "[theme:white, default: #ffffff]";
@@ -2412,9 +2644,23 @@
 }
 
 // ─── Responsive ─────────────────────────────────────────────
-@media (max-width: 639px) {
+@include mobile-and-below {
   .resultThumbnail {
     width: 44px;
     height: 44px;
+  }
+}
+
+// Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,4 +1,6 @@
 @import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/rowSurface.scss';
+@import '../../../styles/breakpoints';
 
 // ─── Main Container ────────────────────────────────────────
 .spSearchManager {
@@ -13,23 +15,115 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
+  padding: 12px 0;
   margin-bottom: 4px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  gap: 12px;
 }
 
 .headerTitle {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 24px;
   color: "[theme:bodyText, default: #323130]";
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.headerActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  border-radius: 6px;
+  background: "[theme:white, default: #ffffff]";
+  color: "[theme:bodyText, default: #323130]";
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  line-height: 20px;
+
+  i {
+    font-size: 14px;
+    color: "[theme:themePrimary, default: #0078d4]";
+  }
+
+  &:hover:not(:disabled) {
+    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+    border-color: "[theme:neutralTertiaryAlt, default: #c8c6c4]";
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active:not(:disabled) {
+    background-color: "[theme:neutralLighter, default: #f3f2f1]";
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+
+    i {
+      color: "[theme:neutralTertiary, default: #a19f9d]";
+    }
+  }
+}
+
+.headerActionBtnPrimary {
+  composes: headerActionBtn;
+  background: "[theme:themePrimary, default: #0078d4]";
+  border-color: "[theme:themePrimary, default: #0078d4]";
+  color: "[theme:white, default: #ffffff]";
+
+  i {
+    color: "[theme:white, default: #ffffff]";
+  }
+
+  &:hover:not(:disabled) {
+    background: "[theme:themeDarkAlt, default: #106ebe]";
+    border-color: "[theme:themeDarkAlt, default: #106ebe]";
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active:not(:disabled) {
+    background: "[theme:themeDark, default: #005a9e]";
+    border-color: "[theme:themeDark, default: #005a9e]";
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+
+    i {
+      color: "[theme:white, default: #ffffff]";
+    }
+  }
+}
+
+// At narrow widths, collapse button labels — show only icons
+@include mobile-and-below {
+  .headerActionBtn,
+  .headerActionBtnPrimary {
+    padding: 6px 8px;
+
+    .headerActionLabel {
+      display: none;
+    }
+  }
 }
 
 // ─── Pivot Tabs ────────────────────────────────────────────
@@ -49,7 +143,7 @@
   padding: 12px 14px;
   border-radius: 8px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   font-size: 13px;
   line-height: 20px;
   color: "[theme:bodySubtext, default: #605e5c]";
@@ -109,20 +203,17 @@
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 150ms ease, box-shadow 150ms ease;
   position: relative;
 
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-
-    .itemActions {
-      opacity: 1;
-    }
+  // Stream C / #9 — no separator at rest; hover/focus reveals the actions.
+  &:hover .itemActions,
+  &:focus-within .itemActions {
+    opacity: 1;
   }
+  @include interactive-row;
 }
 
 .savedSearchIcon {
@@ -248,13 +339,10 @@
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   cursor: pointer;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 }
 
 .historyIcon {
@@ -301,7 +389,7 @@
   padding: 1px 8px;
   border-radius: 999px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   color: "[theme:bodyText, default: #323130]";
   font-size: 11px;
   font-weight: 600;
@@ -322,7 +410,7 @@
   justify-content: flex-end;
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 }
 
 // ─── Collections ───────────────────────────────────────────
@@ -332,8 +420,10 @@
   padding: 0;
 }
 
+// Stream C / #9 — no separator between collection entries; the header below
+// carries the hover/focus affordance.
 .collectionItem {
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  position: relative;
 }
 
 .collectionHeader {
@@ -341,11 +431,8 @@
   align-items: center;
   padding: 10px 12px;
   cursor: pointer;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  @include interactive-row;
 }
 
 .collectionChevron {
@@ -505,7 +592,7 @@
   justify-content: flex-end;
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 }
 
 // ─── Empty States ──────────────────────────────────────────
@@ -610,7 +697,7 @@
   gap: 6px;
   padding: 10px 12px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   font-size: 13px;
 }
@@ -779,7 +866,7 @@
   :global {
     .ms-TextField-fieldGroup {
       height: 24px;
-      border: 1px solid "[theme:neutralLight, default: #edebe9]";
+      border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
       border-radius: 12px;
     }
 
@@ -850,7 +937,7 @@
   gap: 12px;
   margin-bottom: 12px;
 
-  @media (max-width: 640px) {
+  @include mobile-and-below {
     flex-direction: column;
     align-items: stretch;
   }
@@ -906,7 +993,7 @@
 
 .coverageSummarySection {
   padding: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 8px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
 }
@@ -921,7 +1008,7 @@
   justify-content: space-between;
   gap: 16px;
 
-  @media (max-width: 640px) {
+  @include mobile-and-below {
     flex-direction: column;
   }
 }
@@ -955,7 +1042,7 @@
   min-width: 96px;
   text-align: right;
 
-  @media (max-width: 640px) {
+  @include mobile-and-below {
     text-align: left;
   }
 }
@@ -986,7 +1073,7 @@
 
 .coverageSummaryCard {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:white, default: #ffffff]";
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -1020,7 +1107,7 @@
 .coverageQueryBox {
   padding: 14px 16px;
   margin-bottom: 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
 }
@@ -1031,7 +1118,7 @@
   gap: 12px;
   margin-bottom: 8px;
 
-  @media (max-width: 640px) {
+  @include mobile-and-below {
     grid-template-columns: 1fr;
     gap: 4px;
   }
@@ -1060,7 +1147,7 @@
 }
 
 .coverageTable {
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1073,7 +1160,7 @@
   min-width: 980px;
   padding: 0 12px;
   background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
 
   > div {
     padding: 9px 6px;
@@ -1091,15 +1178,10 @@
   min-width: 980px;
   padding: 0 12px;
   align-items: start;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 
   > div {
     padding: 12px 6px;
@@ -1135,7 +1217,7 @@
 
 .coverageMissingSection {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 6px;
   background: "[theme:white, default: #ffffff]";
 }
@@ -1178,7 +1260,7 @@
 
 // ─── Zero-Result Table ──────────────────────────────────────
 .zeroResultsTable {
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1187,7 +1269,7 @@
   display: grid;
   grid-template-columns: 1fr 90px 140px 90px 80px;
   background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  border-bottom: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   padding: 0 12px;
 
   > div {
@@ -1204,17 +1286,11 @@
   display: grid;
   grid-template-columns: 1fr 90px 140px 90px 80px;
   padding: 0 12px;
-  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   align-items: center;
-  transition: background-color 100ms ease;
+  transition: background-color 100ms ease, box-shadow 100ms ease;
 
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
-  }
+  // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
+  @include interactive-row;
 
   > div {
     padding: 10px 6px;
@@ -1312,14 +1388,14 @@
   gap: 12px;
   margin-bottom: 20px;
 
-  @media (max-width: 640px) {
+  @include mobile-and-below {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 .insightStatCard {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background: "[theme:white, default: #ffffff]";
   text-align: center;
@@ -1372,7 +1448,7 @@
   gap: 16px;
   margin-bottom: 20px;
 
-  @media (max-width: 768px) {
+  @include tablet-and-below {
     grid-template-columns: 1fr;
   }
 }
@@ -1380,7 +1456,7 @@
 // ─── Section block ────────────────────────────────────────────
 .insightSection {
   padding: 14px 16px;
-  border: 1px solid "[theme:neutralLight, default: #edebe9]";
+  border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
   background: "[theme:white, default: #ffffff]";
 }
@@ -1424,7 +1500,7 @@
   text-decoration: none;
   color: "[theme:bodyText, default: #323130]";
 
-  @media (max-width: 900px) {
+  @include tablet-and-below {
     grid-template-columns: 100px 1fr 32px;
   }
 }
@@ -1521,4 +1597,18 @@
   text-orientation: mixed;
   transform: rotate(180deg);
   line-height: 1;
+}
+
+// Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

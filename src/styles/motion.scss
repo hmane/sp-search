@@ -1,0 +1,27 @@
+// Foundations Found.D6 — shared motion mixin honoring prefers-reduced-motion.
+// Applied surface-by-surface by T1.D9 in Sprint 5.
+
+@mixin motion($properties: all, $duration: 200ms, $timing: ease-in-out) {
+  transition: $properties $duration $timing;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    animation: none;
+  }
+}
+
+@mixin motion-keyframes($name) {
+  animation-name: $name;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+// Helper for static animation property — drops to none on reduce.
+@mixin motion-respect {
+  @media (prefers-reduced-motion: reduce) {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,6 +1,9 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { TooltipHost, ITooltipHostStyles } from '@fluentui/react/lib/Tooltip';
 import styles from './SpSearchVerticals.module.scss';
+
+const TOOLTIP_HOST_STYLES: Partial<ITooltipHostStyles> = { root: { display: 'inline-block' } };
 
 export interface IVerticalTabProps {
   verticalKey: string;
@@ -70,28 +73,51 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
     </React.Fragment>
   );
 
-  // Render as <a> for link tabs
+  // Render as <a> for link tabs. When dimmed, suppress navigation —
+  // `aria-disabled` keeps the tab focusable (so the tooltip can announce
+  // why), and the onClick guard stops the browser from navigating.
   if (isLink && linkUrl) {
-    return (
+    const linkEl = (
       <a
         className={classNames.join(' ')}
-        href={linkUrl}
+        href={isDimmed ? undefined : linkUrl}
         target={openBehavior === 'newTab' ? '_blank' : '_self'}
         rel={openBehavior === 'newTab' ? 'noopener noreferrer' : undefined}
-        aria-label={label}
+        aria-label={label + (isDimmed ? ' (no results)' : '')}
+        aria-disabled={isDimmed || undefined}
+        role={isDimmed ? 'link' : undefined}
+        tabIndex={isDimmed ? 0 : undefined}
+        onClick={isDimmed ? ((ev: React.MouseEvent<HTMLAnchorElement>): void => { ev.preventDefault(); }) : undefined}
         data-vertical-key={verticalKey}
       >
         {tabContent}
       </a>
     );
+
+    if (isDimmed) {
+      return (
+        <TooltipHost
+          content="No results in this vertical for the current query."
+          styles={TOOLTIP_HOST_STYLES}
+        >
+          {linkEl}
+        </TooltipHost>
+      );
+    }
+    return linkEl;
   }
 
-  return (
+  // `aria-disabled` instead of `disabled` so the dimmed tab still receives
+  // keyboard focus — disabled buttons can't be focused in most browsers,
+  // and a tooltip on an unfocusable element fails WCAG 2.4.3. The onClick
+  // guard at the top of the file already blocks activation when dimmed.
+  const buttonEl = (
     <button
       className={classNames.join(' ')}
       role="tab"
       aria-selected={isActive}
-      aria-label={label + (hasCount ? ' (' + String(count) + ')' : '')}
+      aria-label={label + (hasCount ? ' (' + String(count) + ')' : '') + (isDimmed ? ' (no results)' : '')}
+      aria-disabled={isDimmed || undefined}
       tabIndex={isActive ? 0 : -1}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -100,6 +126,21 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
       {tabContent}
     </button>
   );
+
+  // T1.D8 — explain why dimmed tabs aren't clickable. TooltipHost shows on
+  // hover AND focus, so keyboard users now hear the message too.
+  if (isDimmed) {
+    return (
+      <TooltipHost
+        content="No results in this vertical for the current query."
+        styles={TOOLTIP_HOST_STYLES}
+      >
+        {buttonEl}
+      </TooltipHost>
+    );
+  }
+
+  return buttonEl;
 };
 
 export default VerticalTab;

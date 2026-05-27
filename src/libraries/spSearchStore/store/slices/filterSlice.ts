@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import { ISearchStore, IFilterSlice, IActiveFilter, IRefiner, IRefinerValue } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
+import { DebugCollector } from '../../debug';
 
 /**
  * Merge new refiners from a search response with existing display refiners.
@@ -27,14 +28,9 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
     const next = incomingMap.get(prev.filterName);
 
     if (!next) {
-      // Refiner no longer returned — keep previous values with 0 counts
-      const zeroed: IRefinerValue[] = prev.values.map((v) => ({
-        name: v.name,
-        value: v.value,
-        count: 0,
-        isSelected: v.isSelected,
-      }));
-      merged.push({ filterName: prev.filterName, values: zeroed });
+      // Refiner no longer returned in filtered results — preserve previous
+      // counts so filter options remain visible and informative.
+      merged.push({ filterName: prev.filterName, values: [...prev.values] });
     } else {
       // Build value lookup from new results
       const nextValueMap = new Map<string, IRefinerValue>();
@@ -55,11 +51,14 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
           // Value exists in new results — use new count
           mergedValues.push(nextVal);
         } else {
-          // Value no longer in results — keep with 0 count
+          // Value no longer in filtered results — preserve previous count
+          // so users can see how many results each option would add.
+          // SharePoint omits zero-count refiners from filtered responses,
+          // but the previous count (from base or prior search) is still valid.
           mergedValues.push({
             name: prevVal.name,
             value: prevVal.value,
-            count: 0,
+            count: prevVal.count,
             isSelected: prevVal.isSelected,
           });
         }
@@ -135,6 +134,7 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
         set({ activeFilters: [...current, filter], currentPage: 1 });
       }
     }
+    DebugCollector.logEvent('FILTER', { action: 'set', filterName: filter.filterName, value: filter.value });
   },
 
   removeRefiner: (filterKey: string, value?: string): void => {
@@ -143,10 +143,12 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
       ? current.filter((f) => !(f.filterName === filterKey && f.value === value))
       : current.filter((f) => f.filterName !== filterKey);
     set({ activeFilters: updated, currentPage: 1 });
+    DebugCollector.logEvent('FILTER', { action: 'remove', filterName: filterKey, value: value || '*' });
   },
 
   clearAllFilters: (): void => {
     set({ activeFilters: [], currentPage: 1, displayRefiners: [] });
+    DebugCollector.logEvent('FILTER', { action: 'clearAll' });
   },
 
   setOperatorBetweenFilters: (operator: 'AND' | 'OR'): void => {
