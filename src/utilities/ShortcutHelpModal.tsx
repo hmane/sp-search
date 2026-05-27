@@ -29,6 +29,8 @@ const SHORTCUTS: IShortcutRow[] = [
   { keys: ['?'], description: 'Open this shortcut help' },
   { keys: ['Esc'], description: 'Close the open panel or dialog' },
   { keys: ['Enter'], description: 'Open the focused result' },
+  { keys: ['Alt', '←'], description: 'Previous result (detail panel open)' },
+  { keys: ['Alt', '→'], description: 'Next result (detail panel open)' },
   { keys: ['j'], description: 'Move focus to the next result (planned)' },
   { keys: ['k'], description: 'Move focus to the previous result (planned)' },
 ];

@@ -10,6 +10,7 @@ import { LazyVersionHistory as _LazyVersionHistory } from './LazyVersionHistory'
 const VersionHistory: any = _LazyVersionHistory;
 import { ISearchResult } from '@interfaces/index';
 import { formatRelativeDate, formatDateTime, formatFileSize, buildFormUrl } from './documentTitleUtils';
+import { shouldHandleShortcut } from '../../../utilities/globalShortcuts';
 import styles from './SpSearchResults.module.scss';
 
 export interface IResultDetailPanelProps {
@@ -143,10 +144,14 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
   );
 
   // T2.D7 — Alt+Left / Alt+Right keyboard navigation while the panel is open.
+  // `shouldHandleShortcut` skips the binding when focus is inside a text
+  // input / textarea / contentEditable / role="textbox", matching the
+  // contract of every other shortcut in the app.
   React.useEffect((): (() => void) | undefined => {
     if (!isOpen || !onNavigate) { return undefined; }
     const handler = (event: KeyboardEvent): void => {
       if (!event.altKey) { return; }
+      if (!shouldHandleShortcut(event.target)) { return; }
       if (event.key === 'ArrowLeft' && canGoPrevious) {
         event.preventDefault();
         onNavigate(-1);
@@ -292,6 +297,7 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                   <IconButton
                     iconProps={{ iconName: 'ChevronLeft' }}
                     ariaLabel="Previous result"
+                    aria-keyshortcuts="Alt+ArrowLeft"
                     onClick={(): void => onNavigate(-1)}
                     disabled={!canGoPrevious}
                     className={styles.detailPanelActionIcon}
@@ -301,6 +307,7 @@ const ResultDetailPanel: React.FC<IResultDetailPanelProps> = (props) => {
                   <IconButton
                     iconProps={{ iconName: 'ChevronRight' }}
                     ariaLabel={isAtEndOfPage && hasNextPage ? 'Load next page' : 'Next result'}
+                    aria-keyshortcuts="Alt+ArrowRight"
                     onClick={(): void => onNavigate(1)}
                     disabled={!canGoNext}
                     className={styles.detailPanelActionIcon}
