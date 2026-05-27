@@ -18,6 +18,7 @@ import * as strings from 'SpSearchBoxWebPartStrings';
 import SpSearchBox from './components/SpSearchBox';
 import { ISpSearchBoxProps } from './components/ISpSearchBoxProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { ISearchStore, ISearchScope } from '@interfaces/index';
 import { getStore, initializeSearchContext, getManagerService, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
@@ -174,6 +175,10 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchBox');
+    // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+    // @pnp/spfx-controls-react (PeoplePicker, FileTypeIcon) + patch global
+    // fetch. Both calls are idempotent — fetch patch is flag-guarded.
+    configureLegacyPnPBaseUrl(this.context);
 
     // Get or create the shared Zustand store
     const contextId = this.properties.searchContextId || 'default';

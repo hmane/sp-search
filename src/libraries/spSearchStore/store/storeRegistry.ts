@@ -10,6 +10,7 @@ import {
   setStateSnapshotLoader
 } from './middleware';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { initializeFileTypeIcons } from '@fluentui/react-file-type-icons';
 
 /**
@@ -152,6 +153,10 @@ export async function initializeSearchContext(
   // SPContext.basic() is idempotent — second call returns existing context.
   if (spfxContext && !SPContext.isReady()) {
     await SPContext.basic(spfxContext, 'SpSearchStore');
+    // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+    // @pnp/spfx-controls-react + patch global fetch. Idempotent; safe to call
+    // even when a web part's onInit already invoked it (separate webpack bundle).
+    configureLegacyPnPBaseUrl(spfxContext);
   }
 
   // Register Fluent UI file type icons (SVGs from Office CDN). Idempotent.

@@ -18,6 +18,7 @@ import * as strings from 'SpSearchFiltersWebPartStrings';
 import SpSearchFilters from './components/SpSearchFilters';
 import type { ISpSearchFiltersProps } from './components/ISpSearchFiltersProps';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { recordWebPartInit } from '@store/utils/initOrderDiagnostic';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
@@ -199,6 +200,10 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
     try {
       // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
       await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchFilters');
+      // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+      // @pnp/spfx-controls-react (PeoplePickerFilter, TaxonomyPicker) + patch
+      // global fetch. Both calls are idempotent.
+      configureLegacyPnPBaseUrl(this.context);
       const contextId: string = this.properties.searchContextId || 'default';
       this._store = getStore(contextId);
       // T3.D1 — refcount holder.

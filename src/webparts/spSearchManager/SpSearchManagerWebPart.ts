@@ -20,6 +20,7 @@ import SpSearchManager from './components/SpSearchManager';
 import type { ISpSearchManagerProps } from './components/ISpSearchManagerProps';
 import styles from './components/SpSearchManager.module.scss';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { ISearchStore } from '@interfaces/index';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
@@ -204,6 +205,10 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchManager');
+    // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+    // @pnp/spfx-controls-react (ShareSearchDialog PeoplePicker) + patch global
+    // fetch. Both calls are idempotent.
+    configureLegacyPnPBaseUrl(this.context);
 
     // Get or create the shared Zustand store
     const contextId: string = this.properties.searchContextId || 'default';

@@ -16,6 +16,7 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 
 import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
@@ -276,6 +277,9 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchResults');
+    // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+    // @pnp/spfx-controls-react + patch global fetch. Both calls are idempotent.
+    configureLegacyPnPBaseUrl(this.context);
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);

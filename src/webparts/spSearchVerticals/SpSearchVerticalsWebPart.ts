@@ -24,6 +24,7 @@ import { getStore, initializeSearchContext, incrementContextRef, decrementContex
 // T4.D11 — context-sensitive help link helper.
 import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
+import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { SharePointSearchProvider } from '@providers/index';
 import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { DebugCollector } from '@store/debug';
@@ -129,6 +130,9 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchVerticals');
+    // Strip _layouts/15 contamination from the PnP v2 base URL bundled with
+    // @pnp/spfx-controls-react + patch global fetch. Both calls are idempotent.
+    configureLegacyPnPBaseUrl(this.context);
 
     const contextId: string = this.properties.searchContextId || 'default';
     this._store = getStore(contextId);
