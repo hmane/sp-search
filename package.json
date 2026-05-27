@@ -1,6 +1,6 @@
 {
   "name": "sp-search",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "engines": {
     "node": ">=22.14.0 < 23.0.0"
