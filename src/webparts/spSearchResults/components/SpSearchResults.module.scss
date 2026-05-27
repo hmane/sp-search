@@ -1025,6 +1025,28 @@
   white-space: nowrap;
 }
 
+// Trailing ECB columnheader — visually empty; aria-labeled "Actions" on the
+// element. Width matches the body cell's 32px grid track.
+.compactHeaderEcb {
+  width: 32px;
+}
+
+// Per-row ECB ("...") cell in Compact's grid. Mirrors the List behaviour:
+// opacity 0 at rest, reveals on row hover/focus or when the menu is open.
+.compactRowEcb {
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 150ms ease;
+
+  .compactRow:hover &,
+  .compactRow:focus-within & {
+    opacity: 1;
+  }
+}
+
 .compactRow {
   display: grid;
   align-items: start;

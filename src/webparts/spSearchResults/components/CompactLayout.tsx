@@ -1,10 +1,12 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
+import { IconButton } from '@fluentui/react/lib/Button';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { ISearchResult } from '@interfaces/index';
 import { formatShortDate, formatFileSize, stripHtml, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import DocumentTitleHoverCard from './DocumentTitleHoverCard';
+import { buildRowActionMenu } from './buildRowActionMenu';
 import type { IColumnConfigItem, ColumnRenderer } from './ColumnConfigField/columnConfig';
 import {
   renderText,
@@ -215,11 +217,12 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
     (): ICompactColumn[] => getCompactColumns(compactPropertyColumns),
     [compactPropertyColumns]
   );
-  // 20 px file-type icon column + minmax(0, 1fr) for the title + the
-  // admin-configured metadata columns. Per-row ECB lives via the existing
-  // AddToCollectionButton inside the title cell.
+  // 20 px file-type icon + minmax(0, 1fr) title + admin-configured meta
+  // columns + a trailing 32 px ECB cell for Open / Download / Copy link
+  // (AddToCollectionButton stays inside the title for the "pin to collection"
+  // common case; the ECB carries the longer tail).
   const layoutTemplate = React.useMemo((): string => {
-    return ['20px', 'minmax(0, 1fr)', ...columns.map((column) => column.width)].join(' ');
+    return ['20px', 'minmax(0, 1fr)', ...columns.map((column) => column.width), '32px'].join(' ');
   }, [columns]);
 
   return (
@@ -238,6 +241,7 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
             {column.label}
           </div>
         ))}
+        <div className={styles.compactHeaderEcb} role="columnheader" aria-label="Actions" />
       </div>
       {items.map((item: ISearchResult, index: number) => {
         const tooltipText: string = stripHtml(item.summary) || item.title;
@@ -298,6 +302,19 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
                 {renderCompactCell(item, column)}
               </div>
             ))}
+            <div className={styles.compactRowEcb} role="cell">
+              <IconButton
+                iconProps={{ iconName: 'MoreVertical' }}
+                ariaLabel={'More actions for ' + item.title}
+                title="More actions"
+                menuProps={{
+                  items: buildRowActionMenu(item, {
+                    position: index + 1,
+                    onItemClick,
+                  }),
+                }}
+              />
+            </div>
           </div>
         );
       })}
