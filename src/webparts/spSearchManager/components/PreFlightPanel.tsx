@@ -15,6 +15,12 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { runTenantReadinessScan, type IReadinessReport, type ReadinessStatus } from '@services/index';
 import styles from './SpSearchManager.module.scss';
 
+/**
+ * Status colours stay as fixed hex codes — these are semantic signals
+ * (success / warning / error) that must remain visually consistent in
+ * both light and dark themes. Text/border/background elsewhere in this
+ * panel switch to SPFx theme tokens via `var(--*, fallback)`.
+ */
 const STATUS_ICON: Record<ReadinessStatus, { name: string; color: string }> = {
   green: { name: 'CheckMark', color: '#107c10' },
   yellow: { name: 'Warning', color: '#d29200' },
@@ -77,11 +83,11 @@ const PreFlightPanel: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 18 }}>Tenant readiness</h2>
-          <p style={{ margin: '4px 0 0 0', color: '#605e5c', fontSize: 13 }}>
+          <p style={{ margin: '4px 0 0 0', color: 'var(--neutralSecondary, #605e5c)', fontSize: 13 }}>
             {report.allGreen
               ? 'All checks green — this tenant is ready for SP Search.'
               : report.redCount + ' check(s) failed. Address red rows before launching to end users.'}
-            <span style={{ marginLeft: 8, color: '#888', fontSize: 11 }}>
+            <span style={{ marginLeft: 8, color: 'var(--neutralTertiary, #a19f9d)', fontSize: 11 }}>
               Last scan: {report.generatedAt.toLocaleTimeString()}
             </span>
           </p>
@@ -102,10 +108,10 @@ const PreFlightPanel: React.FC = () => {
                 alignItems: 'flex-start',
                 gap: 12,
                 padding: 12,
-                border: '1px solid #edebe9',
+                border: '1px solid var(--neutralLight, #edebe9)',
                 borderLeft: '4px solid ' + icon.color,
                 borderRadius: 4,
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--bodyBackground, #ffffff)',
               }}
             >
               <Icon
@@ -115,7 +121,7 @@ const PreFlightPanel: React.FC = () => {
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{check.title}</div>
-                <div style={{ fontSize: 13, color: '#323130', marginBottom: check.fix ? 6 : 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--bodyText, #323130)', marginBottom: check.fix ? 6 : 0 }}>
                   {check.message}
                 </div>
                 {check.fix && (
@@ -123,7 +129,7 @@ const PreFlightPanel: React.FC = () => {
                     href={check.fix.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: 13, color: '#0078d4', textDecoration: 'none' }}
+                    style={{ fontSize: 13, color: 'var(--themePrimary, #0078d4)', textDecoration: 'none' }}
                   >
                     <Icon iconName="OpenInNewWindow" style={{ fontSize: 12, marginRight: 4 }} />
                     {check.fix.text}

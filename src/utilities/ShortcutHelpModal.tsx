@@ -101,9 +101,9 @@ export const ShortcutHelpModalHost: React.FC = () => {
                         display: 'inline-block',
                         padding: '2px 8px',
                         marginRight: 4,
-                        border: '1px solid #c8c6c4',
+                        border: '1px solid var(--neutralTertiaryAlt, #c8c6c4)',
                         borderRadius: 3,
-                        backgroundColor: '#faf9f8',
+                        backgroundColor: 'var(--neutralLighter, #faf9f8)',
                         fontFamily: 'Consolas, Monaco, monospace',
                         fontSize: 13,
                       }}
@@ -112,12 +112,12 @@ export const ShortcutHelpModalHost: React.FC = () => {
                     </span>
                   ))}
                 </td>
-                <td style={{ padding: '6px 0', color: '#323130' }}>{s.description}</td>
+                <td style={{ padding: '6px 0', color: 'var(--bodyText, #323130)' }}>{s.description}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p style={{ marginTop: 16, marginBottom: 0, color: '#605e5c', fontSize: 12 }}>
+        <p style={{ marginTop: 16, marginBottom: 0, color: 'var(--neutralSecondary, #605e5c)', fontSize: 12 }}>
           Shortcuts don&apos;t fire while typing in a text box.
         </p>
       </div>
