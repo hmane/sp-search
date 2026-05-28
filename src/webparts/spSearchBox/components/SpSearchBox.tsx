@@ -841,6 +841,10 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 disableAnimation={false}
                 underlined={false}
                 autoComplete="off"
+                // Hint iOS / Android to surface the search-tuned keyboard
+                // (Enter labelled "Search"). Pairs with the existing 16px
+                // font-size rule that prevents iOS auto-zoom on focus.
+                inputProps={{ inputMode: 'search' }}
               />
             </div>
           )}
