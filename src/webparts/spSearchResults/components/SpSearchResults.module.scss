@@ -511,6 +511,12 @@
   .resultCard:focus-within & {
     opacity: 1;
   }
+
+  // Touch devices have no hover capability — keep the ECB visible at rest
+  // so the menu is reachable without first focusing the row via the keyboard.
+  @media (hover: none) {
+    opacity: 1;
+  }
 }
 
 .resultIcon {
@@ -1043,6 +1049,11 @@
 
   .compactRow:hover &,
   .compactRow:focus-within & {
+    opacity: 1;
+  }
+
+  // Touch devices have no hover capability — keep the ECB visible at rest.
+  @media (hover: none) {
     opacity: 1;
   }
 }
