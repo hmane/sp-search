@@ -74,6 +74,7 @@ import { exportItemsAsCsv, exportItemsAsXlsx } from './exportShared';
 
 // T5.D1 — singleton DebugFab + Panel imported from the cross-bundle host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
 
 /**
  * Custom hook that subscribes to the Zustand vanilla store and
@@ -1013,6 +1014,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             DebugCollector.isActive() AND the cross-bundle owner claim so
             multi-web-part pages render exactly one FAB. */}
         <DebugFabHost store={store} />
+        {/* T2.D9 — singleton shortcut help modal host (cross-bundle owner claim). */}
+        <ShortcutHelpModalHost />
     </ErrorBoundary>
   );
 };

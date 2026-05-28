@@ -32,6 +32,7 @@ import {
 } from '@store/configValidation/sharedValidators';
 // T5.D1 — cross-bundle singleton DebugFab + Panel host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
 import {
   computeUnacknowledgedShares,
   loadAcknowledgedShareIds,
@@ -1285,6 +1286,8 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
       {content}
       {/* T5.D1 — singleton DebugFab host. */}
       <DebugFabHost store={props.store} />
+      {/* T2.D9 — singleton shortcut help modal host (cross-bundle owner claim). */}
+      <ShortcutHelpModalHost />
     </ErrorBoundary>
   );
 };

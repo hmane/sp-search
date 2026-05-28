@@ -17,6 +17,7 @@ import VerticalTab from './VerticalTab';
 import { validateVerticalDataProviderIds } from '@store/configValidation/dataProviderId';
 // T5.D1 — cross-bundle singleton DebugFab + Panel host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
 
 /**
  * Map of tabStyle prop to the corresponding CSS module class name.
@@ -302,6 +303,8 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
       </div>
       {/* T5.D1 — singleton DebugFab host. Owner-claim across bundles. */}
       <DebugFabHost store={store} />
+      {/* T2.D9 — singleton shortcut help modal host (cross-bundle owner claim). */}
+      <ShortcutHelpModalHost />
     </div>
   );
 };

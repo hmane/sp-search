@@ -33,6 +33,7 @@ import {
 } from '@store/utils/presetSuggestionRegistry';
 // T5.D1 — cross-bundle singleton DebugFab + Panel host.
 import { DebugFabHost } from '../../../utilities/DebugFabHost';
+import { ShortcutHelpModalHost } from '../../../utilities/ShortcutHelpModal';
 
 const VisualFilterBuilder = lazyBridge(
   () => import(/* webpackChunkName: 'VisualFilterBuilder' */ './VisualFilterBuilder') as unknown as Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
@@ -738,6 +739,8 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       {filterBody}
       {/* T5.D1 — singleton DebugFab host. */}
       {store && <DebugFabHost store={store} />}
+      {/* T2.D9 — singleton shortcut help modal host (cross-bundle owner claim). */}
+      <ShortcutHelpModalHost />
     </div>
   );
 };

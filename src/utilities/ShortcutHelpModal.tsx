@@ -3,10 +3,13 @@
  * `sp-search:open-shortcut-help` event (dispatched by `?` from any web
  * part) and renders a Fluent Modal listing every shipped shortcut.
  *
- * Mounted via `<ShortcutHelpModalHost />` in the SearchBox web part
- * shell (the most common entry point on a search page). Only one host
- * should be mounted per page; multiple hosts harmlessly all show the
- * same modal.
+ * Cross-bundle singleton (mirrors `DebugFabHost`). Every user-facing
+ * web part mounts `<ShortcutHelpModalHost />` and the first one to
+ * render claims the window-backed owner flag; non-owners short-circuit
+ * to a null render and skip binding installation. On unmount the
+ * owner releases the flag and a low-frequency poll lets another
+ * mounted host take over. This means a page with Results+Manager
+ * but no SearchBox still gets a working `?` modal and `/` focus.
  */
 
 import * as React from 'react';
@@ -17,7 +20,33 @@ import {
   useGlobalShortcuts,
   dispatchOpenShortcutHelp,
   dispatchFocusSearchBox,
+  type IShortcutBinding,
 } from './globalShortcuts';
+
+const OWNER_KEY = '__sp_search_shortcut_help_owner__';
+const CLAIM_POLL_MS = 500;
+
+interface IWindowWithOwner {
+  [OWNER_KEY]?: string;
+}
+
+function tryClaim(instanceId: string): boolean {
+  if (typeof window === 'undefined') { return false; }
+  const win = window as unknown as IWindowWithOwner;
+  if (!win[OWNER_KEY] || win[OWNER_KEY] === instanceId) {
+    win[OWNER_KEY] = instanceId;
+    return true;
+  }
+  return false;
+}
+
+function release(instanceId: string): void {
+  if (typeof window === 'undefined') { return; }
+  const win = window as unknown as IWindowWithOwner;
+  if (win[OWNER_KEY] === instanceId) {
+    win[OWNER_KEY] = undefined;
+  }
+}
 
 interface IShortcutRow {
   keys: string[];
@@ -41,15 +70,36 @@ const SHORTCUTS: IShortcutRow[] = [
  * fires.
  */
 export const ShortcutHelpModalHost: React.FC = () => {
+  const instanceIdRef = React.useRef<string>('shortcut-help-' + Math.random().toString(36).substring(2));
+  const [isOwner, setIsOwner] = React.useState<boolean>(() => tryClaim(instanceIdRef.current));
   const [open, setOpen] = React.useState<boolean>(false);
 
-  // Install the global shortcut bindings that drive the help modal +
-  // the search-box-focus event. `?` opens this modal; `/` dispatches a
-  // separate event the SearchBox component listens for.
-  const bindings = React.useMemo(() => [
+  // Poll for ownership when we're not the owner. The current owner may
+  // release the flag during a SPA navigation; this lets the next mounted
+  // host take over.
+  React.useEffect((): (() => void) | undefined => {
+    if (isOwner) { return undefined; }
+    const intervalId = window.setInterval((): void => {
+      if (tryClaim(instanceIdRef.current)) {
+        setIsOwner(true);
+      }
+    }, CLAIM_POLL_MS);
+    return (): void => { window.clearInterval(intervalId); };
+  }, [isOwner]);
+
+  // Release the flag on unmount.
+  React.useEffect((): (() => void) => {
+    const id = instanceIdRef.current;
+    return (): void => { release(id); };
+  }, []);
+
+  // Install the global shortcut bindings that drive the help modal + the
+  // search-box-focus event. Non-owners pass an empty array so no duplicate
+  // keydown handlers land on the document.
+  const bindings = React.useMemo<IShortcutBinding[]>(() => isOwner ? [
     {
       key: '?',
-      shift: true, // '?' is shift+/ on US layouts; e.key === '?' already implies shift in jsdom but be explicit
+      shift: true, // '?' is shift+/ on US layouts
       handler: (e: KeyboardEvent): void => {
         e.preventDefault();
         dispatchOpenShortcutHelp();
@@ -62,16 +112,18 @@ export const ShortcutHelpModalHost: React.FC = () => {
         dispatchFocusSearchBox();
       },
     },
-  ], []);
+  ] : [], [isOwner]);
   useGlobalShortcuts(bindings);
 
-  // Listen for the open event (dispatched by the `?` handler above
-  // OR by any other web part that wants to trigger help programmatically).
-  React.useEffect((): (() => void) => {
+  // Listen for the open event — only when owner.
+  React.useEffect((): (() => void) | undefined => {
+    if (!isOwner) { return undefined; }
     const handler = (): void => { setOpen(true); };
     window.addEventListener(SP_SEARCH_OPEN_SHORTCUT_HELP, handler);
     return (): void => { window.removeEventListener(SP_SEARCH_OPEN_SHORTCUT_HELP, handler); };
-  }, []);
+  }, [isOwner]);
+
+  if (!isOwner) { return null; }
 
   return (
     <Modal
