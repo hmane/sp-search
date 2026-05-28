@@ -844,7 +844,9 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
                 // Hint iOS / Android to surface the search-tuned keyboard
                 // (Enter labelled "Search"). Pairs with the existing 16px
                 // font-size rule that prevents iOS auto-zoom on focus.
-                inputProps={{ inputMode: 'search' }}
+                // Fluent v8 SearchBox extends InputHTMLAttributes so this
+                // forwards to the underlying <input>.
+                inputMode="search"
               />
             </div>
           )}
