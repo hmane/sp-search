@@ -18,13 +18,11 @@ export interface IQuerySlice {
   scope: ISearchScope;
   suggestions: ISuggestion[];
   isSearching: boolean;
-  abortController: AbortController | undefined;
   // Actions
   setQueryText: (text: string) => void;
   setScope: (scope: ISearchScope) => void;
   setSuggestions: (suggestions: ISuggestion[]) => void;
   setQueryInputTransformation: (transformation: string) => void;
-  cancelSearch: () => void;
 }
 
 // ─── Filter Slice ────────────────────────────────────────────

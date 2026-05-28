@@ -170,7 +170,7 @@ export class SearchOrchestrator {
       this._unsubscribe();
       this._unsubscribe = undefined;
     }
-    this._cancelPending();
+    this.cancelPending();
   }
 
   /**
@@ -211,7 +211,13 @@ export class SearchOrchestrator {
     }, this._debounceMs);
   }
 
-  private _cancelPending(): void {
+  /**
+   * Cancel any pending debounce timer + abort the in-flight provider call.
+   * Safe to call multiple times; safe to call when nothing is pending.
+   * Public so admin/diagnostic UI can wire a "Cancel" button via
+   * `getOrchestrator(searchContextId).cancelPending()`.
+   */
+  public cancelPending(): void {
     if (this._debounceTimer !== undefined) {
       clearTimeout(this._debounceTimer);
       this._debounceTimer = undefined;
@@ -328,7 +334,7 @@ export class SearchOrchestrator {
 
   private async _executeSearch(): Promise<void> {
     // Cancel any previous in-flight request
-    this._cancelPending();
+    this.cancelPending();
 
     const state = this._store.getState();
     const provider = this._getProvider(state);

@@ -30,11 +30,10 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
     registries,
 
     reset: (): void => {
-      const [set, get] = a;
-      const currentAbort = get().abortController;
-      if (currentAbort) {
-        currentAbort.abort();
-      }
+      const [set] = a;
+      // AbortController lives on the orchestrator (not the store). Callers
+      // who need to cancel an in-flight request must do so via
+      // `getOrchestrator(searchContextId).cancelPending()` before resetting.
       set({
         // Query slice defaults
         queryText: '',
@@ -42,7 +41,6 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
         scope: defaultScope,
         suggestions: [],
         isSearching: false,
-        abortController: undefined,
         // Filter slice defaults
         activeFilters: [],
         availableRefiners: [],
@@ -75,13 +73,9 @@ export function createSearchStore(registries: IRegistryContainer): StoreApi<ISea
     },
 
     dispose: (): void => {
-      const [, get] = a;
-      // Abort any in-flight search
-      const controller = get().abortController;
-      if (controller) {
-        controller.abort();
-      }
-      // URL sync cleanup will be added in Step 1.4
+      // No-op. The orchestrator owns the in-flight AbortController and is
+      // stopped by `disposeStore` before this runs; URL sync cleanup is
+      // handled in `disposeStore` ahead of the slice dispose.
     },
   }));
 }

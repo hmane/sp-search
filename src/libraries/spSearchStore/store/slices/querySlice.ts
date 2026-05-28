@@ -6,14 +6,13 @@ const defaultScope: ISearchScope = {
   label: 'All SharePoint',
 };
 
-export const createQuerySlice: StateCreator<ISearchStore, [], [], IQuerySlice> = (set, get) => ({
+export const createQuerySlice: StateCreator<ISearchStore, [], [], IQuerySlice> = (set) => ({
   queryText: '',
   queryTemplate: '{searchTerms}',
   queryInputTransformation: '{searchTerms}',
   scope: defaultScope,
   suggestions: [],
   isSearching: false,
-  abortController: undefined,
 
   setQueryText: (text: string): void => {
     set({ queryText: text });
@@ -29,13 +28,5 @@ export const createQuerySlice: StateCreator<ISearchStore, [], [], IQuerySlice> =
 
   setQueryInputTransformation: (transformation: string): void => {
     set({ queryInputTransformation: transformation });
-  },
-
-  cancelSearch: (): void => {
-    const controller = get().abortController;
-    if (controller) {
-      controller.abort();
-    }
-    set({ abortController: undefined, isSearching: false });
   },
 });

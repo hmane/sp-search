@@ -65,7 +65,6 @@ describe('storeRegistry', () => {
       expect(state.scope).toEqual({ id: 'all', label: 'All SharePoint' });
       expect(state.suggestions).toEqual([]);
       expect(state.isSearching).toBe(false);
-      expect(state.abortController).toBeUndefined();
 
       // Filter slice defaults
       expect(state.activeFilters).toEqual([]);
@@ -135,20 +134,6 @@ describe('storeRegistry', () => {
 
       disposeStore(id);
       expect(hasStore(id)).toBe(false);
-    });
-
-    it('should abort the in-flight controller on dispose', () => {
-      const id = trackId('ctx-dispose-abort');
-      const store = getStore(id);
-
-      // Simulate an in-flight search by setting an AbortController
-      const controller = new AbortController();
-      store.setState({ abortController: controller, isSearching: true });
-
-      expect(controller.signal.aborted).toBe(false);
-
-      disposeStore(id);
-      expect(controller.signal.aborted).toBe(true);
     });
 
     it('should be a no-op if the store does not exist', () => {
