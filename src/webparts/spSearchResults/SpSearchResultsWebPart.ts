@@ -324,13 +324,11 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
       registerBuiltInActions(this._store.getState().registries.actions);
 
-      // Freeze registries AFTER all providers/actions are registered.
-      // This prevents mid-session mutations. Must happen here (in the Results
-      // web part) because it loads LAST — other web parts may still be
-      // registering when the first search executes.
-      if (this._orchestrator) {
-        this._orchestrator.freezeRegistries();
-      }
+      // Registry freeze now happens lazily on the first `_executeSearch`
+      // call inside the orchestrator. The previous Results-loads-LAST
+      // assumption was a latent race — SPFx provides no init-order
+      // guarantee, so Filters.onInit could register filter types AFTER
+      // freeze had already run. See SearchOrchestrator._executeSearch.
     }
 
     // Apply the configured default layout only when the store is still on the

@@ -31,6 +31,8 @@ export class SearchOrchestrator {
   private readonly _debounceMs: number;
   private _historyService: SearchManagerService | undefined;
   private _lastHistoryId: number = 0;
+  /** Tracks whether the registry-freeze guard has run (idempotent). */
+  private _registriesFrozen: boolean = false;
   private _firstSearchCompleted: boolean = false;
 
   public constructor(store: StoreApi<ISearchStore>, debounceMs: number = 300) {
@@ -192,6 +194,8 @@ export class SearchOrchestrator {
    * providers register after initializeSearchContext.
    */
   public freezeRegistries(): void {
+    if (this._registriesFrozen) { return; }
+    this._registriesFrozen = true;
     const r = this._store.getState().registries;
     r.dataProviders.freeze();
     r.actions.freeze();
@@ -335,6 +339,14 @@ export class SearchOrchestrator {
   private async _executeSearch(): Promise<void> {
     // Cancel any previous in-flight request
     this.cancelPending();
+
+    // Freeze the provider/action/layout/filterType registries on the first
+    // search execution. By this point every web part's onInit has completed
+    // (SPFx runs them all before yielding) and the 300ms debounce window
+    // has elapsed, so any late-arriving Filters/Verticals registrations
+    // have already landed. Eliminates the race where Results.onInit froze
+    // registries before Filters.onInit registered its built-in filter types.
+    this.freezeRegistries();
 
     const state = this._store.getState();
     const provider = this._getProvider(state);
