@@ -195,7 +195,12 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
     ensurePnpPropertyControlStyles();
 
     const webPermissions = this.context.pageContext.web.permissions;
-    // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
+    // The cast satisfies TypeScript only — at runtime the call is direct.
+    // spfx-toolkit pulls @microsoft/sp-component-base which re-bundles
+    // @microsoft/sp-page-context, so SPPermission has two distinct class
+    // identities at type-level (TS sees their private fields as different).
+    // RequirePermission from the toolkit is NOT a replacement here — it's
+    // async and would Shimmer the whole web part on every page load.
     this._hasAdminAccess = !!(webPermissions && (webPermissions as unknown as { hasPermission(perm: unknown): boolean }).hasPermission(SPPermission.manageWeb));
 
     if (!this._hasAdminAccess) {
