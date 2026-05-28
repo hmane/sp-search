@@ -19,6 +19,14 @@ const COLLECTIONS_LIST = 'SearchCollections';
 const HISTORY_RETENTION_DAYS = 90;
 const HISTORY_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+// SharePoint built-in role-definition ID for "Read". Used by the shareSearch
+// flow to grant invited users item-level read on a shared search. We can't
+// defer this to spfx-toolkit's userAccessService because that surface covers
+// group membership and effective-permission reads, not item-level role
+// assignments — when the toolkit grows a `grantItemRoleToUser`-style API
+// the manual block in shareSearch should migrate.
+const SP_READ_ROLE_DEF_ID = 1073741826;
+
 interface IHistoryStateSummary {
   activeFilters?: Array<{
     filterName?: string;
@@ -1392,17 +1400,22 @@ export class SearchManagerService {
       EntryType: 'SharedSearch',
     });
 
-    // Break role inheritance and grant read access
+    // Break role inheritance and grant read access. SharedWith update has
+    // already succeeded above; a permission failure here leaves the item
+    // visible to the search-list reader (the owner + admins) but doesn't
+    // expose it to the recipients yet. The caller's result.succeeded shape
+    // still includes the affected emails because the lookup field was set,
+    // so a follow-up retry is possible.
     try {
       await item.breakRoleInheritance(true, false);
-
-      const READ_ROLE_DEF_ID = 1073741826;
       for (let i = 0; i < userIds.length; i++) {
-        await item.roleAssignments.add(userIds[i], READ_ROLE_DEF_ID);
+        await item.roleAssignments.add(userIds[i], SP_READ_ROLE_DEF_ID);
       }
-    } catch {
-      // Permission operations may fail; SharedWith update still succeeded
-      SPContext.logger.warn('SearchManagerService: Could not set item-level permissions', { savedSearchId });
+    } catch (err) {
+      SPContext.logger.warn('SearchManagerService: Could not set item-level permissions', {
+        savedSearchId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     return result;
