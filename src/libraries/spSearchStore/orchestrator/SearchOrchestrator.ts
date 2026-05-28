@@ -643,13 +643,17 @@ export class SearchOrchestrator {
       return;
     }
 
+    // Compute `_splitActiveFilters` once per cycle rather than twice per
+    // vertical — the result is identical for every count fan-out call
+    // because they all read the same `state` closure.
+    const splitFilters = this._splitActiveFilters(state);
     const countPromises = verticals.map(async (vertical) => {
       try {
         const countQuery: ISearchQuery = {
-          queryText: this._buildEffectiveQueryText(state, this._splitActiveFilters(state).textFilters),
+          queryText: this._buildEffectiveQueryText(state, splitFilters.textFilters),
           queryTemplate: vertical.queryTemplate || state.queryTemplate || '{searchTerms}',
           scope: state.scope,
-          filters: this._splitActiveFilters(state).refinementFilters,
+          filters: splitFilters.refinementFilters,
           sort: undefined,
           page: 1,
           pageSize: 0,
