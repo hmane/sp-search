@@ -92,17 +92,25 @@ const PreFlightPanel: React.FC = () => {
             </span>
           </p>
         </div>
-        <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Re-run scan" onClick={load} />
+        <DefaultButton
+          iconProps={{ iconName: 'Refresh' }}
+          text="Re-run scan"
+          onClick={load}
+          disabled={isLoading}
+        />
       </div>
 
-      {/* Status grid — one row per check, screenshot-ready */}
-      <div role="table" aria-label="Tenant readiness checklist" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Status grid — one row per check, screenshot-ready. role="list" +
+          role="listitem" instead of role="table" + role="row" because the
+          rows aren't divided into ARIA cells; an ARIA table without cells
+          fails screen-reader expectations. */}
+      <div role="list" aria-label="Tenant readiness checklist" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {report.checks.map((check): React.ReactElement => {
           const icon = STATUS_ICON[check.status];
           return (
             <div
               key={check.id}
-              role="row"
+              role="listitem"
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',

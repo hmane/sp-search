@@ -87,6 +87,7 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
         aria-disabled={isDimmed || undefined}
         role={isDimmed ? 'link' : undefined}
         tabIndex={isDimmed ? 0 : undefined}
+        title={isDimmed ? 'No results in this vertical for the current query.' : undefined}
         onClick={isDimmed ? ((ev: React.MouseEvent<HTMLAnchorElement>): void => { ev.preventDefault(); }) : undefined}
         data-vertical-key={verticalKey}
       >
@@ -119,6 +120,7 @@ const VerticalTab: React.FC<IVerticalTabProps> = (props: IVerticalTabProps): Rea
       aria-label={label + (hasCount ? ' (' + String(count) + ')' : '') + (isDimmed ? ' (no results)' : '')}
       aria-disabled={isDimmed || undefined}
       tabIndex={isActive ? 0 : -1}
+      title={isDimmed ? 'No results in this vertical for the current query.' : undefined}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       data-vertical-key={verticalKey}

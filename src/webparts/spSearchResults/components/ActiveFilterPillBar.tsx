@@ -216,7 +216,16 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
   }
 
   return (
-    <div className={styles.activeFilterPillBar} role="list" aria-label="Active filters" aria-live="polite">
+    // Bar-level aria-label reflects current count so screen readers announce
+    // "Active filters (3), list" rather than a fixed "Active filters". The
+    // dedicated visually-hidden status region below carries removal text
+    // (aria-live="polite") so the bar itself doesn't need a live region —
+    // dropping it here avoids double-announcing every pill add/remove.
+    <div
+      className={styles.activeFilterPillBar}
+      role="list"
+      aria-label={'Active filters (' + activeFilters.length + ')'}
+    >
       {activeFilters.map(function (filter: IActiveFilter, index: number): React.ReactElement {
         const displayName = getDisplayName(filter.filterName, filterConfig);
         const displayValue = getDisplayValue(filter.filterName, filter.value, filter.displayValue);
