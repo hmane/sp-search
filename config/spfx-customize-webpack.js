@@ -17,6 +17,7 @@ const projectRoot = path.resolve(__dirname, '..');
 module.exports = function (webpackConfig) {
   const isProduction = webpackConfig.mode === 'production';
   const projectNodeModules = path.resolve(projectRoot, 'node_modules');
+  const toolkitPackageDir = path.resolve(projectRoot, 'node_modules/spfx-toolkit');
 
   // ---------------------------------------------------------------------------
   // Shared dependency aliases — force linked packages (spfx-toolkit etc.) to
@@ -35,6 +36,8 @@ module.exports = function (webpackConfig) {
     inferno: path.resolve(projectNodeModules, 'inferno'),
     tslib: path.resolve(projectNodeModules, 'tslib'),
     zustand: path.resolve(projectNodeModules, 'zustand'),
+    'spfx-toolkit/lib': path.join(toolkitPackageDir, 'lib'),
+    'spfx-toolkit/esm': path.join(toolkitPackageDir, 'esm'),
   };
 
   // ---------------------------------------------------------------------------
@@ -126,7 +129,6 @@ module.exports = function (webpackConfig) {
   // ---------------------------------------------------------------------------
   const dxCssDir = path.resolve(projectRoot, 'node_modules/devextreme/dist/css');
   const dxCssIconsDir = path.resolve(projectRoot, 'node_modules/devextreme/dist/css/icons');
-  const toolkitPackageDir = path.resolve(projectRoot, 'node_modules/spfx-toolkit');
   const toolkitRealPackageDir = fs.existsSync(toolkitPackageDir)
     ? fs.realpathSync(toolkitPackageDir)
     : toolkitPackageDir;
@@ -153,7 +155,11 @@ module.exports = function (webpackConfig) {
   function ruleMatchesModuleCss(r) {
     if (!r || !r.test) return false;
     try {
-      if (r.test instanceof RegExp) return r.test.test('dummy.module.css');
+      if (r.test instanceof RegExp) {
+        return r.test.test('dummy.module.css')
+          || r.test.test('dummy.module.scss')
+          || r.test.test('dummy.module.scss.css');
+      }
     } catch (e) { /* ignore */ }
     return false;
   }
@@ -204,20 +210,24 @@ module.exports = function (webpackConfig) {
   if (moduleCssRule) {
     excludePaths(moduleCssRule, [pnpDir], 'module-css', '@pnp module CSS');
 
-    // Clone the loaders but strip generateCssClassName to prevent re-hashing
-    const plainModuleLoaders = (moduleCssRule.use || []).map(function (loader) {
-      if (typeof loader === 'object' && loader.options && loader.options.generateCssClassName) {
-        var restOptions = Object.assign({}, loader.options);
-        delete restOptions.generateCssClassName;
-        return Object.assign({}, loader, { options: restOptions });
-      }
-      return loader;
-    });
-
     webpackConfig.module.rules.push({
-      test: /\.module(?:\.scss)?\.css$/i,
+      test: /\.module\.(?:css|scss|scss\.css)$/i,
       include: [pnpDir],
-      use: plainModuleLoaders,
+      use: [
+        require.resolve('style-loader'),
+        {
+          loader: require.resolve('css-loader'),
+          options: {
+            esModule: true,
+            modules: {
+              auto: true,
+              localIdentName: '[local]',
+              namedExport: false,
+              exportLocalsConvention: 'as-is',
+            },
+          },
+        },
+      ],
     });
     console.log('[SP Search] Added plain CSS rule for @pnp .module.css files');
   }

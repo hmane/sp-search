@@ -100,7 +100,7 @@ const PeoplePickerFilter: React.FC<IPeoplePickerFilterProps> = (props: IPeoplePi
     <div className={styles.peopleFilterContainer}>
       <PeoplePicker
         key={pickerKey}
-        context={SPContext.peoplepickerContext}
+        context={SPContext.peoplepickerContext as unknown as React.ComponentProps<typeof PeoplePicker>['context']}
         personSelectionLimit={selectionLimit}
         showtooltip={true}
         required={false}

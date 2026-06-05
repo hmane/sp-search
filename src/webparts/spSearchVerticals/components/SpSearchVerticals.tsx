@@ -218,7 +218,7 @@ const SpSearchVerticalsInner: React.FC<ISpSearchVerticalsProps> = (props: ISpSea
         }}
       />
     );
-  }, [showCounts, handleTabClick]);
+  }, [showCounts, handleTabClick]) as unknown as React.ComponentProps<typeof OverflowSet>['onRenderOverflowButton'];
 
   if (verticals.length === 0) {
     return <div className={styles.spSearchVerticals} />;

@@ -183,7 +183,7 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
                 checked={checked}
                 onChange={function (): void { handleCheckboxChange(refinerValue); }}
                 ariaLabel={labelText}
-                onRenderLabel={function (): React.ReactElement {
+                onRenderLabel={(function (): React.ReactElement {
                   return (
                     <span className={styles.checkboxLabelContent}>
                       {isFileTypeFilter && (
@@ -196,7 +196,7 @@ const CheckboxFilter: React.FC<ICheckboxFilterProps> = (props: ICheckboxFilterPr
                       <span>{labelText}</span>
                     </span>
                   );
-                }}
+                }) as unknown as React.ComponentProps<typeof Checkbox>['onRenderLabel']}
               />
               {showCount && (
                 <span className={styles.refinerCount}>({refinerValue.count})</span>

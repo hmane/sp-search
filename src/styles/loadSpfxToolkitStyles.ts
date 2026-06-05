@@ -5,8 +5,6 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('spfx-toolkit/lib/components/Card/card.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-require('spfx-toolkit/lib/components/ErrorBoundary/ErrorBoundary.css');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('spfx-toolkit/lib/components/UserPersona/UserPersona.css');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('spfx-toolkit/lib/components/VersionHistory/VersionHistory.css');

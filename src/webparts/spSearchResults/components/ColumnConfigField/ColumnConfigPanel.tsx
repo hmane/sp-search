@@ -112,12 +112,12 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
       type={PanelType.medium}
       headerText={isAddMode ? 'Add column' : ('Edit column: ' + (draft.alias || draft.property))}
       closeButtonAriaLabel="Close"
-      onRenderFooterContent={(): React.ReactElement => (
+      onRenderFooterContent={((): React.ReactElement => (
         <div className={styles.panelFooter}>
           <PrimaryButton onClick={handleSave} disabled={!draft.property}>Save</PrimaryButton>
           <DefaultButton onClick={onCancel}>Cancel</DefaultButton>
         </div>
-      )}
+      )) as unknown as React.ComponentProps<typeof Panel>['onRenderFooterContent']}
       isFooterAtBottom={true}
     >
       <div className={styles.panelSection}>

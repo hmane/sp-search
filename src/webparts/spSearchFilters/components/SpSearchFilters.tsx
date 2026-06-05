@@ -579,7 +579,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
       messageBarType={MessageBarType.info}
       isMultiline={true}
       styles={{ root: { marginBottom: 4 } }}
-      actions={
+      actions={(
         <div>
           <PrimaryButton
             text="Apply"
@@ -600,7 +600,8 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
             style={{ marginLeft: 8 }}
           />
         </div>
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any}
     >
       The <strong>{presetSuggestion.label}</strong> preset suggests {presetSuggestion.filterSuggestions.length} filter{presetSuggestion.filterSuggestions.length === 1 ? '' : 's'} for this web part — apply now?
     </MessageBar>

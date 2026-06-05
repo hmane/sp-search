@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
+import { Pivot, PivotItem, IPivotItemProps } from '@fluentui/react/lib/Pivot';
 import { PrimaryButton, IconButton } from '@fluentui/react/lib/Button';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { DefaultButton } from '@fluentui/react/lib/Button';
@@ -986,7 +986,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                       + ' unread shared search'
                       + (unacknowledgedShares.length === 1 ? '' : 'es'),
                   } : undefined}
-                  onRenderItemLink={unacknowledgedShares.length > 0 ? function (link, defaultRender): JSX.Element {
+                  onRenderItemLink={unacknowledgedShares.length > 0 ? (function (link: IPivotItemProps | undefined, defaultRender: ((props?: IPivotItemProps) => JSX.Element | null) | undefined): JSX.Element {
                     // T2.D1 — overlay the unread-share count as a small red badge
                     // on the tab header so the cue is visible without opening the tab.
                     return (
@@ -1013,7 +1013,7 @@ const SpSearchManager: React.FC<ISpSearchManagerProps> = (props) => {
                         </span>
                       </span>
                     );
-                  } : undefined}
+                  }) as unknown as React.ComponentProps<typeof PivotItem>['onRenderItemLink'] : undefined}
                 >
                   {unacknowledgedShares.length > 0 && (
                     <MessageBar

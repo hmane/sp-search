@@ -827,7 +827,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             messageBarType={MessageBarType.warning}
             isMultiline={true}
             styles={{ root: { marginBottom: 8 } }}
-            actions={
+            actions={(
               <div>
                 <button
                   type="button"
@@ -847,7 +847,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
                   Retry
                 </button>
               </div>
-            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ) as any}
           >
             First search ran before the Filters web part loaded — URL filters may not have been applied.
             Click Retry to re-run the search now that the filter configuration is loaded, or reload the page.

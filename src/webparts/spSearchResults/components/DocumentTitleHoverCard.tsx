@@ -206,6 +206,8 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
   }, [item, openFormInNewTab]);
 
   const display: string = hostDisplay === 'block' ? 'block' : 'inline';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const plainCardPropsCompat = { onRenderPlainCard: renderPlainCard } as any;
 
   return (
     <>
@@ -214,7 +216,7 @@ const DocumentTitleHoverCard: React.FC<IDocumentTitleHoverCardProps> = (props) =
       ) : (
         <HoverCard
           type={HoverCardType.plain}
-          plainCardProps={{ onRenderPlainCard: renderPlainCard }}
+          plainCardProps={plainCardPropsCompat}
           instantOpenOnClick={false}
           styles={{ host: { display } }}
         >

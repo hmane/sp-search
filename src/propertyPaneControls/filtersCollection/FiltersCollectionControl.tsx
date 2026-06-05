@@ -474,12 +474,12 @@ const FiltersCollectionControl: React.FC<IFiltersCollectionControlProps> = (prop
         customWidth='960px'
         isLightDismiss={false}
         closeButtonAriaLabel='Close'
-        onRenderFooterContent={(): React.ReactElement => (
+        onRenderFooterContent={((): React.ReactElement => (
           <Stack horizontal tokens={{ childrenGap: 8 }} horizontalAlign='end'>
             <DefaultButton text='Cancel' onClick={closePanel} />
             <PrimaryButton text='Save' onClick={commitAndClose} />
           </Stack>
-        )}
+        )) as unknown as React.ComponentProps<typeof Panel>['onRenderFooterContent']}
         isFooterAtBottom
       >
         <div className={styles.panelBody}>
