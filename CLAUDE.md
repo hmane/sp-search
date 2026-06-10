@@ -8,7 +8,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 2. **React 17 + TypeScript 5.3+** — Functional components only, strict mode
 3. **Zustand store via Library Component** — Shared state across web parts, NOT SPFx Dynamic Data
 4. **Multi-instance isolation** — `searchContextId` property on every web part; same ID = shared store
-5. **spfx-toolkit is at `/Users/hemantmane/Development/spfx-toolkit`** (file: link) — ALWAYS use direct path imports
+5. **spfx-toolkit is a sibling clone** — `package.json` resolves it via `file:../spfx-toolkit`. Clone https://github.com/dodgeandcox/spfx-toolkit alongside this repo. ALWAYS use direct path imports (`spfx-toolkit/lib/...`)
 6. **Bundle size is critical** — budgets enforced via `config/bundle-budgets.json` + `scripts/check-bundle-sizes.js`
 7. **ISearchDataProvider abstraction** — Web parts never call PnPjs/Graph directly; always go through providers
 8. **PnP Modern Search v4 is the reference** — Study patterns, don't copy verbatim
@@ -427,7 +427,7 @@ Shipped capabilities (one-line each):
 
 - **PnP Modern Search v4:** https://github.com/microsoft-search/pnp-modern-search — Study query construction, token resolution, refinement tokens, layout switching
 - **PnP Modern Search Docs:** https://microsoft-search.github.io/pnp-modern-search/
-- **spfx-toolkit (local):** `/Users/hemantmane/Development/spfx-toolkit` — Components, hooks, utilities. See README.md, CLAUDE.md, SPFX-Toolkit-Usage-Guide.md
+- **spfx-toolkit (sibling clone):** https://github.com/dodgeandcox/spfx-toolkit — Resolved via `file:../spfx-toolkit` from this repo. See its README.md, CLAUDE.md, SPFX-Toolkit-Usage-Guide.md for component APIs.
 - **PnP Extensibility Samples:** https://github.com/microsoft-search/pnp-modern-search-extensibility-samples
 
 ---
@@ -479,8 +479,8 @@ npm test                                      # heft test (Heft-managed Jest inv
 npm test -- --watch                           # watch mode
 npm test -- --test-path-pattern <pattern>     # filtered run
 
-# spfx-toolkit (in toolkit directory)
-cd /Users/hemantmane/Development/spfx-toolkit && npm run build
+# spfx-toolkit (sibling directory — adjust path to wherever you cloned it)
+cd ../spfx-toolkit && npm run build
 ```
 
 ---

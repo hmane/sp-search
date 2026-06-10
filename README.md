@@ -13,17 +13,34 @@ Enterprise SharePoint search solution built as SPFx 1.22 web parts. Replaces PnP
 | **SP Search Manager** | Saved searches, sharing, collections, history |
 | **SP Search Admin Manager** | Tenant-wide admin dashboard |
 
-All six web parts share a single Zustand store via an SPFx Library Component (`sp-search-store`). Multi-instance isolation via `searchContextId`.
+All six web parts share a single Zustand store via an SPFx Library Component (`spSearchStore`). Multi-instance isolation via `searchContextId`.
 
-## Install
+## First-time setup
+
+Requirements: **Node 22.14+ (< 23)**, npm 10+, gulp not required (Heft replaces it).
+
+This repo depends on **spfx-toolkit** as a sibling directory (`file:../spfx-toolkit` in `package.json`). Clone both repos as siblings:
 
 ```bash
-git clone <repo>
-cd sp-search
-npm install
-npm run package
+# Pick a workspace directory
+mkdir ~/Development && cd ~/Development
+
+# Clone both repos as siblings
+git clone https://github.com/dodgeandcox/sp-search.git
+git clone https://github.com/dodgeandcox/spfx-toolkit.git
+
+# Build the toolkit first (sp-search consumes its compiled lib/)
+cd spfx-toolkit && npm install && npm run build
+
+# Then sp-search
+cd ../sp-search && npm install
+npm test                # 445 tests
+npm run type-check      # tsc --noEmit
+npm run package         # produces sharepoint/solution/sp-search.sppkg
 # upload sharepoint/solution/sp-search.sppkg to your tenant or site app catalog
 ```
+
+If you put the toolkit at a different relative path, update `"spfx-toolkit": "file:../spfx-toolkit"` in [package.json](package.json).
 
 Tagged releases also publish `sp-search.sppkg` as a build artifact on the project's Azure DevOps pipeline, so you can download it instead of building locally.
 
@@ -44,6 +61,23 @@ Tagged releases also publish `sp-search.sppkg` as a build artifact on the projec
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
 - **Contributing:** [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - **Architecture / developer reference:** [`CLAUDE.md`](CLAUDE.md)
+
+## Working with Claude Code
+
+This repo is set up to bootstrap [Claude Code](https://claude.com/claude-code) on a fresh clone:
+
+- **[`CLAUDE.md`](CLAUDE.md)** at the repo root is the authoritative architecture + rules reference. It is loaded automatically into every Claude Code session.
+- **[`.claude/agents/`](.claude/agents/)** ships 7 specialized subagent definitions Claude can invoke for focused tasks:
+  - `webpart-builder` — SPFx web part class + property pane + onInit/render plumbing
+  - `store-architect` — Zustand store, orchestrator, URL sync, registries
+  - `search-provider` — `ISearchDataProvider`, `SearchService`, `TokenService`
+  - `layout-builder` — 6 result layouts, cell renderers, detail panel, per-row ECB
+  - `filter-builder` — 7 filter types, formatters, pill bar, special-field handling
+  - `search-manager` — saved searches, sharing, history, admin tabs, hidden lists
+  - `testing` — jest test patterns, mock fixtures, ignored-test debt
+- **[`.claude/settings.json`](.claude/settings.json)** is the org-shared Claude permission set (committed). Personal-machine permissions live in `.claude/settings.local.json` which is gitignored.
+
+When you open this repo in Claude Code, ask it to "summarize the architecture" or "check what the search runtime path looks like" — it has full context immediately. For multi-step audit-style work, ask it to "dispatch parallel agents to audit X, Y, Z."
 
 ## Tech stack
 
