@@ -20,7 +20,7 @@ describe('validateCoverageSourcePageUrl', () => {
   });
 
   it('passes for an absolute SharePoint URL', () => {
-    expect(validateCoverageSourcePageUrl('https://pixelboy.sharepoint.com/sites/SPSearch/SitePages/Search.aspx')).toBe('');
+    expect(validateCoverageSourcePageUrl('https://dodgeandcox.sharepoint.com/sites/SPSearch/SitePages/Search.aspx')).toBe('');
   });
 
   it('passes for a server-relative /sites/ path', () => {
@@ -32,7 +32,7 @@ describe('validateCoverageSourcePageUrl', () => {
   });
 
   it('flags an http (not https) absolute URL', () => {
-    const msg = validateCoverageSourcePageUrl('http://pixelboy.sharepoint.com/sites/X/SitePages/Y.aspx');
+    const msg = validateCoverageSourcePageUrl('http://dodgeandcox.sharepoint.com/sites/X/SitePages/Y.aspx');
     expect(msg).not.toBe('');
     expect(msg).toMatch(/https/i);
   });
@@ -55,32 +55,32 @@ describe('validateExpectedSiteUrlsField', () => {
   });
 
   it('passes for one valid URL per line', () => {
-    const v = 'https://pixelboy.sharepoint.com/sites/A\nhttps://pixelboy.sharepoint.com/sites/B';
+    const v = 'https://dodgeandcox.sharepoint.com/sites/A\nhttps://dodgeandcox.sharepoint.com/sites/B';
     expect(validateExpectedSiteUrlsField(v)).toBe('');
   });
 
   it('reports the line number of a malformed URL', () => {
-    const v = 'https://pixelboy.sharepoint.com/sites/A\njunk\nhttps://pixelboy.sharepoint.com/sites/B';
+    const v = 'https://dodgeandcox.sharepoint.com/sites/A\njunk\nhttps://dodgeandcox.sharepoint.com/sites/B';
     const msg = validateExpectedSiteUrlsField(v);
     expect(msg).toMatch(/line 2/i);
   });
 
   it('reports the first malformed line when multiple are bad', () => {
-    const v = 'good https://pixelboy.sharepoint.com/sites/A\nbad\nworse';
+    const v = 'good https://dodgeandcox.sharepoint.com/sites/A\nbad\nworse';
     const msg = validateExpectedSiteUrlsField(v);
     // The "good ..." line is itself malformed (has a space), so it should flag line 1
     expect(msg).toMatch(/line 1/i);
   });
 
   it('flags an http (not https) URL with the line number', () => {
-    const v = 'http://pixelboy.sharepoint.com/sites/X';
+    const v = 'http://dodgeandcox.sharepoint.com/sites/X';
     const msg = validateExpectedSiteUrlsField(v);
     expect(msg).toMatch(/https/i);
     expect(msg).toMatch(/line 1/i);
   });
 
   it('ignores blank lines', () => {
-    const v = '\nhttps://pixelboy.sharepoint.com/sites/A\n\nhttps://pixelboy.sharepoint.com/sites/B\n';
+    const v = '\nhttps://dodgeandcox.sharepoint.com/sites/A\n\nhttps://dodgeandcox.sharepoint.com/sites/B\n';
     expect(validateExpectedSiteUrlsField(v)).toBe('');
   });
 });

@@ -30,7 +30,7 @@ import {
 } from '@microsoft/sp-property-pane';
 
 /** Default — points at the repo's main-branch admin-guide.md. */
-const DEFAULT_BASE_URL = 'https://github.com/hmane/sp-search/blob/main/docs/admin-guide.md';
+const DEFAULT_BASE_URL = 'https://github.com/dodgeandcox/sp-search/blob/main/docs/admin-guide.md';
 
 let baseUrl: string = DEFAULT_BASE_URL;
 

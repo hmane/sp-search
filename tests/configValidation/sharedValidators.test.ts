@@ -21,7 +21,7 @@ import type { IManagedProperty } from '../../src/libraries/spSearchStore/interfa
 // ─── validateCoverageProfileSourceUrls ──────────────────────────────────────
 
 describe('validateCoverageProfileSourceUrls', () => {
-  const tenantRoot = 'https://pixelboy.sharepoint.com';
+  const tenantRoot = 'https://dodgeandcox.sharepoint.com';
 
   it('passes when sourceUrls list is empty', () => {
     expect(validateCoverageProfileSourceUrls([], tenantRoot)).toEqual([]);
@@ -29,8 +29,8 @@ describe('validateCoverageProfileSourceUrls', () => {
 
   it('passes when every URL is on the current tenant', () => {
     const profiles = [
-      { title: 'Docs', sourceUrls: 'https://pixelboy.sharepoint.com/sites/SPSearch/Shared Documents' },
-      { title: 'Hub',  sourceUrls: 'https://pixelboy.sharepoint.com/sites/Hub/Docs' },
+      { title: 'Docs', sourceUrls: 'https://dodgeandcox.sharepoint.com/sites/SPSearch/Shared Documents' },
+      { title: 'Hub',  sourceUrls: 'https://dodgeandcox.sharepoint.com/sites/Hub/Docs' },
     ];
     expect(validateCoverageProfileSourceUrls(profiles, tenantRoot)).toEqual([]);
   });
@@ -65,7 +65,7 @@ describe('validateCoverageProfileSourceUrls', () => {
 
   it('returns one issue per row even when many rows are bad', () => {
     const profiles = [
-      { title: 'A', sourceUrls: 'https://pixelboy.sharepoint.com/sites/Ok/Docs' },
+      { title: 'A', sourceUrls: 'https://dodgeandcox.sharepoint.com/sites/Ok/Docs' },
       { title: 'B', sourceUrls: 'broken' },
       { title: 'C', sourceUrls: 'https://other-tenant.sharepoint.com/sites/X' },
     ];
@@ -78,7 +78,7 @@ describe('validateCoverageProfileSourceUrls', () => {
 // ─── validateExpectedSiteUrls ───────────────────────────────────────────────
 
 describe('validateExpectedSiteUrls', () => {
-  const tenantRoot = 'https://pixelboy.sharepoint.com';
+  const tenantRoot = 'https://dodgeandcox.sharepoint.com';
 
   it('passes when list is empty', () => {
     expect(validateExpectedSiteUrls([], tenantRoot)).toEqual([]);
@@ -86,14 +86,14 @@ describe('validateExpectedSiteUrls', () => {
 
   it('passes when all URLs are on the tenant', () => {
     const urls = [
-      'https://pixelboy.sharepoint.com/sites/Hub',
-      'https://pixelboy.sharepoint.com/sites/SPSearch',
+      'https://dodgeandcox.sharepoint.com/sites/Hub',
+      'https://dodgeandcox.sharepoint.com/sites/SPSearch',
     ];
     expect(validateExpectedSiteUrls(urls, tenantRoot)).toEqual([]);
   });
 
   it('flags a non-https URL', () => {
-    const issues = validateExpectedSiteUrls(['http://pixelboy.sharepoint.com/sites/X'], tenantRoot);
+    const issues = validateExpectedSiteUrls(['http://dodgeandcox.sharepoint.com/sites/X'], tenantRoot);
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
     expect(issues[0].message).toMatch(/https/i);
@@ -112,7 +112,7 @@ describe('validateExpectedSiteUrls', () => {
   it('preserves rowIndex (line number) so admins can locate the bad row', () => {
     const issues = validateExpectedSiteUrls(
       [
-        'https://pixelboy.sharepoint.com/sites/A',
+        'https://dodgeandcox.sharepoint.com/sites/A',
         'junk',
         'https://contoso.sharepoint.com/sites/B',
       ],

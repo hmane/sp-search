@@ -9,9 +9,9 @@
     "isDomainIsolated": false,
     "developer": {
       "name": "Hemant Mane",
-      "websiteUrl": "https://github.com/hmane/sp-search",
-      "privacyUrl": "https://raw.githubusercontent.com/hmane/sp-search/main/docs/privacy-notice.md",
-      "termsOfUseUrl": "https://github.com/hmane/sp-search/blob/main/LICENSE",
+      "websiteUrl": "https://github.com/dodgeandcox/sp-search",
+      "privacyUrl": "https://raw.githubusercontent.com/dodgeandcox/sp-search/main/docs/privacy-notice.md",
+      "termsOfUseUrl": "https://github.com/dodgeandcox/sp-search/blob/main/LICENSE",
       "mpnId": ""
     },
     "webApiPermissionRequests": [

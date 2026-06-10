@@ -14,7 +14,7 @@
     site columns, or content types.
 
 .PARAMETER SiteUrl
-    Target SharePoint site URL. Defaults to https://pixelboy.sharepoint.com/sites/SPSearch/
+    Target SharePoint site URL. Defaults to https://dodgeandcox.sharepoint.com/sites/SPSearch/
 
 .PARAMETER ClientId
     Entra app client ID for PnP interactive auth. Defaults to 970bb320-0d49-4b4a-aa8f-c3f4b1e5928f
@@ -33,7 +33,7 @@
 param(
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
-    [string]$SiteUrl = 'https://pixelboy.sharepoint.com/sites/SPSearch/',
+    [string]$SiteUrl = 'https://dodgeandcox.sharepoint.com/sites/SPSearch/',
 
     [Parameter(Mandatory = $false)]
     [string]$ClientId = '970bb320-0d49-4b4a-aa8f-c3f4b1e5928f',

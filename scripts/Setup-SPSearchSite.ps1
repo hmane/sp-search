@@ -14,7 +14,7 @@
 
 .EXAMPLE
     .\scripts\Setup-SPSearchSite.ps1 `
-        -SiteUrl "https://pixelboy.sharepoint.com/sites/SPSearch" `
+        -SiteUrl "https://dodgeandcox.sharepoint.com/sites/SPSearch" `
         -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 

@@ -71,3 +71,8 @@ temp/stats/
 
 # Provisioning (resolved templates are generated at deploy time)
 provisioning/*.resolved.xml
+
+# Internal-only artifacts (audit doc, release-run notes, brainstorming
+# specs, performance baselines). Kept on disk for your reference but
+# not shipped with the public/org repo.
+_internal/

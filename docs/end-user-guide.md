@@ -173,4 +173,4 @@ diagnostic that surfaces tenant-wide search readiness issues.
 
 For installation issues, admin configuration, or feature requests,
 contact the admin who deployed SP Search on this page. Bug reports
-go to [the GitHub issue tracker](https://github.com/hmane/sp-search/issues).
+go to [the GitHub issue tracker](https://github.com/dodgeandcox/sp-search/issues).

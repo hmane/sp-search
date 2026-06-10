@@ -14,7 +14,7 @@
     Based on Mikael Svenson's SearchConfiguration template approach.
 
 .PARAMETER SiteUrl
-    The SharePoint site collection URL (e.g., https://pixelboy.sharepoint.com/sites/SPSearch)
+    The SharePoint site collection URL (e.g., https://dodgeandcox.sharepoint.com/sites/SPSearch)
 
 .PARAMETER ClientId
     Azure AD application client ID for authentication.
@@ -26,7 +26,7 @@
     Skip crawled property existence validation.
 
 .EXAMPLE
-    .\Map-CrawledProperties.ps1 -SiteUrl "https://pixelboy.sharepoint.com/sites/SPSearch"
+    .\Map-CrawledProperties.ps1 -SiteUrl "https://dodgeandcox.sharepoint.com/sites/SPSearch"
 #>
 
 # T4.D1 — `SupportsShouldProcess` with `ConfirmImpact = 'High'` so the

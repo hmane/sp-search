@@ -70,7 +70,7 @@ SP Search delivers five interconnected web parts that communicate via a shared Z
 SP Search draws architecture patterns and search logic from PnP Modern Search v4. Claude Code should clone and reference these repositories during development to reuse proven patterns rather than re-inventing them.
 - **PnP Modern Search v4 (primary reference):** https://github.com/microsoft-search/pnp-modern-search — Source code in search-parts/src/. Key directories: webparts/ (all four web part implementations), dataSources/ (SharePointSearchDataSource — query construction, refinement token handling, result mapping), services/ (TokenService, SearchService, SuggestionService), layouts/ (built-in layout templates). Study the data source layer and token resolution system. We reuse equivalent logic via PnPjs.
 - **PnP Modern Search Documentation:** https://microsoft-search.github.io/pnp-modern-search/ — Key pages: /usage/search-results/ (result config, data sources, slots, tokens), /usage/search-results/data-sources/sharepoint-search/ (SharePoint Search API specifics), /usage/search-box/ (search box config, suggestions), /usage/search-filters/ (Refiner vs Static, deep linking via URL param f, multi-source merging), /usage/search-verticals/ (vertical config, audience targeting, count queries), /usage/search-results/tokens/ (query template token syntax).
-- **spfx-toolkit (internal library):** https://github.com/hmane/spfx-toolkit — Key docs: README.md (critical import patterns for bundle size), SPFX-Toolkit-Usage-Guide.md (component API), CLAUDE.md (AI dev instructions). Components: Card, VersionHistory, DocumentLink, UserPersona, ErrorBoundary, Toast, FormContainer, WorkflowStepper. Hooks: useLocalStorage, useViewport, useCardController, useErrorHandler. Utilities: SPContext, BatchBuilder, createPermissionHelper, createSPExtractor. Always use direct path imports.
+- **spfx-toolkit (internal library):** https://github.com/dodgeandcox/spfx-toolkit — Key docs: README.md (critical import patterns for bundle size), SPFX-Toolkit-Usage-Guide.md (component API), CLAUDE.md (AI dev instructions). Components: Card, VersionHistory, DocumentLink, UserPersona, ErrorBoundary, Toast, FormContainer, WorkflowStepper. Hooks: useLocalStorage, useViewport, useCardController, useErrorHandler. Utilities: SPContext, BatchBuilder, createPermissionHelper, createSPExtractor. Always use direct path imports.
 - **PnP Extensibility Samples:** https://github.com/microsoft-search/pnp-modern-search-extensibility-samples — Custom layouts, web components, data sources, query modifiers.
 - **PnP Scenarios:** https://microsoft-search.github.io/pnp-modern-search/scenarios/ — Ready-made walkthroughs: search pages, filters, verticals, people search, promoted results, query string integration.
 
@@ -1255,7 +1255,7 @@ The following maps spfx-toolkit components, hooks, and utilities to their usage 
 The solution is deployed as a single .sppkg file containing all five web parts and the library component. The package is deployed to a site-level app catalog via CI/CD pipeline.
 - sp-search.sppkg containing:
 - SPSearchBoxWebPart
-**Repository:** https://github.com/hmane/spfx-toolkit — Always use direct path imports to avoid pulling DevExtreme into the bundle (~500KB+). See README.md for import patterns, SPFX-Toolkit-Usage-Guide.md for component APIs, and CLAUDE.md for AI development instructions.
+**Repository:** https://github.com/dodgeandcox/spfx-toolkit — Always use direct path imports to avoid pulling DevExtreme into the bundle (~500KB+). See README.md for import patterns, SPFX-Toolkit-Usage-Guide.md for component APIs, and CLAUDE.md for AI development instructions.
 - SPSearchResultsWebPart
 - SPSearchFiltersWebPart
 - SPSearchVerticalsWebPart
@@ -1848,7 +1848,7 @@ The following URLs are essential references for Claude Code during development. 
 
 ### spfx-toolkit — Internal Component Library
 
-- Repository: https://github.com/hmane/spfx-toolkit
+- Repository: https://github.com/dodgeandcox/spfx-toolkit
 - README.md — Critical bundle size import patterns (ALWAYS use direct path imports)
 - SPFX-Toolkit-Usage-Guide.md — Full component API reference
 - CLAUDE.md — AI development instructions for Claude Code
