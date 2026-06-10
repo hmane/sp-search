@@ -4,15 +4,18 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 ## Quick Reference
 
-1. **SPFx 1.22.2 solution** — 5 web parts + 1 library component in a single .sppkg
-2. **React 17 + TypeScript 4.7+** — Functional components only, strict mode
+1. **SPFx 1.22.2 + Heft solution** — 6 web parts + 1 library component in a single .sppkg
+2. **React 17 + TypeScript 5.3+** — Functional components only, strict mode
 3. **Zustand store via Library Component** — Shared state across web parts, NOT SPFx Dynamic Data
 4. **Multi-instance isolation** — `searchContextId` property on every web part; same ID = shared store
-5. **spfx-toolkit is at `/Users/hemantmane/Development/spfx-toolkit`** — ALWAYS use direct path imports
-6. **Bundle size is critical** — Tree-shake spfx-toolkit, Fluent UI, and DevExtreme
+5. **spfx-toolkit is at `/Users/hemantmane/Development/spfx-toolkit`** (file: link) — ALWAYS use direct path imports
+6. **Bundle size is critical** — budgets enforced via `config/bundle-budgets.json` + `scripts/check-bundle-sizes.js`
 7. **ISearchDataProvider abstraction** — Web parts never call PnPjs/Graph directly; always go through providers
 8. **PnP Modern Search v4 is the reference** — Study patterns, don't copy verbatim
 9. **No additional npm packages** — Only use the dependencies listed in the tech stack
+10. **URL sanitization is mandatory** — every web part's `onInit()` must call `configureLegacyPnPBaseUrl(this.context)` after `SPContext.basic(...)` to strip `/_layouts/15` contamination from the PnP v2 base URL bundled with `@pnp/spfx-controls-react`
+11. **Cancellation is owned by the orchestrator** — use `getOrchestrator(contextId).cancelPending()`. The slice has no `cancelSearch` action
+12. **Registry freeze is lazy** — fires on first `_executeSearch`, NOT in `Results.onInit`. SPFx provides no init-order guarantee, so freezing too early creates a race
 
 ---
 
@@ -30,12 +33,13 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 | # | Package | Type | Description |
 |---|---------|------|-------------|
-| 1 | sp-search-store | SPFx Library Component | Zustand store registry, interfaces, providers, registries |
-| 2 | SPSearchBoxWebPart | Web Part | Query input, suggestions, scope selector, query builder |
-| 3 | SPSearchResultsWebPart | Web Part | Result display with 6 layouts, detail panel, bulk actions |
-| 4 | SPSearchFiltersWebPart | Web Part | Refinement filters with 7 filter types |
-| 5 | SPSearchVerticalsWebPart | Web Part | Tab navigation with badge counts |
-| 6 | SPSearchManagerWebPart | Web Part | Saved searches, sharing, collections, history |
+| 1 | spSearchStore | SPFx Library Component | Zustand store registry, orchestrator, services, providers, registries |
+| 2 | SpSearchBoxWebPart | Web Part | Query input, suggestions, scope selector, query builder (KQL mode) |
+| 3 | SpSearchResultsWebPart | Web Part | Result display with 6 layouts, detail panel, per-row ECB menu |
+| 4 | SpSearchFiltersWebPart | Web Part | Refinement filters with 7 filter types, phone-width drawer |
+| 5 | SpSearchVerticalsWebPart | Web Part | Tab navigation with badge counts, JS-measured overflow menu |
+| 6 | SpSearchManagerWebPart | Web Part | Saved searches, sharing, collections, history (end-user variant) |
+| 7 | SpSearchAdminManagerWebPart | Web Part | Subclass of Manager — Dashboard / Health / Insights / Pre-Flight (admin variant, gated by `manageWeb`) |
 
 ---
 
@@ -401,39 +405,21 @@ sp-search/
 
 ---
 
-## Implementation Phases
+## Release State
 
-### Phase 1: Foundation ✓ Complete
-- Library component with Zustand store registry + URL sync
-- Provider/registry scaffolding (all interfaces + registry classes)
-- Search Box: basic input, debounce, scope selector
-- Search Results: List Layout + Compact Layout
-- Search Filters: Checkbox + Date Range
-- Search Verticals: tabs + badge counts
-- PnPjs search service with AbortController + request coalescing
-- Hidden list provisioning script
+**v1.0.0** is the current GA tag. The historical Phase 1-5 model is retired; see `CHANGELOG.md` for the GA changelog and `docs/sp-search-launch-readiness-audit.md` for the launch-readiness audit. Every audit P0/P1/P2 item has either landed on main or is documented as won't-fix with rationale in the commit message.
 
-### Phase 2: Rich Layouts ✓ Complete
-- DataGrid Layout (DevExtreme), Card Layout, People Layout, Gallery Layout
-- Result Detail Panel with metadata, version history
-- Layout switcher with configurable available layouts per preset
-
-### Phase 3: User Features ✓ Complete
-- Search Manager (standalone + panel), saved/shared searches
-- Collections/pinboards, search history, item-level permissions
-- Promoted Results / Best Bets, StateId deep link fallback
-
-### Phase 4: Power Features ✓ Complete (Sprint 3)
-- Advanced DataGrid: admin-configured columns, cell renderers, filter row, column chooser, virtual scrolling, row selection, CSV export, localStorage column preferences
-- Graph-backed People vertical: `GraphSearchProvider`, presence via `/communications/presences`, Teams/email/profile actions, per-vertical `dataProviderId` routing
-- Analytics feedback loop: `IsZeroResult` logging, `ZeroResultsPanel` (Health tab), `SearchInsightsPanel` (Insights tab) with stat cards / top queries / CTR / daily volume
-- Scenario presets: `SCENARIO_PRESETS` registry in `searchPresets.ts`, `_applyScenarioPreset()`, property pane ChoiceGroup, `Search-ScenarioPresets.ps1` with `Invoke-SearchScenarioPage`
-- Mobile hardening: gallery single-column at 399px, overlay backdrop-filter, iOS DataGrid momentum scroll, layout chunk preloading on hover
-
-### Phase 5: Sprint 4 Backlog
-- Implement `queryInputTransformation` in `SearchOrchestrator` (currently surfaced in props but not applied) — MISS-001
-- Implement `operatorBetweenFilters` in filter execution path or remove from property pane — MISS-002
-- Admin-time property validation in edit mode — T4.D5
+Shipped capabilities (one-line each):
+- 6 web parts + 1 library component, single .sppkg via Heft
+- 6 layouts (DataGrid, Card, List, Compact, People, Gallery) with type-aware cell renderers
+- 7 filter types (Checkbox, DateRange, PeoplePicker, TaxonomyTree, TagBox, Slider, Toggle) + visual filter builder
+- Two data providers (SharePoint + Graph) with per-vertical `dataProviderId` routing
+- Search Manager (end-user + admin variant) with saved/shared/collections/history/promoted results
+- AdminManager Dashboard / Health / Insights / Pre-Flight tabs
+- Multi-context URL sync, scenario presets, layout switcher, detail panel with next/prev navigation
+- Global keyboard shortcuts (`/`, `?`, `Esc`, `Enter`, `Alt+←/→`) via cross-bundle singleton host
+- Cross-bundle DebugFab + Panel singleton (T5.D1)
+- spLog PII-redacting logger + Pre-Flight tenant-readiness scan
 
 ---
 
