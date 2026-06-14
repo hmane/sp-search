@@ -93,4 +93,34 @@ describe('TagBoxFilter batched callback', () => {
     expect(payload.values.every(function (v: IActiveFilter): boolean { return v.operator === 'AND'; }))
       .toBe(true);
   });
+
+  it('output depends only on nextSelectedTokens, not on prior activeFilters state', () => {
+    // The whole point of the batched callback is that the payload carries
+    // the FULL intended selection — it must NOT be computed as a delta
+    // against any external state. Calling the helper with the same selection
+    // tokens must always produce identical output, regardless of context.
+    const independenceValues: IRefinerValue[] = [
+      { name: 'pdf', value: '"pdf"', count: 10, isSelected: false },
+      { name: 'docx', value: '"docx"', count: 5, isSelected: false },
+      { name: 'xlsx', value: '"xlsx"', count: 3, isSelected: false },
+    ];
+
+    const result1 = buildTagBoxBatchPayload({
+      filterName: 'FileType',
+      nextSelectedTokens: ['"pdf"', '"docx"', '"xlsx"'],
+      refinerValues: independenceValues,
+      operator: 'OR',
+    });
+    const result2 = buildTagBoxBatchPayload({
+      filterName: 'FileType',
+      nextSelectedTokens: ['"pdf"', '"docx"', '"xlsx"'],
+      refinerValues: independenceValues,
+      operator: 'OR',
+    });
+
+    expect(result1).toEqual(result2);
+    expect(result1.values).toHaveLength(3);
+    expect(result1.values.map(function (v: IActiveFilter): string { return v.value; }))
+      .toEqual(['"pdf"', '"docx"', '"xlsx"']);
+  });
 });
