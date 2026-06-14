@@ -1,5 +1,6 @@
 import { buildTagBoxBatchPayload } from '@webparts/spSearchFilters/components/TagBoxFilter';
 import { buildDropdownBatchPayload } from '@webparts/spSearchFilters/components/DropdownFilter';
+import { buildTaxonomyBatchPayload } from '@webparts/spSearchFilters/components/TaxonomyTreeFilter';
 import type { IActiveFilter, IRefinerValue } from '@interfaces/index';
 
 describe('TagBoxFilter batched callback', () => {
@@ -247,5 +248,56 @@ describe('DropdownFilter batched callback', () => {
     expect(result1.values).toHaveLength(3);
     expect(result1.values.map(function (v: IActiveFilter): string { return v.value; }))
       .toEqual(['"pdf"', '"docx"', '"xlsx"']);
+  });
+});
+
+describe('buildTaxonomyBatchPayload', () => {
+  it('maps selected node keys to a single batched payload', () => {
+    const tokenMap = new Map<string, string>([
+      ['aaaa-bbbb-cccc-1', 'GP0|#aaaa-bbbb-cccc-1'],
+      ['aaaa-bbbb-cccc-2', 'GP0|#aaaa-bbbb-cccc-2'],
+    ]);
+    const labelMap = new Map<string, string>([
+      ['aaaa-bbbb-cccc-1', 'Electronics'],
+      ['aaaa-bbbb-cccc-2', 'Books'],
+    ]);
+
+    const payload = buildTaxonomyBatchPayload(
+      'owstaxIdProductCategory',
+      ['aaaa-bbbb-cccc-1', 'aaaa-bbbb-cccc-2'],
+      tokenMap,
+      labelMap,
+      'OR'
+    );
+
+    expect(payload).toEqual({
+      filterName: 'owstaxIdProductCategory',
+      values: [
+        {
+          filterName: 'owstaxIdProductCategory',
+          value: 'GP0|#aaaa-bbbb-cccc-1',
+          displayValue: 'Electronics',
+          operator: 'OR',
+        },
+        {
+          filterName: 'owstaxIdProductCategory',
+          value: 'GP0|#aaaa-bbbb-cccc-2',
+          displayValue: 'Books',
+          operator: 'OR',
+        },
+      ],
+    });
+  });
+
+  it('falls back to GP0|#<guid> when tokenMap has no entry for a key', () => {
+    const payload = buildTaxonomyBatchPayload(
+      'Cat',
+      ['unmapped-guid'],
+      new Map(),
+      new Map(),
+      'OR'
+    );
+    expect(payload.values[0].value).toBe('GP0|#unmapped-guid');
+    expect(payload.values[0].displayValue).toBeUndefined();
   });
 });
