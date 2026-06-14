@@ -26,7 +26,7 @@ The **Admin Manager → Pre-Flight** tab runs an automated readiness check. Open
 
 | Check | What it verifies | Resolution if it fails |
 |---|---|---|
-| Graph `People.Read` permission | Tenant has approved the Graph permission declared by the .sppkg | SharePoint admin centre → Advanced → API access → approve the pending request |
+| Graph `People.Read` / `User.Read` permissions | Tenant has approved the Graph permissions declared by the .sppkg. `People.Read` powers the People vertical; `User.Read` powers audience targeting via `/me/memberOf`. | SharePoint admin centre → Advanced → API access → approve the pending requests |
 | Hidden lists exist | `SearchSavedQueries`, `SearchHistory`, `SearchCollections` are present on the site | Re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` or `Setup-SPSearchSite.ps1` |
 | SearchHistory item-level security | `ReadSecurity = 2`, `WriteSecurity = 2` (users see only their own rows) | Re-run `Deploy-SPSearchSolution.ps1`; the script sets this via CSOM after template apply |
 | `IsZeroResult` field on SearchHistory | Boolean field added in Sprint 3 — needed for Health and Insights tabs | Add field manually via `Add-PnPField -List SearchHistory -DisplayName "IsZeroResult" -InternalName "IsZeroResult" -Type Boolean` or re-run provisioning |
@@ -96,7 +96,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 | Cause | Fix |
 |---|---|
 | Cross-vertical count query failed | Check Graph / SharePoint search service availability; reload the page |
-| Context mismatch | Property pane → all five web parts → set the same `searchContextId` |
+| Context mismatch | Property pane → all connected search web parts → set the same `searchContextId` |
 | Vertical query too narrow | Property pane → Verticals → edit query template |
 | Old bundle in browser cache | Hard-refresh; if still stale, clear SharePoint CDN cache or wait for CDN TTL |
 
@@ -126,7 +126,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 
 ### Diagnose
 
-1. Open browser console. Look for errors prefixed `[SP Search]` or `[SPSearch...]`. Common ones:
+1. Open browser console. Look for errors prefixed `[SP Search]`. Common ones:
    - `Cannot read properties of undefined (reading 'getState')` → store not yet initialised (race; fixed in current build with `_store` guards in all six web parts).
    - `Failed to fetch` / `403` → permission or auth issue.
    - `Refused to display ... in a frame` → CSP / X-Frame-Options on the iframe target.
@@ -175,7 +175,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 1. **Save button disabled** — hover for the tooltip. It tells you which precondition isn't met (typically: empty query + no filters applied).
 2. **Save succeeds but search doesn't appear in the list** — `SearchSavedQueries` hidden list either missing or permissions broken. Verify in `https://<site>/Lists/SearchSavedQueries/AllItems.aspx`.
 3. **Share succeeds but recipient sees nothing** — item-level security broken. The Share action calls `breakRoleInheritance()` + `addRoleAssignment(<recipient>)` on the saved-search list item. If the user doesn't have permission to break role inheritance on the list, the item permissions don't update. List should have inheritance broken globally (see Pre-Flight).
-4. **History empty** — `SearchHistory` list missing OR `IsZeroResult` field missing. The runtime writes a row per query; if the write fails silently (missing field), the history stays empty. Check browser console for `[SPSearch:Service] Failed to write history` warnings.
+4. **History empty** — `SearchHistory` list missing OR `IsZeroResult` field missing. The runtime writes a row per query; if the write fails, the history stays empty. Check browser console for `[SP Search] SearchManagerService.logSearch failed` or schema-mismatch warnings.
 5. **Notification badge doesn't clear** — the dismiss handler writes `Acknowledged = true` on the share row; if write fails (permission issue), the badge persists. Check Network tab for `403` on the PATCH.
 
 ### Resolution
@@ -237,7 +237,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 
 ### Diagnose
 
-1. Check the web part's property pane → **Audience targeting** group → look at the configured Azure AD group object IDs. Empty = visible to everyone; non-empty = restricted.
+1. Check the web part's property pane → **Audience targeting** group → look at the configured Microsoft Entra group object IDs. Empty = visible to everyone; non-empty = restricted.
 2. Per-vertical / per-refiner / per-promoted-result audience targeting works the same way — each can carry its own audience list.
 3. **Hidden for everyone** — audience group IDs are configured, but Graph couldn't resolve the current user's group membership (failed `/me/memberOf` call). Default is fail-closed → nobody sees the surface until membership resolves.
 4. Open `?debug=1` → check the store's `currentUserGroups` value. If `[]`, Graph call failed or hasn't completed.
@@ -247,7 +247,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 | Cause | Fix |
 |---|---|
 | `User.Read` Graph permission not granted | SP admin centre → API access → approve. The least-privilege scope for `/me/memberOf`. |
-| Group object ID typo | Open the Azure AD group, copy the **Object ID** (GUID), paste into the audience field. Display name doesn't work. |
+| Group object ID typo | Open the Microsoft Entra group, copy the **Object ID** (GUID), paste into the audience field. Display name doesn't work. |
 | Want visible to all again | Clear the audience field in the property pane. Empty = visible. |
 
 ## Performance
@@ -286,7 +286,7 @@ Only Owners/Admins see the FAB. End users with `?debug=1` see nothing.
 
 ### Browser console
 
-All SP Search log lines are prefixed `[SP Search]` or `[SPSearch:<area>]`. Filter the console by `SPSearch` to isolate. Warn/error level always emits; debug/info gated to `?debug=1` in production builds.
+All SP Search log lines are prefixed `[SP Search]`. Filter the console by `[SP Search]` to isolate. Warn/error level always emits; debug/info is gated to `?debug=1` in production builds.
 
 ### PowerShell
 
@@ -326,6 +326,6 @@ Invoke-PnPSearchQuery -Query "*" -SelectProperties "Title" -SortList @{} -TrimDu
 If a symptom doesn't match anything above and the Pre-Flight passes:
 
 1. Capture `?debug=1` → Multi-Context tab screenshot (shows store state)
-2. Capture browser console errors filtered to `SPSearch`
+2. Capture browser console errors filtered to `[SP Search]`
 3. Capture the failing request from Network tab (URL + response headers + body)
 4. File a bug at the GitHub issue tracker with all three attached.

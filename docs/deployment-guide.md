@@ -30,7 +30,7 @@ sharepoint/solution/sp-search.sppkg
 
 **Recommended path — one script does everything:**
 
-`scripts/Deploy-SPSearchSolution.ps1` uploads the `.sppkg`, installs the app on the target site, applies the PnP provisioning template (creates the three hidden lists + the Search.aspx page with all web parts pre-wired), and configures `SearchHistory` item-level security. Use it against either a site- or tenant-level App Catalog. See [`scripts/README.md`](../scripts/README.md) for the full script inventory.
+`scripts/Deploy-SPSearchSolution.ps1` uploads the `.sppkg`, installs the app on the target site, applies the PnP provisioning template (creates the three hidden lists + the Search.aspx page with the connected search web parts pre-wired), and configures `SearchHistory` item-level security. Use it against either a site- or tenant-level App Catalog. See [`scripts/README.md`](../scripts/README.md) for the full script inventory.
 
 ```powershell
 # Site-level (default) — uploads to <SiteUrl>/AppCatalog
@@ -91,7 +91,7 @@ Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/search" -Interactiv
     -ClientId "<azure-ad-app-id>"
 ```
 
-`Setup-SPSearchSite.ps1` provisions the three hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`), creates the Search.aspx page, and wires the five web parts. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
+`Setup-SPSearchSite.ps1` provisions the three hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`), creates the Search.aspx page, wires the five connected search web parts, and adds the Admin Manager surface when enabled. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
 
 ## Safe Re-Runs (T4.D1)
 
@@ -145,20 +145,84 @@ Built-in scenario page presets:
 - `knowledge-base`
 - `policy-search`
 
+## Promote Web Part Configuration Between Environments
+
+When a search page has been tuned in dev/test, export the page's SP Search web part property bags and import them into the matching target page instead of manually re-entering every setting.
+
+Export from the source page:
+
+```powershell
+.\scripts\Export-SPSearchPageConfig.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search-dev" `
+    -ClientId "<azure-ad-app-id>" `
+    -PageName "Search" `
+    -OutputPath ".\config\search-page.dev.json" `
+    -TokenizeSiteUrl `
+    -Force
+```
+
+Import into the target page:
+
+```powershell
+# Preview first
+.\scripts\Import-SPSearchPageConfig.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search-prod" `
+    -ClientId "<azure-ad-app-id>" `
+    -PageName "Search" `
+    -ConfigPath ".\config\search-page.dev.json" `
+    -WhatIf
+
+# Apply and publish
+.\scripts\Import-SPSearchPageConfig.ps1 `
+    -SiteUrl "https://contoso.sharepoint.com/sites/search-prod" `
+    -ClientId "<azure-ad-app-id>" `
+    -PageName "Search" `
+    -ConfigPath ".\config\search-page.dev.json" `
+    -Force
+```
+
+The target page must already contain the SP Search web parts. Use `Deploy-SPSearchSolution.ps1 -ProvisionSite`, `Provision-SPSearchPage.ps1`, or `Search-ScenarioPresets.ps1` to create the page, then run the import. The import preserves page layout and non-SP Search controls; it updates only matching SP Search web parts.
+
+The exported JSON includes every SPFx `properties` value for these web parts:
+
+- SP Search Box
+- SP Search Results
+- SP Search Filters
+- SP Search Verticals
+- SP Search Manager
+- SP Search Admin Manager
+
+This includes complex collection settings such as refiners, verticals, selected/result properties, compact and grid columns, sortable properties, coverage profiles, audience targeting, layout toggles, query behavior, and debug options. It intentionally does not migrate hidden-list data (`SearchHistory`, saved searches, collections), per-user state, page sections, or unrelated web parts.
+
+For a concrete example, see [`config/sp-search-page-config.sample.json`](../config/sp-search-page-config.sample.json). It shows the shape of a full export with all six SP Search web parts and tokenized URLs.
+
+For environment-specific values, use tokens. `-TokenizeSiteUrl` replaces the source site URL with `{siteUrl}` in the export; import replaces `{siteUrl}` with the target `-SiteUrl`. Additional replacements can be supplied through a token file:
+
+```json
+{
+  "tokens": {
+    "contentHubUrl": "https://contoso.sharepoint.com/sites/content-prod",
+    "managedPropertyPrefix": "RefinableString"
+  }
+}
+```
+
 ## Graph Permissions
 
-Grant Graph permissions before enabling Graph-backed People features in production.
+Grant Graph permissions before enabling Graph-backed People features or audience targeting in production. The package currently requests `People.Read` and `User.Read`.
 
 | Capability | Permission |
 |------------|------------|
-| Graph people vertical | Microsoft Graph access for `/search/query` on people entities |
-| Org chart section | `User.Read.All` |
+| People vertical | `People.Read` |
+| Audience targeting | `User.Read` for `/me/memberOf` |
+| Org chart section | Optional `User.Read.All` if that feature is enabled separately |
 
 If Graph permission is not granted:
 
 - SharePoint-backed search still works
-- Graph people verticals do not return full Graph people results
-- org-chart relationships stay hidden
+- Graph people verticals do not return full people results when `People.Read` is missing
+- Audience-targeted web parts, verticals, refiners, and promoted results stay hidden when `User.Read` is missing
+- org-chart relationships stay hidden when optional org-chart permissions are missing
 
 ## Minimal Page Setup
 
@@ -187,7 +251,7 @@ Recommended authoring order:
 4. **SP Search Results**
 5. **SP Search Manager** in panel mode
 
-Then set the same `searchContextId` on all five web parts.
+Then set the same `searchContextId` on all five connected search web parts.
 
 Recommended starter page behavior:
 
@@ -200,7 +264,7 @@ Recommended starter page behavior:
 
 Run this after deployment:
 
-- After uploading the `.sppkg`, the SharePoint admin center "API access" page surfaces a pending `People.Read` request for Microsoft Graph (declared in `webApiPermissionRequests` per Found.D10). Approve it before deploying the People vertical (Graph-backed search results).
+- After uploading the `.sppkg`, the SharePoint admin center "API access" page surfaces pending Microsoft Graph requests from `webApiPermissionRequests`. Approve `People.Read` before deploying the People vertical, and approve `User.Read` before relying on audience targeting.
 
 | Test | Expected result |
 |------|-----------------|
@@ -226,7 +290,8 @@ Quick reference. For symptom→diagnosis→resolution depth, see [admin-runbook.
 | No provider registered | `searchContextId` consistency across Box/Results/Filters/Verticals/Manager |
 | Filters show no values | Managed property is marked **refinable** in the SharePoint search schema |
 | Author people filter returns nothing | Use `AuthorOWSUSER`, not `Author` |
-| Graph people results missing | Graph permission approved in SP admin centre → Advanced → API access |
+| Graph people results missing | `People.Read` approved in SP admin centre → Advanced → API access |
+| Audience-targeted items hidden for everyone | `User.Read` approved in SP admin centre → Advanced → API access; audience values are Microsoft Entra group or directory-role object IDs |
 | History / Health / Insights empty | Hidden lists provisioned (re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` or `Setup-SPSearchSite.ps1`) |
 | Web part doesn't load on the page | `?debug=1` to open the DebugFab + check browser console; check `searchContextId` mismatch banner in edit mode |
 | Click a PDF, current tab navigates away | Page was published before `data-interception="off"` shipped; re-publish the page |

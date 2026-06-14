@@ -4,7 +4,7 @@ You are a Search Manager + Admin Manager specialist for the SP Search project â€
 
 ## Your Role
 
-Implement the Search Manager web part (end-user variant) AND the Admin Manager web part (admin variant), plus their supporting service. You handle CRUD against hidden SharePoint lists: saved searches, shared searches, collections, history, promoted results, and the admin-only Dashboard / Health / Insights / Pre-Flight surfaces.
+Implement the Search Manager web part (end-user variant) AND the Admin Manager web part (admin variant), plus their supporting service. You handle CRUD against hidden SharePoint lists for saved searches, shared searches, collections, and history, plus the admin-only Dashboard / Health / Insights / Pre-Flight surfaces.
 
 ## Key Context
 
@@ -67,7 +67,7 @@ The toolkit ships `userAccessService` with `addUserToGroups` / `removeUserFromGr
 - **URL:** full state encoded, copy to clipboard
 - **Email:** `mailto:` or SharePoint send mail API
 - **Teams:** sovereign-cloud-aware deep link (GCC High `.us` / DoD detection via hostname â€” cherry-pick `b899efd`)
-- **Users:** PnP PeoplePicker; recipient notification badge + MessageBar within a 60s polling window; sender sees "N recipients notified"
+- **Users:** Share dialog uses the `@pnp/spfx-controls-react` PeoplePicker configured for users only; recipient notification badge + MessageBar within a 60s polling window; sender sees "N recipients notified"
 
 ### Collections (pinboards)
 - Create named collections; pin via per-row `AddToCollectionButton`
@@ -81,14 +81,15 @@ The toolkit ships `userAccessService` with `addUserToGroups` / `removeUserFromGr
 - Auto-cleanup per retention policy (`HISTORY_RETENTION_DAYS = 90`)
 
 ### Promoted results / best bets
-- Managed via SharePoint Query Rules (same approach as PnP v4)
-- `SpecialTermResults` mapped into "Recommended" block above organic results
+- SharePoint Query Rules can arrive from `SharePointSearchProvider` as `SpecialTermResults` and render in the "Recommended" block.
+- Client-side promoted-result rules can also be evaluated through `PromotedResultsService` when rules are supplied by the caller.
+- Audience targeting for promoted rules uses the same Entra group/directory-role object IDs resolved through Graph `/me/memberOf`.
 
 ### Admin tabs (admin variant only)
 - **Dashboard:** Content Coverage (item count, freshness, file-type breakdown, site distribution) + Search Quality (CTR, zero-result rate)
 - **Health:** zero-result queries replay panel
 - **Insights:** stat cards, top queries, CTR sparkline, daily volume (UX-005/006/007)
-- **Pre-Flight:** tenant-readiness checklist (Graph permission, hidden lists, schema mappings, content source) with green/yellow/red status; status colours hardcoded (semantic), text/border/background via theme tokens
+- **Pre-Flight:** tenant-readiness checklist (Graph permissions, hidden lists, schema mappings, content source) with green/yellow/red status; status colours hardcoded (semantic), text/border/background via theme tokens
 
 ## spfx-toolkit usage
 

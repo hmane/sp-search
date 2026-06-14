@@ -159,7 +159,7 @@ The DataGrid is meant for power users and includes:
 - column chooser
 - column resize
 - fullscreen view
-- row selection and bulk actions
+- row action menu for open, copy, download, add to collection, and item actions when available
 - CSV and XLSX export
 - persisted column state in local storage
 
@@ -191,6 +191,12 @@ The Filters web part owns refiner configuration and how multiple filters combine
 - People filters should use `AuthorOWSUSER`, not `Author`. The filter web part normalizes legacy `Author` people filters to `AuthorOWSUSER`.
 - Date range, people, and toggle filters can render without returned refiner buckets, which allows useful starter filters even on clean pages.
 - `operatorBetweenFilters = OR` is implemented in the provider path and produces cross-property `or(...)` FQL for SharePoint search.
+- Checkbox, dropdown, Tag Box, and taxonomy filters use cascading refiners. When one multi-select refiner is active, that refiner is refreshed with its own selections excluded so users can still add sibling values; other refiners remain narrowed by the active filters.
+- Selected values are preserved even if SharePoint returns them with a zero count, so users can always see and remove the active selection. Unselected zero-count values are hidden from rendered filter controls.
+- The refiner editor validates URL aliases and blocks Save when two refiners resolve to the same alias. Blank aliases auto-generate from managed property and filter type.
+- The **Data format** section can strip SharePoint `type;#` prefixes for display while preserving the raw refinement token for filtering. Use `text` to opt out if a real value intentionally starts with that pattern.
+- Taxonomy filters render as Tag Box controls with term-label resolution. Configure `termSetId` for production taxonomy refiners to avoid per-GUID label lookup fan-out.
+- Audience targeting fields accept Microsoft Entra group or directory-role object IDs returned by Graph `/me/memberOf`; user emails, UPNs, SharePoint group names, and nested group-only membership do not match.
 
 ## Search Verticals
 
@@ -334,7 +340,7 @@ Graph-backed People search, org-chart traversal, and audience targeting require 
 | Org chart manager/direct reports | `User.Read.All` |
 | Audience targeting (verticals, refiners, web parts, promoted results) | `User.Read` — least-privilege scope for `/me/memberOf` per [Microsoft Learn](https://learn.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0) |
 
-Approve each permission at **SharePoint admin centre → Advanced → API access**. Pending approval, audience-targeted content stays hidden (fail-closed): verticals / refiners / web parts gated to specific Azure AD groups will be invisible to every user until the scope is approved.
+Approve each permission at **SharePoint admin centre → Advanced → API access**. Pending approval, audience-targeted content stays hidden (fail-closed): verticals / refiners / web parts gated to specific Microsoft Entra groups will be invisible to every user until the scope is approved.
 
 If Graph permission is not approved:
 
@@ -382,10 +388,10 @@ These warnings are advisory. They do not block rendering, but they should be res
 ## Property Pane Help Topics (T4.D11)
 
 Each property pane group on the SP Search web parts renders a "Help:
-&lt;topic&gt;" button as its first field. The button opens a local modal
+&lt;topic&gt;" link as its first field. The link opens a local modal
 bundled with the web part package; admins no longer leave SharePoint or
 open GitHub to read configuration guidance. Topic IDs used by the help
-buttons:
+links:
 
 <a id="quick-start"></a>
 
@@ -447,7 +453,8 @@ shortcuts, quick results. See [Search Box](#search-box).
 Filters → **Filters** group. Manage the refiner collection
 (checkbox / dropdown / date-range / slider / people / taxonomy /
 tag-box / toggle). Configure managed property, display name, URL
-alias, max values, sort, dependencies. See [Search Filters](#search-filters).
+alias, max values, sort, dependencies, data format, and audience targeting.
+See [Search Filters](#search-filters).
 
 <a id="filters-behavior"></a>
 

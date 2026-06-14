@@ -1,5 +1,11 @@
 # Refiner Enhancements Implementation Plan
 
+> **Historical implementation plan:** this file records the task plan used
+> during the 2026-06-13 refiner work. The final shipped taxonomy implementation
+> pivoted from PnP `TaxonomyPicker` to DevExtreme `TagBox` with term-label
+> resolution so refiner counts and cascade narrowing stay intact. Use the design
+> spec and admin guide for current behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix three refiner bugs (people picker crash, multi-value selection clobber, taxonomy selection-doesn't-persist) and add five enhancements (type-aware values, delimited value splits, Fluent taxonomy UI, configurable toggle defaults, native DevExtreme TagBox).

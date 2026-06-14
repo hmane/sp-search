@@ -19,11 +19,11 @@ Implement and maintain the 6 built-in result layouts, type-aware cell renderers,
 
 | Layout | Component | Notes |
 |---|---|---|
-| DataGrid | DevExtreme `DataGrid` (lazy) | Admin-configured columns, filter row, column chooser, virtual scroll, CSV + XLSX export, localStorage column prefs per `searchContextId`; wrapped in `DataGridRenderErrorBoundary` that falls back to List |
+| DataGrid | DevExtreme `DataGrid` (lazy) | Admin-configured columns, column chooser, virtual scroll, CSV + XLSX export, row ECB actions, localStorage column prefs per `searchContextId`; wrapped in `DataGridRenderErrorBoundary` that falls back to List |
 | Card | spfx-toolkit `Card` | Accordion grouping, maximize, responsive grid |
 | List (default) | Custom React | Google-style result cards; per-row ECB via `buildRowActionMenu` (Open / Download / Copy link) |
 | Compact | Custom React | Dense table view; per-row ECB in a trailing 32px grid column; hover-reveal opacity with `@media (hover: none)` override for touch |
-| People | Fluent UI + spfx-toolkit `UserPersona` | Presence chips, Teams/email/profile actions |
+| People | Fluent UI persona cards | Profile photo, department/job metadata, skills/about text, org chart when available, Teams/email/profile actions |
 | Gallery | Custom React | Thumbnail grid; phone-width single column at 399px |
 
 ## `ILayoutDefinition` (live source: `interfaces/`)

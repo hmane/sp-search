@@ -1,23 +1,28 @@
 # Refiner Enhancements — Design
 
 **Date:** 2026-06-13
-**Status:** Draft — pending user review
+**Status:** Implemented — final behavior includes the taxonomy TagBox pivot
 **Scope:** 8 distinct refiner issues — 3 bugs + 5 enhancements
 
 ## Background
 
 Production use of the post-1.0 SP Search solution surfaced 8 distinct issues with the Refiners surface. They share enough plumbing (filter slice, refiner mapping in `_mapRefiners`, the Filters web part's `handleToggleRefiner`) that fixing them piecemeal would mean re-touching the same files several times. This spec bundles them into one design and one implementation pass.
 
+> **Final state note:** the original draft expected PnP `TaxonomyPicker`; the
+> shipped implementation pivoted to DevExtreme `TagBox` with PnP term-store
+> label resolution because that preserves per-value counts, selected-state
+> persistence, and cascading refiner behavior.
+
 The issues, grouped by character:
 
 | # | Label | Type | Severity |
 |---|---|---|---|
 | E | People refiner crashes with `Cannot read properties of undefined (reading 'defaultClass')` | Bug | High |
-| A | Multi-value refiners (TagBox, PeoplePicker, TaxonomyTree, Dropdown-multi) clobber selections when more than one value changes at once | Bug | High |
+| A | Multi-value refiners (TagBox, People picker, taxonomy TagBox, Dropdown-multi) clobber selections when more than one value changes at once | Bug | High |
 | G | Refiner selection state doesn't visually persist after a search re-fires (most visible on Taxonomy) | Bug | Medium |
 | B | Refiner values surface SharePoint's `string;#` / `int;#` / `datetime;#` raw storage prefix because no data-type awareness exists | Enhancement | Medium |
 | F | Text refiners can't split delimited values (comma / semicolon / newline) into separate buckets | Enhancement | Medium |
-| C | Taxonomy filter UI (DevExtreme `TreeView` with `searchEnabled`) reads as "search box with options below" — not a real tree | Enhancement | Medium |
+| C | Taxonomy filter UI needed a more usable multi-select experience while preserving counts and cascade narrowing | Enhancement | Medium |
 | D | Toggle filter has no admin-configurable default value | Enhancement | Low-Medium |
 | H | DevExtreme `TagBox` shows grey pills (default `dx.light.css`) because our Fluent-blue overrides lose the CSS specificity fight | Polish | Low |
 
@@ -26,7 +31,7 @@ The issues, grouped by character:
 1. Eliminate the broken People picker (third-party module-css import crash) by moving off `@pnp/spfx-controls-react`'s `PeoplePicker` to Fluent UI v8 `NormalPeoplePicker`.
 2. Eliminate the multi-toggle clobber bug — multi-value filters emit the **full intended selection** rather than looping per-delta.
 3. Make refiner values **data-type aware**: strip `string;#`-style prefixes by default (auto-detect) with an admin override per refiner, and let admins split delimited Text values into separate buckets.
-4. Replace the DevExtreme `TreeView` taxonomy filter with `@pnp/spfx-controls-react`'s `TaxonomyPicker`, with a webpack alias-shim fallback if its SCSS-module import crashes the same way `PropertyFieldCollectionData`'s did.
+4. Replace the flat taxonomy `TreeView` with a taxonomy `TagBox` that resolves GUIDs to term labels while keeping SharePoint Search refiner counts and cascade narrowing.
 5. Add a configurable default value for the Toggle filter type.
 6. Stop fighting DevExtreme's stock styling for `TagBox` — let `dx.light.css` win.
 
@@ -175,7 +180,7 @@ Goal: ship the broken-thing fixes plus the small enhancement together. Reviewabl
 
 **PR 2 — Type-aware refiners + Taxonomy UI:**
 5. Issue B + F (dataType + valueSplitDelimiter end-to-end)
-6. Issue C (TaxonomyPicker swap, with pre-flight + alias-shim fallback)
+6. Issue C (taxonomy TagBox pivot with term-label resolution)
 
 Goal: separate PR because of property-pane schema additions + new KQL token transforms. Both deserve focused review.
 
@@ -197,7 +202,7 @@ Goal: separate PR because of property-pane schema additions + new KQL token tran
 
 | Risk | Mitigation |
 |---|---|
-| PnP `TaxonomyPicker` SCSS import crashes like `CollectionDataViewer` did | Pre-flight check + alias-shim fallback already in the design |
+| Taxonomy label lookup fans out heavily when no `termSetId` is configured | Prefer configured `termSetId`, cache resolved labels, and fall back to raw token display while labels load |
 | `_mapRefiners` gaining a `filterConfig` dependency tangles a previously-pure mapper | Pass `filterConfig` as a function arg, not a service injection — keeps the mapper pure |
 | Auto-detect strips legitimate values that happen to look like `type;#…` | Heuristic only fires when entry matches `^[A-Za-z]+;#` AND `dataType === 'auto'`; admins can override per-refiner |
 | Toggle default values ride over user-cleared state on revisit | URL-restore wins over defaults — once user interacts, the URL has their selection and it sticks |
@@ -217,6 +222,4 @@ Goal: separate PR because of property-pane schema additions + new KQL token tran
 - `src/libraries/spSearchStore/store/storeRegistry.ts` (or equivalent init — Toggle defaultValue seed)
 - `src/propertyPaneControls/filtersCollection/FiltersCollectionControl.tsx` (UI for new fields)
 - `src/propertyPaneControls/filtersCollection/fieldRelevance.ts` (relevance map updates)
-- `src/propertyPaneControls/pnpStyleShims/TaxonomyPicker.module.scss.js` (new file, conditional on pre-flight — Issue C)
-- `gulpfile.js` (webpack alias, conditional — Issue C)
 - Tests in `tests/webparts/spSearchFilters/` + `tests/providers/`

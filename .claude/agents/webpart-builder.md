@@ -125,7 +125,7 @@ Wrap your React tree with `<SearchContextIdBannerWrapper contextId=... webPartLa
 
 ## What You Should NOT Do
 
-- Don't skip `configureLegacyPnPBaseUrl(this.context)` in `onInit` (PeoplePicker / TaxonomyPicker / FileTypeIcon will 404 on `/_layouts/15/` app pages)
+- Don't skip `configureLegacyPnPBaseUrl(this.context)` in `onInit` (`@pnp/spfx-controls-react` surfaces such as FileTypeIcon and the Search Manager share-dialog PeoplePicker can 404 on `/_layouts/15/` app pages)
 - Don't call `SPContext.smart()` or `SPContext.spPessimistic.search()` (the latter makes zero API calls — PnPjs augmentation only attaches to `SPContext.sp`)
 - Don't skip the `if (!this._store) return;` render guard (SPFx fires render before onInit completes during theme loading)
 - Don't introduce module-level `Map`s for cross-bundle shared state — webpack duplicates them per entry; use `window`-backed singletons (see DebugFabHost pattern)

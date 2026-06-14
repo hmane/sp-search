@@ -7,8 +7,8 @@ Enterprise SharePoint search solution built as SPFx 1.22 web parts. Replaces PnP
 | Web part | Purpose |
 |----------|---------|
 | **SP Search Box** | Query input with KQL mode, suggestions, scope selector |
-| **SP Search Results** | Results display with 6 layouts (DataGrid, Card, List, Compact, People, Gallery), detail panel, bulk actions |
-| **SP Search Filters** | Refinement filters (Checkbox, DateRange, Slider, PeoplePicker, TaxonomyTree, TagBox, Toggle) |
+| **SP Search Results** | Results display with 6 layouts (DataGrid, Card, List, Compact, People, Gallery), detail panel, row actions |
+| **SP Search Filters** | Refinement filters (Checkbox, Date range, Slider, People, Taxonomy Tag Box, Tag Box, Toggle) |
 | **SP Search Verticals** | Tab navigation with badge counts |
 | **SP Search Manager** | Saved searches, sharing, collections, history |
 | **SP Search Admin Manager** | Tenant-wide admin dashboard |
@@ -34,7 +34,7 @@ cd spfx-toolkit && npm install && npm run build
 
 # Then sp-search
 cd ../sp-search && npm install
-npm test                # 445 tests
+npm test                # 524 tests
 npm run type-check      # tsc --noEmit
 npm run package         # produces sharepoint/solution/sp-search.sppkg
 # upload sharepoint/solution/sp-search.sppkg to your tenant or site app catalog
@@ -44,7 +44,7 @@ If you put the toolkit at a different relative path, update `"spfx-toolkit": "fi
 
 Tagged releases also publish `sp-search.sppkg` as a build artifact on the project's Azure DevOps pipeline, so you can download it instead of building locally.
 
-> After deploying, approve the `Microsoft Graph: People.Read` API access request in the SharePoint admin center for the People vertical to function (declared in `webApiPermissionRequests` per Found.D10).
+> After deploying, approve the Microsoft Graph API access requests shown by the package. `People.Read` powers the People vertical; `User.Read` powers audience targeting through Graph `/me/memberOf`.
 
 ## Documentation
 

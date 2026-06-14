@@ -1,0 +1,523 @@
+{
+  "$schema": "./sp-search-page-config.schema.json",
+  "schemaVersion": 1,
+  "solution": "sp-search",
+  "exportedAt": "2026-06-14T00:00:00.0000000Z",
+  "source": {
+    "siteUrl": "{siteUrl}",
+    "pageName": "Search.aspx",
+    "pageUrl": "{siteUrl}/SitePages/Search.aspx",
+    "listName": "Site Pages",
+    "itemId": 42
+  },
+  "importNotes": {
+    "matching": "Import matches by instanceId first, then component + searchContextId + occurrence, then component + occurrence.",
+    "scope": "Only SP Search web part property bags are exported. Page sections, non-SP Search controls, list data, and per-user local state are not migrated.",
+    "tokenReplacement": "Use {siteUrl} for target-site-specific URLs. Import always provides {siteUrl}; TokenFile can provide additional tokens."
+  },
+  "webParts": [
+    {
+      "key": "spsearchbox:1",
+      "component": "SP Search Box",
+      "title": "SP Search Box",
+      "componentId": "13a82dbe-2c57-4e20-bfe8-ec4de5776191",
+      "instanceId": "11111111-1111-1111-1111-111111111111",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 1,
+        "sectionIndex": 1,
+        "sectionFactor": 12,
+        "controlIndex": 1
+      },
+      "properties": {
+        "searchContextId": "default",
+        "placeholder": "Search account documents...",
+        "debounceMs": 300,
+        "searchBehavior": "both",
+        "resetSearchOnClear": true,
+        "enableScopeSelector": true,
+        "searchScopes": [
+          {
+            "id": "all",
+            "label": "All",
+            "kqlPath": "",
+            "resultSourceId": ""
+          },
+          {
+            "id": "current-site",
+            "label": "Current site",
+            "kqlPath": "Path:\"{siteUrl}\"",
+            "resultSourceId": ""
+          },
+          {
+            "id": "account-docs",
+            "label": "Account Docs",
+            "kqlPath": "Path:\"{siteUrl}/Account Documents\"",
+            "resultSourceId": ""
+          }
+        ],
+        "enableSuggestions": true,
+        "enableSharePointSuggestions": true,
+        "enableRecentSuggestions": true,
+        "enablePopularSuggestions": true,
+        "enableQuickResults": true,
+        "enablePropertySuggestions": true,
+        "suggestionsPerGroup": 5,
+        "enableQueryBuilder": true,
+        "enableKqlMode": true,
+        "enableSearchManager": true,
+        "searchInNewPage": false,
+        "newPageUrl": "",
+        "newPageOpenBehavior": "sameTab",
+        "newPageParameterLocation": "queryString",
+        "newPageQueryParameter": "q",
+        "queryInputTransformation": "{searchTerms}",
+        "audienceGroups": ""
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    },
+    {
+      "key": "spsearchverticals:1",
+      "component": "SP Search Verticals",
+      "title": "SP Search Verticals",
+      "componentId": "d0481c49-49f9-4219-90fe-be8338051f58",
+      "instanceId": "22222222-2222-2222-2222-222222222222",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 1,
+        "sectionIndex": 2,
+        "sectionFactor": 12,
+        "controlIndex": 1
+      },
+      "properties": {
+        "searchContextId": "default",
+        "verticals": "[]",
+        "verticalsCollection": [
+          {
+            "uniqueId": "vertical-all",
+            "key": "all",
+            "label": "All",
+            "iconName": "Search",
+            "queryTemplate": "{searchTerms}",
+            "resultSourceId": "",
+            "dataProviderId": "",
+            "defaultLayout": "list",
+            "sortOrder": 1,
+            "isLink": false,
+            "linkUrl": "",
+            "openBehavior": "currentTab",
+            "audience": ""
+          },
+          {
+            "uniqueId": "vertical-documents",
+            "key": "documents",
+            "label": "Documents",
+            "iconName": "Page",
+            "queryTemplate": "{searchTerms} IsDocument:1",
+            "resultSourceId": "",
+            "dataProviderId": "",
+            "defaultLayout": "grid",
+            "sortOrder": 2,
+            "isLink": false,
+            "linkUrl": "",
+            "openBehavior": "currentTab",
+            "audience": ""
+          },
+          {
+            "uniqueId": "vertical-people",
+            "key": "people",
+            "label": "People",
+            "iconName": "People",
+            "queryTemplate": "{searchTerms}",
+            "resultSourceId": "b09a7990-05ea-4af9-81ef-edfab16c4e31",
+            "dataProviderId": "graph-people",
+            "defaultLayout": "people",
+            "sortOrder": 3,
+            "isLink": false,
+            "linkUrl": "",
+            "openBehavior": "currentTab",
+            "audience": "00000000-0000-0000-0000-000000000001"
+          },
+          {
+            "uniqueId": "vertical-admin-docs",
+            "key": "admin-docs",
+            "label": "Admin Docs",
+            "iconName": "OpenInNewWindow",
+            "queryTemplate": "",
+            "resultSourceId": "",
+            "dataProviderId": "",
+            "defaultLayout": "",
+            "sortOrder": 4,
+            "isLink": true,
+            "linkUrl": "{siteUrl}/Shared Documents/Forms/AllItems.aspx",
+            "openBehavior": "newTab",
+            "audience": "00000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "defaultVertical": "all",
+        "showCounts": true,
+        "hideEmptyVerticals": false,
+        "tabStyle": "underline",
+        "audienceGroups": ""
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    },
+    {
+      "key": "spsearchresults:1",
+      "component": "SP Search Results",
+      "title": "SP Search Results",
+      "componentId": "1836671c-a710-45b4-9a83-55c65344a3d5",
+      "instanceId": "33333333-3333-3333-3333-333333333333",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 1,
+        "sectionIndex": 3,
+        "sectionFactor": 8,
+        "controlIndex": 1
+      },
+      "properties": {
+        "searchContextId": "default",
+        "queryTemplate": "{searchTerms}",
+        "selectedProperties": "Title,Author,LastModifiedTime,FileType,Size,Path,SiteName,ContentType,AuthorOWSUSER,RefinableString00,RefinableString01",
+        "selectedPropertiesCollection": [
+          { "uniqueId": "sp-title", "property": "Title", "alias": "Title" },
+          { "uniqueId": "sp-author", "property": "Author", "alias": "Author" },
+          { "uniqueId": "sp-modified", "property": "LastModifiedTime", "alias": "Modified" },
+          { "uniqueId": "sp-filetype", "property": "FileType", "alias": "Type" },
+          { "uniqueId": "sp-size", "property": "Size", "alias": "Size" },
+          { "uniqueId": "sp-path", "property": "Path", "alias": "URL" },
+          { "uniqueId": "sp-site", "property": "SiteName", "alias": "Site" },
+          { "uniqueId": "sp-document-type", "property": "RefinableString00", "alias": "Document Type" },
+          { "uniqueId": "sp-account", "property": "RefinableString01", "alias": "Account" }
+        ],
+        "compactPropertiesCollection": [
+          { "uniqueId": "compact-author", "property": "Author", "alias": "Author", "width": 160, "visibility": "defaultOn", "renderer": "persona" },
+          { "uniqueId": "compact-modified", "property": "LastModifiedTime", "alias": "Modified", "width": 120, "visibility": "defaultOn", "renderer": "date" },
+          { "uniqueId": "compact-type", "property": "FileType", "alias": "Type", "width": 80, "visibility": "defaultOn", "renderer": "fileType" },
+          { "uniqueId": "compact-size", "property": "Size", "alias": "Size", "width": 90, "visibility": "defaultOn", "renderer": "fileSize" }
+        ],
+        "gridPropertiesCollection": [
+          { "uniqueId": "grid-title", "property": "Title", "alias": "Name", "width": 320, "visibility": "always", "renderer": "text", "maxLength": 120, "seeMoreLink": true },
+          { "uniqueId": "grid-author", "property": "Author", "alias": "Author", "width": 180, "visibility": "defaultOn", "renderer": "persona" },
+          { "uniqueId": "grid-modified", "property": "LastModifiedTime", "alias": "Modified", "width": 130, "visibility": "defaultOn", "renderer": "date" },
+          { "uniqueId": "grid-type", "property": "FileType", "alias": "Type", "width": 90, "visibility": "defaultOn", "renderer": "fileType" },
+          { "uniqueId": "grid-size", "property": "Size", "alias": "Size", "width": 90, "visibility": "defaultOn", "renderer": "fileSize" },
+          { "uniqueId": "grid-document-type", "property": "RefinableString00", "alias": "Document Type", "width": 180, "visibility": "defaultOff", "renderer": "tags", "multiValueSeparator": "pill" },
+          { "uniqueId": "grid-account", "property": "RefinableString01", "alias": "Account", "width": 180, "visibility": "defaultOff", "renderer": "text" },
+          { "uniqueId": "grid-path", "property": "Path", "alias": "Path", "width": 360, "visibility": "defaultOff", "renderer": "url", "maxLength": 80, "seeMoreLink": true }
+        ],
+        "showColumnChooser": true,
+        "resultSourceId": "",
+        "refinementFilters": "",
+        "refinementFiltersCollection": [
+          {
+            "uniqueId": "rf-site-path",
+            "property": "Path",
+            "operator": "startsWith",
+            "value": "{siteUrl}"
+          }
+        ],
+        "collapseSpecification": "",
+        "enableQueryRules": true,
+        "trimDuplicates": false,
+        "pageSize": 25,
+        "showPaging": true,
+        "pageRange": 5,
+        "sortablePropertiesCollection": [
+          { "uniqueId": "sort-relevance", "property": "Rank", "label": "Relevance", "direction": "Descending" },
+          { "uniqueId": "sort-modified-desc", "property": "LastModifiedTime", "label": "Newest", "direction": "Descending" },
+          { "uniqueId": "sort-title-asc", "property": "Title", "label": "Title", "direction": "Ascending" }
+        ],
+        "defaultLayout": "grid",
+        "showResultCount": true,
+        "showSortDropdown": true,
+        "showDeleteConfirmation": true,
+        "enablePreviewPanel": true,
+        "hideWebPartWhenNoResults": false,
+        "emptyResultsMessage": "",
+        "titleDisplayMode": "wrap",
+        "resultClickTarget": "sidePanel",
+        "documentLinkMode": "file",
+        "listItemLinkMode": "displayForm",
+        "searchScope": "currentsite",
+        "searchScopePath": "{siteUrl}",
+        "showListLayout": true,
+        "showCompactLayout": true,
+        "showGridLayout": true,
+        "showCardLayout": false,
+        "showPeopleLayout": true,
+        "showGalleryLayout": false,
+        "layoutPreset": "custom",
+        "audienceGroups": ""
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    },
+    {
+      "key": "spsearchfilters:1",
+      "component": "SP Search Filters",
+      "title": "SP Search Filters",
+      "componentId": "2eb68250-879f-45a8-af9b-9fc3e97b2050",
+      "instanceId": "44444444-4444-4444-4444-444444444444",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 2,
+        "sectionIndex": 3,
+        "sectionFactor": 4,
+        "controlIndex": 1
+      },
+      "properties": {
+        "searchContextId": "default",
+        "filtersCollection": [
+          {
+            "uniqueId": "filter-inactive",
+            "managedProperty": "RefinableString99",
+            "displayName": "Hide Inactive Documents",
+            "urlAlias": "inactive",
+            "filterType": "toggle",
+            "operator": "OR",
+            "maxValues": 2,
+            "defaultExpanded": true,
+            "showCount": true,
+            "sortBy": "count",
+            "sortDirection": "desc",
+            "multiValues": false,
+            "hideZeroCountValues": true,
+            "resetWhenParentChanges": false,
+            "trueLabel": "No",
+            "falseLabel": "All",
+            "invertBoolean": false,
+            "defaultValue": false,
+            "dataType": "yesno",
+            "audience": ""
+          },
+          {
+            "uniqueId": "filter-document-type",
+            "managedProperty": "RefinableString00",
+            "displayName": "Document Type",
+            "urlAlias": "doctype",
+            "filterType": "tagbox",
+            "operator": "OR",
+            "maxValues": 50,
+            "defaultExpanded": true,
+            "showCount": true,
+            "sortBy": "count",
+            "sortDirection": "desc",
+            "multiValues": true,
+            "hideZeroCountValues": true,
+            "resetWhenParentChanges": false,
+            "dataType": "choiceMulti",
+            "valueSplitDelimiter": ";",
+            "audience": ""
+          },
+          {
+            "uniqueId": "filter-account",
+            "managedProperty": "RefinableString01",
+            "displayName": "Account Name",
+            "urlAlias": "account",
+            "filterType": "tagbox",
+            "operator": "OR",
+            "maxValues": 200,
+            "defaultExpanded": false,
+            "showCount": true,
+            "sortBy": "name",
+            "sortDirection": "asc",
+            "multiValues": true,
+            "dependsOn": "filter-document-type",
+            "showWhenParentHasValue": true,
+            "hideZeroCountValues": true,
+            "resetWhenParentChanges": true,
+            "dataType": "auto",
+            "audience": ""
+          },
+          {
+            "uniqueId": "filter-modified",
+            "managedProperty": "LastModifiedTime",
+            "displayName": "Modified date",
+            "urlAlias": "modified",
+            "filterType": "daterange",
+            "operator": "OR",
+            "maxValues": 1,
+            "defaultExpanded": true,
+            "showCount": false,
+            "sortBy": "count",
+            "sortDirection": "desc",
+            "multiValues": false,
+            "hideZeroCountValues": true,
+            "dataType": "datetime",
+            "audience": ""
+          },
+          {
+            "uniqueId": "filter-author",
+            "managedProperty": "AuthorOWSUSER",
+            "displayName": "Author",
+            "urlAlias": "author",
+            "filterType": "people",
+            "operator": "OR",
+            "maxValues": 20,
+            "defaultExpanded": false,
+            "showCount": true,
+            "sortBy": "count",
+            "sortDirection": "desc",
+            "multiValues": true,
+            "hideZeroCountValues": true,
+            "dataType": "text",
+            "audience": "00000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "applyMode": "instant",
+        "operatorBetweenFilters": "AND",
+        "showClearAll": true,
+        "enableVisualFilterBuilder": true,
+        "audienceGroups": ""
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    },
+    {
+      "key": "spsearchmanager:1",
+      "component": "SP Search Manager",
+      "title": "SP Search Manager",
+      "componentId": "46308c1c-af6b-43c5-98b7-2d39082498cb",
+      "instanceId": "55555555-5555-5555-5555-555555555555",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 1,
+        "sectionIndex": 1,
+        "sectionFactor": 12,
+        "controlIndex": 2
+      },
+      "properties": {
+        "searchContextId": "default",
+        "mode": "panel",
+        "defaultTab": "history",
+        "enableSavedSearches": true,
+        "enableSharedSearches": true,
+        "enableCollections": true,
+        "enableHistory": true,
+        "coverageProfilesCollection": [],
+        "enableHealth": false,
+        "enableInsights": false,
+        "enableDashboard": false,
+        "enableAnnotations": true,
+        "expectedSiteUrls": "",
+        "maxHistoryItems": 100,
+        "showResetAction": true,
+        "showSaveAction": true
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    },
+    {
+      "key": "spsearchadminmanager:1",
+      "component": "SP Search Admin Manager",
+      "title": "SP Search Admin Manager",
+      "componentId": "17007020-148e-49b8-a628-972fa08139c6",
+      "instanceId": "66666666-6666-6666-6666-666666666666",
+      "occurrence": 1,
+      "searchContextId": "default",
+      "position": {
+        "layoutIndex": 1,
+        "zoneIndex": 1,
+        "sectionIndex": 4,
+        "sectionFactor": 12,
+        "controlIndex": 1
+      },
+      "properties": {
+        "searchContextId": "default",
+        "mode": "standalone",
+        "defaultTab": "dashboard",
+        "enableSavedSearches": false,
+        "enableSharedSearches": false,
+        "enableCollections": false,
+        "enableHistory": false,
+        "coverageProfilesCollection": [
+          {
+            "uniqueId": "coverage-account-docs",
+            "title": "Account Documents",
+            "description": "Primary account document library.",
+            "queryTemplate": "{searchTerms} IsDocument:1",
+            "resultSourceId": "",
+            "sourceUrls": "{siteUrl}/Account Documents",
+            "contentTypeIds": "0x0101005F056EFE8AD6D14D9ABC7377480CF95*",
+            "excludePaths": "",
+            "includeFolders": false,
+            "trimDuplicates": false,
+            "refinementFilters": ""
+          },
+          {
+            "uniqueId": "coverage-site-pages",
+            "title": "Site Pages",
+            "description": "Published pages in the current search site.",
+            "queryTemplate": "{searchTerms}",
+            "resultSourceId": "",
+            "sourceUrls": "{siteUrl}/SitePages",
+            "contentTypeIds": "",
+            "excludePaths": "",
+            "includeFolders": false,
+            "trimDuplicates": true,
+            "refinementFilters": "contentclass:STS_ListItem_WebPageLibrary"
+          }
+        ],
+        "enableHealth": true,
+        "enableInsights": true,
+        "enableDashboard": true,
+        "enableAnnotations": false,
+        "expectedSiteUrls": "{siteUrl}\n{contentHubUrl}",
+        "maxHistoryItems": 50,
+        "showResetAction": false,
+        "showSaveAction": false
+      },
+      "serverProcessedContent": {
+        "htmlStrings": {},
+        "searchablePlainTexts": {},
+        "imageSources": {},
+        "links": {}
+      },
+      "dynamicDataPaths": null,
+      "dynamicDataValues": null
+    }
+  ]
+}

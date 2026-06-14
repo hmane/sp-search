@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/sp-search-page-config.schema.json",
+  "title": "SP Search Page Configuration Export",
+  "description": "Raw SP Search web part property export produced by scripts/Export-SPSearchPageConfig.ps1.",
+  "type": "object",
+  "required": ["schemaVersion", "solution", "webParts"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "solution": {
+      "type": "string",
+      "const": "sp-search"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "siteUrl": { "type": "string" },
+        "pageName": { "type": "string" },
+        "pageUrl": { "type": "string" },
+        "listName": { "type": "string" },
+        "itemId": { "type": ["integer", "string"] }
+      }
+    },
+    "webParts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component", "properties"],
+        "additionalProperties": true,
+        "properties": {
+          "key": { "type": "string" },
+          "component": {
+            "type": "string",
+            "enum": [
+              "SP Search Box",
+              "SP Search Results",
+              "SP Search Filters",
+              "SP Search Verticals",
+              "SP Search Manager",
+              "SP Search Admin Manager"
+            ]
+          },
+          "title": { "type": ["string", "null"] },
+          "componentId": { "type": ["string", "null"] },
+          "instanceId": { "type": ["string", "null"] },
+          "occurrence": { "type": ["integer", "null"] },
+          "searchContextId": { "type": ["string", "null"] },
+          "position": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "serverProcessedContent": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          },
+          "dynamicDataPaths": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          },
+          "dynamicDataValues": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

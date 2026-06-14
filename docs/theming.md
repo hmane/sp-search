@@ -97,7 +97,7 @@ or the SharePoint admin centre.
 
 - No standalone dark-mode override or auto-detection. The host
   SharePoint Modern theme drives everything.
-- DevExtreme components (DataGrid, FilterBuilder, TreeView) have
+- DevExtreme components (DataGrid, FilterBuilder, TagBox/Taxonomy filters) have
   their own theme system — they DO NOT pick up SharePoint theme
   rotations automatically. If you change the site theme to a dark
   palette, DevExtreme surfaces stay on their default light theme.

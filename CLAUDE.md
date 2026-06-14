@@ -36,7 +36,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 | 1 | spSearchStore | SPFx Library Component | Zustand store registry, orchestrator, services, providers, registries |
 | 2 | SpSearchBoxWebPart | Web Part | Query input, suggestions, scope selector, query builder (KQL mode) |
 | 3 | SpSearchResultsWebPart | Web Part | Result display with 6 layouts, detail panel, per-row ECB menu |
-| 4 | SpSearchFiltersWebPart | Web Part | Refinement filters with 7 filter types, phone-width drawer |
+| 4 | SpSearchFiltersWebPart | Web Part | Refinement filters with 9 registered filter types, phone-width drawer |
 | 5 | SpSearchVerticalsWebPart | Web Part | Tab navigation with badge counts, JS-measured overflow menu |
 | 6 | SpSearchManagerWebPart | Web Part | Saved searches, sharing, collections, history (end-user variant) |
 | 7 | SpSearchAdminManagerWebPart | Web Part | Subclass of Manager — Dashboard / Health / Insights / Pre-Flight (admin variant, gated by `manageWeb`) |
@@ -51,7 +51,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 |-----------|---------|---------|
 | SharePoint Framework | 1.22.2 | SPFx web part platform |
 | React | 17.0.1 | UI framework |
-| TypeScript | 4.7+ | Type safety |
+| TypeScript | 5.3.x | Type safety |
 | PnPjs (SP) | 3.x | SharePoint Search API (default provider) |
 | Microsoft Graph Client | 3.x | Graph Search API (optional provider) |
 
@@ -60,11 +60,11 @@ This file provides comprehensive guidance for Claude Code when working with the 
 | Library | Version | Usage |
 |---------|---------|-------|
 | spfx-toolkit | Latest | Card, VersionHistory, DocumentLink, ErrorBoundary, UserPersona, FormContainer, hooks, utilities |
-| DevExtreme | 22.2.x | DataGrid, FilterBuilder, TagBox, TreeView, DateRangeBox |
+| DevExtreme | 22.2.x | DataGrid, FilterBuilder, TagBox, DateBox, RangeSlider |
 | devextreme-react | 22.2.x | React wrappers for DevExtreme |
 | Fluent UI v8 | 8.106.x | Panel, CommandBar, Persona, Shimmer, Icons, Theme |
-| @pnp/spfx-controls-react | 3.x | PeoplePicker, TaxonomyPicker |
-| @pnp/spfx-property-controls | 3.x | PropertyFieldCollectionData, PropertyFieldNumber, PropertyFieldToggleWithCallout, PropertyFieldColorPicker, PropertyPanePropertyEditor |
+| @pnp/spfx-controls-react | 3.x | FileTypeIcon, Search Manager share-dialog PeoplePicker |
+| @pnp/spfx-property-controls | 3.x | Utility property controls only. Do not reintroduce PnP `PropertyFieldCollectionData`; use the local `PropertyPaneCollectionData` replacement. |
 
 ### State & Utilities
 
@@ -99,17 +99,17 @@ import { Icon } from '@fluentui/react/lib/Icon';
 // DevExtreme — Lazy load heavy components
 const DataGrid = React.lazy(() => import('devextreme-react/data-grid'));
 const FilterBuilder = React.lazy(() => import('devextreme-react/filter-builder'));
-const TreeView = React.lazy(() => import('devextreme-react/tree-view'));
 // Direct import ONLY for lightweight components:
 import { TagBox } from 'devextreme-react/tag-box';
-import { DateRangeBox } from 'devextreme-react/date-range-box';
+import { DateBox } from 'devextreme-react/date-box';
+import { RangeSlider } from 'devextreme-react/range-slider';
 ```
 
 ### Architecture Rules
 
 1. **Web parts NEVER call PnPjs or Graph directly** — Always through `ISearchDataProvider`
 2. **All inter-webpart communication via Zustand store** — No SPFx Dynamic Data, no events, no DOM
-3. **Store is accessed via `getStore(searchContextId)`** — From the sp-search-store library component
+3. **Store is accessed via `getStore(searchContextId)`** — From the `spSearchStore` library component
 4. **AbortController on every search** — Cancel in-flight requests before starting new ones
 5. **Request coalescing** — Token resolution + KQL construction computed once per query cycle
 6. **URL sync is bi-directional** — State changes update URL; URL load restores state
@@ -127,7 +127,7 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 5. **Date refiners use FQL range()** — NOT raw KQL date comparisons
 6. **Item-level permissions** on saved/shared searches — `breakRoleInheritance()` + `addRoleAssignment()`
 7. **`IsZeroResult` Boolean field in SearchHistory** — Added in Sprint 3. Any pre-Sprint 3 install needs the field added before Health/Insights tabs populate. `mapToHistoryEntry` reads it with `ext.boolean('IsZeroResult', false)` — note `boolean()` not `bool()`.
-8. **GraphSearchProvider requires `People.Read`** — `Sites.Read.All` is NOT sufficient for Graph people search. Presence batch calls use `/communications/presences` (no extra permission required beyond People.Read).
+8. **Graph permissions are capability-specific** — `People.Read` powers the People vertical; `User.Read` powers audience targeting through `/me/memberOf`; `User.Read.All` is optional for org-chart manager/direct reports. `Sites.Read.All` is not sufficient for Graph people search.
 
 ### Security Rules
 
@@ -135,7 +135,7 @@ import { DateRangeBox } from 'devextreme-react/date-range-box';
 2. **No innerHTML** — Always render via React (XSS prevention)
 3. **JSON validated against interfaces** before storage
 4. **No data leaves the SharePoint tenant** — All processing client-side
-5. **Promoted results use SharePoint Query Rules** — No custom admin config list
+5. **Promoted results can be provider-mapped or client-evaluated** — SharePoint Query Rules arrive as `SpecialTermResults`; client-side promoted-result rules can also be evaluated by `PromotedResultsService`. Keep URLs/text sanitized and audience targeting fail-closed.
 
 ---
 
@@ -163,7 +163,7 @@ const store = getStore(this.properties.searchContextId);
 | filterSlice | Filter selections & refiners | activeFilters, availableRefiners, displayRefiners |
 | verticalSlice | Vertical tabs & counts | currentVerticalKey, verticals, verticalCounts |
 | resultSlice | Results & pagination | items, totalCount, currentPage, sort, promotedResults |
-| uiSlice | UI presentation | activeLayoutKey, previewPanel, bulkSelection |
+| uiSlice | UI presentation | activeLayoutKey, availableLayouts, previewPanel, currentUserGroups |
 | userSlice | User data from lists | savedSearches, searchHistory, collections |
 
 ### URL Sync Parameters
@@ -183,7 +183,7 @@ Multi-context pages namespace params: `?ctx1.q=budget&ctx2.q=john`
 
 ### Provider/Registry Model
 
-All registries are per-store-instance, hosted in sp-search-store:
+All registries are per-store-instance, hosted in the `spSearchStore` library:
 
 | Registry | Interface | Built-in Providers |
 |----------|-----------|-------------------|
@@ -191,7 +191,7 @@ All registries are per-store-instance, hosted in sp-search-store:
 | SuggestionProviderRegistry | ISuggestionProvider | RecentSearchProvider, TrendingQueryProvider, ManagedPropertyProvider |
 | ActionProviderRegistry | IActionProvider | OpenAction, PreviewAction, ShareAction, PinAction, CopyLinkAction, DownloadAction |
 | LayoutRegistry | ILayoutDefinition | DataGrid, Card, List, Compact, People, DocumentGallery |
-| FilterTypeRegistry | IFilterTypeDefinition | Checkbox, DateRange, Slider, PeoplePicker, TaxonomyTree, TagBox, Toggle |
+| FilterTypeRegistry | IFilterTypeDefinition | Checkbox, Dropdown, DateRange, Text, Toggle, TagBox, Slider, Taxonomy TagBox, People |
 
 Registration happens in `onInit()`. Registries freeze after first search execution.
 
@@ -205,161 +205,100 @@ sp-search/
 ├── docs/
 │   └── sp-search-requirements.md
 ├── src/
-│   ├── library/                          # SPFx Library Component
-│   │   └── sp-search-store/
-│   │       ├── SpSearchStoreLibrary.ts   # Library component class
-│   │       ├── store/
-│   │       │   ├── createStore.ts        # Zustand store factory
-│   │       │   ├── registry.ts           # Store registry (getStore/disposeStore)
-│   │       │   └── slices/
-│   │       │       ├── querySlice.ts
-│   │       │       ├── filterSlice.ts
-│   │       │       ├── verticalSlice.ts
-│   │       │       ├── resultSlice.ts
-│   │       │       ├── uiSlice.ts
-│   │       │       └── userSlice.ts
-│   │       ├── middleware/
-│   │       │   └── urlSyncMiddleware.ts  # Bi-directional URL sync
-│   │       ├── providers/
-│   │       │   ├── data/
-│   │       │   │   ├── SharePointSearchProvider.ts
-│   │       │   │   └── GraphSearchProvider.ts
-│   │       │   ├── suggestions/
-│   │       │   │   ├── RecentSearchProvider.ts
-│   │       │   │   ├── TrendingQueryProvider.ts
-│   │       │   │   └── ManagedPropertyProvider.ts
-│   │       │   └── actions/
-│   │       │       ├── OpenAction.ts
-│   │       │       ├── PreviewAction.ts
-│   │       │       ├── ShareAction.ts
-│   │       │       ├── PinAction.ts
-│   │       │       ├── CopyLinkAction.ts
-│   │       │       └── DownloadAction.ts
-│   │       ├── registries/
-│   │       │   ├── Registry.ts           # Generic Registry<T> class
-│   │       │   ├── DataProviderRegistry.ts
-│   │       │   ├── SuggestionProviderRegistry.ts
-│   │       │   ├── ActionProviderRegistry.ts
-│   │       │   ├── LayoutRegistry.ts
-│   │       │   └── FilterTypeRegistry.ts
-│   │       ├── services/
-│   │       │   ├── SearchService.ts      # Query construction, token resolution, coalescing
-│   │       │   ├── TokenService.ts       # {searchTerms}, {Site.ID}, etc.
-│   │       │   └── SearchManagerService.ts # CRUD for saved searches, collections, history
-│   │       ├── interfaces/
-│   │       │   ├── ISearchStore.ts
-│   │       │   ├── ISearchDataProvider.ts
-│   │       │   ├── ISearchResult.ts
-│   │       │   ├── IFilterConfig.ts
-│   │       │   ├── IVerticalDefinition.ts
-│   │       │   ├── ISuggestionProvider.ts
-│   │       │   ├── IActionProvider.ts
-│   │       │   ├── ILayoutDefinition.ts
-│   │       │   ├── IFilterTypeDefinition.ts
-│   │       │   ├── IFilterValueFormatter.ts
-│   │       │   ├── IPromotedResult.ts
-│   │       │   └── index.ts
-│   │       ├── utils/
-│   │       │   ├── urlEncoder.ts         # Filter/state URL encoding/decoding
-│   │       │   ├── refinementTokens.ts   # FQL token encoding/decoding
-│   │       │   ├── queryHash.ts          # SHA-256 for history dedup
-│   │       │   └── formatters.ts         # Type-aware value formatters
-│   │       └── index.ts                  # Public API exports
+│   ├── libraries/
+│   │   └── spSearchStore/                # SPFx Library Component
+│   │       ├── SpSearchStoreLibrary.ts
+│   │       ├── store/                    # Zustand store factory + slices
+│   │       ├── orchestrator/             # SearchOrchestrator
+│   │       ├── providers/                # SharePoint, Graph, suggestions
+│   │       ├── providers/actions/        # Open, copy, download, pin/action providers
+│   │       ├── registries/               # Generic Registry<T>
+│   │       ├── services/                 # Search, token, audience, manager, coverage
+│   │       ├── interfaces/               # Shared contracts
+│   │       ├── configValidation/         # Shared edit-mode validators
+│   │       ├── telemetry/
+│   │       └── utils/
 │   │
 │   ├── webparts/
-│   │   ├── searchBox/
-│   │   │   ├── SPSearchBoxWebPart.ts
+│   │   ├── spSearchBox/
+│   │   │   ├── SpSearchBoxWebPart.ts
 │   │   │   ├── components/
-│   │   │   │   ├── SearchBox.tsx
+│   │   │   │   ├── SpSearchBox.tsx
 │   │   │   │   ├── SuggestionDropdown.tsx
 │   │   │   │   ├── ScopeSelector.tsx
 │   │   │   │   └── QueryBuilder.tsx
 │   │   │   ├── loc/
-│   │   │   └── SPSearchBoxWebPart.manifest.json
+│   │   │   └── SpSearchBoxWebPart.manifest.json
 │   │   │
-│   │   ├── searchResults/
-│   │   │   ├── SPSearchResultsWebPart.ts
+│   │   ├── spSearchResults/
+│   │   │   ├── SpSearchResultsWebPart.ts
 │   │   │   ├── components/
-│   │   │   │   ├── SearchResults.tsx
+│   │   │   │   ├── SpSearchResults.tsx
 │   │   │   │   ├── ResultToolbar.tsx
 │   │   │   │   ├── ActiveFilterPillBar.tsx
-│   │   │   │   ├── BulkActionsToolbar.tsx
-│   │   │   │   ├── PromotedResultsBlock.tsx
-│   │   │   │   └── DetailPanel/
-│   │   │   │       ├── ResultDetailPanel.tsx
-│   │   │   │       ├── DocumentPreview.tsx
-│   │   │   │       ├── MetadataDisplay.tsx
-│   │   │   │       └── RelatedDocuments.tsx
-│   │   │   ├── layouts/
 │   │   │   │   ├── DataGridLayout.tsx
-│   │   │   │   ├── CardLayout.tsx
 │   │   │   │   ├── ListLayout.tsx
 │   │   │   │   ├── CompactLayout.tsx
+│   │   │   │   ├── CardLayout.tsx
 │   │   │   │   ├── PeopleLayout.tsx
-│   │   │   │   └── DocumentGalleryLayout.tsx
-│   │   │   ├── cellRenderers/
-│   │   │   │   ├── TitleCellRenderer.tsx
-│   │   │   │   ├── PersonaCellRenderer.tsx
-│   │   │   │   ├── DateCellRenderer.tsx
-│   │   │   │   ├── FileSizeCellRenderer.tsx
-│   │   │   │   ├── FileTypeCellRenderer.tsx
-│   │   │   │   ├── UrlCellRenderer.tsx
-│   │   │   │   ├── TaxonomyCellRenderer.tsx
-│   │   │   │   ├── BooleanCellRenderer.tsx
-│   │   │   │   ├── NumberCellRenderer.tsx
-│   │   │   │   ├── TagsCellRenderer.tsx
-│   │   │   │   ├── ThumbnailCellRenderer.tsx
-│   │   │   │   └── TextCellRenderer.tsx
+│   │   │   │   ├── GalleryLayout.tsx
+│   │   │   │   ├── ResultDetailPanel.tsx
+│   │   │   │   └── buildRowActionMenu.ts
 │   │   │   ├── loc/
-│   │   │   └── SPSearchResultsWebPart.manifest.json
+│   │   │   └── SpSearchResultsWebPart.manifest.json
 │   │   │
-│   │   ├── searchFilters/
-│   │   │   ├── SPSearchFiltersWebPart.ts
+│   │   ├── spSearchFilters/
+│   │   │   ├── SpSearchFiltersWebPart.ts
 │   │   │   ├── components/
-│   │   │   │   ├── SearchFilters.tsx
+│   │   │   │   ├── SpSearchFilters.tsx
 │   │   │   │   ├── FilterGroup.tsx
-│   │   │   │   └── VisualFilterBuilder.tsx
-│   │   │   ├── filterTypes/
 │   │   │   │   ├── CheckboxFilter.tsx
+│   │   │   │   ├── DropdownFilter.tsx
 │   │   │   │   ├── DateRangeFilter.tsx
+│   │   │   │   ├── TextFilter.tsx
 │   │   │   │   ├── PeoplePickerFilter.tsx
 │   │   │   │   ├── TaxonomyTreeFilter.tsx
 │   │   │   │   ├── TagBoxFilter.tsx
 │   │   │   │   ├── SliderFilter.tsx
-│   │   │   │   └── ToggleFilter.tsx
+│   │   │   │   ├── ToggleFilter.tsx
+│   │   │   │   └── VisualFilterBuilder.tsx
 │   │   │   ├── formatters/
-│   │   │   │   ├── DateFilterFormatter.ts
-│   │   │   │   ├── PeopleFilterFormatter.ts
-│   │   │   │   ├── TaxonomyFilterFormatter.ts
-│   │   │   │   ├── NumericFilterFormatter.ts
-│   │   │   │   ├── BooleanFilterFormatter.ts
-│   │   │   │   └── DefaultFilterFormatter.ts
+│   │   │   ├── registerBuiltInFilterTypes.ts
 │   │   │   ├── loc/
-│   │   │   └── SPSearchFiltersWebPart.manifest.json
+│   │   │   └── SpSearchFiltersWebPart.manifest.json
 │   │   │
-│   │   ├── searchVerticals/
-│   │   │   ├── SPSearchVerticalsWebPart.ts
+│   │   ├── spSearchVerticals/
+│   │   │   ├── SpSearchVerticalsWebPart.ts
 │   │   │   ├── components/
-│   │   │   │   ├── SearchVerticals.tsx
-│   │   │   │   └── VerticalTab.tsx
+│   │   │   │   └── SpSearchVerticals.tsx
 │   │   │   ├── loc/
-│   │   │   └── SPSearchVerticalsWebPart.manifest.json
+│   │   │   └── SpSearchVerticalsWebPart.manifest.json
 │   │   │
-│   │   └── searchManager/
-│   │       ├── SPSearchManagerWebPart.ts
+│   │   ├── spSearchManager/
+│   │   │   ├── SpSearchManagerWebPart.ts
+│   │   │   ├── components/
+│   │   │   │   ├── SpSearchManager.tsx
+│   │   │   │   ├── SavedSearchList.tsx
+│   │   │   │   ├── SearchCollections.tsx
+│   │   │   │   ├── SearchHistory.tsx
+│   │   │   │   ├── ShareSearchDialog.tsx
+│   │   │   │   ├── AdminDashboard.tsx
+│   │   │   │   └── PreFlightPanel.tsx
+│   │   │   ├── loc/
+│   │   │   └── SpSearchManagerWebPart.manifest.json
+│   │   │
+│   │   └── spSearchAdminManager/
+│   │       ├── SpSearchAdminManagerWebPart.ts
 │   │       ├── components/
-│   │       │   ├── SearchManager.tsx
-│   │       │   ├── SavedSearchList.tsx
-│   │       │   ├── SearchCollections.tsx
-│   │       │   ├── SearchHistory.tsx
-│   │       │   ├── ShareSearchDialog.tsx
-│   │       │   └── ResultAnnotations.tsx
 │   │       ├── loc/
-│   │       └── SPSearchManagerWebPart.manifest.json
+│   │       └── SpSearchAdminManagerWebPart.manifest.json
 │   │
 │   └── propertyPaneControls/
 │       ├── PropertyPaneSchemaHelper.ts     # Managed property picker
-│       └── PropertyPaneSearchContextId.ts  # Context ID config
+│       ├── PropertyPaneSearchContextIdField.ts
+│       ├── propertyPaneGroupHelp.tsx       # Local help modal topics
+│       ├── collectionData/                 # PnP CollectionData replacement
+│       └── filtersCollection/              # Refiner editor
 │
 ├── scripts/
 │   └── Provision-SPSearchLists.ps1         # Hidden list provisioning
@@ -388,7 +327,7 @@ sp-search/
 
 | Element | Convention | Example |
 |---------|-----------|---------|
-| Web Part class | SP[Name]WebPart | SPSearchBoxWebPart |
+| Web Part class | Sp[Name]WebPart | SpSearchBoxWebPart |
 | React component | PascalCase | SearchResultsGrid |
 | Zustand slice | camelCase + Slice | querySlice, filterSlice |
 | Interface | I + PascalCase | ISearchResult, IFilterConfig |
@@ -412,7 +351,7 @@ sp-search/
 Shipped capabilities (one-line each):
 - 6 web parts + 1 library component, single .sppkg via Heft
 - 6 layouts (DataGrid, Card, List, Compact, People, Gallery) with type-aware cell renderers
-- 7 filter types (Checkbox, DateRange, PeoplePicker, TaxonomyTree, TagBox, Slider, Toggle) + visual filter builder
+- 9 registered filter types (Checkbox, Dropdown, DateRange, Text, Toggle, TagBox, Slider, Taxonomy TagBox, People) + visual filter builder
 - Two data providers (SharePoint + Graph) with per-vertical `dataProviderId` routing
 - Search Manager (end-user + admin variant) with saved/shared/collections/history/promoted results
 - AdminManager Dashboard / Health / Insights / Pre-Flight tabs
@@ -442,7 +381,7 @@ Shipped capabilities (one-line each):
 | Card (Accordion) | Search Filters | Collapsible filter groups with persistence |
 | VersionHistory | Detail Panel | Version history with download/compare |
 | DocumentLink | All layouts, Detail Panel | File type-aware document links |
-| UserPersona | People Layout, Detail Panel | User profile with photo, presence |
+| UserPersona | List, Grid cells, Detail Panel | User profile display with photo/name |
 | ErrorBoundary | All web parts | Root-level error wrapping |
 | FormContainer / FormItem | Detail Panel, Search Manager | Metadata display, config forms |
 | WorkflowStepper | Detail Panel | Workflow status display |

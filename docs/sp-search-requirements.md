@@ -6,7 +6,14 @@
 | --- | --- |
 | Date: | February 5, 2026 |
 | Author: | Hemant Mane |
-| Status: | Draft |
+| Status: | Historical draft |
+
+> **Historical note:** this requirements draft captures the original product
+> direction from February 2026. It is useful for intent and terminology, but it
+> is not the current implementation reference. For current admin/user behavior,
+> use `README.md`, `docs/admin-guide.md`, `docs/end-user-guide.md`,
+> `docs/deployment-guide.md`, and the focused design specs under
+> `docs/superpowers/specs/`.
 
 
 # Table of Contents

@@ -14,29 +14,23 @@ The original Found.D7 baseline (committed at `38bded6`) was anchored to ~14.75 M
 
 | Web part | Current (bytes) | Budget (1.5×, rounded to 50K) | % of SPFx 2 MB guidance | Notes |
 |----------|-----------------|-------------------------------|-------------------------|-------|
-| sp-search-filters-web-part.js | 862,498 | 1,300,000 | 43.1% of 2 MB | Largest bundle; carries Filters UI + filter type registry |
-| sp-search-results-web-part.js | 714,103 | 1,100,000 | 35.7% of 2 MB | DataGrid lazy-split keeps base under budget |
-| sp-search-admin-manager-web-part.js | 592,306 | 900,000 | 29.6% of 2 MB | Insights chunks lazy-loaded |
-| sp-search-manager-web-part.js | 591,819 | 900,000 | 29.6% of 2 MB | SearchHistory + Collections lazy-loaded |
-| sp-search-box-web-part.js | 546,789 | 850,000 | 27.3% of 2 MB | Suggestion dropdown lazy-loaded |
-| sp-search-verticals-web-part.js | 470,158 | 750,000 | 23.5% of 2 MB | Smallest bundle; tabs only |
+| sp-search-filters-web-part.js | 948,774 | 1,300,000 | 47.4% of 2 MB | Largest bundle; carries Filters UI + filter type registry |
+| sp-search-results-web-part.js | 803,717 | 1,100,000 | 40.2% of 2 MB | DataGrid lazy-split keeps base under budget |
+| sp-search-admin-manager-web-part.js | 717,761 | 900,000 | 35.9% of 2 MB | Insights chunks lazy-loaded |
+| sp-search-manager-web-part.js | 715,732 | 900,000 | 35.8% of 2 MB | SearchHistory + Collections lazy-loaded |
+| sp-search-box-web-part.js | 715,143 | 850,000 | 35.8% of 2 MB | Suggestions + manager entry point |
+| sp-search-verticals-web-part.js | 549,604 | 750,000 | 27.5% of 2 MB | Smallest bundle; tabs only |
 
-Bytes column reflects current production output captured by `npm run check:bundles` (mirrored in `docs/performance/bundle-sizes-baseline.json`). Budget column equals 1.5× current rounded up to the nearest 50,000 bytes for headroom.
+Bytes column reflects current production output captured by `npm run check:bundles` on June 14, 2026. Budget column is the current gate in `config/bundle-budgets.json`.
 
 ## Lazy chunk inventory (consumed on demand)
 
-> The chunk sizes below were captured against the prior (non-production) baseline at commit `38bded6`. They are retained for orientation but should be re-captured during a future `webpack-bundle-analyzer` pass before being used as budget anchors.
-
-| Chunk | Size (bytes) | Loaded by |
-|-------|--------------|-----------|
-| chunk.vendors-fluentui-Dialog | 7,103,488 | SearchManager + AdminManager dialogs |
-| chunk.vendors-devextreme-react_core | 3,706,880 | DataGrid Layout (Results) |
-| chunk.xlsx_xlsx_mjs | 2,621,440 | DataGrid CSV/XLSX export |
-| chunk.vendors-devextreme-react_date-box | 1,124,352 | DateRange filter |
-| chunk.spfx-toolkit_PeoplePicker | 2,001,920 | People-picker filter |
-| chunk.spfx-toolkit_SearchManager | 545,792 | SearchManager panel |
-| chunk.spfx-toolkit_VersionHistory | 450,560 | Detail panel version tab |
-| chunk.spfx-toolkit_DataGridContent | 14,336 | DataGrid Layout |
+Lazy chunks are content-hashed and change frequently, so this document does
+not treat them as fixed budget anchors. Use `npm run stats` or
+`npm run stats:json` for a fresh analyzer pass when reviewing a dependency
+or layout change. Current notable lazy chunks include DataGrid layout,
+TagBox/Taxonomy filter controls, Visual Filter Builder, Search Manager,
+Debug Panel, Result Detail Panel, and XLSX export.
 
 ## Enforcement
 

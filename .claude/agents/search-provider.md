@@ -35,7 +35,7 @@ Implement and maintain `ISearchDataProvider` and its built-in providers, `Search
 ### Built-in providers
 
 1. **SharePointSearchProvider** — PnPjs `SPContext.sp.search()`, full refiner/collapsing/sorting
-2. **GraphSearchProvider** — `MSGraphClientV3` `/search/query` with `entityTypes: ['person']` for the People vertical; presence batch via `/communications/presences`. **Requires `People.Read`** — `Sites.Read.All` is NOT sufficient
+2. **GraphSearchProvider** — `MSGraphClientV3` `/search/query` with `entityTypes: ['person']` for the People vertical. **Requires `People.Read`** for the People vertical; `Sites.Read.All` is not sufficient. Audience targeting is separate and uses `User.Read` for `/me/memberOf`.
 
 ### Per-vertical override
 
@@ -52,6 +52,7 @@ Each `IVerticalDefinition` can specify `dataProviderId`. The Results web part ro
 7. **Refinement token encoding:** FQL `range()` for dates/numbers, `GP0|#GUID` for taxonomy, claim strings for users
 8. **Result mapping:** raw search results → `ISearchResult`. Resolve user claim strings and taxonomy GUIDs to display values, cached in a `Map`
 9. **QuotaExceededError retry path:** PnPjs caching middleware writes to localStorage; large responses can exceed the 5 MB limit. Inline retry once after clean storage, then outer catch swallow
+10. **Refiner preprocessing:** SharePoint Search buckets may include `type;#` prefixes or delimited text values. Keep raw tokens for filtering while using the mapper/display metadata for cleaned labels and split buckets.
 
 ## TokenService responsibilities
 

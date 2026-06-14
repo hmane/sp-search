@@ -99,8 +99,8 @@ Want to keep specific results from a search rather than the whole
 search query? Use **Collections**. Open the Search Manager's
 **Collections** tab and create a new collection (give it a name +
 optional tags). Then, on a search results page, hover any row's
-title and click the **Pin** icon — the result lands in the
-selected collection.
+trailing **...** menu and choose **Add to collection** — the result
+lands in the selected collection.
 
 Collections persist across sessions and can be shared with
 coworkers the same way saved searches can.
@@ -118,8 +118,8 @@ DataGrid rows. The menu offers:
   also appear when you have the appropriate permissions on the
   underlying list item.
 
-To pin a result into a collection, use the **Pin** icon next to
-the title (visible on hover).
+To add a result into a collection, open the row menu and choose
+**Add to collection**.
 
 ## Export results
 

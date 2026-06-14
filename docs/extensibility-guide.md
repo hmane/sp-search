@@ -493,8 +493,8 @@ interface IFilterTypeDefinition {
 | `checkbox` | Checkbox List | Quoted KQL `"value"` |
 | `daterange` | Date Range | FQL `range(datetime("..."), datetime("..."))` |
 | `slider` | Slider | FQL `range(decimal(...), decimal(...))` |
-| `people` | People Picker | User claim string |
-| `taxonomy` | Taxonomy Tree | `GP0\|#GUID` format |
+| `people` | People picker | User claim string |
+| `taxonomy` | Taxonomy Tag Box | `GP0\|#GUID` format |
 | `tagbox` | Tag Box | Quoted KQL `"value"` |
 | `toggle` | Toggle | Quoted KQL `"0"` / `"1"` |
 
