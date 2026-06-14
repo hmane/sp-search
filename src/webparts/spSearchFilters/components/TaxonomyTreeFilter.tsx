@@ -75,6 +75,18 @@ function getDefaultLabel(
   return found ? found.name : labels[0].name;
 }
 
+function areStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Pure helper — builds the batched `onReplaceRefinerValues` payload for
  * the taxonomy TagBox from the editor's full intended selection.
@@ -277,7 +289,7 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (
   // Enriched dataSource for the TagBox: each item carries its raw token
   // (used as value) and a resolved display label with optional count.
   const enrichedItems = React.useMemo(function (): Array<{ value: string; displayName: string }> {
-    return values.map(function (v: IRefinerValue): { value: string; displayName: string } {
+    const nextItems = values.map(function (v: IRefinerValue): { value: string; displayName: string } {
       const guid: string | undefined = extractGuid(v.value);
       const resolved: string | undefined = guid ? labelMap.get(guid.toLowerCase()) : undefined;
       const label: string = resolved || v.name || guid || v.value;
@@ -286,7 +298,26 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (
         : label;
       return { value: v.value, displayName: displayName };
     });
-  }, [values, labelMap, showCount]);
+
+    const included = new Set<string>();
+    for (let i = 0; i < nextItems.length; i++) {
+      included.add(nextItems[i].value);
+    }
+
+    for (let i = 0; i < activeFilters.length; i++) {
+      const active = activeFilters[i];
+      if (active.filterName !== filterName || included.has(active.value)) {
+        continue;
+      }
+      nextItems.push({
+        value: active.value,
+        displayName: active.displayValue || active.value,
+      });
+      included.add(active.value);
+    }
+
+    return nextItems;
+  }, [activeFilters, filterName, values, labelMap, showCount]);
 
   // Selected tokens are the raw refiner tokens already in activeFilters
   // for this filter. The TagBox value array is keyed on these.
@@ -314,6 +345,10 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (
     let nextTokens: string[] = Array.isArray(e.value) ? e.value : [];
     if (!allowMultiple && nextTokens.length > 1) {
       nextTokens = [nextTokens[nextTokens.length - 1]];
+    }
+    if (areStringArraysEqual(nextTokens, selectedTokens)) {
+      isUpdatingRef.current = false;
+      return;
     }
 
     if (onReplaceRefinerValues) {

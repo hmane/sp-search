@@ -214,6 +214,17 @@ function buildHistoryTitle(
   return title.length > 255 ? title.substring(0, 255) : title;
 }
 
+function isMissingHistoryFieldError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return message.indexOf('does not exist') >= 0 &&
+    (
+      message.indexOf('QueryText') >= 0 ||
+      message.indexOf('QueryHash') >= 0 ||
+      message.indexOf('SearchState') >= 0 ||
+      message.indexOf('SearchTimestamp') >= 0
+    );
+}
+
 /**
  * Stable hash of a collection name to produce a deterministic numeric ID.
  * Avoids fragile dependency on the first list item's SharePoint ID.
@@ -327,6 +338,7 @@ export class SearchManagerService {
   private _currentUserId: number = 0;
   private _initFailed: boolean = false;
   private _historySupportsUseCount: boolean = false;
+  private _historyWritesDisabled: boolean = false;
 
   /**
    * Initialize the service by resolving the current user ID.
@@ -340,6 +352,7 @@ export class SearchManagerService {
     // Reset failure state to allow retries after transient errors
     this._initFailed = false;
     this._currentUserId = 0;
+    this._historyWritesDisabled = false;
 
     try {
       const user = await SPContext.sp.web.currentUser();
@@ -644,7 +657,7 @@ export class SearchManagerService {
     resultCount: number,
     isZeroResult?: boolean
   ): Promise<number> {
-    if (!this.isReady) {
+    if (!this.isReady || this._historyWritesDisabled) {
       return 0;
     }
     try {
@@ -719,6 +732,10 @@ export class SearchManagerService {
         return (addedItem as Record<string, unknown>).Id as number || 0;
       }
     } catch (error) {
+      if (isMissingHistoryFieldError(error)) {
+        this._historyWritesDisabled = true;
+        SPContext.logger.warn('SearchManagerService: SearchHistory schema mismatch; disabling history writes for this session', { error });
+      }
       // Non-critical — log but don't throw history errors
       console.warn('SearchManagerService.logSearch failed:', error);
       return 0;

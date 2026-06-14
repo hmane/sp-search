@@ -214,6 +214,38 @@ function areFiltersEqual(a: IActiveFilter[], b: IActiveFilter[]): boolean {
   return true;
 }
 
+export function shouldCommitActiveFilters(current: IActiveFilter[], next: IActiveFilter[]): boolean {
+  if (current.length !== next.length) {
+    return true;
+  }
+
+  const matchedNextIndexes = new Set<number>();
+  for (let i: number = 0; i < current.length; i++) {
+    let found = false;
+    for (let j: number = 0; j < next.length; j++) {
+      if (matchedNextIndexes.has(j)) {
+        continue;
+      }
+      if (
+        current[i].filterName === next[j].filterName &&
+        current[i].value === next[j].value &&
+        current[i].displayValue === next[j].displayValue &&
+        current[i].operator === next[j].operator
+      ) {
+        matchedNextIndexes.add(j);
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function buildNextFilters(
   current: IActiveFilter[],
   nextFilter: IActiveFilter,
@@ -367,14 +399,17 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   // Use safe defaults
   const refiners: IRefiner[] = availableRefiners || [];
   const filters: IActiveFilter[] = activeFilters || [];
-  const userGroups: string[] = currentUserGroups || [];
-  const configs: IFilterConfig[] = (filterConfig || []).filter((config: IFilterConfig): boolean => {
-    // Stream D / #5 — hide refiners whose audienceGroups exclude the current user.
-    if (!config.audienceGroups || config.audienceGroups.length === 0) {
-      return true;
-    }
-    return isInAudience(config.audienceGroups, userGroups);
-  });
+  const configs: IFilterConfig[] = React.useMemo(function (): IFilterConfig[] {
+    const allConfigs = filterConfig || [];
+    const userGroups: string[] = currentUserGroups || [];
+    return allConfigs.filter((config: IFilterConfig): boolean => {
+      // Stream D / #5 — hide refiners whose audienceGroups exclude the current user.
+      if (!config.audienceGroups || config.audienceGroups.length === 0) {
+        return true;
+      }
+      return isInAudience(config.audienceGroups, userGroups);
+    });
+  }, [currentUserGroups, filterConfig]);
 
   // Pending filters for manual mode
   const [pendingFilters, setPendingFilters] = React.useState<IActiveFilter[]>([]);
@@ -458,6 +493,9 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
         filter.filterName,
         configs
       );
+      if (!shouldCommitActiveFilters(filters, nextFilters)) {
+        return;
+      }
       store.setState({
         activeFilters: nextFilters,
         currentPage: 1
@@ -469,7 +507,9 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
         filter.filterName,
         configs
       );
-      setPendingFilters(updated);
+      if (shouldCommitActiveFilters(current, updated)) {
+        setPendingFilters(updated);
+      }
       setHasPendingChanges(!areFiltersEqual(updated, filters));
     }
   }
@@ -483,12 +523,17 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
     if (applyMode === 'instant') {
       const replaced = applyReplaceRefinerValues(filters, payload.filterName, payload.values);
       const nextFilters = clearDependentFilters(replaced, payload.filterName, configs);
+      if (!shouldCommitActiveFilters(filters, nextFilters)) {
+        return;
+      }
       store.setState({ activeFilters: nextFilters, currentPage: 1 });
     } else {
       const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
       const replaced = applyReplaceRefinerValues(current, payload.filterName, payload.values);
       const updated = clearDependentFilters(replaced, payload.filterName, configs);
-      setPendingFilters(updated);
+      if (shouldCommitActiveFilters(current, updated)) {
+        setPendingFilters(updated);
+      }
       setHasPendingChanges(!areFiltersEqual(updated, filters));
     }
   }

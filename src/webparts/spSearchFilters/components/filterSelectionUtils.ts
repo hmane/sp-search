@@ -42,5 +42,25 @@ export function getSelectedRefinerTokens(
       selected.push(values[i].value);
     }
   }
+
+  for (let i = 0; i < activeFilters.length; i++) {
+    const active = activeFilters[i];
+    if (active.filterName !== filterName) {
+      continue;
+    }
+
+    let representedByBucket = false;
+    for (let j = 0; j < values.length; j++) {
+      if (isRefinerValueSelected(filterName, values[j], [active])) {
+        representedByBucket = true;
+        break;
+      }
+    }
+
+    if (!representedByBucket && selected.indexOf(active.value) < 0) {
+      selected.push(active.value);
+    }
+  }
+
   return selected;
 }

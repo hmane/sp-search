@@ -35,6 +35,18 @@ function compareAlphabetical(a: IRefinerValue, b: IRefinerValue): number {
   return 0;
 }
 
+function areStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Pure helper that builds the batched payload for `onReplaceRefinerValues`
  * from the editor's full intended selection. Extracted so the multi-select
@@ -100,7 +112,9 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
   const [editorValues, setEditorValues] = React.useState<string[]>(selectedValues);
 
   React.useEffect(function (): void {
-    setEditorValues(selectedValues);
+    setEditorValues(function (prev: string[]): string[] {
+      return areStringArraysEqual(prev, selectedValues) ? prev : selectedValues;
+    });
   }, [selectedValues]);
 
   const maxVisible: number = config && config.maxValues > 0 ? config.maxValues : 10;
@@ -113,14 +127,36 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
       return index < limit || selectedSet.has(value.value);
     });
 
-    return limitedValues.map((value) => {
+    const nextItems = limitedValues.map((value) => {
       const name = value.name || value.value;
       return {
         value: value.value,
         displayName: showCount ? name + ' (' + String(value.count) + ')' : name,
       };
     });
-  }, [isExpanded, maxVisible, selectedValues, showCount, sortedValues]);
+
+    const included = new Set<string>();
+    for (let i = 0; i < nextItems.length; i++) {
+      included.add(nextItems[i].value);
+    }
+
+    for (let i = 0; i < selectedValues.length; i++) {
+      const token = selectedValues[i];
+      if (included.has(token)) {
+        continue;
+      }
+      const active = activeFilters.find(function (filter: IActiveFilter): boolean {
+        return filter.filterName === filterName && filter.value === token;
+      });
+      nextItems.push({
+        value: token,
+        displayName: active && active.displayValue ? active.displayValue : token,
+      });
+      included.add(token);
+    }
+
+    return nextItems;
+  }, [activeFilters, filterName, isExpanded, maxVisible, selectedValues, showCount, sortedValues]);
 
   // Guard against re-entrant onValueChanged calls from programmatic value updates
   const isUpdatingRef = React.useRef<boolean>(false);
@@ -144,6 +180,10 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     let nextValues: string[] = Array.isArray(e.value) ? e.value : [];
     if (!allowMultiple && nextValues.length > 1) {
       nextValues = [nextValues[nextValues.length - 1]];
+    }
+    if (areStringArraysEqual(nextValues, editorValues)) {
+      isUpdatingRef.current = false;
+      return;
     }
     setEditorValues(nextValues);
 

@@ -1,4 +1,7 @@
-import { applyReplaceRefinerValues } from '@webparts/spSearchFilters/components/SpSearchFilters';
+import {
+  applyReplaceRefinerValues,
+  shouldCommitActiveFilters,
+} from '@webparts/spSearchFilters/components/SpSearchFilters';
 import type { IActiveFilter } from '@interfaces/index';
 
 describe('applyReplaceRefinerValues', () => {
@@ -40,5 +43,33 @@ describe('applyReplaceRefinerValues', () => {
       { filterName: 'Author', value: 'jdoe', operator: 'OR' },
       { filterName: 'FileType', value: 'docx', operator: 'OR' },
     ]);
+  });
+});
+
+describe('shouldCommitActiveFilters', () => {
+  it('blocks a no-op replacement from committing a fresh activeFilters array', () => {
+    const current: IActiveFilter[] = [
+      { filterName: 'DocumentType', value: '"Contract"', displayValue: 'Contract', operator: 'OR' },
+      { filterName: 'Inactive', value: 'true', displayValue: 'Inactive', operator: 'OR' },
+    ];
+    const next: IActiveFilter[] = [
+      { filterName: 'Inactive', value: 'true', displayValue: 'Inactive', operator: 'OR' },
+      { filterName: 'DocumentType', value: '"Contract"', displayValue: 'Contract', operator: 'OR' },
+    ];
+
+    expect(next).not.toBe(current);
+    expect(shouldCommitActiveFilters(current, next)).toBe(false);
+  });
+
+  it('allows real selection changes through', () => {
+    const current: IActiveFilter[] = [
+      { filterName: 'DocumentType', value: '"Contract"', displayValue: 'Contract', operator: 'OR' },
+    ];
+    const next: IActiveFilter[] = [
+      { filterName: 'DocumentType', value: '"Contract"', displayValue: 'Contract', operator: 'OR' },
+      { filterName: 'DocumentType', value: '"Invoice"', displayValue: 'Invoice', operator: 'OR' },
+    ];
+
+    expect(shouldCommitActiveFilters(current, next)).toBe(true);
   });
 });

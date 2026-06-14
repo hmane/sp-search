@@ -539,7 +539,7 @@ export class SearchOrchestrator {
       }
 
       // Fetch vertical counts in parallel
-      this._fetchVerticalCounts(provider, state, signal);
+      this._fetchVerticalCounts(provider, state, signal, adjustedTotal);
 
       // Log search to history (async, non-blocking)
       this._logSearchToHistory(state, response.totalCount);
@@ -637,18 +637,26 @@ export class SearchOrchestrator {
   private _fetchVerticalCounts(
     provider: ISearchDataProvider,
     state: ISearchStore,
-    signal: AbortSignal
+    signal: AbortSignal,
+    activeVerticalTotalCount: number
   ): void {
-    const verticals = state.verticals;
+    const verticals = state.verticals.filter((vertical) => vertical.isLink !== true);
     if (verticals.length <= 1) {
       return;
+    }
+
+    const countMap: Record<string, number> = {};
+    if (state.currentVerticalKey) {
+      countMap[state.currentVerticalKey] = activeVerticalTotalCount;
     }
 
     // Compute `_splitActiveFilters` once per cycle rather than twice per
     // vertical — the result is identical for every count fan-out call
     // because they all read the same `state` closure.
     const splitFilters = this._splitActiveFilters(state);
-    const countPromises = verticals.map(async (vertical) => {
+    const countPromises = verticals
+      .filter((vertical) => vertical.key !== state.currentVerticalKey)
+      .map(async (vertical) => {
       try {
         const countQuery: ISearchQuery = {
           queryText: this._buildEffectiveQueryText(state, splitFilters.textFilters),
@@ -673,12 +681,16 @@ export class SearchOrchestrator {
       }
     });
 
+    if (countPromises.length === 0) {
+      state.setVerticalCounts(countMap);
+      return;
+    }
+
     Promise.all(countPromises)
       .then((counts) => {
         if (signal.aborted) {
           return;
         }
-        const countMap: Record<string, number> = {};
         for (const c of counts) {
           countMap[c.key] = c.count;
         }

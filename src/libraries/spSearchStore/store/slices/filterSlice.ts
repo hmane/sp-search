@@ -6,8 +6,9 @@ import { DebugCollector } from '../../debug';
 /**
  * Merge new refiners from a search response with existing display refiners.
  * Keeps all previously-seen values visible so filter options don't disappear
- * when a filter narrows results. Values not in the new response keep their
- * previous counts but are preserved for user selection/deselection.
+ * when a filter narrows results. Values not in the new response are preserved
+ * with count=0 so active selections remain removable while other filters show
+ * the current cascaded result set.
  */
 function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
   if (existing.length === 0) {
@@ -29,8 +30,18 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
 
     if (!next) {
       // Refiner no longer returned in filtered results — preserve previous
-      // counts so filter options remain visible and informative.
-      merged.push({ filterName: prev.filterName, values: [...prev.values] });
+      // values as zero-count options so selections can still be removed.
+      merged.push({
+        filterName: prev.filterName,
+        values: prev.values.map(function (prevVal: IRefinerValue): IRefinerValue {
+          return {
+            name: prevVal.name,
+            value: prevVal.value,
+            count: 0,
+            isSelected: prevVal.isSelected,
+          };
+        })
+      });
     } else {
       // Build value lookup from new results
       const nextValueMap = new Map<string, IRefinerValue>();
@@ -51,14 +62,13 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
           // Value exists in new results — use new count
           mergedValues.push(nextVal);
         } else {
-          // Value no longer in filtered results — preserve previous count
-          // so users can see how many results each option would add.
-          // SharePoint omits zero-count refiners from filtered responses,
-          // but the previous count (from base or prior search) is still valid.
+          // Value no longer in filtered results — preserve it with a zero
+          // count so selected values remain visible/removable without making
+          // the cascaded filter look like it still matches all old content.
           mergedValues.push({
             name: prevVal.name,
             value: prevVal.value,
-            count: prevVal.count,
+            count: 0,
             isSelected: prevVal.isSelected,
           });
         }
