@@ -36,6 +36,11 @@ export interface ITaxonomyTreeFilterProps {
   config: IFilterConfig | undefined;
   activeFilters: IActiveFilter[];
   onToggleRefiner: (filter: IActiveFilter) => void;
+  /**
+   * Batched callback (Task 1 foundation). Components migrating in Tasks 2-5
+   * will switch from per-delta `onToggleRefiner` to a single batched call here.
+   */
+  onReplaceRefinerValues?: (payload: { filterName: string; values: IActiveFilter[] }) => void;
 }
 
 function extractGuid(value: string): string | undefined {

@@ -24,6 +24,14 @@ export interface IFilterGroupProps {
   config: IFilterConfig | undefined;
   activeFilters: IActiveFilter[];
   onToggleRefiner: (filter: IActiveFilter) => void;
+  /**
+   * Multi-value batched callback. Filter components that mutate more than one
+   * value per user interaction (TagBox, People, Taxonomy, multi-Dropdown) call
+   * this with the full intended selection for their `filterName`, avoiding the
+   * stale-closure clobber that affects per-delta `onToggleRefiner` calls.
+   * Optional during the Task 1 foundation; components migrate in Tasks 2-5.
+   */
+  onReplaceRefinerValues?: (payload: { filterName: string; values: IActiveFilter[] }) => void;
 }
 
 /**
@@ -52,7 +60,8 @@ function renderFilterComponent(
   refiner: IRefiner,
   config: IFilterConfig | undefined,
   activeFilters: IActiveFilter[],
-  onToggleRefiner: (filter: IActiveFilter) => void
+  onToggleRefiner: (filter: IActiveFilter) => void,
+  onReplaceRefinerValues: ((payload: { filterName: string; values: IActiveFilter[] }) => void) | undefined
 ): React.ReactElement {
   const filterType: string = config ? config.filterType : 'checkbox';
   const commonProps = {
@@ -60,7 +69,8 @@ function renderFilterComponent(
     values: refiner.values,
     config: config,
     activeFilters: activeFilters,
-    onToggleRefiner: onToggleRefiner
+    onToggleRefiner: onToggleRefiner,
+    onReplaceRefinerValues: onReplaceRefinerValues
   };
 
   switch (filterType) {
@@ -115,7 +125,7 @@ function renderFilterComponent(
 }
 
 const FilterGroup: React.FC<IFilterGroupProps> = (props: IFilterGroupProps): React.ReactElement => {
-  const { refiner, config, activeFilters, onToggleRefiner } = props;
+  const { refiner, config, activeFilters, onToggleRefiner, onReplaceRefinerValues } = props;
 
   const displayName: string = config ? config.displayName : refiner.filterName;
   const defaultExpanded: boolean = config ? config.defaultExpanded : true;
@@ -146,7 +156,7 @@ const FilterGroup: React.FC<IFilterGroupProps> = (props: IFilterGroupProps): Rea
         </div>
       </Header>
       <Content padding="compact">
-        {renderFilterComponent(refiner, config, activeFilters, onToggleRefiner)}
+        {renderFilterComponent(refiner, config, activeFilters, onToggleRefiner, onReplaceRefinerValues)}
       </Content>
     </Card>
   );

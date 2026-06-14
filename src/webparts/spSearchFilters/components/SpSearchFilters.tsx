@@ -239,6 +239,26 @@ function buildNextFilters(
 }
 
 /**
+ * Pure helper used by the multi-value batched callback. Removes every active
+ * filter matching `filterName`, then appends the supplied values (filtering
+ * out any that name a different filter). Always returns a new array reference
+ * so the Zustand store + orchestrator subscribe trigger reliably.
+ */
+export function applyReplaceRefinerValues(
+  current: IActiveFilter[],
+  filterName: string,
+  values: IActiveFilter[]
+): IActiveFilter[] {
+  const kept = current.filter(function (f: IActiveFilter): boolean {
+    return f.filterName !== filterName;
+  });
+  const accepted = values.filter(function (v: IActiveFilter): boolean {
+    return v.filterName === filterName;
+  });
+  return kept.concat(accepted);
+}
+
+/**
  * Custom hook to subscribe to Zustand store state outside of React context.
  * Uses the vanilla store API with subscribe + getState.
  */
@@ -448,6 +468,28 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
         filter.filterName,
         configs
       );
+      setPendingFilters(updated);
+      setHasPendingChanges(!areFiltersEqual(updated, filters));
+    }
+  }
+
+  /** Multi-value batched: replace all values for a single filterName in one call. */
+  function handleReplaceRefinerValues(payload: {
+    filterName: string;
+    values: IActiveFilter[];
+  }): void {
+    if (!store) {
+      return;
+    }
+
+    if (applyMode === 'instant') {
+      const replaced = applyReplaceRefinerValues(filters, payload.filterName, payload.values);
+      const nextFilters = clearDependentFilters(replaced, payload.filterName, configs);
+      store.setState({ activeFilters: nextFilters, currentPage: 1 });
+    } else {
+      const current: IActiveFilter[] = hasPendingChanges ? pendingFilters : filters;
+      const replaced = applyReplaceRefinerValues(current, payload.filterName, payload.values);
+      const updated = clearDependentFilters(replaced, payload.filterName, configs);
       setPendingFilters(updated);
       setHasPendingChanges(!areFiltersEqual(updated, filters));
     }
@@ -681,6 +723,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
             config={config}
             activeFilters={displayFilters}
             onToggleRefiner={handleToggleRefiner}
+            onReplaceRefinerValues={handleReplaceRefinerValues}
           />
         );
       })}

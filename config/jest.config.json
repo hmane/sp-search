@@ -66,6 +66,7 @@
     "^@microsoft/(.*)$": "<rootDir>/tests/__mocks__/pnpMock.js",
     "^spfx-toolkit/lib/utilities/context(.*)$": "<rootDir>/tests/__mocks__/spfxContextMock.js",
     "^spfx-toolkit/(.*)$": "<rootDir>/node_modules/spfx-toolkit/$1",
+    "^.*WebPartStrings$": "<rootDir>/tests/__mocks__/styleMock.js",
     "^@store/(.*)$": "<rootDir>/src/libraries/spSearchStore/$1",
     "^@interfaces/(.*)$": "<rootDir>/src/libraries/spSearchStore/interfaces/$1",
     "^@services/(.*)$": "<rootDir>/src/libraries/spSearchStore/services/$1",
