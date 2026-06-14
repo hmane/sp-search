@@ -72,9 +72,12 @@ async function resolvePeople(filter: string): Promise<IClaimSuggestion[]> {
       QueryString: filter,
       MaximumEntitySuggestions: 25,
       PrincipalSource: 15,
-      // Bitwise OR: User (1) + SecurityGroup (4). Keeps the picker
-      // useful for audience-style refiners while excluding DL noise.
-      PrincipalType: 1 | 4,
+      // PrincipalType: 1 = User only.
+      // Refiners over Author / EditorOWSUSER / CreatedByOWSUSER target
+      // individuals; including groups (PrincipalType 4) returns DL/SG
+      // noise that filters to zero results since the underlying claim
+      // can't match a group entry.
+      PrincipalType: 1,
       AllowEmailAddresses: true,
     },
   };

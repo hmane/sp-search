@@ -103,7 +103,9 @@ Add a value-preprocessing pass to `_mapRefiners` in [`SharePointSearchProvider.t
 2. **Split** when `valueSplitDelimiter` is set: tokenize, trim each, drop empties, aggregate counts per token using a `Map<string, number>`. Preserve original raw value for the KQL clause (the SharePoint search will still match the raw multi-value field via `contains`-style semantics — the KQL clause uses the **token** not the prefix).
 3. Return `IRefinerValue[]` where `name` is the cleaned display label and `value` is the KQL token.
 
-**Auto-detect via Schema Helper**: when admin types or picks a managed property in the property pane, the schema picker calls `SchemaService.fetchManagedProperties()` (already cached). When the picked property's `IManagedProperty.type === 'YesNo' | 'DateTime' | 'Integer' | 'Decimal'`, pre-fill `dataType` accordingly. Multi-value detection from schema is best-effort (the API doesn't reliably expose multi-value flags) so the heuristic at runtime is the primary guard.
+**Auto-detect at runtime** (shipped): when `dataType` is left at the default `'auto'`, the preprocessing pass in `_mapRefiners` matches values against `^[A-Za-z]+;#` and strips the prefix when found. Admins can override per refiner via the property pane "Data format" section.
+
+> **Deferred — schema-driven pre-fill**: an earlier draft proposed pre-filling `dataType` from `IManagedProperty.type` (YesNo / DateTime / Integer / Decimal) when admin picks a property via the schema helper. This was NOT shipped — the runtime heuristic + manual override cover the cases we've seen in practice. Adding schema-driven pre-fill is a candidate follow-up if admins routinely set `dataType` manually for the same property types.
 
 **Property pane UI** ([`FiltersCollectionControl.tsx`](../../../src/propertyPaneControls/filtersCollection/FiltersCollectionControl.tsx)):
 
@@ -113,15 +115,27 @@ Add a new "Data format" section visible when `filterType` ∈ {checkbox, tagbox,
 
 Add the corresponding entries to [`fieldRelevance.ts`](../../../src/propertyPaneControls/filtersCollection/fieldRelevance.ts) so the section only appears for relevant filter types.
 
-### 4. Taxonomy filter UI (Issue C)
+### 4. Taxonomy filter UI (Issue C) — **pivoted to DevExtreme TagBox**
 
-Replace [`TaxonomyTreeFilter.tsx`](../../../src/webparts/spSearchFilters/components/TaxonomyTreeFilter.tsx)'s DevExtreme `TreeView` with `@pnp/spfx-controls-react`'s `TaxonomyPicker`.
+> **History**: This section originally specified `@pnp/spfx-controls-react`'s `TaxonomyPicker`. We shipped it as commit `96e2264`, then pivoted after confirming the picker drops per-term refiner counts and cascade narrowing — both of which the project owner needs more than tree-browse. Final implementation in commit `7439e51` uses DevExtreme `TagBox` (mirrors `TagBoxFilter.tsx`) with PnP term-store label resolution. PnP `TaxonomyPicker` is no longer a project dependency for this surface.
 
-**Pre-flight check (required before merging this step)**: dynamic-import `TaxonomyPicker` in a small probe and call its render path against a known term set. If it crashes with the same `styles.<X>` undefined pattern as `PropertyFieldCollectionData` did, fall back to the **webpack alias-shim** approach: add a small JS shim file under `src/propertyPaneControls/pnpStyleShims/` exporting `{ <originalClassName>: '<originalClassName>' }` matching PnP's pre-compiled hashed CSS class names, and alias `node_modules/@pnp/spfx-controls-react/lib/controls/taxonomyPicker/TaxonomyPicker.module.scss` to it in [`gulpfile.js`](../../../gulpfile.js) (we already have webpack customization in `additionalConfiguration`).
+Replace [`TaxonomyTreeFilter.tsx`](../../../src/webparts/spSearchFilters/components/TaxonomyTreeFilter.tsx)'s DevExtreme `TreeView` with a DevExtreme `TagBox` implementation that mirrors [`TagBoxFilter.tsx`](../../../src/webparts/spSearchFilters/components/TagBoxFilter.tsx).
 
-**Selection wiring**: `TaxonomyPicker` returns an array of `IPickerTerm[]` with `key` (GUID) and `name`. Translate to `GP0|#<GUID>` tokens for our KQL filter; emit through the new `onReplaceRefinerValues` callback (Issue 2). Initial selection derives from `activeFilters` filtered by `filterName`.
+**Why TagBox not TaxonomyPicker**:
+- Per-term refiner counts preserved — `values: IRefinerValue[]` already carries them, TagBox displays `"Label (count)"`.
+- Cascade narrowing preserved — `values` IS the live refiner buckets, so other filters narrow the dropdown automatically.
+- Selection persists synchronously from `activeFilters` (Issue G fixed).
+- Tradeoff: no hierarchy display. Acceptable for flat taxonomies (the project owner's case); for genuinely hierarchical taxonomies, a follow-up could build a custom Fluent tree with counts overlaid.
 
-**Term set source**: keep the existing `config?.termSetId` field — same source, different consumer.
+**Label resolution**: SharePoint Search refiner buckets return GUIDs, not term labels. On mount, fetch labels via `SPContext.sp.termStore`:
+- With `config.termSetId`: one call to `sets.getById(termSetId).terms()` returning the flat label dictionary.
+- Without `config.termSetId`: per-GUID fan-out via `termStore.getTermById(guid)()`.
+
+Cache in component state `Map<guid, label>`. Show a Fluent `Spinner` until first resolution completes; thereafter, cascade-introduced GUIDs resolve in the background without re-gating the UI.
+
+**Selection wiring**: TagBox `onValueChanged` emits the next selected token array. Translate each `GP0|#<GUID>` token to an `IActiveFilter` via the new pure helper `buildTaxonomyTagBoxBatchPayload({ filterName, selectedTokens, labelMap, operator })`. Emit through `onReplaceRefinerValues` (Issue A pattern).
+
+**Term set source**: keep the existing `config?.termSetId` field — same source.
 
 ### 5. Toggle default value (Issue D)
 
