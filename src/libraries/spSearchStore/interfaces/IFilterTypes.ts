@@ -107,6 +107,11 @@ export interface IFilterConfig {
   /** Optional: invert boolean semantics for UI labels against the stored raw value */
   invertBoolean?: boolean;
   /**
+   * Initial value for a 'toggle' filter when no URL / restored state is present.
+   * URL-restore always wins over this default. Only honoured for `filterType: 'toggle'`.
+   */
+  defaultValue?: boolean;
+  /**
    * Stream D / #5 — Azure AD security group object IDs that should see this
    * refiner. Empty / undefined = visible to everyone. When non-empty, the
    * Filters component hides the refiner unless the current user is a member

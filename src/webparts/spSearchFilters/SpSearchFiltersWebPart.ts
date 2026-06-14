@@ -76,6 +76,8 @@ interface IFilterCollectionItem {
   trueLabel?: string;
   falseLabel?: string;
   invertBoolean?: boolean;
+  /** Toggle-only: initial value when no URL state present. URL-restore wins. */
+  defaultValue?: boolean;
   /** Stream D / #5 — comma-separated Azure AD group object IDs (admin UX matches Verticals). */
   audience?: string;
 }
@@ -274,6 +276,9 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         trueLabel: item.trueLabel || undefined,
         falseLabel: item.falseLabel || undefined,
         invertBoolean: item.invertBoolean === true,
+        defaultValue: filterType === 'toggle' && typeof item.defaultValue === 'boolean'
+          ? item.defaultValue
+          : undefined,
         audienceGroups: item.audience
           ? item.audience.split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined

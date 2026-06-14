@@ -35,6 +35,7 @@ export type FilterEditorField =
   | 'trueLabel'
   | 'falseLabel'
   | 'invertBoolean'
+  | 'defaultValue'
   | 'audience';
 
 const LIST_LIKE_TYPES: ReadonlyArray<string> = [
@@ -81,6 +82,7 @@ export function isFieldRelevant(field: FilterEditorField, filterType: string): b
     case 'trueLabel':
     case 'falseLabel':
     case 'invertBoolean':
+    case 'defaultValue':
       return filterType === 'toggle';
 
     // ── List-like only ─────────────────────────────────────

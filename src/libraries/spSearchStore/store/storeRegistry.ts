@@ -1,5 +1,5 @@
 import { StoreApi } from 'zustand/vanilla';
-import { ISearchStore } from '@interfaces/index';
+import { IActiveFilter, IFilterConfig, ISearchStore } from '@interfaces/index';
 import { createRegistryContainer } from '@registries/index';
 import { createSearchStore } from './createStore';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
@@ -108,6 +108,62 @@ export function getOrchestrator(searchContextId: string): SearchOrchestrator {
 export function getManagerService(searchContextId: string): SearchManagerService | undefined {
   const context = getContextMap().get(searchContextId);
   return context?.managerService;
+}
+
+/**
+ * Pure helper: for each `toggle` filter config that has `defaultValue`
+ * set AND whose managed property is not already represented in the
+ * current activeFilters, append a synthetic active-filter entry.
+ *
+ * URL-restore writes to activeFilters BEFORE this runs, so URL state
+ * always wins over admin defaults — preserves shareable links.
+ *
+ * The synthetic entry is structurally identical to one a user would
+ * produce by clicking the toggle: `'1'` for true, `'0'` for false,
+ * `displayValue` honours trueLabel/falseLabel + invertBoolean, and the
+ * operator is taken from the config (matches ToggleFilter.tsx).
+ *
+ * Exported for unit-testing in isolation.
+ */
+export function seedToggleDefaults(
+  current: IActiveFilter[],
+  configs: IFilterConfig[]
+): IActiveFilter[] {
+  const activeNames = new Set<string>();
+  for (let i = 0; i < current.length; i++) {
+    activeNames.add(current[i].filterName);
+  }
+  const additions: IActiveFilter[] = [];
+  for (let i = 0; i < configs.length; i++) {
+    const c = configs[i];
+    if (c.filterType !== 'toggle') {
+      continue;
+    }
+    if (c.defaultValue === undefined) {
+      continue;
+    }
+    if (activeNames.has(c.managedProperty)) {
+      continue;
+    }
+    const trueLabel = c.trueLabel || 'Yes';
+    const falseLabel = c.falseLabel || 'No';
+    const invert = c.invertBoolean === true;
+    const value = c.defaultValue ? '1' : '0';
+    const rawIsTrue = value === '1';
+    const displayValue = rawIsTrue
+      ? (invert ? falseLabel : trueLabel)
+      : (invert ? trueLabel : falseLabel);
+    additions.push({
+      filterName: c.managedProperty,
+      value,
+      displayValue,
+      operator: c.operator,
+    });
+  }
+  if (additions.length === 0) {
+    return current;
+  }
+  return current.concat(additions);
 }
 
 /**
@@ -238,6 +294,17 @@ async function _doInitializeContext(
       effectivePrefix
     );
   }
+
+  // Toggle defaultValue seeding — runs AFTER URL hydration so URL state
+  // always wins over admin defaults (preserves shareable links). Pure
+  // helper is exported separately for unit testing.
+  //
+  // The Filters web part syncs `filterConfig` before calling
+  // initializeSearchContext, so configs are usually present here. But
+  // when the Box/Results web part triggers init FIRST (before Filters
+  // mounts), filterConfig is empty at this point — install a one-shot
+  // subscription that runs the seed once filterConfig arrives.
+  _runToggleDefaultSeed(context.store);
 
   // Resolve Azure AD group memberships for audience targeting (non-blocking)
   resolveUserGroupIds()
@@ -426,6 +493,43 @@ function _cleanupStaleStorage(): void {
   } catch {
     // localStorage not available or access denied — ignore
   }
+}
+
+/**
+ * Apply toggle defaultValue seeding to a store. If filterConfig is
+ * already populated, runs immediately. Otherwise, installs a one-shot
+ * subscription that waits for filterConfig to arrive (the Filters web
+ * part may mount AFTER initializeSearchContext was triggered by Box or
+ * Results), then seeds and unsubscribes.
+ *
+ * Idempotent at the seed level — `seedToggleDefaults` skips any
+ * managed property already present in activeFilters, so URL state and
+ * any user interactions in the brief gap continue to win.
+ */
+function _runToggleDefaultSeed(store: StoreApi<ISearchStore>): void {
+  function trySeed(): boolean {
+    const state = store.getState();
+    const configs = state.filterConfig || [];
+    if (configs.length === 0) {
+      return false;
+    }
+    const seeded = seedToggleDefaults(state.activeFilters, configs);
+    if (seeded !== state.activeFilters) {
+      store.setState({ activeFilters: seeded });
+    }
+    return true;
+  }
+  if (trySeed()) {
+    return;
+  }
+  // filterConfig not yet populated — wait for it. One-shot subscription.
+  const unsub = store.subscribe((state, prev): void => {
+    if (state.filterConfig !== prev.filterConfig && (state.filterConfig || []).length > 0) {
+      if (trySeed()) {
+        unsub();
+      }
+    }
+  });
 }
 
 function _buildStableUrlPrefix(searchContextId: string): string {

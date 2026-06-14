@@ -41,6 +41,8 @@ export interface IFiltersCollectionItem {
   trueLabel?: string;
   falseLabel?: string;
   invertBoolean?: boolean;
+  /** Toggle-only: initial value when no URL state present. URL-restore wins. */
+  defaultValue?: boolean;
   audience?: string;
 }
 
@@ -304,6 +306,16 @@ const FilterEditorForm: React.FC<IFilterEditorFormProps> = (formProps) => {
           onText='Inverted (true means false)'
           offText='Normal'
         />
+        {isFieldRelevant('defaultValue', ft) && (
+          <Toggle
+            label='Default value'
+            checked={!!refiner.defaultValue}
+            inlineLabel
+            onChange={(_e, checked): void => onPatch({ defaultValue: checked === true })}
+            onText='On'
+            offText='Off'
+          />
+        )}
       </Section>
     );
   }
