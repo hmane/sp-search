@@ -15,9 +15,10 @@ export interface TelemetryTransportOptions {
  * Never inspects payload contents. T5.D8's ITelemetrySignal discriminated
  * union enforces the never-captured field list at compile time.
  *
- * Usage: instantiated by sp-search-store; consumes the SearchTelemetryConfig
- * SP list via the configLoader callback. Returns immediately when
- * config.isEnabled === false (the no-op default).
+ * Usage: callers provide a configLoader, typically backed by the
+ * SearchTelemetryConfig SP list. Returns immediately when config.isEnabled
+ * === false (the no-op default). This transport is not currently wired into
+ * the active search runtime.
  */
 export class TelemetryTransport {
   private cachedConfig: ITelemetryConfig | null = null;

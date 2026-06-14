@@ -387,16 +387,18 @@ function Ensure-SearchSupportLists {
     Ensure-Field -ListName 'SearchSavedQueries' -FieldName 'ResultCount' -FieldType 'Number'
     Ensure-Field -ListName 'SearchSavedQueries' -FieldName 'LastUsed' -FieldType 'DateTime'
     Ensure-Field -ListName 'SearchSavedQueries' -FieldName 'ExpiresAt' -FieldType 'DateTime'
+    Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'Author'
     Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'Title'
     Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'EntryType'
     Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'Category'
     Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'LastUsed'
+    Ensure-Index -ListName 'SearchSavedQueries' -FieldName 'ExpiresAt'
 
     Ensure-HiddenList -ListName 'SearchHistory' -Description 'SP Search: User search history (high-volume, auto-pruned)' | Out-Null
     Ensure-Field -ListName 'SearchHistory' -FieldName 'QueryText' -FieldType 'Note'
     Ensure-Field -ListName 'SearchHistory' -FieldName 'QueryHash' -FieldType 'Text'
     Ensure-Field -ListName 'SearchHistory' -FieldName 'Vertical' -FieldType 'Text'
-    Ensure-Field -ListName 'SearchHistory' -FieldName 'Scope' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchHistory' -FieldName 'SearchPageUrl' -FieldType 'Text'
     Ensure-Field -ListName 'SearchHistory' -FieldName 'SearchState' -FieldType 'Note'
     Ensure-Field -ListName 'SearchHistory' -FieldName 'UseCount' -FieldType 'Number'
     Ensure-Field -ListName 'SearchHistory' -FieldName 'ResultCount' -FieldType 'Number'
@@ -418,8 +420,32 @@ function Ensure-SearchSupportLists {
     Ensure-Field -ListName 'SearchCollections' -FieldName 'Tags' -FieldType 'Note'
     Ensure-Field -ListName 'SearchCollections' -FieldName 'SharedWith' -FieldType 'UserMulti'
     Ensure-Field -ListName 'SearchCollections' -FieldName 'SortOrder' -FieldType 'Number'
+    Ensure-Index -ListName 'SearchCollections' -FieldName 'Author'
     Ensure-Index -ListName 'SearchCollections' -FieldName 'Title'
     Ensure-Index -ListName 'SearchCollections' -FieldName 'CollectionName'
+
+    Ensure-HiddenList -ListName 'SearchTelemetryConfig' -Description 'SP Search: Optional telemetry configuration (disabled by default)' | Out-Null
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'IsEnabled' -FieldType 'Boolean'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'DestinationEndpoint' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'BatchIntervalSeconds' -FieldType 'Number'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'BatchSizeMax' -FieldType 'Number'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'PrivacyAcknowledgedBy' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'PrivacyAcknowledgedAt' -FieldType 'DateTime'
+    $telemetryConfigRows = Get-PnPListItem -List 'SearchTelemetryConfig' -PageSize 1 -ErrorAction SilentlyContinue
+    if (-not $telemetryConfigRows -or $telemetryConfigRows.Count -eq 0) {
+        Add-PnPListItem -List 'SearchTelemetryConfig' -Values @{
+            Title                = 'SP Search Telemetry Config (single row)'
+            IsEnabled            = $false
+            DestinationEndpoint  = ''
+            BatchIntervalSeconds = 300
+            BatchSizeMax         = 50
+        } | Out-Null
+    }
+
+    Ensure-HiddenList -ListName 'SearchTelemetryOptIn' -Description 'SP Search: Optional per-user telemetry consent records' | Out-Null
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'ConsentTimestamp' -FieldType 'DateTime'
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'ConsentVersion' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'AnonHash' -FieldType 'Text'
 }
 
 function Invoke-WithRetry {

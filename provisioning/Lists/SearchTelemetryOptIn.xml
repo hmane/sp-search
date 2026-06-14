@@ -1,0 +1,15 @@
+<pnp:ListInstance xmlns:pnp="http://schemas.dev.office.com/PnP/2022/09/ProvisioningSchema"
+                 Title="SearchTelemetryOptIn"
+                 Description="SP Search: Optional per-user telemetry consent records"
+                 TemplateType="100"
+                 Url="Lists/SearchTelemetryOptIn"
+                 Hidden="true"
+                 EnableVersioning="true"
+                 OnQuickLaunch="false">
+
+  <pnp:Fields>
+    <Field ID="{7A1B2C05-0001-4000-8000-000000000001}" Type="DateTime" DisplayName="ConsentTimestamp" StaticName="ConsentTimestamp" Name="ConsentTimestamp" />
+    <Field ID="{7A1B2C05-0001-4000-8000-000000000002}" Type="Text"     DisplayName="ConsentVersion"   StaticName="ConsentVersion"   Name="ConsentVersion" />
+    <Field ID="{7A1B2C05-0001-4000-8000-000000000003}" Type="Text"     DisplayName="AnonHash"         StaticName="AnonHash"         Name="AnonHash" />
+  </pnp:Fields>
+</pnp:ListInstance>

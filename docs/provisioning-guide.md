@@ -1,6 +1,6 @@
 # SP Search — Provisioning Script Documentation
 
-The `Provision-SPSearchLists.ps1` script creates and configures the 3 hidden SharePoint lists required by SP Search.
+The `Provision-SPSearchLists.ps1` script creates and configures the three core hidden SharePoint lists required by SP Search plus the optional telemetry lists used only when telemetry is explicitly enabled.
 
 ---
 
@@ -41,6 +41,7 @@ Stores saved/shared searches and state snapshots.
 | Column | Type | Indexed | Description |
 |--------|------|---------|-------------|
 | Title | Text (default) | Yes | Search name / label |
+| Author | Person (default) | Yes | Owner filter for per-user queries |
 | QueryText | Note | No | The search query text |
 | SearchState | Note | No | Full Zustand state JSON |
 | SearchUrl | URL | No | Deep link URL |
@@ -63,10 +64,12 @@ Stores per-user search history. **This list will exceed 5,000 items** — all in
 |--------|------|---------|-------------|
 | Title | Text (default) | No | Query text summary |
 | Author | Person (default) | **Yes** | **CRITICAL** — must be first CAML predicate |
+| QueryText | Note | No | Full query text shown in Search Manager history and suggestions |
 | QueryHash | Text | Yes | SHA-256 hash for deduplication |
 | Vertical | Text | Yes | Active vertical key at search time |
-| Scope | Text | No | Active scope at search time |
+| SearchPageUrl | Text | No | Page where the query was executed |
 | SearchState | Note | No | Full query state JSON |
+| UseCount | Number | No | Number of times the same query state was reused |
 | ResultCount | Number | No | Number of results returned |
 | IsZeroResult | Boolean | No | True when a search returned zero results. Used by the Health panel. |
 | ClickedItems | Note | No | JSON array of clicked result tracking |
@@ -87,6 +90,7 @@ Stores pinboard collections of search results.
 | Column | Type | Indexed | Description |
 |--------|------|---------|-------------|
 | Title | Text (default) | Yes | Collection name |
+| Author | Person (default) | Yes | Owner filter for per-user queries |
 | ItemUrl | URL | No | URL of the pinned result |
 | ItemTitle | Text | No | Title of the pinned result |
 | ItemMetadata | Note | No | Cached metadata JSON |
@@ -96,6 +100,35 @@ Stores pinboard collections of search results.
 | SortOrder | Number | No | Manual sort position within collection |
 
 **Permissions:** Inherits from parent + all authenticated users can add items.
+
+---
+
+### List 4: SearchTelemetryConfig
+
+Stores optional telemetry configuration. Telemetry is disabled by default and dormant unless an admin explicitly enables it.
+
+| Column | Type | Indexed | Description |
+|--------|------|---------|-------------|
+| Title | Text (default) | No | Config row label |
+| IsEnabled | Boolean | No | Tenant-level telemetry enablement flag |
+| DestinationEndpoint | Text | No | HTTPS endpoint for telemetry POSTs |
+| BatchIntervalSeconds | Number | No | Flush interval |
+| BatchSizeMax | Number | No | Maximum signals per batch |
+| PrivacyAcknowledgedBy | Text | No | Admin identifier for privacy acknowledgement |
+| PrivacyAcknowledgedAt | DateTime | No | Acknowledgement timestamp |
+
+---
+
+### List 5: SearchTelemetryOptIn
+
+Stores optional per-user telemetry consent records. No active runtime code currently writes this list unless telemetry is wired/enabled.
+
+| Column | Type | Indexed | Description |
+|--------|------|---------|-------------|
+| Title | Text (default) | No | Consent row label |
+| ConsentTimestamp | DateTime | No | Consent timestamp |
+| ConsentVersion | Text | No | Privacy/consent version |
+| AnonHash | Text | No | Non-reversible anonymized user/session hash |
 
 ---
 

@@ -32,7 +32,7 @@
 .PARAMETER ProvisionSite
     Apply the PnP provisioning template after app install. This creates:
     - SP Search Admins security group
-    - 3 hidden lists (SearchSavedQueries, SearchHistory, SearchCollections)
+    - 5 hidden lists (SearchSavedQueries, SearchHistory, SearchCollections, SearchTelemetryConfig, SearchTelemetryOptIn)
     - Search page with all web parts in optimal layout
 
 .PARAMETER SkipInstall
@@ -194,6 +194,86 @@ function Resolve-XIncludes {
 
     Set-Content -Path $OutputPath -Value $content -Encoding UTF8
     return $script:xiIncludeCount
+}
+
+function Ensure-DeploymentField {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ListName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FieldName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Text", "Note", "Number", "DateTime", "Boolean")]
+        [string]$FieldType
+    )
+
+    $field = Get-PnPField -List $ListName -Identity $FieldName -ErrorAction SilentlyContinue
+    if ($field) {
+        Write-Host "    [OK] Field $ListName.$FieldName" -ForegroundColor Green
+        return
+    }
+
+    Write-Host "    [REPAIR] Adding missing field $ListName.$FieldName ($FieldType)..." -ForegroundColor Yellow
+    Add-PnPField -List $ListName -DisplayName $FieldName -InternalName $FieldName -Type $FieldType -ErrorAction Stop | Out-Null
+}
+
+function Ensure-DeploymentIndex {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ListName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FieldName
+    )
+
+    $field = Get-PnPField -List $ListName -Identity $FieldName -ErrorAction Stop
+    if ($field.Indexed) {
+        Write-Host "    [OK] Index $ListName.$FieldName" -ForegroundColor Green
+        return
+    }
+
+    Write-Host "    [INDEX] Creating index on $ListName.$FieldName..." -ForegroundColor Yellow
+    $field.Indexed = $true
+    $field.Update()
+    Invoke-PnPQuery -ErrorAction Stop
+}
+
+function Ensure-SearchHistoryRuntimeSchema {
+    $list = Get-PnPList -Identity "SearchHistory" -ErrorAction Stop
+    if (-not $list) {
+        throw "SearchHistory list was not created by the provisioning template."
+    }
+
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "QueryText" -FieldType "Note"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "QueryHash" -FieldType "Text"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "Vertical" -FieldType "Text"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "SearchPageUrl" -FieldType "Text"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "SearchState" -FieldType "Note"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "UseCount" -FieldType "Number"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "ResultCount" -FieldType "Number"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "IsZeroResult" -FieldType "Boolean"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "ClickedItems" -FieldType "Note"
+    Ensure-DeploymentField -ListName "SearchHistory" -FieldName "SearchTimestamp" -FieldType "DateTime"
+
+    Ensure-DeploymentIndex -ListName "SearchHistory" -FieldName "Author"
+    Ensure-DeploymentIndex -ListName "SearchHistory" -FieldName "SearchTimestamp"
+    Ensure-DeploymentIndex -ListName "SearchHistory" -FieldName "QueryHash"
+    Ensure-DeploymentIndex -ListName "SearchHistory" -FieldName "Vertical"
+}
+
+function Ensure-SearchSupportRuntimeIndexes {
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "Author"
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "Title"
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "EntryType"
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "Category"
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "LastUsed"
+    Ensure-DeploymentIndex -ListName "SearchSavedQueries" -FieldName "ExpiresAt"
+
+    Ensure-DeploymentIndex -ListName "SearchCollections" -FieldName "Author"
+    Ensure-DeploymentIndex -ListName "SearchCollections" -FieldName "Title"
+    Ensure-DeploymentIndex -ListName "SearchCollections" -FieldName "CollectionName"
 }
 
 # ============================================================================
@@ -375,8 +455,13 @@ try {
         # Clean up resolved file
         Remove-Item $resolvedPath -Force -ErrorAction SilentlyContinue
 
+        Write-Host "  Validating SearchHistory runtime schema..." -ForegroundColor Yellow
+        Ensure-SearchHistoryRuntimeSchema
+        Write-Host "  Validating support-list indexes..." -ForegroundColor Yellow
+        Ensure-SearchSupportRuntimeIndexes
+
         Write-Host "  [OK] Security: SP Search Admins group" -ForegroundColor Green
-        Write-Host "  [OK] Lists: SearchSavedQueries, SearchHistory, SearchCollections" -ForegroundColor Green
+        Write-Host "  [OK] Lists: SearchSavedQueries, SearchHistory, SearchCollections, SearchTelemetryConfig, SearchTelemetryOptIn" -ForegroundColor Green
         Write-Host "  [OK] Page: Search.aspx with all web parts" -ForegroundColor Green
 
         # Post-provisioning: Set ReadSecurity/WriteSecurity on SearchHistory

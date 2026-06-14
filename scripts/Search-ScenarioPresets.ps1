@@ -661,7 +661,8 @@ function Invoke-SearchScenarioPage {
     searchContextId            = $SearchContextId
     coverageSourcePageUrl      = "$($SiteUrl.TrimEnd('/'))/SitePages/$pagePath"
     mode                       = 'standalone'
-    defaultTab                 = 'coverage'
+    defaultTab                 = 'dashboard'
+    enableDashboard            = $true
     enableCoverage             = $true
     coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl
     enableHealth               = $true

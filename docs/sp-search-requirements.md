@@ -1273,7 +1273,7 @@ The solution is deployed as a single .sppkg file containing all five web parts a
 
 Hidden lists are provisioned via PnP PowerShell script executed as a post-deployment step in the CI/CD pipeline.
 - Script: Provision-SPSearchLists.ps1
-- Creates three hidden lists: SearchSavedQueries, SearchCollections, SearchHistory
+- Creates core hidden lists (`SearchSavedQueries`, `SearchCollections`, `SearchHistory`) and optional telemetry lists (`SearchTelemetryConfig`, `SearchTelemetryOptIn`)
 - Sets list property: Hidden = true
 - **Per-list permission model (see Section 8.2 for details):**
   - SearchSavedQueries & SearchCollections: All authenticated users have Add Items. Item-level permissions enforced — author gets full control, shared recipients get Read.
@@ -1335,7 +1335,7 @@ Search results are security-trimmed by SharePoint (users only see results they h
 - Search Results web part with List Layout and Compact Layout (registered via LayoutRegistry)
 - Search Filters web part with Checkbox and Date Range filter types (registered via FilterTypeRegistry)
 - Search Verticals web part with tab navigation and badge counts
-- Hidden list provisioning PowerShell script (3 lists: SearchSavedQueries, SearchCollections, SearchHistory) with **item-level permission scaffolding**
+- Hidden list provisioning PowerShell script for core Search Manager lists plus optional telemetry lists, with **item-level permission scaffolding**
 - PnPjs search service layer with query construction, **AbortController integration**, and **request coalescing** (shared token resolution + query construction)
 - SearchHistory list with aggressive retention policy
 

@@ -82,7 +82,9 @@ $GENERIC_TEST_LISTS = @(
 $SEARCH_SUPPORT_LISTS = @(
     'SearchSavedQueries',
     'SearchHistory',
-    'SearchCollections'
+    'SearchCollections',
+    'SearchTelemetryConfig',
+    'SearchTelemetryOptIn'
 )
 
 $KNOWN_SEARCH_PAGES = @(

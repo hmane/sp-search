@@ -10,11 +10,13 @@
       <!-- Security: SP Search Admins group -->
       <xi:include href="Security.xml" />
 
-      <!-- Hidden lists: saved queries, history, collections -->
+      <!-- Hidden lists: saved queries, history, collections, optional telemetry -->
       <pnp:Lists>
         <xi:include href="Lists/SearchSavedQueries.xml" />
         <xi:include href="Lists/SearchHistory.xml" />
         <xi:include href="Lists/SearchCollections.xml" />
+        <xi:include href="Lists/SearchTelemetryConfig.xml" />
+        <xi:include href="Lists/SearchTelemetryOptIn.xml" />
       </pnp:Lists>
 
       <!-- Search page with all SP Search web parts -->

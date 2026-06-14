@@ -342,22 +342,16 @@ try {
             Description = "SP Search saved queries and shared searches"
             Fields = @(
                 @{ Name = "QueryText"; Type = "Note" },
-                @{ Name = "QueryHash"; Type = "Text" },
                 @{ Name = "SearchState"; Type = "Note" },
-                @{ Name = "SearchUrl"; Type = "Note" },
-                @{ Name = "EntryType"; Type = "Text" },
+                @{ Name = "SearchUrl"; Type = "URL" },
+                @{ Name = "EntryType"; Type = "Choice"; Choices = @("SavedSearch", "SharedSearch", "StateSnapshot") },
                 @{ Name = "Category"; Type = "Text" },
-                @{ Name = "Vertical"; Type = "Text" },
-                @{ Name = "Scope"; Type = "Text" },
-                @{ Name = "IsShared"; Type = "Boolean" },
-                @{ Name = "Tags"; Type = "Note" },
-                @{ Name = "UseCount"; Type = "Number" },
                 @{ Name = "ResultCount"; Type = "Number" },
                 @{ Name = "LastUsed"; Type = "DateTime" },
                 @{ Name = "ExpiresAt"; Type = "DateTime" }
             )
             UserMultiFields = @("SharedWith")
-            Indexes = @("QueryHash", "Vertical", "EntryType")
+            Indexes = @("Author", "Title", "EntryType", "Category", "LastUsed", "ExpiresAt")
         },
         @{
             Name = "SearchHistory"
@@ -365,33 +359,56 @@ try {
             Fields = @(
                 @{ Name = "QueryText"; Type = "Note" },
                 @{ Name = "QueryHash"; Type = "Text" },
-                @{ Name = "SearchState"; Type = "Note" },
                 @{ Name = "Vertical"; Type = "Text" },
-                @{ Name = "Scope"; Type = "Text" },
+                @{ Name = "SearchPageUrl"; Type = "Text" },
+                @{ Name = "SearchState"; Type = "Note" },
                 @{ Name = "UseCount"; Type = "Number" },
                 @{ Name = "ResultCount"; Type = "Number" },
                 @{ Name = "IsZeroResult"; Type = "Boolean" },
-                @{ Name = "SearchTimestamp"; Type = "DateTime" },
-                @{ Name = "ClickedItems"; Type = "Note" }
+                @{ Name = "ClickedItems"; Type = "Note" },
+                @{ Name = "SearchTimestamp"; Type = "DateTime" }
             )
             UserMultiFields = @()
-            Indexes = @("QueryHash", "SearchTimestamp", "Vertical")
+            Indexes = @("Author", "SearchTimestamp", "QueryHash", "Vertical")
         },
         @{
             Name = "SearchCollections"
             Description = "SP Search pinboards and collections"
             Fields = @(
-                @{ Name = "CollectionName"; Type = "Text" },
-                @{ Name = "CollectionDescription"; Type = "Note" },
-                @{ Name = "ItemUrl"; Type = "Note" },
+                @{ Name = "ItemUrl"; Type = "URL" },
                 @{ Name = "ItemTitle"; Type = "Text" },
                 @{ Name = "ItemMetadata"; Type = "Note" },
-                @{ Name = "IsShared"; Type = "Boolean" },
+                @{ Name = "CollectionName"; Type = "Text" },
                 @{ Name = "Tags"; Type = "Note" },
                 @{ Name = "SortOrder"; Type = "Number" }
             )
             UserMultiFields = @("SharedWith")
-            Indexes = @("CollectionName")
+            Indexes = @("Author", "Title", "CollectionName")
+        },
+        @{
+            Name = "SearchTelemetryConfig"
+            Description = "SP Search optional telemetry configuration (disabled by default)"
+            Fields = @(
+                @{ Name = "IsEnabled"; Type = "Boolean" },
+                @{ Name = "DestinationEndpoint"; Type = "Text" },
+                @{ Name = "BatchIntervalSeconds"; Type = "Number" },
+                @{ Name = "BatchSizeMax"; Type = "Number" },
+                @{ Name = "PrivacyAcknowledgedBy"; Type = "Text" },
+                @{ Name = "PrivacyAcknowledgedAt"; Type = "DateTime" }
+            )
+            UserMultiFields = @()
+            Indexes = @()
+        },
+        @{
+            Name = "SearchTelemetryOptIn"
+            Description = "SP Search optional per-user telemetry consent records"
+            Fields = @(
+                @{ Name = "ConsentTimestamp"; Type = "DateTime" },
+                @{ Name = "ConsentVersion"; Type = "Text" },
+                @{ Name = "AnonHash"; Type = "Text" }
+            )
+            UserMultiFields = @()
+            Indexes = @()
         }
     )
 
@@ -409,7 +426,11 @@ try {
             $existing = Get-PnPField -List $listDef.Name -Identity $field.Name -ErrorAction SilentlyContinue
             if (-not $existing) {
                 Write-Host "    + $($field.Name) ($($field.Type))" -ForegroundColor Green
-                Add-PnPField -List $listDef.Name -DisplayName $field.Name -InternalName $field.Name -Type $field.Type -ErrorAction SilentlyContinue | Out-Null
+                if ($field.Type -eq "Choice" -and $field.Choices) {
+                    Add-PnPField -List $listDef.Name -DisplayName $field.Name -InternalName $field.Name -Type $field.Type -Choices $field.Choices -ErrorAction SilentlyContinue | Out-Null
+                } else {
+                    Add-PnPField -List $listDef.Name -DisplayName $field.Name -InternalName $field.Name -Type $field.Type -ErrorAction SilentlyContinue | Out-Null
+                }
             }
         }
 
@@ -454,6 +475,19 @@ try {
 
         # Set list as hidden
         Set-PnPList -Identity $listDef.Name -Hidden $true -ErrorAction SilentlyContinue
+
+        if ($listDef.Name -eq "SearchTelemetryConfig") {
+            $configRows = Get-PnPListItem -List $listDef.Name -PageSize 1 -ErrorAction SilentlyContinue
+            if (-not $configRows -or $configRows.Count -eq 0) {
+                Add-PnPListItem -List $listDef.Name -Values @{
+                    Title                = "SP Search Telemetry Config (single row)"
+                    IsEnabled            = $false
+                    DestinationEndpoint  = ""
+                    BatchIntervalSeconds = 300
+                    BatchSizeMax         = 50
+                } | Out-Null
+            }
+        }
     }
     Write-Host "  Hidden lists ready" -ForegroundColor Green
 
@@ -587,7 +621,8 @@ try {
         searchContextId            = $SearchContextId
         coverageSourcePageUrl      = "$($SiteUrl.TrimEnd('/'))/SitePages/$PageName.aspx"
         mode                       = "standalone"
-        defaultTab                 = "coverage"
+        defaultTab                 = "dashboard"
+        enableDashboard            = $true
         enableCoverage             = $true
         coverageProfilesCollection = Get-SeededCoverageProfiles -BaseSiteUrl $SiteUrl -MaxLibraries $MaxSeededLibraries -UseTestData:$UseTestData
         enableHealth               = $true
@@ -612,7 +647,7 @@ try {
     Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Green
     Write-Host ""
     Write-Host "  App deployed:     sp-search.sppkg ($packageSize MB)" -ForegroundColor White
-    Write-Host "  Hidden lists:     SearchSavedQueries, SearchHistory, SearchCollections" -ForegroundColor White
+    Write-Host "  Hidden lists:     SearchSavedQueries, SearchHistory, SearchCollections, SearchTelemetryConfig, SearchTelemetryOptIn" -ForegroundColor White
     Write-Host "  Search page:      $SiteUrl/SitePages/$PageName.aspx" -ForegroundColor White
     Write-Host ""
     Write-Host "  Page Layout:" -ForegroundColor Yellow

@@ -44,9 +44,50 @@ export interface IReadinessReport {
 }
 
 const HIDDEN_LISTS = [
-  { name: 'SearchSavedQueries', requiredFields: ['QueryText', 'SearchState'] },
-  { name: 'SearchHistory', requiredFields: ['QueryText', 'SearchTimestamp', 'IsZeroResult'] },
-  { name: 'SearchCollections', requiredFields: ['ItemUrl', 'ItemTitle', 'CollectionName'] },
+  {
+    name: 'SearchSavedQueries',
+    requiredFields: [
+      'QueryText',
+      'SearchState',
+      'SearchUrl',
+      'EntryType',
+      'Category',
+      'SharedWith',
+      'ResultCount',
+      'LastUsed',
+      'ExpiresAt'
+    ],
+    requiredIndexes: ['Author', 'Title', 'EntryType', 'Category', 'LastUsed', 'ExpiresAt']
+  },
+  {
+    name: 'SearchHistory',
+    requiredFields: [
+      'QueryText',
+      'QueryHash',
+      'Vertical',
+      'SearchPageUrl',
+      'SearchState',
+      'UseCount',
+      'ResultCount',
+      'IsZeroResult',
+      'ClickedItems',
+      'SearchTimestamp'
+    ],
+    requiredIndexes: ['Author', 'SearchTimestamp', 'QueryHash', 'Vertical']
+  },
+  {
+    name: 'SearchCollections',
+    requiredFields: [
+      'ItemUrl',
+      'ItemTitle',
+      'ItemMetadata',
+      'CollectionName',
+      'Tags',
+      'SharedWith',
+      'SortOrder'
+    ],
+    requiredIndexes: ['Author', 'Title', 'CollectionName']
+  },
 ];
 
 /**
@@ -145,22 +186,34 @@ async function checkGraphPermission(_signal?: AbortSignal): Promise<IReadinessCh
 
 async function checkHiddenLists(_signal?: AbortSignal): Promise<IReadinessCheck> {
   const id = 'hidden-lists';
-  const title = 'Hidden lists (SearchSavedQueries / SearchHistory / SearchCollections)';
+  const title = 'Core hidden lists (SearchSavedQueries / SearchHistory / SearchCollections)';
   const missing: string[] = [];
   const missingFields: string[] = [];
+  const missingIndexes: string[] = [];
 
   for (const def of HIDDEN_LISTS) {
     try {
       const list = SPContext.sp.web.lists.getByTitle(def.name);
-      const info = await list.select('Id', 'Hidden').expand('Fields')<{ Id: string; Hidden: boolean; Fields: Array<{ InternalName: string }> }>();
+      const info = await list
+        .select('Id', 'Hidden', 'Fields/InternalName', 'Fields/Indexed')
+        .expand('Fields')<{ Id: string; Hidden: boolean; Fields: Array<{ InternalName: string; Indexed?: boolean }> }>();
       if (!info || !info.Id) {
         missing.push(def.name);
         continue;
       }
       const fieldNames = (info.Fields || []).map((f) => f.InternalName);
+      const fieldsByName: Record<string, { InternalName: string; Indexed?: boolean }> = {};
+      for (const field of info.Fields || []) {
+        fieldsByName[field.InternalName] = field;
+      }
       for (const f of def.requiredFields) {
         if (fieldNames.indexOf(f) < 0) {
           missingFields.push(def.name + '.' + f);
+        }
+      }
+      for (const f of def.requiredIndexes) {
+        if (!fieldsByName[f] || fieldsByName[f].Indexed !== true) {
+          missingIndexes.push(def.name + '.' + f);
         }
       }
     } catch {
@@ -190,10 +243,21 @@ async function checkHiddenLists(_signal?: AbortSignal): Promise<IReadinessCheck>
       },
     };
   }
+  if (missingIndexes.length > 0) {
+    return {
+      id, title,
+      status: 'yellow',
+      message: 'Lists exist but missing indexes: ' + missingIndexes.join(', ') + '. Re-run the provisioning script to add them before these lists exceed 5,000 items.',
+      fix: {
+        text: 'Re-run scripts/Provision-SPSearchLists.ps1',
+        href: 'https://github.com/hemantmane/Development/blob/main/sp-search/docs/deployment-guide.md#provision-hidden-lists',
+      },
+    };
+  }
   return {
     id, title,
     status: 'green',
-    message: 'All three hidden lists exist with required fields.',
+    message: 'All three core hidden lists exist with required fields and indexes.',
   };
 }
 

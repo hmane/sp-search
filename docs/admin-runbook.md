@@ -27,9 +27,10 @@ The **Admin Manager → Pre-Flight** tab runs an automated readiness check. Open
 | Check | What it verifies | Resolution if it fails |
 |---|---|---|
 | Graph `People.Read` / `User.Read` permissions | Tenant has approved the Graph permissions declared by the .sppkg. `People.Read` powers the People vertical; `User.Read` powers audience targeting via `/me/memberOf`. | SharePoint admin centre → Advanced → API access → approve the pending requests |
-| Hidden lists exist | `SearchSavedQueries`, `SearchHistory`, `SearchCollections` are present on the site | Re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` or `Setup-SPSearchSite.ps1` |
+| Core hidden lists exist | `SearchSavedQueries`, `SearchHistory`, `SearchCollections` are present on the site | Re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` or `Setup-SPSearchSite.ps1` |
 | SearchHistory item-level security | `ReadSecurity = 2`, `WriteSecurity = 2` (users see only their own rows) | Re-run `Deploy-SPSearchSolution.ps1`; the script sets this via CSOM after template apply |
-| `IsZeroResult` field on SearchHistory | Boolean field added in Sprint 3 — needed for Health and Insights tabs | Add field manually via `Add-PnPField -List SearchHistory -DisplayName "IsZeroResult" -InternalName "IsZeroResult" -Type Boolean` or re-run provisioning |
+| SearchHistory runtime fields | `QueryText`, `QueryHash`, `Vertical`, `SearchPageUrl`, `SearchState`, `UseCount`, `ResultCount`, `IsZeroResult`, `ClickedItems`, and `SearchTimestamp` exist | Re-run `Provision-SPSearchLists.ps1` to repair missing fields, or re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` with the current template |
+| Core hidden-list indexes | `Author` indexes exist on `SearchSavedQueries`, `SearchHistory`, and `SearchCollections`; high-volume date/hash/name columns are indexed | Re-run `Provision-SPSearchLists.ps1` before the lists exceed 5,000 items |
 | Schema mappings | Crawled→managed property mappings the Results web part needs | Run `Map-CrawledProperties.ps1` against the target site |
 | Content source | A SharePoint content source is indexing the target site | Tenant search admin centre — check crawl status |
 
@@ -175,7 +176,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 1. **Save button disabled** — hover for the tooltip. It tells you which precondition isn't met (typically: empty query + no filters applied).
 2. **Save succeeds but search doesn't appear in the list** — `SearchSavedQueries` hidden list either missing or permissions broken. Verify in `https://<site>/Lists/SearchSavedQueries/AllItems.aspx`.
 3. **Share succeeds but recipient sees nothing** — item-level security broken. The Share action calls `breakRoleInheritance()` + `addRoleAssignment(<recipient>)` on the saved-search list item. If the user doesn't have permission to break role inheritance on the list, the item permissions don't update. List should have inheritance broken globally (see Pre-Flight).
-4. **History empty** — `SearchHistory` list missing OR `IsZeroResult` field missing. The runtime writes a row per query; if the write fails, the history stays empty. Check browser console for `[SP Search] SearchManagerService.logSearch failed` or schema-mismatch warnings.
+4. **History empty** — `SearchHistory` list missing OR one of its runtime fields is missing. The runtime writes a row per query; if the write fails, the history stays empty. Check browser console for `[SP Search] SearchManagerService.logSearch failed` or schema-mismatch warnings.
 5. **Notification badge doesn't clear** — the dismiss handler writes `Acknowledged = true` on the share row; if write fails (permission issue), the badge persists. Check Network tab for `403` on the PATCH.
 
 ### Resolution
@@ -183,7 +184,8 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 | Cause | Fix |
 |---|---|
 | Hidden list missing | Re-run `Deploy-SPSearchSolution.ps1 -ProvisionSite` or `Setup-SPSearchSite.ps1` |
-| `IsZeroResult` field missing on SearchHistory | Add manually via `Add-PnPField -List SearchHistory -DisplayName "IsZeroResult" -InternalName "IsZeroResult" -Type Boolean` |
+| `The field or property 'QueryText' does not exist` or another SearchHistory field is missing | Re-run `Provision-SPSearchLists.ps1 -SiteUrl <site> -ClientId <app-id> -Force` to add missing fields without deleting history |
+| `IsZeroResult` field missing on SearchHistory | Re-run `Provision-SPSearchLists.ps1 -SiteUrl <site> -ClientId <app-id> -Force`, or add manually via `Add-PnPField -List SearchHistory -DisplayName "IsZeroResult" -InternalName "IsZeroResult" -Type Boolean` |
 | Item-level security broken on SearchHistory | Re-run `Deploy-SPSearchSolution.ps1`; the script sets `ReadSecurity = 2`, `WriteSecurity = 2` via CSOM |
 | Share recipient sees no shared search | Verify recipient has `Read` on the list (`Get-PnPListPermissions`); the per-item grant relies on the list-level baseline |
 | User isn't a Member of the site | Share recipients need to be at least Members to receive shared search rows |
@@ -302,8 +304,21 @@ $historyList = Get-PnPList -Identity "SearchHistory"
 "$($historyList.Title): ReadSecurity=$($historyList.ReadSecurity), WriteSecurity=$($historyList.WriteSecurity)"
 # Expect: ReadSecurity=2, WriteSecurity=2
 
-# Verify IsZeroResult field present
-Get-PnPField -List SearchHistory -Identity "IsZeroResult"
+# Verify SearchHistory runtime fields are present
+@(
+  'QueryText',
+  'QueryHash',
+  'Vertical',
+  'SearchPageUrl',
+  'SearchState',
+  'UseCount',
+  'ResultCount',
+  'IsZeroResult',
+  'ClickedItems',
+  'SearchTimestamp'
+) | ForEach-Object {
+  Get-PnPField -List SearchHistory -Identity $_ -ErrorAction Stop | Select InternalName, TypeAsString, Indexed
+}
 
 # Find managed properties available for refinement
 Invoke-PnPSearchQuery -Query "*" -SelectProperties "Title" -SortList @{} -TrimDuplicates $false |

@@ -1,10 +1,10 @@
 # SP Search — Privacy Notice (Telemetry)
 
-> Owned by Foundations track (Found.D9). Read this before enabling telemetry. T5.D8 ships the schema; T5.D9 ships the aggregate dashboard view.
+> Owned by Foundations track (Found.D9). Current runtime does not instantiate telemetry; the lists and transport are provisioned for future opt-in use and remain disabled by default.
 
 ## What we collect (when telemetry is enabled)
 
-When an admin enables telemetry via the `SearchTelemetryConfig` list and a user opts in via the Admin Manager Telemetry property pane group:
+If telemetry is wired in a future release, an admin would enable it via the `SearchTelemetryConfig` list and a user opt-in flow before any data is sent. The intended signal set is:
 
 - Query timing — milliseconds end-to-end per search request
 - Error rates — count of failed search requests, grouped by error class (no message bodies)
@@ -26,7 +26,7 @@ All counts are aggregated client-side per `BatchIntervalSeconds` (default 300s) 
 - IP address (relies on transport infrastructure to redact at the destination)
 - Browser fingerprint, geolocation, or device identifier
 
-The `ITelemetrySignal` interface (T5.D8) enforces the never-captured field list at compile time. The transport (`TelemetryTransport.ts`) never inspects payload contents — it is purely the wire.
+The transport (`TelemetryTransport.ts`) never inspects payload contents — it is purely the wire. The active runtime currently does not instantiate it.
 
 ## Where the data goes
 
@@ -36,12 +36,12 @@ The destination is admin-configured in the `SearchTelemetryConfig` list (`Destin
 - Tenant-internal log collector
 - A custom HTTPS POST endpoint of the admin's choice
 
-The `.sppkg` ships with telemetry **disabled by default** (`IsEnabled: false`). No data leaves the tenant unless an admin both (a) sets `IsEnabled: true` + a destination URL, and (b) at least one user opts in via the Admin Manager property pane.
+The `.sppkg` ships with telemetry **disabled by default** (`IsEnabled: false`). No data leaves the tenant in the current runtime because telemetry is not wired. A future implementation must require both admin enablement and user opt-in before transmission.
 
 ## Opt-in / opt-out
 
-- **Opt in** — Admin sets `SearchTelemetryConfig.IsEnabled = true` + a destination URL. End users see the "View what we send" Panel (T5.D8) on the property pane and can opt in per user. Opt-in events recorded in the `SearchTelemetryOptIn` list (per-user, anonymized hash only).
-- **Opt out** — End users can clear their opt-in by toggling the Admin Manager property pane setting back to off; immediately stops telemetry transmission for that user. Admin can disable tenant-wide by setting `SearchTelemetryConfig.IsEnabled = false`.
+- **Opt in** — Future runtime wiring must require `SearchTelemetryConfig.IsEnabled = true`, a destination URL, and per-user opt-in before sending data.
+- **Opt out** — Future runtime wiring must stop telemetry immediately when the user opts out or when an admin sets `SearchTelemetryConfig.IsEnabled = false`.
 
 ## Data retention
 

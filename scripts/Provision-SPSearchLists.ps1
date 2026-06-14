@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-    Provisions the three hidden SharePoint lists required by SP Search.
+    Provisions the hidden SharePoint support lists used by SP Search.
 
 .DESCRIPTION
-    Creates SearchSavedQueries, SearchHistory, and SearchCollections
-    hidden lists with proper columns, indexes, and permissions.
+    Creates SearchSavedQueries, SearchHistory, SearchCollections,
+    SearchTelemetryConfig, and SearchTelemetryOptIn hidden lists with
+    proper columns, indexes, and permissions.
     Idempotent — safe to re-run.
 
 .PARAMETER SiteUrl
@@ -19,7 +20,7 @@
     .\Provision-SPSearchLists.ps1 -SiteUrl "https://contoso.sharepoint.com/sites/search" -ClientId "970bb320-0d49-4b4a-aa8f-c3f4b1e5928f"
 #>
 
-# T4.D1 — `SupportsShouldProcess` so the three `BreakRoleInheritance`
+# T4.D1 — `SupportsShouldProcess` so the core `BreakRoleInheritance`
 # permission-overwrite calls prompt by default. Field creation /
 # index creation are already idempotent; the only state that survives
 # multiple runs and could be admin-customised is the permission scope
@@ -195,6 +196,7 @@ Ensure-Field -ListName "SearchSavedQueries" -FieldName "LastUsed" -FieldType "Da
 Ensure-Field -ListName "SearchSavedQueries" -FieldName "ExpiresAt" -FieldType "DateTime"
 
 # Indexes
+Ensure-Index -ListName "SearchSavedQueries" -FieldName "Author"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "Title"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "EntryType"
 Ensure-Index -ListName "SearchSavedQueries" -FieldName "Category"
@@ -268,6 +270,7 @@ Ensure-Field -ListName "SearchCollections" -FieldName "SharedWith" -FieldType "U
 Ensure-Field -ListName "SearchCollections" -FieldName "SortOrder" -FieldType "Number"
 
 # Indexes
+Ensure-Index -ListName "SearchCollections" -FieldName "Author"
 Ensure-Index -ListName "SearchCollections" -FieldName "Title"
 Ensure-Index -ListName "SearchCollections" -FieldName "CollectionName"
 
@@ -285,19 +288,16 @@ if ($Force -or $PSCmdlet.ShouldProcess('SearchCollections', 'Break role inherita
 function Add-SearchTelemetryLists {
     Write-Host "`n[Found.D9] Provisioning SearchTelemetryConfig + SearchTelemetryOptIn..." -ForegroundColor Cyan
 
-    # SearchTelemetryConfig — single-row, hidden, default disabled
-    $configList = Get-PnPList -Identity 'SearchTelemetryConfig' -ErrorAction SilentlyContinue
-    if (-not $configList) {
-        $configList = New-PnPList -Title 'SearchTelemetryConfig' -Template GenericList -Url 'Lists/SearchTelemetryConfig' -OnQuickLaunch:$false
-        Set-PnPList -Identity 'SearchTelemetryConfig' -Hidden:$true
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'IsEnabled' -InternalName 'IsEnabled' -Type Boolean -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'DestinationEndpoint' -InternalName 'DestinationEndpoint' -Type Text -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchIntervalSeconds' -InternalName 'BatchIntervalSeconds' -Type Number -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'BatchSizeMax' -InternalName 'BatchSizeMax' -Type Number -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedBy' -InternalName 'PrivacyAcknowledgedBy' -Type Text -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryConfig' -DisplayName 'PrivacyAcknowledgedAt' -InternalName 'PrivacyAcknowledgedAt' -Type DateTime -AddToDefaultView | Out-Null
+    Ensure-HiddenList -ListName 'SearchTelemetryConfig' -Description 'SP Search: Optional telemetry configuration (disabled by default)' | Out-Null
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'IsEnabled' -FieldType 'Boolean'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'DestinationEndpoint' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'BatchIntervalSeconds' -FieldType 'Number'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'BatchSizeMax' -FieldType 'Number'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'PrivacyAcknowledgedBy' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryConfig' -FieldName 'PrivacyAcknowledgedAt' -FieldType 'DateTime'
 
-        # Single-row default (disabled). Admins toggle IsEnabled to opt in.
+    $configRows = Get-PnPListItem -List 'SearchTelemetryConfig' -PageSize 1 -ErrorAction SilentlyContinue
+    if (-not $configRows -or $configRows.Count -eq 0) {
         Add-PnPListItem -List 'SearchTelemetryConfig' -Values @{
             'Title' = 'SP Search Telemetry Config (single row)'
             'IsEnabled' = $false
@@ -305,26 +305,13 @@ function Add-SearchTelemetryLists {
             'BatchIntervalSeconds' = 300
             'BatchSizeMax' = 50
         } | Out-Null
-
-        Write-Host "[Found.D9] SearchTelemetryConfig provisioned (disabled, default row)." -ForegroundColor Green
-    }
-    else {
-        Write-Host "[Found.D9] SearchTelemetryConfig already exists; skipping." -ForegroundColor Yellow
+        Write-Host "[Found.D9] SearchTelemetryConfig default row added (disabled)." -ForegroundColor Green
     }
 
-    # SearchTelemetryOptIn — per-user consent, anonymized hash only
-    $optInList = Get-PnPList -Identity 'SearchTelemetryOptIn' -ErrorAction SilentlyContinue
-    if (-not $optInList) {
-        New-PnPList -Title 'SearchTelemetryOptIn' -Template GenericList -Url 'Lists/SearchTelemetryOptIn' -OnQuickLaunch:$false | Out-Null
-        Set-PnPList -Identity 'SearchTelemetryOptIn' -Hidden:$true
-        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentTimestamp' -InternalName 'ConsentTimestamp' -Type DateTime -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'ConsentVersion' -InternalName 'ConsentVersion' -Type Text -AddToDefaultView | Out-Null
-        Add-PnPField -List 'SearchTelemetryOptIn' -DisplayName 'AnonHash' -InternalName 'AnonHash' -Type Text -AddToDefaultView | Out-Null
-        Write-Host "[Found.D9] SearchTelemetryOptIn provisioned." -ForegroundColor Green
-    }
-    else {
-        Write-Host "[Found.D9] SearchTelemetryOptIn already exists; skipping." -ForegroundColor Yellow
-    }
+    Ensure-HiddenList -ListName 'SearchTelemetryOptIn' -Description 'SP Search: Optional per-user telemetry consent records' | Out-Null
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'ConsentTimestamp' -FieldType 'DateTime'
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'ConsentVersion' -FieldType 'Text'
+    Ensure-Field -ListName 'SearchTelemetryOptIn' -FieldName 'AnonHash' -FieldType 'Text'
 }
 
 Add-SearchTelemetryLists

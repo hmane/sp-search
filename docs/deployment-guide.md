@@ -30,7 +30,7 @@ sharepoint/solution/sp-search.sppkg
 
 **Recommended path — one script does everything:**
 
-`scripts/Deploy-SPSearchSolution.ps1` uploads the `.sppkg`, installs the app on the target site, applies the PnP provisioning template (creates the three hidden lists + the Search.aspx page with the connected search web parts pre-wired), and configures `SearchHistory` item-level security. Use it against either a site- or tenant-level App Catalog. See [`scripts/README.md`](../scripts/README.md) for the full script inventory.
+`scripts/Deploy-SPSearchSolution.ps1` uploads the `.sppkg`, installs the app on the target site, applies the PnP provisioning template (creates the core hidden lists, optional telemetry lists, and the Search.aspx page with the connected search web parts pre-wired), and configures `SearchHistory` item-level security. Use it against either a site- or tenant-level App Catalog. See [`scripts/README.md`](../scripts/README.md) for the full script inventory.
 
 ```powershell
 # Site-level (default) — uploads to <SiteUrl>/AppCatalog
@@ -91,7 +91,7 @@ Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/search" -Interactiv
     -ClientId "<azure-ad-app-id>"
 ```
 
-`Setup-SPSearchSite.ps1` provisions the three hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`), creates the Search.aspx page, wires the five connected search web parts, and adds the Admin Manager surface when enabled. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
+`Setup-SPSearchSite.ps1` provisions the hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`, `SearchTelemetryConfig`, `SearchTelemetryOptIn`), creates the Search.aspx page, wires the five connected search web parts, and adds the Admin Manager surface when enabled. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
 
 ## Safe Re-Runs (T4.D1)
 
@@ -100,9 +100,9 @@ standard PowerShell `SupportsShouldProcess` contract:
 
 | Script | Destructive paths | Default behaviour |
 |--------|-------------------|-------------------|
-| `Deploy-SPSearchSolution.ps1` | `Invoke-PnPSiteTemplate` (overwrites Search.aspx + the three hidden lists if `Overwrite="true"` in the template); `Set-PnPList` updates on `SearchHistory` item-level security | Prompts before each destructive op |
+| `Deploy-SPSearchSolution.ps1` | `Invoke-PnPSiteTemplate` (overwrites Search.aspx + provisioned hidden lists if `Overwrite="true"` in the template); `Set-PnPList` updates on `SearchHistory` item-level security | Prompts before each destructive op |
 | `Setup-SPSearchSite.ps1` (fallback) | `Remove-PnPPage` (existing search page); `Remove-PnPField` when a UserMulti column was previously created as the wrong type | Prompts before each destructive op |
-| `Provision-SPSearchLists.ps1` (fallback) | `Set-PnPList -BreakRoleInheritance` on each of the three hidden lists | Prompts before each permission reset |
+| `Provision-SPSearchLists.ps1` (fallback) | `Set-PnPList -BreakRoleInheritance` on the core Search Manager hidden lists | Prompts before each permission reset |
 | `Map-CrawledProperties.ps1` | `Set-PnPSearchConfiguration -Scope Site` (site-scoped search schema overwrite) | Prompts before each mapping |
 
 Common patterns:
