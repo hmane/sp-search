@@ -13,6 +13,7 @@ export type FilterEditorSection =
   | 'display'
   | 'behavior'
   | 'toggleLabels'
+  | 'dataFormat'
   | 'conditional'
   | 'audience';
 
@@ -36,6 +37,8 @@ export type FilterEditorField =
   | 'falseLabel'
   | 'invertBoolean'
   | 'defaultValue'
+  | 'dataType'
+  | 'valueSplitDelimiter'
   | 'audience';
 
 const LIST_LIKE_TYPES: ReadonlyArray<string> = [
@@ -46,8 +49,25 @@ const LIST_LIKE_TYPES: ReadonlyArray<string> = [
   'tagbox',
 ];
 
+/**
+ * Filter types where the underlying managed-property data shape varies enough
+ * that admins may need to override the auto-detect heuristic and/or split
+ * raw values on a delimiter. Date / slider / toggle / people / taxonomy refiners
+ * have fixed value shapes and don't need this knob.
+ */
+const DATA_FORMAT_TYPES: ReadonlyArray<string> = [
+  'checkbox',
+  'tagbox',
+  'dropdown',
+  'text',
+];
+
 function isListLike(filterType: string): boolean {
   return LIST_LIKE_TYPES.indexOf(filterType) !== -1;
+}
+
+function hasDataFormat(filterType: string): boolean {
+  return DATA_FORMAT_TYPES.indexOf(filterType) !== -1;
 }
 
 export function getRelevantSections(filterType: string): FilterEditorSection[] {
@@ -58,6 +78,9 @@ export function getRelevantSections(filterType: string): FilterEditorSection[] {
   }
   if (filterType === 'toggle') {
     sections.push('toggleLabels');
+  }
+  if (hasDataFormat(filterType)) {
+    sections.push('dataFormat');
   }
   sections.push('conditional');
   sections.push('audience');
@@ -84,6 +107,11 @@ export function isFieldRelevant(field: FilterEditorField, filterType: string): b
     case 'invertBoolean':
     case 'defaultValue':
       return filterType === 'toggle';
+
+    // ── Data-format only (checkbox / tagbox / dropdown / text) ──
+    case 'dataType':
+    case 'valueSplitDelimiter':
+      return hasDataFormat(filterType);
 
     // ── List-like only ─────────────────────────────────────
     case 'operator':

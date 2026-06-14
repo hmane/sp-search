@@ -117,4 +117,29 @@ describe('isFieldRelevant', () => {
     expect(isFieldRelevant('audience', 'toggle')).toBe(true);
     expect(isFieldRelevant('audience', 'daterange')).toBe(true);
   });
+
+  it('exposes dataType + valueSplitDelimiter only for checkbox / tagbox / dropdown / text', () => {
+    const fields: FilterEditorField[] = ['dataType', 'valueSplitDelimiter'];
+    const shown = ['checkbox', 'tagbox', 'dropdown', 'text'];
+    const hidden = ['daterange', 'slider', 'people', 'taxonomy', 'toggle'];
+    for (const f of fields) {
+      for (const t of shown) {
+        expect(isFieldRelevant(f, t)).toBe(true);
+      }
+      for (const t of hidden) {
+        expect(isFieldRelevant(f, t)).toBe(false);
+      }
+    }
+  });
+
+  it('includes the Data format section only for data-format-relevant types', () => {
+    const shown = ['checkbox', 'tagbox', 'dropdown', 'text'];
+    const hidden = ['daterange', 'slider', 'people', 'taxonomy', 'toggle'];
+    for (const t of shown) {
+      expect(getRelevantSections(t)).toContain('dataFormat' as FilterEditorSection);
+    }
+    for (const t of hidden) {
+      expect(getRelevantSections(t)).not.toContain('dataFormat' as FilterEditorSection);
+    }
+  });
 });

@@ -43,6 +43,19 @@ export interface IFiltersCollectionItem {
   invertBoolean?: boolean;
   /** Toggle-only: initial value when no URL state present. URL-restore wins. */
   defaultValue?: boolean;
+  /**
+   * Underlying SharePoint data type of the managed property. Drives value
+   * preprocessing in `_mapRefiners`. Relevant for checkbox / tagbox /
+   * dropdown / text. `'auto'` (default) strips `type;#` prefix when present.
+   */
+  dataType?: 'auto' | 'text' | 'choiceMulti' | 'lookup' | 'calculated' |
+             'datetime' | 'yesno' | 'number';
+  /**
+   * Optional split-on character(s). When set, refiner values are split,
+   * trimmed, deduplicated, and per-token counts are aggregated. Useful for
+   * Text columns storing comma / newline / pipe-separated tag-like values.
+   */
+  valueSplitDelimiter?: string;
   audience?: string;
 }
 
@@ -81,6 +94,17 @@ const SORT_BY_OPTIONS: IDropdownOption[] = [
 const SORT_DIR_OPTIONS: IDropdownOption[] = [
   { key: 'desc', text: 'Descending' },
   { key: 'asc', text: 'Ascending' },
+];
+
+const DATA_TYPE_OPTIONS: IDropdownOption[] = [
+  { key: 'auto', text: 'Auto-detect (recommended)' },
+  { key: 'text', text: 'Text — no preprocessing' },
+  { key: 'choiceMulti', text: 'Choice (multi-value)' },
+  { key: 'lookup', text: 'Lookup' },
+  { key: 'calculated', text: 'Calculated column' },
+  { key: 'datetime', text: 'Date / time' },
+  { key: 'yesno', text: 'Yes / no' },
+  { key: 'number', text: 'Number' },
 ];
 
 const FILTER_TYPE_TEXT: { [k: string]: string } = {
@@ -320,6 +344,35 @@ const FilterEditorForm: React.FC<IFilterEditorFormProps> = (formProps) => {
     );
   }
 
+  function renderDataFormat(): React.ReactElement {
+    const dataTypeKey: string = refiner.dataType || 'auto';
+    return (
+      <Section title='Data format' key='dataFormat' defaultCollapsed>
+        {isFieldRelevant('dataType', ft) && (
+          <Dropdown
+            label='Underlying data type'
+            selectedKey={dataTypeKey}
+            options={DATA_TYPE_OPTIONS}
+            onChange={(_e, opt): void => {
+              if (!opt) { return; }
+              const key = String(opt.key) as NonNullable<IFiltersCollectionItem['dataType']>;
+              // Persist 'auto' as undefined so the property bag stays minimal.
+              onPatch({ dataType: key === 'auto' ? undefined : key });
+            }}
+          />
+        )}
+        {isFieldRelevant('valueSplitDelimiter', ft) && (
+          <TextField
+            label='Split values on (optional)'
+            value={refiner.valueSplitDelimiter || ''}
+            onChange={(_e, v): void => onPatch({ valueSplitDelimiter: v && v.length > 0 ? v : undefined })}
+            description='Empty = no split. Examples: comma (,) semicolon (;) newline (\n) pipe (|)'
+          />
+        )}
+      </Section>
+    );
+  }
+
   function renderConditional(): React.ReactElement {
     const hasParent = !!(refiner.dependsOn && refiner.dependsOn.trim());
     return (
@@ -387,6 +440,7 @@ const FilterEditorForm: React.FC<IFilterEditorFormProps> = (formProps) => {
           case 'display': return renderDisplay();
           case 'behavior': return renderBehavior();
           case 'toggleLabels': return renderToggleLabels();
+          case 'dataFormat': return renderDataFormat();
           case 'conditional': return renderConditional();
           case 'audience': return renderAudience();
           default: return null;

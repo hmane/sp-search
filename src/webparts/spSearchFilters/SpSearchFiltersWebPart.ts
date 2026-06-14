@@ -78,6 +78,15 @@ interface IFilterCollectionItem {
   invertBoolean?: boolean;
   /** Toggle-only: initial value when no URL state present. URL-restore wins. */
   defaultValue?: boolean;
+  /**
+   * Underlying SharePoint data type of the managed property. Drives value
+   * preprocessing in `_mapRefiners`. Relevant for checkbox / tagbox /
+   * dropdown / text. `'auto'` strips `type;#` prefix when present.
+   */
+  dataType?: 'auto' | 'text' | 'choiceMulti' | 'lookup' | 'calculated' |
+             'datetime' | 'yesno' | 'number';
+  /** Optional split-on character(s) for tag-like multi-value text columns. */
+  valueSplitDelimiter?: string;
   /** Stream D / #5 — comma-separated Azure AD group object IDs (admin UX matches Verticals). */
   audience?: string;
 }
@@ -108,6 +117,52 @@ function normalizeManagedPropertyForFilter(
   }
 
   return managedProperty;
+}
+
+/**
+ * Filter types where admins can override the auto-detect heuristic. Mirrors
+ * the `DATA_FORMAT_TYPES` allow-list in `fieldRelevance.ts` — keep in sync.
+ * For any other filter type we drop the property-pane value so it never
+ * reaches `IFilterConfig` (defence in depth: even if a stale JSON value
+ * survives a filter-type change, `_mapRefiners` won't see it).
+ */
+const DATA_FORMAT_FILTER_TYPES: ReadonlyArray<string> = [
+  'checkbox',
+  'tagbox',
+  'dropdown',
+  'text',
+];
+
+function isDataFormatRelevant(filterType: string): boolean {
+  return DATA_FORMAT_FILTER_TYPES.indexOf(filterType) !== -1;
+}
+
+function normalizeDataType(
+  raw: IFilterCollectionItem['dataType'] | undefined,
+  filterType: IFilterConfig['filterType']
+): IFilterConfig['dataType'] | undefined {
+  if (!isDataFormatRelevant(filterType)) {
+    return undefined;
+  }
+  // 'auto' is the default — persisting it in the store would just clutter
+  // diff checks. The `_mapRefiners` heuristic handles `undefined === 'auto'`.
+  if (!raw || raw === 'auto') {
+    return undefined;
+  }
+  return raw;
+}
+
+function normalizeSplitDelimiter(
+  raw: string | undefined,
+  filterType: IFilterConfig['filterType']
+): string | undefined {
+  if (!isDataFormatRelevant(filterType)) {
+    return undefined;
+  }
+  if (typeof raw !== 'string' || raw.length === 0) {
+    return undefined;
+  }
+  return raw;
 }
 
 export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSearchFiltersWebPartProps> {
@@ -279,6 +334,8 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
         defaultValue: filterType === 'toggle' && typeof item.defaultValue === 'boolean'
           ? item.defaultValue
           : undefined,
+        dataType: normalizeDataType(item.dataType, filterType),
+        valueSplitDelimiter: normalizeSplitDelimiter(item.valueSplitDelimiter, filterType),
         audienceGroups: item.audience
           ? item.audience.split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined
