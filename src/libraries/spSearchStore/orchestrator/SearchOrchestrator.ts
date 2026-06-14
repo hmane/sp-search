@@ -606,6 +606,7 @@ export class SearchOrchestrator {
       enableQueryRules: state.enableQueryRules,
       collapseSpecification: state.collapseSpecification || undefined,
       refinementFilters: state.refinementFilters || undefined,
+      filterConfig: state.filterConfig,
     };
   }
 

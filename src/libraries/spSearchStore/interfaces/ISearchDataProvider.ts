@@ -1,6 +1,6 @@
 import { ISearchResult, ISortField } from './ISearchResult';
 import { ISearchScope, ISuggestion } from './ISearchScope';
-import { IActiveFilter, IRefiner } from './IFilterTypes';
+import { IActiveFilter, IFilterConfig, IRefiner } from './IFilterTypes';
 import { IPromotedResultItem } from './IStoreSlices';
 
 // ─── Normalized Query Input ──────────────────────────────────
@@ -34,6 +34,13 @@ export interface ISearchQuery {
    * 'OR': any property group match is sufficient.
    */
   operatorBetweenFilters?: 'AND' | 'OR';
+  /**
+   * Per-filter admin configuration. Used by providers (e.g. SharePoint)
+   * to drive refiner value preprocessing such as "type;#" prefix stripping
+   * and delimiter-based value splitting. Optional — providers fall back
+   * to per-entry heuristics when absent.
+   */
+  filterConfig?: IFilterConfig[];
 }
 
 // ─── Normalized Query Output ─────────────────────────────────

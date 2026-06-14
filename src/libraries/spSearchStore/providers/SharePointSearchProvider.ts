@@ -9,6 +9,7 @@ import {
   IManagedProperty,
   ISearchResult,
   IActiveFilter,
+  IFilterConfig,
   IRefiner,
   IRefinerValue,
   ISuggestion,
@@ -119,7 +120,10 @@ export class SharePointSearchProvider implements ISearchDataProvider {
     const items = this._mapResults(searchResults.PrimarySearchResults);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawResults = searchResults.RawSearchResults as any;
-    const refiners = this._mapRefiners(rawResults?.PrimaryQueryResult?.RefinementResults?.Refiners);
+    const refiners = this._mapRefiners(
+      rawResults?.PrimaryQueryResult?.RefinementResults?.Refiners,
+      query.filterConfig || []
+    );
     const promotedResults = this._mapPromotedResults(rawResults?.PrimaryQueryResult?.SpecialTermResults?.Results);
     // SpellingSuggestion is the proper "Did you mean" field.
     // QueryModification contains internal query rule rewrites (e.g. "* -ContentClass=urn:...")
@@ -282,29 +286,17 @@ export class SharePointSearchProvider implements ISearchDataProvider {
   }
 
   /**
-   * Map raw refiner data to IRefiner[].
+   * Map raw refiner data to IRefiner[]. Delegates to
+   * `mapRefinersWithPreprocessing` so the prefix-strip + delimiter-split
+   * pass is exercised in the live search path AND unit-tested as a pure
+   * helper.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _mapRefiners(rawRefiners: any[] | undefined): IRefiner[] {
+  private _mapRefiners(rawRefiners: any[] | undefined, filterConfig: IFilterConfig[]): IRefiner[] {
     if (!rawRefiners || rawRefiners.length === 0) {
       return [];
     }
-
-    return rawRefiners.map((rawRefiner): IRefiner => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const entries: any[] = rawRefiner.Entries || [];
-      const values: IRefinerValue[] = entries.map((entry): IRefinerValue => ({
-        name: entry.RefinementName || entry.RefinementValue || '',
-        value: entry.RefinementToken || entry.RefinementValue || '',
-        count: parseInt(entry.RefinementCount || '0', 10) || 0,
-        isSelected: false,
-      }));
-
-      return {
-        filterName: rawRefiner.Name || '',
-        values,
-      };
-    });
+    return mapRefinersWithPreprocessing(rawRefiners, filterConfig);
   }
 
   /**
@@ -322,4 +314,116 @@ export class SharePointSearchProvider implements ISearchDataProvider {
       description: raw.Description || undefined,
     }));
   }
+}
+
+// ─── Refiner preprocessing helpers ───────────────────────────────────────────
+
+/**
+ * Strip "type;#" prefix when appropriate and split values on a configured
+ * delimiter. Exported so it can be unit-tested as a pure helper; consumed
+ * by `SharePointSearchProvider._mapRefiners` in the live search path.
+ *
+ * Behaviour:
+ *  - The cleaned/split label is returned as `name`.
+ *  - The ORIGINAL raw refinement token (RefinementToken/RefinementValue) is
+ *    preserved in `value`, so the eventual KQL/FQL refinement clause still
+ *    matches SharePoint's multi-value serialization (`string;#Actual Value`).
+ *  - Cleaned empty strings render as "(blank)" without losing the raw token.
+ *  - When a delimiter is configured, per-entry counts are aggregated per
+ *    cleaned token (dedupe + sum).
+ */
+export function mapRefinersWithPreprocessing(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  refinerResponses: any[],
+  filterConfig: IFilterConfig[]
+): IRefiner[] {
+  const configByName = new Map<string, IFilterConfig>();
+  for (let i = 0; i < filterConfig.length; i++) {
+    configByName.set(filterConfig[i].managedProperty, filterConfig[i]);
+  }
+
+  return refinerResponses.map(function (r): IRefiner {
+    const config = configByName.get(r.Name || '');
+    const valueAggregator = new Map<string, { count: number; rawValue: string }>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entries: any[] = r.Entries || [];
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const rawSource: string =
+        (entry.RefinementName as string) || (entry.RefinementValue as string) || '';
+      const rawToken: string =
+        (entry.RefinementToken as string) || (entry.RefinementValue as string) || '';
+      const count: number = parseInt(entry.RefinementCount || '0', 10) || 0;
+
+      const tokens = splitEntryValue(rawSource, config ? config.valueSplitDelimiter : undefined);
+
+      for (let j = 0; j < tokens.length; j++) {
+        const cleaned = preprocessValue(tokens[j], config ? config.dataType : undefined);
+        const displayName = cleaned.length === 0 ? '(blank)' : cleaned;
+        const existing = valueAggregator.get(displayName);
+        if (existing) {
+          existing.count += count;
+        } else {
+          valueAggregator.set(displayName, { count: count, rawValue: rawToken });
+        }
+      }
+    }
+
+    const values: IRefinerValue[] = [];
+    valueAggregator.forEach(function (agg, name): void {
+      values.push({ name: name, value: agg.rawValue, count: agg.count, isSelected: false });
+    });
+
+    return { filterName: r.Name || '', values: values };
+  });
+}
+
+function splitEntryValue(raw: string, delimiter: string | undefined): string[] {
+  if (!delimiter) {
+    return [raw];
+  }
+  const parts = raw.split(delimiter);
+  const trimmed: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const t = parts[i].trim();
+    if (t.length > 0) {
+      trimmed.push(t);
+    }
+  }
+  return trimmed.length > 0 ? trimmed : [raw];
+}
+
+/** Values stripped when dataType implicates SharePoint's "type;#value" serialization. */
+const STRIP_DATA_TYPES = new Set<string>([
+  'choiceMulti',
+  'lookup',
+  'calculated',
+  'datetime',
+  'number',
+  'yesno',
+]);
+
+function preprocessValue(raw: string, dataType: IFilterConfig['dataType']): string {
+  // Explicit opt-out: never strip when the admin says it's plain text.
+  if (dataType === 'text') {
+    return raw;
+  }
+  // Strip when explicitly one of the strip types, OR when dataType is
+  // unspecified / 'auto' (heuristic mode).
+  const shouldStrip =
+    (dataType !== undefined && STRIP_DATA_TYPES.has(dataType)) ||
+    dataType === undefined ||
+    dataType === 'auto';
+
+  if (!shouldStrip) {
+    return raw;
+  }
+
+  // Heuristic: SharePoint prefix shape is `^[A-Za-z]+;#`.
+  const m = /^[A-Za-z]+;#(.*)$/.exec(raw);
+  if (m) {
+    return m[1];
+  }
+  return raw;
 }
