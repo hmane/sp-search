@@ -112,6 +112,19 @@ export interface IFilterConfig {
    */
   defaultValue?: boolean;
   /**
+   * Underlying SharePoint data type of the managed property. Controls
+   * value preprocessing in SharePointSearchProvider._mapRefiners.
+   * 'auto' (default) runs a heuristic: strip "type;#" prefix when present.
+   */
+  dataType?: 'auto' | 'text' | 'choiceMulti' | 'lookup' | 'calculated' |
+             'datetime' | 'yesno' | 'number';
+  /**
+   * If set, refiner values for this filter are split on this delimiter,
+   * trimmed, deduplicated, and counts are aggregated per token. Useful
+   * for Text columns that store comma/newline-separated tag-like values.
+   */
+  valueSplitDelimiter?: string;
+  /**
    * Stream D / #5 — Azure AD security group object IDs that should see this
    * refiner. Empty / undefined = visible to everyone. When non-empty, the
    * Filters component hides the refiner unless the current user is a member
