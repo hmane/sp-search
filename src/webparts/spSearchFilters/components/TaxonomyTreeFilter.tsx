@@ -132,7 +132,9 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (
         allowMultipleSelections={config.multiValues !== false}
         termsetNameOrID={termSetId}
         panelTitle={config.displayName || 'Pick terms'}
-        label=""
+        // `label` is required by ITaxonomyPickerProps but the component renders
+        // via `label && <Label>` — passing undefined skips the empty DOM node.
+        label={undefined as unknown as string}
         context={SPContext.spfxContext as never}
         initialValues={initialTerms}
         onChange={handleChange}
