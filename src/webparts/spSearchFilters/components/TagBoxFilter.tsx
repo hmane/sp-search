@@ -35,8 +35,45 @@ function compareAlphabetical(a: IRefinerValue, b: IRefinerValue): number {
   return 0;
 }
 
+/**
+ * Pure helper that builds the batched payload for `onReplaceRefinerValues`
+ * from the editor's full intended selection. Extracted so the multi-select
+ * cascade can be tested without needing to drive DevExtreme TagBox under
+ * jsdom (its onValueChanged is hard to reach via @testing-library).
+ *
+ * Order of `nextSelectedTokens` is preserved (matches what the user sees
+ * in the TagBox). Display labels are looked up from the current refiner
+ * bucket; tokens not present in the bucket get `displayValue: undefined`
+ * (the URL/pill formatter will fall back to the raw token).
+ */
+export function buildTagBoxBatchPayload(input: {
+  filterName: string;
+  nextSelectedTokens: string[];
+  refinerValues: IRefinerValue[];
+  operator: 'AND' | 'OR';
+}): IReplaceRefinerValuesPayload {
+  const labelMap: Map<string, string> = new Map<string, string>();
+  for (let i = 0; i < input.refinerValues.length; i++) {
+    const rv = input.refinerValues[i];
+    labelMap.set(rv.value, rv.name || rv.value);
+  }
+
+  const values: IActiveFilter[] = [];
+  for (let i = 0; i < input.nextSelectedTokens.length; i++) {
+    const token: string = input.nextSelectedTokens[i];
+    values.push({
+      filterName: input.filterName,
+      value: token,
+      displayValue: labelMap.get(token),
+      operator: input.operator,
+    });
+  }
+
+  return { filterName: input.filterName, values: values };
+}
+
 const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): React.ReactElement => {
-  const { filterName, values, config, activeFilters, onToggleRefiner } = props;
+  const { filterName, values, config, activeFilters, onToggleRefiner, onReplaceRefinerValues } = props;
 
   const showCount: boolean = config ? config.showCount : true;
   const configSortBy: SortBy = config ? config.sortBy : 'count';
@@ -110,27 +147,45 @@ const TagBoxFilter: React.FC<ITagBoxFilterProps> = (props: ITagBoxFilterProps): 
     }
     setEditorValues(nextValues);
 
-    // Toggle added values
-    for (let i = 0; i < nextValues.length; i++) {
-      if (selectedValues.indexOf(nextValues[i]) < 0) {
-        onToggleRefiner({
-          filterName,
-          value: nextValues[i],
-          displayValue: displayNameMap.get(nextValues[i]) || undefined,
-          operator,
-        });
-      }
-    }
+    if (onReplaceRefinerValues) {
+      // Batched path — one call carrying the FULL intended selection.
+      // The per-delta loop below would otherwise capture a stale React
+      // closure over `activeFilters` and silently drop all but the last
+      // delta on multi-select (paste-multi, programmatic selection).
+      const payload = buildTagBoxBatchPayload({
+        filterName,
+        nextSelectedTokens: nextValues,
+        refinerValues: sortedValues,
+        operator,
+      });
+      onReplaceRefinerValues(payload);
+    } else {
+      // Fallback for callers that haven't migrated. Kept so the component
+      // remains usable standalone, but the in-tree parent always provides
+      // onReplaceRefinerValues.
 
-    // Toggle removed values
-    for (let i = 0; i < selectedValues.length; i++) {
-      if (nextValues.indexOf(selectedValues[i]) < 0) {
-        onToggleRefiner({
-          filterName,
-          value: selectedValues[i],
-          displayValue: displayNameMap.get(selectedValues[i]) || undefined,
-          operator,
-        });
+      // Toggle added values
+      for (let i = 0; i < nextValues.length; i++) {
+        if (selectedValues.indexOf(nextValues[i]) < 0) {
+          onToggleRefiner({
+            filterName,
+            value: nextValues[i],
+            displayValue: displayNameMap.get(nextValues[i]) || undefined,
+            operator,
+          });
+        }
+      }
+
+      // Toggle removed values
+      for (let i = 0; i < selectedValues.length; i++) {
+        if (nextValues.indexOf(selectedValues[i]) < 0) {
+          onToggleRefiner({
+            filterName,
+            value: selectedValues[i],
+            displayValue: displayNameMap.get(selectedValues[i]) || undefined,
+            operator,
+          });
+        }
       }
     }
 
