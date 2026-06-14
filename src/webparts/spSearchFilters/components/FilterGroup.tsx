@@ -7,7 +7,8 @@ import ToggleFilter from './ToggleFilter';
 import type {
   IRefiner,
   IActiveFilter,
-  IFilterConfig
+  IFilterConfig,
+  IReplaceRefinerValuesPayload
 } from '@interfaces/index';
 
 // Lazy-load heavy filter components (DevExtreme DateBox, RangeSlider, TagBox, TreeView; PnP FileTypeIcon, PeoplePicker)
@@ -31,7 +32,7 @@ export interface IFilterGroupProps {
    * stale-closure clobber that affects per-delta `onToggleRefiner` calls.
    * Optional during the Task 1 foundation; components migrate in Tasks 2-5.
    */
-  onReplaceRefinerValues?: (payload: { filterName: string; values: IActiveFilter[] }) => void;
+  onReplaceRefinerValues?: (payload: IReplaceRefinerValuesPayload) => void;
 }
 
 /**
@@ -61,7 +62,7 @@ function renderFilterComponent(
   config: IFilterConfig | undefined,
   activeFilters: IActiveFilter[],
   onToggleRefiner: (filter: IActiveFilter) => void,
-  onReplaceRefinerValues: ((payload: { filterName: string; values: IActiveFilter[] }) => void) | undefined
+  onReplaceRefinerValues: ((payload: IReplaceRefinerValuesPayload) => void) | undefined
 ): React.ReactElement {
   const filterType: string = config ? config.filterType : 'checkbox';
   const commonProps = {

@@ -21,6 +21,17 @@ export interface IRefiner {
 }
 
 /**
+ * Payload for the batched multi-value refiner callback. Used by filter
+ * components (TagBox, PeoplePicker, TaxonomyTree, Dropdown) to emit their
+ * FULL intended selection in one call, instead of looping per-delta and
+ * clobbering activeFilters through stale React closures.
+ */
+export interface IReplaceRefinerValuesPayload {
+  filterName: string;
+  values: IActiveFilter[];
+}
+
+/**
  * Single refiner value with count and selection state.
  */
 export interface IRefinerValue {

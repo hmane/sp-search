@@ -7,6 +7,7 @@ import type {
   IRefinerValue,
   IActiveFilter,
   IFilterConfig,
+  IReplaceRefinerValuesPayload,
   SortBy
 } from '@interfaces/index';
 
@@ -20,7 +21,7 @@ export interface IDropdownFilterProps {
    * Batched callback (Task 1 foundation). Components migrating in Tasks 2-5
    * will switch from per-delta `onToggleRefiner` to a single batched call here.
    */
-  onReplaceRefinerValues?: (payload: { filterName: string; values: IActiveFilter[] }) => void;
+  onReplaceRefinerValues?: (payload: IReplaceRefinerValuesPayload) => void;
 }
 
 function compareByCount(a: IRefinerValue, b: IRefinerValue): number {

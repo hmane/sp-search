@@ -7,6 +7,7 @@ export type {
   IActiveFilter,
   IRefiner,
   IRefinerValue,
+  IReplaceRefinerValuesPayload,
   IFilterConfig,
   IFilterValueFormatter,
   FilterType,

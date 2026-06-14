@@ -12,6 +12,7 @@ import type {
   IRefiner,
   IActiveFilter,
   IFilterConfig,
+  IReplaceRefinerValuesPayload,
   ISearchStore
 } from '@interfaces/index';
 import { areFiltersEquivalent } from '@store/utils/filterValueMatching';
@@ -474,10 +475,7 @@ const SpSearchFilters: React.FC<ISpSearchFiltersProps> = (props: ISpSearchFilter
   }
 
   /** Multi-value batched: replace all values for a single filterName in one call. */
-  function handleReplaceRefinerValues(payload: {
-    filterName: string;
-    values: IActiveFilter[];
-  }): void {
+  function handleReplaceRefinerValues(payload: IReplaceRefinerValuesPayload): void {
     if (!store) {
       return;
     }

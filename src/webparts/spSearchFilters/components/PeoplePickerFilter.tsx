@@ -2,7 +2,7 @@ import * as React from 'react';
 import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import styles from './SpSearchFilters.module.scss';
-import type { IActiveFilter, IFilterConfig, IRefinerValue } from '@interfaces/index';
+import type { IActiveFilter, IFilterConfig, IRefinerValue, IReplaceRefinerValuesPayload } from '@interfaces/index';
 
 export interface IPeoplePickerFilterProps {
   filterName: string;
@@ -14,7 +14,7 @@ export interface IPeoplePickerFilterProps {
    * Batched callback (Task 1 foundation). Components migrating in Tasks 2-5
    * will switch from per-delta `onToggleRefiner` to a single batched call here.
    */
-  onReplaceRefinerValues?: (payload: { filterName: string; values: IActiveFilter[] }) => void;
+  onReplaceRefinerValues?: (payload: IReplaceRefinerValuesPayload) => void;
 }
 
 interface IPeoplePickerItem {
