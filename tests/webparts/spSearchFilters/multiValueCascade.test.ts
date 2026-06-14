@@ -1,6 +1,8 @@
 import { buildTagBoxBatchPayload } from '@webparts/spSearchFilters/components/TagBoxFilter';
 import { buildDropdownBatchPayload } from '@webparts/spSearchFilters/components/DropdownFilter';
 import { buildTaxonomyBatchPayload } from '@webparts/spSearchFilters/components/TaxonomyTreeFilter';
+import { buildPeoplePickerBatchPayload } from '@webparts/spSearchFilters/components/PeoplePickerFilter';
+import type { IPersonaProps } from '@fluentui/react/lib/Persona';
 import type { IActiveFilter, IRefinerValue } from '@interfaces/index';
 
 describe('TagBoxFilter batched callback', () => {
@@ -299,5 +301,48 @@ describe('buildTaxonomyBatchPayload', () => {
     });
     expect(payload.values[0].value).toBe('GP0|#unmapped-guid');
     expect(payload.values[0].displayValue).toBeUndefined();
+  });
+});
+
+describe('buildPeoplePickerBatchPayload', () => {
+  it('maps Fluent personas to a single batched payload (value=secondaryText/claim, displayValue=text)', () => {
+    const personas: IPersonaProps[] = [
+      { text: 'Alice Smith', secondaryText: 'i:0#.f|membership|alice@contoso.com' },
+      { text: 'Bob Jones', secondaryText: 'i:0#.f|membership|bob@contoso.com' },
+    ];
+
+    const payload = buildPeoplePickerBatchPayload({
+      filterName: 'EditorOWSUSER',
+      personas,
+      operator: 'OR',
+    });
+
+    expect(payload).toEqual({
+      filterName: 'EditorOWSUSER',
+      values: [
+        {
+          filterName: 'EditorOWSUSER',
+          value: 'i:0#.f|membership|alice@contoso.com',
+          displayValue: 'Alice Smith',
+          operator: 'OR',
+        },
+        {
+          filterName: 'EditorOWSUSER',
+          value: 'i:0#.f|membership|bob@contoso.com',
+          displayValue: 'Bob Jones',
+          operator: 'OR',
+        },
+      ],
+    });
+  });
+
+  it('returns an empty values array when no personas are selected (clears the filter)', () => {
+    const payload = buildPeoplePickerBatchPayload({
+      filterName: 'EditorOWSUSER',
+      personas: [],
+      operator: 'OR',
+    });
+
+    expect(payload).toEqual({ filterName: 'EditorOWSUSER', values: [] });
   });
 });
