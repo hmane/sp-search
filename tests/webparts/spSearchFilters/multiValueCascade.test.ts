@@ -1,6 +1,10 @@
 import { buildTagBoxBatchPayload } from '@webparts/spSearchFilters/components/TagBoxFilter';
 import { buildDropdownBatchPayload } from '@webparts/spSearchFilters/components/DropdownFilter';
 import { buildPeoplePickerBatchPayload } from '@webparts/spSearchFilters/components/PeoplePickerFilter';
+import {
+  buildTaxonomyTagBoxBatchPayload,
+  extractGuid,
+} from '@webparts/spSearchFilters/components/TaxonomyTreeFilter';
 import type { IPersonaProps } from '@fluentui/react/lib/Persona';
 import type { IActiveFilter, IRefinerValue } from '@interfaces/index';
 
@@ -292,5 +296,171 @@ describe('buildPeoplePickerBatchPayload', () => {
     });
 
     expect(payload).toEqual({ filterName: 'EditorOWSUSER', values: [] });
+  });
+});
+
+describe('extractGuid', () => {
+  it('extracts the GUID from a well-formed GP0|#GUID token', () => {
+    expect(extractGuid('GP0|#11111111-2222-3333-4444-555555555555'))
+      .toBe('11111111-2222-3333-4444-555555555555');
+  });
+
+  it('is case-insensitive on hex digits', () => {
+    expect(extractGuid('GP0|#AABBCCDD-EEFF-0011-2233-445566778899'))
+      .toBe('AABBCCDD-EEFF-0011-2233-445566778899');
+  });
+
+  it('returns undefined for tokens without the GP0|# prefix', () => {
+    expect(extractGuid('"some-value"')).toBeUndefined();
+    expect(extractGuid('11111111-2222-3333-4444-555555555555')).toBeUndefined();
+  });
+
+  it('returns undefined for an empty string', () => {
+    expect(extractGuid('')).toBeUndefined();
+  });
+});
+
+describe('buildTaxonomyTagBoxBatchPayload', () => {
+  const GUID_A = '11111111-1111-1111-1111-111111111111';
+  const GUID_B = '22222222-2222-2222-2222-222222222222';
+  const TOKEN_A = 'GP0|#' + GUID_A;
+  const TOKEN_B = 'GP0|#' + GUID_B;
+
+  it('maps selected taxonomy tokens to a batched payload with labels resolved from the label map', () => {
+    const labelMap = new Map<string, string>([
+      [GUID_A, 'Electronics'],
+      [GUID_B, 'Furniture'],
+    ]);
+
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_A, TOKEN_B],
+      labelMap,
+      operator: 'OR',
+    });
+
+    expect(payload).toEqual({
+      filterName: 'owstaxIdCategory',
+      values: [
+        {
+          filterName: 'owstaxIdCategory',
+          value: TOKEN_A,
+          displayValue: 'Electronics',
+          operator: 'OR',
+        },
+        {
+          filterName: 'owstaxIdCategory',
+          value: TOKEN_B,
+          displayValue: 'Furniture',
+          operator: 'OR',
+        },
+      ],
+    });
+  });
+
+  it('falls back to the raw token as displayValue when the label is not in the map', () => {
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_A],
+      labelMap: new Map<string, string>(),
+      operator: 'OR',
+    });
+
+    expect(payload.values).toEqual<IActiveFilter[]>([
+      {
+        filterName: 'owstaxIdCategory',
+        value: TOKEN_A,
+        displayValue: TOKEN_A,
+        operator: 'OR',
+      },
+    ]);
+  });
+
+  it('looks up labels case-insensitively (labelMap is keyed by lowercase GUID)', () => {
+    const labelMap = new Map<string, string>([
+      [GUID_A.toLowerCase(), 'Electronics'],
+    ]);
+    const upperToken = 'GP0|#' + GUID_A.toUpperCase();
+
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [upperToken],
+      labelMap,
+      operator: 'OR',
+    });
+
+    expect(payload.values[0].displayValue).toBe('Electronics');
+  });
+
+  it('returns an empty values array when nothing is selected (clears the filter)', () => {
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [],
+      labelMap: new Map<string, string>([[GUID_A, 'Electronics']]),
+      operator: 'OR',
+    });
+
+    expect(payload).toEqual({ filterName: 'owstaxIdCategory', values: [] });
+  });
+
+  it('propagates the AND operator when configured', () => {
+    const labelMap = new Map<string, string>([
+      [GUID_A, 'Electronics'],
+      [GUID_B, 'Furniture'],
+    ]);
+
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_A, TOKEN_B],
+      labelMap,
+      operator: 'AND',
+    });
+
+    expect(payload.values.every(function (v: IActiveFilter): boolean { return v.operator === 'AND'; }))
+      .toBe(true);
+  });
+
+  it('preserves selection order from the editor (not labelMap iteration order)', () => {
+    const labelMap = new Map<string, string>([
+      [GUID_A, 'Electronics'],
+      [GUID_B, 'Furniture'],
+    ]);
+
+    const payload = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_B, TOKEN_A],
+      labelMap,
+      operator: 'OR',
+    });
+
+    expect(payload.values.map(function (v: IActiveFilter): string { return v.value; }))
+      .toEqual([TOKEN_B, TOKEN_A]);
+  });
+
+  it('output depends only on selectedTokens + labelMap, not on prior activeFilters state', () => {
+    // Lock-in for the stale-state bug — same inputs must always produce
+    // identical output, independent of any external/closure state.
+    const labelMap = new Map<string, string>([
+      [GUID_A, 'Electronics'],
+      [GUID_B, 'Furniture'],
+    ]);
+
+    const result1 = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_A, TOKEN_B],
+      labelMap,
+      operator: 'OR',
+    });
+    const result2 = buildTaxonomyTagBoxBatchPayload({
+      filterName: 'owstaxIdCategory',
+      selectedTokens: [TOKEN_A, TOKEN_B],
+      labelMap,
+      operator: 'OR',
+    });
+
+    expect(result1).toEqual(result2);
+    expect(result1.values).toHaveLength(2);
+    expect(result1.values.map(function (v: IActiveFilter): string { return v.value; }))
+      .toEqual([TOKEN_A, TOKEN_B]);
   });
 });
