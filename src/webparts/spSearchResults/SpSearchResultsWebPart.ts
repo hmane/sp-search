@@ -63,6 +63,7 @@ import { recordPresetSuggestion } from '@store/utils/presetSuggestionRegistry';
 import { GraphOrgService } from './components/GraphOrgService';
 import { TitleDisplayMode } from './components/documentTitleUtils';
 import { DebugCollector } from '@store/debug';
+import { normalizeSelectedPropertyItems } from './components/selectedPropertiesConfig';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -420,65 +421,14 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
   private _normalizeSelectedPropertiesCollection(): ISelectedPropertyItem[] {
     const persisted = this.properties.selectedPropertiesCollection;
-    const hasNoPersistedValue = persisted === undefined || persisted === null;
     const raw = normalizeCollectionValue<ISelectedPropertyItem>(persisted);
-    const result: ISelectedPropertyItem[] = [];
-    const seen = new Set<string>();
-    let titleItem: ISelectedPropertyItem | undefined;
 
-    for (let i: number = 0; i < raw.length; i++) {
-      const property = String(raw[i].property || '').trim();
-      if (!property) {
-        continue;
-      }
-      const lookup = property.toLowerCase();
-      if (seen.has(lookup)) {
-        continue;
-      }
-      seen.add(lookup);
-
-      const normalizedItem: ISelectedPropertyItem = {
-        uniqueId: raw[i].uniqueId || ('sp-' + String(i)),
-        property,
-        alias: String(raw[i].alias || '').trim()
-      };
-
-      if (isTitleProperty(property)) {
-        titleItem = {
-          uniqueId: normalizedItem.uniqueId,
-          property: 'Title',
-          alias: normalizedItem.alias || 'Name'
-        };
-      } else {
-        result.push(normalizedItem);
-      }
-    }
-
-    if (!titleItem) {
-      titleItem = { uniqueId: 'sp-title', property: 'Title', alias: 'Name' };
-    }
-
-    // Seed reasonable defaults when no value has ever been persisted (covers
-    // pages where the web part was provisioned before the manifest seeded
-    // `selectedPropertiesCollection`). Without these, the Grid/Compact "Add
-    // column" picker would be empty and disabled because every available
-    // property is filtered out by `isTitleProperty`.
-    if (hasNoPersistedValue && result.length === 0) {
-      const defaults: ISelectedPropertyItem[] = [
-        { uniqueId: 'sp-author', property: 'Author', alias: 'Author' },
-        { uniqueId: 'sp-lastmodified', property: 'LastModifiedTime', alias: 'Modified' },
-        { uniqueId: 'sp-filetype', property: 'FileType', alias: 'Type' },
-        { uniqueId: 'sp-size', property: 'Size', alias: 'Size' },
-        { uniqueId: 'sp-path', property: 'Path', alias: 'URL' },
-        { uniqueId: 'sp-sitename', property: 'SiteName', alias: 'Site' }
-      ];
-      for (const def of defaults) {
-        result.push(def);
-        seen.add(def.property.toLowerCase());
-      }
-    }
-
-    const normalized = [titleItem, ...result];
+    // Seed reasonable defaults when the master property list has no metadata
+    // fields. This covers both "never persisted" pages and pages where
+    // SharePoint persisted an explicit empty collection; without these, the
+    // Grid/Compact column editors show "No columns configured yet" while the
+    // runtime grid falls back to its internal defaults.
+    const normalized = normalizeSelectedPropertyItems(raw, true);
     this.properties.selectedPropertiesCollection = normalized;
     return normalized;
   }

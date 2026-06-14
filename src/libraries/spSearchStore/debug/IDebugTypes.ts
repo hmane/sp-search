@@ -14,7 +14,7 @@ export interface INetworkEvent {
   readonly id: number;
   readonly timestamp: number;
   readonly providerId: string;
-  readonly kind: 'search' | 'verticalCount';
+  readonly kind: 'search' | 'verticalCount' | 'selfRefiner';
   readonly status: 'ok' | 'error' | 'aborted';
   /** Wall-clock duration in milliseconds, undefined if still in flight. */
   readonly durationMs: number | undefined;

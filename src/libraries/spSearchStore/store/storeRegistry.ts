@@ -12,6 +12,7 @@ import {
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { initializeFileTypeIcons } from '@fluentui/react-file-type-icons';
+import { spLog } from '@store/utils/spLog';
 
 /**
  * Context instance that holds the store, orchestrator, and services.
@@ -220,7 +221,7 @@ export async function initializeSearchContext(
 
   // Skip if already initialized
   if (context.isInitialized) {
-    console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") SKIPPED (already initialized)');
+    spLog.debug('initializeSearchContext skipped; context already initialized', { searchContextId });
     return;
   }
 
@@ -229,11 +230,11 @@ export async function initializeSearchContext(
   // If initialization is already in-flight, await the existing promise
   const existing = promises.get(searchContextId);
   if (existing) {
-    console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") AWAITING in-flight promise');
+    spLog.debug('initializeSearchContext awaiting in-flight promise', { searchContextId });
     return existing;
   }
 
-  console.log('[SP Search] v1.0.12 — initializeSearchContext("' + searchContextId + '") STARTING initialization');
+  spLog.debug('initializeSearchContext starting initialization', { searchContextId });
 
   // Create and start the initialization promise
   const promise = _doInitializeContext(searchContextId, context);
@@ -331,7 +332,7 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
   const map = getContextMap();
   let context = map.get(searchContextId);
   if (!context) {
-    console.log('[SP Search] v1.0.12 — Creating NEW context for "' + searchContextId + '" (map size: ' + map.size + ')');
+    spLog.debug('Creating new search context', { searchContextId, contextCount: map.size });
     const registries = createRegistryContainer();
     const store = createSearchStore(registries);
     const orchestrator = new SearchOrchestrator(store);
@@ -370,7 +371,7 @@ function getOrCreateContext(searchContextId: string): ISearchContext {
       });
     }
   } else {
-    console.log('[SP Search] v1.0.12 — Reusing EXISTING context for "' + searchContextId + '" (map size: ' + map.size + ')');
+    spLog.debug('Reusing existing search context', { searchContextId, contextCount: map.size });
   }
   return context;
 }

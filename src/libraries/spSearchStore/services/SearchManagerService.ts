@@ -11,6 +11,7 @@ import {
   ISearchHistoryEntry,
   IPersonaInfo
 } from '@interfaces/index';
+import { spLog } from '@store/utils/spLog';
 
 // ─── List Names ────────────────────────────────────────────
 const SAVED_QUERIES_LIST = 'SearchSavedQueries';
@@ -198,7 +199,8 @@ function buildHistoryTitle(
     }
   }
 
-  const verticalLabel = (parsedState?.currentVerticalKey || vertical || '').trim();
+  const rawVerticalLabel = (parsedState?.currentVerticalKey || vertical || '').trim();
+  const verticalLabel = rawVerticalLabel.toLowerCase() === 'all' ? '' : rawVerticalLabel;
 
   let title = '';
   if (filterLabels.length > 0 && verticalLabel) {
@@ -400,7 +402,7 @@ export class SearchManagerService {
    */
   public async loadSavedSearches(): Promise<ISavedSearch[]> {
     if (!this.isReady) {
-      console.warn('[SP Search] loadSavedSearches skipped — service not ready (userId=' + this._currentUserId + ')');
+      spLog.warn('loadSavedSearches skipped; service not ready', { userId: this._currentUserId });
       return [];
     }
 
@@ -432,7 +434,7 @@ export class SearchManagerService {
           .top(200)() as Array<Record<string, unknown>>;
       } catch {
         // SharedWith expand failed — retry without it
-        console.warn('[SP Search] loadSavedSearches: SharedWith expand failed on owned query, retrying without');
+        spLog.warn('loadSavedSearches SharedWith expand failed on owned query; retrying without SharedWith');
         ownedItems = await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
           .items
           .using(CacheNever())
@@ -485,10 +487,10 @@ export class SearchManagerService {
         return dateB.getTime() - dateA.getTime();
       });
 
-      console.log('[SP Search] loadSavedSearches: loaded ' + filteredItems.length + ' items');
+      spLog.info('SearchManagerService loaded saved searches', { count: filteredItems.length });
       return filteredItems.map(mapToSavedSearch);
     } catch (error) {
-      console.error('[SP Search] loadSavedSearches FAILED:', error);
+      spLog.error('loadSavedSearches failed', { error });
       return [];
     }
   }
@@ -579,11 +581,11 @@ export class SearchManagerService {
       throw new Error('Invalid item ID: ' + id);
     }
 
-    console.log('[SP Search] deleteSavedSearch: recycling item id=' + id + ' from list=' + SAVED_QUERIES_LIST);
+    spLog.debug('SearchManagerService recycling saved search', { id, list: SAVED_QUERIES_LIST });
     await SPContext.sp.web.lists.getByTitle(SAVED_QUERIES_LIST)
       .items.getById(id).recycle();
 
-    console.log('[SP Search] deleteSavedSearch: item id=' + id + ' recycled successfully');
+    spLog.info('SearchManagerService recycled saved search', { id });
   }
 
   // ─── Search History ────────────────────────────────────────
@@ -596,7 +598,7 @@ export class SearchManagerService {
    */
   public async loadHistory(maxItems: number = 50): Promise<ISearchHistoryEntry[]> {
     if (!this.isReady) {
-      console.warn('[SP Search] loadHistory skipped — service not ready (userId=' + this._currentUserId + ')');
+      spLog.warn('loadHistory skipped; service not ready', { userId: this._currentUserId });
       return [];
     }
 
@@ -635,10 +637,10 @@ export class SearchManagerService {
       const items = await SPContext.sp.web.lists.getByTitle(HISTORY_LIST)
         .getItemsByCAMLQuery({ ViewXml: camlQuery });
 
-      console.log('[SP Search] loadHistory: loaded ' + (items as Array<unknown>).length + ' items');
+      spLog.info('SearchManagerService loaded history', { count: (items as Array<unknown>).length });
       return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
     } catch (error) {
-      console.error('[SP Search] loadHistory FAILED:', error);
+      spLog.error('loadHistory failed', { error });
       return [];
     }
   }
@@ -737,7 +739,7 @@ export class SearchManagerService {
         SPContext.logger.warn('SearchManagerService: SearchHistory schema mismatch; disabling history writes for this session', { error });
       }
       // Non-critical — log but don't throw history errors
-      console.warn('SearchManagerService.logSearch failed:', error);
+      spLog.warn('SearchManagerService.logSearch failed', { error });
       return 0;
     }
   }
@@ -897,7 +899,7 @@ export class SearchManagerService {
         });
     } catch (error) {
       // Non-critical — ClickedItems field may not exist yet
-      console.warn('SearchManagerService.logClickedItem failed:', error);
+      spLog.warn('SearchManagerService.logClickedItem failed', { error });
     }
   }
 
@@ -1014,7 +1016,7 @@ export class SearchManagerService {
    */
   public async loadCollections(): Promise<ISearchCollection[]> {
     if (!this.isReady) {
-      console.warn('[SP Search] loadCollections skipped — service not ready (userId=' + this._currentUserId + ')');
+      spLog.warn('loadCollections skipped; service not ready', { userId: this._currentUserId });
       return [];
     }
 
@@ -1064,7 +1066,7 @@ export class SearchManagerService {
             }
           } catch {
             if (useSharedWithExpand && lastId === 0) {
-              console.warn('[SP Search] loadCollections: SharedWith expand failed on owned query, retrying without');
+              spLog.warn('loadCollections SharedWith expand failed on owned query; retrying without SharedWith');
               useSharedWithExpand = false;
               batch = await SPContext.sp.web.lists.getByTitle(COLLECTIONS_LIST)
                 .items
@@ -1139,10 +1141,10 @@ export class SearchManagerService {
         return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
       });
 
-      console.log('[SP Search] loadCollections: loaded ' + allItems.length + ' items');
+      spLog.info('SearchManagerService loaded collections', { count: allItems.length });
       return mapToCollection(allItems);
     } catch (error) {
-      console.error('[SP Search] loadCollections FAILED:', error);
+      spLog.error('loadCollections failed', { error });
       return [];
     }
   }
@@ -1572,7 +1574,7 @@ export class SearchManagerService {
 
       return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
     } catch (error) {
-      console.warn('SearchManagerService.loadZeroResultQueries failed:', error);
+      spLog.warn('SearchManagerService.loadZeroResultQueries failed', { error });
       return [];
     }
   }
@@ -1631,7 +1633,7 @@ export class SearchManagerService {
 
       return (items as Array<Record<string, unknown>>).map(mapToHistoryEntry);
     } catch (error) {
-      console.warn('SearchManagerService.loadAllHistoryForInsights failed:', error);
+      spLog.warn('SearchManagerService.loadAllHistoryForInsights failed', { error });
       return [];
     }
   }

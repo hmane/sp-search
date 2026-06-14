@@ -21,6 +21,7 @@ import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { recordWebPartInit } from '@store/utils/initOrderDiagnostic';
+import { spLog } from '@store/utils/spLog';
 import type { ISearchStore, IFilterConfig } from '@interfaces/index';
 import { registerBuiltInFilterTypes } from './registerBuiltInFilterTypes';
 import { SharePointSearchProvider } from '@providers/index';
@@ -288,7 +289,7 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
       await initializeSearchContext(contextId, this.context);
       DebugCollector.registerWebPart('SPSearchFiltersWebPart', this.properties as unknown as Record<string, unknown>);
     } catch (err) {
-      console.error('[SPSearchFilters] onInit failed:', err);
+      spLog.error('SPSearchFilters onInit failed', { error: err });
       throw err;
     }
   }

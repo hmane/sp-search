@@ -15,6 +15,7 @@ import {
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
 import { validateSearchState } from '@store/utils/searchStateSchema';
+import { spLog } from '@store/utils/spLog';
 import styles from './SpSearchManager.module.scss';
 
 export interface ISavedSearchListProps {
@@ -170,7 +171,7 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
     const validation = validateSearchState(search.searchState);
     if (!validation.ok) {
       setRestoreError({ title: search.title, errors: validation.errors });
-      console.warn('[SP Search] Skipping saved-search restore — schema validation failed:', validation.errors);
+      spLog.warn('Skipping saved-search restore; schema validation failed', { errors: validation.errors });
       return;
     }
     const state = validation.state;
@@ -275,7 +276,7 @@ const SavedSearchList: React.FC<ISavedSearchListProps> = (props) => {
         setIsDeleting(false);
         const message = err instanceof Error ? err.message : 'Failed to delete saved search';
         setDeleteError(message);
-        console.error('[SP Search] deleteSavedSearch failed:', err);
+        spLog.error('deleteSavedSearch failed', { error: err });
       });
   }
 

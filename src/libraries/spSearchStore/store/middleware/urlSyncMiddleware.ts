@@ -8,6 +8,7 @@ import {
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
 import { assignFilterUrlAliases, getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { shouldPushHistory } from '@store/utils/historyMode';
+import { spLog } from '@store/utils/spLog';
 import { DebugCollector } from '../../debug';
 
 // ─── URL State Shape ────────────────────────────────────────────
@@ -744,10 +745,10 @@ export function createUrlSyncSubscription(
   if (pendingUrlFilters && pendingUrlFilters.length > 0) {
     pendingFilterTimeout = setTimeout((): void => {
       if (pendingUrlFilters && pendingUrlFilters.length > 0) {
-        console.warn(
-          '[SP Search] URL filter restoration timed out after ' + URL_FILTER_RESTORE_TIMEOUT_MS + 'ms. ' +
-          'Unresolved filters:', pendingUrlFilters.map(function (f) { return f.key; }).join(', ')
-        );
+        spLog.warn('URL filter restoration timed out', {
+          timeoutMs: URL_FILTER_RESTORE_TIMEOUT_MS,
+          unresolvedFilters: pendingUrlFilters.map(function (f) { return f.key; }),
+        });
         pendingUrlFilters = undefined;
       }
     }, URL_FILTER_RESTORE_TIMEOUT_MS);

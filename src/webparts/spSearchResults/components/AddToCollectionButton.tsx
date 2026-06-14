@@ -15,10 +15,11 @@ export interface IAddToCollectionButtonProps {
   item: ISearchResult;
   searchContextId: string;
   buttonClassName?: string;
+  triggerRenderer?: (openDialog: (event?: { preventDefault?: () => void; stopPropagation?: () => void }) => void) => React.ReactNode;
 }
 
 const AddToCollectionButton: React.FC<IAddToCollectionButtonProps> = (props) => {
-  const { item, searchContextId, buttonClassName } = props;
+  const { item, searchContextId, buttonClassName, triggerRenderer } = props;
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [availableCollections, setAvailableCollections] = React.useState<ISearchCollection[]>([]);
   const [selectedCollectionKey, setSelectedCollectionKey] = React.useState<string | undefined>(undefined);
@@ -54,9 +55,13 @@ const AddToCollectionButton: React.FC<IAddToCollectionButtonProps> = (props) => 
     return !!selectedCollectionKey;
   }, [isCreatingNewCollection, isLoadingCollections, isSaving, item.url, newCollectionName, selectedCollectionKey]);
 
-  function handleOpenDialog(event: React.MouseEvent<HTMLElement>): void {
-    event.preventDefault();
-    event.stopPropagation();
+  function handleOpenDialog(event?: { preventDefault?: () => void; stopPropagation?: () => void }): void {
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
+    if (event?.stopPropagation) {
+      event.stopPropagation();
+    }
 
     const service = getManagerService(searchContextId);
     if (!service) {
@@ -169,13 +174,17 @@ const AddToCollectionButton: React.FC<IAddToCollectionButtonProps> = (props) => 
 
   return (
     <>
-      <IconButton
-        iconProps={{ iconName: 'FabricFolder' }}
-        title="Add to collection"
-        ariaLabel="Add to collection"
-        className={buttonClassName || styles.resultInlineAction}
-        onClick={handleOpenDialog}
-      />
+      {triggerRenderer ? (
+        triggerRenderer(handleOpenDialog)
+      ) : (
+        <IconButton
+          iconProps={{ iconName: 'FabricFolder' }}
+          title="Add to collection"
+          ariaLabel="Add to collection"
+          className={buttonClassName || styles.resultInlineAction}
+          onClick={handleOpenDialog}
+        />
+      )}
       <Dialog
         hidden={!isOpen}
         onDismiss={handleDismiss}

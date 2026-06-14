@@ -5,7 +5,7 @@ import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UserPersona: any = _UserPersona;
-import { ISearchResult } from '@interfaces/index';
+import { ISearchResult, ISearchScope } from '@interfaces/index';
 import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
 import { formatFileSize, formatRelativeDate, formatUrlBreadcrumb, formatDateTime, formatTitleText, isImageType, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
@@ -17,6 +17,7 @@ import styles from './SpSearchResults.module.scss';
 export interface IListLayoutProps {
   items: ISearchResult[];
   searchContextId: string;
+  scope: ISearchScope;
   titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
   // Stream C / #7
@@ -25,13 +26,15 @@ export interface IListLayoutProps {
 }
 
 const ListLayout: React.FC<IListLayoutProps> = (props) => {
-  const { items, searchContextId, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
+  const { items, searchContextId, scope, titleDisplayMode, onItemClick, linkConfig, onOpenInSidePanel } = props;
 
   return (
     <ul className={styles.resultList} role="list">
       {items.map((item: ISearchResult, index: number) => {
         const sizeDisplay: string = formatFileSize(item.fileSize);
         const linkProps = resolveResultLink(item, linkConfig);
+        const breadcrumbBaseUrl = getCurrentSiteBreadcrumbBaseUrl(scope, item);
+        const breadcrumbText = formatUrlBreadcrumb(item.url, { baseUrl: breadcrumbBaseUrl });
 
         return (
           <li
@@ -71,20 +74,9 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
                       </a>
                     )}
                   </DocumentTitleHoverCard>
-                  <div className={styles.resultTitleActions}>
-                    <AddToCollectionButton
-                      item={item}
-                      searchContextId={searchContextId}
-                    />
-                    {item.fileType && (
-                      <span className={styles.resultFileTypeBadge}>
-                        {item.fileType.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </h3>
-              <p className={styles.resultUrl}>{formatUrlBreadcrumb(item.url)}</p>
+              <p className={styles.resultUrl} title={item.url}>{breadcrumbText}</p>
               {item.summary && (
                 <div
                   className={styles.resultSummary}
@@ -130,22 +122,24 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
                 )}
               </div>
             </div>
-            {/* ECB — per-row contextual action menu at the trailing edge.
-                Open / Download / Copy link via the shared menu builder.
-                The existing AddToCollectionButton stays inside the title
-                row for the most common "pin to a collection" action; the
-                ECB covers the longer tail. */}
             <div className={styles.resultRowEcb}>
-              <IconButton
-                iconProps={{ iconName: 'MoreVertical' }}
-                ariaLabel={'More actions for ' + item.title}
-                title="More actions"
-                menuProps={{
-                  items: buildRowActionMenu(item, {
-                    position: index + 1,
-                    onItemClick,
-                  }),
-                }}
+              <AddToCollectionButton
+                item={item}
+                searchContextId={searchContextId}
+                triggerRenderer={(openAddToCollection): React.ReactNode => (
+                  <IconButton
+                    iconProps={{ iconName: 'MoreVertical' }}
+                    ariaLabel={'More actions for ' + item.title}
+                    title="More actions"
+                    menuProps={{
+                      items: buildRowActionMenu(item, {
+                        position: index + 1,
+                        onItemClick,
+                        onAddToCollection: openAddToCollection,
+                      }),
+                    }}
+                  />
+                )}
               />
             </div>
           </li>
@@ -154,5 +148,24 @@ const ListLayout: React.FC<IListLayoutProps> = (props) => {
     </ul>
   );
 };
+
+function getCurrentSiteBreadcrumbBaseUrl(scope: ISearchScope, item: ISearchResult): string | undefined {
+  if (!scope || scope.id !== 'currentsite') {
+    return undefined;
+  }
+
+  const kqlPath = scope.kqlPath || '';
+  const quotedMatch = /Path:"([^"]+)"/i.exec(kqlPath);
+  if (quotedMatch && quotedMatch[1]) {
+    return quotedMatch[1];
+  }
+
+  const unquotedMatch = /Path:([^\s]+)/i.exec(kqlPath);
+  if (unquotedMatch && unquotedMatch[1]) {
+    return unquotedMatch[1];
+  }
+
+  return item.siteUrl || undefined;
+}
 
 export default ListLayout;

@@ -940,9 +940,10 @@
 
 // Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  .spSearchFilters,
+  .spSearchFilters *,
+  .spSearchFilters *::before,
+  .spSearchFilters *::after {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
     animation-duration: 0.01ms !important;

@@ -138,26 +138,72 @@ export function formatShortDate(isoDate: string): string {
   }
 }
 
+export interface IUrlBreadcrumbOptions {
+  /** Optional absolute base path to remove from the visible breadcrumb. */
+  baseUrl?: string;
+}
+
+function stripQueryAndHash(value: string): string {
+  let cleaned: string = value;
+  const qIdx: number = cleaned.indexOf('?');
+  if (qIdx >= 0) {
+    cleaned = cleaned.substring(0, qIdx);
+  }
+  const hIdx: number = cleaned.indexOf('#');
+  if (hIdx >= 0) {
+    cleaned = cleaned.substring(0, hIdx);
+  }
+  return cleaned;
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/^\/+|\/+$/g, '');
+}
+
+function decodePathSegment(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Extracts a breadcrumb-style URL display from a full URL.
  * e.g. "https://contoso.sharepoint.com/sites/hr/docs/guide.pdf" => "contoso.sharepoint.com > sites > hr > docs"
+ * When baseUrl is supplied, the base path is omitted for a shorter in-scope breadcrumb.
  */
-export function formatUrlBreadcrumb(url: string): string {
+export function formatUrlBreadcrumb(url: string, options: IUrlBreadcrumbOptions = {}): string {
   try {
-    let cleaned: string = url.replace(/^https?:\/\//, '');
-    const qIdx: number = cleaned.indexOf('?');
-    if (qIdx >= 0) {
-      cleaned = cleaned.substring(0, qIdx);
+    const parsedUrl = new URL(url);
+    const baseUrl = options.baseUrl ? new URL(options.baseUrl) : undefined;
+    const useRelativePath = !!baseUrl &&
+      parsedUrl.origin.toLowerCase() === baseUrl.origin.toLowerCase() &&
+      (
+        parsedUrl.pathname.toLowerCase() === baseUrl.pathname.replace(/\/+$/, '').toLowerCase() ||
+        parsedUrl.pathname.toLowerCase().indexOf(baseUrl.pathname.replace(/\/+$/, '').toLowerCase() + '/') === 0
+      );
+
+    if (useRelativePath && baseUrl) {
+      const basePath = baseUrl.pathname.replace(/\/+$/, '');
+      let relativePath = parsedUrl.pathname.substring(basePath.length);
+      relativePath = trimSlashes(stripQueryAndHash(relativePath));
+      const relativeSegments = relativePath ? relativePath.split('/') : [];
+      if (relativeSegments.length > 1) {
+        relativeSegments.pop();
+      }
+      const visibleRelativeSegments = relativeSegments.map(decodePathSegment).filter(Boolean);
+      if (visibleRelativeSegments.length > 0) {
+        return visibleRelativeSegments.join(' \u203A ');
+      }
     }
-    const hIdx: number = cleaned.indexOf('#');
-    if (hIdx >= 0) {
-      cleaned = cleaned.substring(0, hIdx);
-    }
+
+    const cleaned: string = stripQueryAndHash(url).replace(/^https?:\/\//, '');
     const segments: string[] = cleaned.split('/');
     if (segments.length > 1) {
       segments.pop();
     }
-    return segments.join(' \u203A ');
+    return segments.map(decodePathSegment).join(' \u203A ');
   } catch {
     return url;
   }

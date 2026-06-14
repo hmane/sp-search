@@ -39,7 +39,9 @@ describe('Registry', () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('already contains "dup"')
+        '[SP Search]',
+        'Registry already contains provider; first registration wins',
+        { registryName: 'TestProvider', providerId: 'dup' }
       );
 
       // First registration wins
@@ -86,7 +88,9 @@ describe('Registry', () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('registry is frozen')
+        '[SP Search]',
+        'Registry is frozen; provider cannot be registered',
+        { registryName: 'TestProvider', providerId: 'after-freeze' }
       );
 
       // The blocked registration should not be present

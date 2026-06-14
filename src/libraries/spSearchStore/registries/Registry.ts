@@ -1,4 +1,5 @@
 import { IRegistry } from '@interfaces/index';
+import { spLog } from '@store/utils/spLog';
 
 /**
  * Generic typed registry. Stores providers/definitions by ID.
@@ -20,18 +21,18 @@ export class Registry<T extends { id: string }> implements IRegistry<T> {
 
   public register(provider: T, force?: boolean): void {
     if (this._frozen) {
-      console.warn(
-        `[SP Search] ${this._name} registry is frozen. Cannot register "${provider.id}". ` +
-        `Registries lock after the first search execution.`
-      );
+      spLog.warn('Registry is frozen; provider cannot be registered', {
+        registryName: this._name,
+        providerId: provider.id,
+      });
       return;
     }
 
     if (this._items.has(provider.id) && !force) {
-      console.warn(
-        `[SP Search] ${this._name} registry already contains "${provider.id}". ` +
-        `First registration wins. Use force=true to override.`
-      );
+      spLog.warn('Registry already contains provider; first registration wins', {
+        registryName: this._name,
+        providerId: provider.id,
+      });
       return;
     }
 

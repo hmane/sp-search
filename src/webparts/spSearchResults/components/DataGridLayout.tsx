@@ -4,6 +4,7 @@ import DataGridContent from './DataGridContent';
 import type { IColumnConfigItem } from './ColumnConfigField/columnConfig';
 import { TitleDisplayMode } from './documentTitleUtils';
 import type { IResultLinkConfig } from './resultLink';
+import { spLog } from '@store/utils/spLog';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridLayoutProps {
@@ -68,17 +69,16 @@ class DataGridRenderErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     // Log the actual error — distinct from the chunk-load "Failed to load data grid layout" message
-    console.error(
-      '[SP Search] DataGrid render error (runtime, not a chunk-load failure)' +
-      '\nMessage:', error.message,
-      '\nStack:', error.stack,
-      '\nComponent stack:', info.componentStack
-    );
+    spLog.error('DataGrid render error; runtime failure, not chunk-load failure', {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      componentStack: info.componentStack,
+    });
   }
 
   componentDidUpdate(_prevProps: unknown, prevState: IDataGridRenderErrorState): void {
     if (!prevState.hasError && this.state.hasError && this.props.onFallback) {
-      console.warn('[SP Search] DataGrid render error boundary: triggering fallback to list layout.');
+      spLog.warn('DataGrid render error boundary triggering fallback to list layout');
       // Defer to avoid triggering a Zustand state update during React's error recovery cycle
       setTimeout(this.props.onFallback, 0);
     }

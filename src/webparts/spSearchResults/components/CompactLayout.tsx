@@ -218,9 +218,7 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
     [compactPropertyColumns]
   );
   // 20 px file-type icon + minmax(0, 1fr) title + admin-configured meta
-  // columns + a trailing 32 px ECB cell for Open / Download / Copy link
-  // (AddToCollectionButton stays inside the title for the "pin to collection"
-  // common case; the ECB carries the longer tail).
+  // columns + a trailing 32 px ECB cell for row actions.
   const layoutTemplate = React.useMemo((): string => {
     return ['20px', 'minmax(0, 1fr)', ...columns.map((column) => column.width), '32px'].join(' ');
   }, [columns]);
@@ -286,10 +284,6 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
                     </a>
                   )}
                 </DocumentTitleHoverCard>
-                <AddToCollectionButton
-                  item={item}
-                  searchContextId={searchContextId}
-                />
               </div>
             </div>
             {columns.map((column) => (
@@ -303,16 +297,23 @@ const CompactLayout: React.FC<ICompactLayoutProps> = (props) => {
               </div>
             ))}
             <div className={styles.compactRowEcb} role="cell">
-              <IconButton
-                iconProps={{ iconName: 'MoreVertical' }}
-                ariaLabel={'More actions for ' + item.title}
-                title="More actions"
-                menuProps={{
-                  items: buildRowActionMenu(item, {
-                    position: index + 1,
-                    onItemClick,
-                  }),
-                }}
+              <AddToCollectionButton
+                item={item}
+                searchContextId={searchContextId}
+                triggerRenderer={(openAddToCollection): React.ReactNode => (
+                  <IconButton
+                    iconProps={{ iconName: 'MoreVertical' }}
+                    ariaLabel={'More actions for ' + item.title}
+                    title="More actions"
+                    menuProps={{
+                      items: buildRowActionMenu(item, {
+                        position: index + 1,
+                        onItemClick,
+                        onAddToCollection: openAddToCollection,
+                      }),
+                    }}
+                  />
+                )}
               />
             </div>
           </div>

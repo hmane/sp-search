@@ -25,8 +25,8 @@ define([], function() {
     "OpenBehaviorNewTab": "New tab",
     "VerticalProviderColumn": "Data provider",
     "VerticalDefaultLayoutColumn": "Default layout",
-    "VerticalAudienceColumn": "Audience",
-    "VerticalAudiencePlaceholder": "Entra ID group IDs (comma-separated)",
+    "VerticalAudienceColumn": "Audience (Entra group IDs)",
+    "VerticalAudiencePlaceholder": "Entra group object IDs only; no users or SharePoint groups",
     "DefaultVerticalLabel": "Default vertical",
     "ShowCountsFieldLabel": "Show result counts",
     "HideEmptyVerticalsFieldLabel": "Hide empty verticals",
@@ -37,7 +37,7 @@ define([], function() {
     "ToggleOnText": "On",
     "ToggleOffText": "Off",
     "AudienceTargetingGroupName": "Audience targeting",
-    "AudienceTargetingLabel": "Visible to (Azure AD group IDs)",
-    "AudienceTargetingDescription": "Comma- or newline-separated Azure AD group object IDs. Leave blank to show this web part to everyone. Requires the User.Read Graph permission to be approved at SharePoint admin → API access. Note: this controls the whole tab strip; individual tab visibility uses the audience column in the Verticals collection editor."
+    "AudienceTargetingLabel": "Visible to (Entra group object IDs)",
+    "AudienceTargetingDescription": "Comma- or newline-separated Microsoft Entra group object IDs. Current support is group and directory-role IDs returned by Microsoft Graph /me/memberOf only. User emails, UPNs, SharePoint group names, and nested group-only membership do not match. Leave blank to show this web part to everyone. Requires the User.Read Graph permission to be approved at SharePoint admin → API access. Note: this controls the whole tab strip; individual tab visibility uses the audience column in the Verticals collection editor."
   }
 });

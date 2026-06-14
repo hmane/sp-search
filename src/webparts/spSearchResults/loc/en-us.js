@@ -113,7 +113,7 @@ define([], function() {
     "ShowColumnChooserLabel": "Show column chooser",
     "SelectedPropertiesAliasDeprecationNote": "Display labels (the alias column above) have moved to the Data Grid and Compact column editors. The alias value here is preserved for back-compat but no longer drives the column header.",
     "AudienceTargetingGroupName": "Audience targeting",
-    "AudienceTargetingLabel": "Visible to (Azure AD group IDs)",
-    "AudienceTargetingDescription": "Comma- or newline-separated Azure AD group object IDs. Leave blank to show this web part to everyone. Requires the User.Read Graph permission to be approved at SharePoint admin → API access."
+    "AudienceTargetingLabel": "Visible to (Entra group object IDs)",
+    "AudienceTargetingDescription": "Comma- or newline-separated Microsoft Entra group object IDs. Current support is group and directory-role IDs returned by Microsoft Graph /me/memberOf only. User emails, UPNs, SharePoint group names, and nested group-only membership do not match. Leave blank to show this web part to everyone. Requires the User.Read Graph permission to be approved at SharePoint admin → API access."
   }
 });

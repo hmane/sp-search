@@ -5,14 +5,74 @@ import { DebugCollector } from '../../debug';
 
 /**
  * Merge new refiners from a search response with existing display refiners.
- * Keeps all previously-seen values visible so filter options don't disappear
- * when a filter narrows results. Values not in the new response are preserved
- * with count=0 so active selections remain removable while other filters show
- * the current cascaded result set.
+ * Uses the newest search response as the visible option set. The only values
+ * preserved from previous responses are active selections that SharePoint
+ * omitted from the narrowed response, so users can still remove them without
+ * seeing every stale zero-count option.
  */
-function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
+function isActiveRefinerValue(
+  filterName: string,
+  value: IRefinerValue,
+  activeFilters: IActiveFilter[]
+): boolean {
+  const candidate: IActiveFilter = {
+    filterName: filterName,
+    value: value.value,
+    displayValue: value.name || undefined,
+    operator: 'OR',
+  };
+
+  for (let i = 0; i < activeFilters.length; i++) {
+    if (areFiltersEquivalent(activeFilters[i], candidate)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function appendMissingActiveValues(
+  filterName: string,
+  values: IRefinerValue[],
+  activeFilters: IActiveFilter[]
+): IRefinerValue[] {
+  const nextValues = values.slice();
+
+  for (let i = 0; i < activeFilters.length; i++) {
+    const active = activeFilters[i];
+    if (active.filterName !== filterName) {
+      continue;
+    }
+
+    let alreadyPresent = false;
+    for (let j = 0; j < nextValues.length; j++) {
+      if (isActiveRefinerValue(filterName, nextValues[j], [active])) {
+        alreadyPresent = true;
+        break;
+      }
+    }
+
+    if (!alreadyPresent) {
+      nextValues.push({
+        name: active.displayValue || active.value,
+        value: active.value,
+        count: 0,
+        isSelected: true,
+      });
+    }
+  }
+
+  return nextValues;
+}
+
+function mergeRefiners(existing: IRefiner[], incoming: IRefiner[], activeFilters: IActiveFilter[]): IRefiner[] {
   if (existing.length === 0) {
-    return incoming;
+    return incoming.map(function (refiner: IRefiner): IRefiner {
+      return {
+        filterName: refiner.filterName,
+        values: appendMissingActiveValues(refiner.filterName, refiner.values, activeFilters),
+      };
+    });
   }
 
   // Build a lookup of incoming refiners by name
@@ -29,19 +89,26 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
     const next = incomingMap.get(prev.filterName);
 
     if (!next) {
-      // Refiner no longer returned in filtered results — preserve previous
-      // values as zero-count options so selections can still be removed.
-      merged.push({
-        filterName: prev.filterName,
-        values: prev.values.map(function (prevVal: IRefinerValue): IRefinerValue {
+      const activeValues = appendMissingActiveValues(
+        prev.filterName,
+        prev.values.filter(function (prevVal: IRefinerValue): boolean {
+          return isActiveRefinerValue(prev.filterName, prevVal, activeFilters);
+        }).map(function (prevVal: IRefinerValue): IRefinerValue {
           return {
             name: prevVal.name,
             value: prevVal.value,
             count: 0,
             isSelected: prevVal.isSelected,
           };
-        })
-      });
+        }),
+        activeFilters
+      );
+      if (activeValues.length > 0) {
+        merged.push({
+          filterName: prev.filterName,
+          values: activeValues,
+        });
+      }
     } else {
       // Build value lookup from new results
       const nextValueMap = new Map<string, IRefinerValue>();
@@ -49,46 +116,45 @@ function mergeRefiners(existing: IRefiner[], incoming: IRefiner[]): IRefiner[] {
         nextValueMap.set(next.values[j].value, next.values[j]);
       }
 
-      // Start with all previous values — update counts from new results
       const seenValues = new Set<string>();
       const mergedValues: IRefinerValue[] = [];
 
+      for (let j = 0; j < next.values.length; j++) {
+        seenValues.add(next.values[j].value);
+        mergedValues.push(next.values[j]);
+      }
+
       for (let j = 0; j < prev.values.length; j++) {
         const prevVal = prev.values[j];
-        const nextVal = nextValueMap.get(prevVal.value);
-        seenValues.add(prevVal.value);
-
-        if (nextVal) {
-          // Value exists in new results — use new count
-          mergedValues.push(nextVal);
-        } else {
-          // Value no longer in filtered results — preserve it with a zero
-          // count so selected values remain visible/removable without making
-          // the cascaded filter look like it still matches all old content.
+        if (!nextValueMap.has(prevVal.value) && isActiveRefinerValue(prev.filterName, prevVal, activeFilters)) {
           mergedValues.push({
             name: prevVal.name,
             value: prevVal.value,
             count: 0,
             isSelected: prevVal.isSelected,
           });
+          seenValues.add(prevVal.value);
         }
       }
 
-      // Add any NEW values from the incoming results that weren't in previous
-      for (let j = 0; j < next.values.length; j++) {
-        if (!seenValues.has(next.values[j].value)) {
-          mergedValues.push(next.values[j]);
-        }
-      }
-
-      merged.push({ filterName: prev.filterName, values: mergedValues });
+      merged.push({
+        filterName: prev.filterName,
+        values: appendMissingActiveValues(prev.filterName, mergedValues, activeFilters).filter(function (value: IRefinerValue, index: number, all: IRefinerValue[]): boolean {
+          return all.findIndex(function (candidate: IRefinerValue): boolean {
+            return candidate.value === value.value;
+          }) === index && (seenValues.has(value.value) || isActiveRefinerValue(prev.filterName, value, activeFilters));
+        }),
+      });
       incomingMap.delete(prev.filterName);
     }
   }
 
   // Add any entirely new refiners not in the existing set
   incomingMap.forEach((refiner) => {
-    merged.push(refiner);
+    merged.push({
+      filterName: refiner.filterName,
+      values: appendMissingActiveValues(refiner.filterName, refiner.values, activeFilters),
+    });
   });
 
   return merged;
@@ -172,8 +238,9 @@ export const createFilterSlice: StateCreator<ISearchStore, [], [], IFilterSlice>
     if (activeFilters.length === 0) {
       set({ availableRefiners: refiners, displayRefiners: refiners });
     } else {
-      // Merge with previous to preserve all known values
-      const merged = mergeRefiners(prev, refiners);
+      // Merge with previous only to preserve active selections omitted by
+      // SharePoint's narrowed refiner response.
+      const merged = mergeRefiners(prev, refiners, activeFilters);
       set({ availableRefiners: refiners, displayRefiners: merged });
     }
   },

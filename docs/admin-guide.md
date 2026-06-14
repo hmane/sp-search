@@ -267,7 +267,7 @@ The SP Search Admin Manager is the admin-only diagnostics web part. It renders *
 | `enableInsights` | `true` | Insights tab — stat cards, top queries, CTR, daily volume |
 | `coverageProfilesCollection` | seeded by `Setup-SPSearchSite.ps1` | See [Coverage Profiles](#coverage-profiles-admin-manager) |
 | `expectedSiteUrls` | empty | Drives gap-analysis on the Dashboard tab |
-| `audienceGroups` | empty | Azure AD group object IDs; leave blank to show to all Owners/Admins |
+| `audienceGroups` | empty | Microsoft Entra group object IDs returned by Graph `/me/memberOf`; leave blank to show to all Owners/Admins. User emails, UPNs, SharePoint groups, and nested group-only membership do not match today. |
 
 ### Tabs (admin variant)
 
@@ -379,11 +379,13 @@ The Results web part shows edit-mode `MessageBar` warnings for common misconfigu
 
 These warnings are advisory. They do not block rendering, but they should be resolved before production rollout.
 
-## Property pane help anchors (T4.D11)
+## Property Pane Help Topics (T4.D11)
 
 Each property pane group on the SP Search web parts renders a "Help:
-&lt;topic&gt;" link as its first field. The link opens this guide at the
-relevant section. Anchors used by the help links:
+&lt;topic&gt;" button as its first field. The button opens a local modal
+bundled with the web part package; admins no longer leave SharePoint or
+open GitHub to read configuration guidance. Topic IDs used by the help
+buttons:
 
 <a id="quick-start"></a>
 
@@ -481,15 +483,8 @@ query template; the Dashboard tab's Content Coverage section reports
 item count and freshness per profile. See [Coverage Profiles (Admin
 Manager)](#coverage-profiles-admin-manager).
 
-> Help links surface a subset of groups today (Quick Start, Data,
-> Layouts on Results). Coverage will expand to every group on every
-> web part in future passes; the helper `propertyPaneGroupHelp` is
-> the durable contract for adding new ones —
-> `propertyPaneGroupHelp('anchor-id', 'Help: <topic>')` returns a
-> `PropertyPaneLink` field admin authors paste at the top of a
-> group's `groupFields` array.
-
-To override the link base URL (e.g. for tenants that mirror SP
-Search docs internally), call
-`setPropertyPaneHelpBaseUrl('https://intranet.contoso.com/wikis/sp-search/admin-guide')`
-from the web part's `onInit()` before the property pane builds.
+> The helper `propertyPaneGroupHelp` is the durable contract for
+> adding new topics — `propertyPaneGroupHelp('anchor-id',
+> 'Help: <topic>')` returns a custom property-pane field admin authors
+> place at the top of a group's `groupFields` array. The topic content
+> lives in `src/propertyPaneControls/propertyPaneGroupHelp.tsx`.

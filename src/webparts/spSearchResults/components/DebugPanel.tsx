@@ -419,7 +419,9 @@ const NetworkTab: React.FC = () => {
             : styles.logTypeNetwork;
         const kindLabel = event.kind === 'verticalCount'
           ? 'vertical:' + (event.verticalKey || '?')
-          : 'search';
+          : event.kind === 'selfRefiner'
+            ? 'refiner:' + (event.verticalKey || '?')
+            : 'search';
         return (
           <div
             key={event.id}

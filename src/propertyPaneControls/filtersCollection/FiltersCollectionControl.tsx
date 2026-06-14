@@ -12,6 +12,8 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Separator } from '@fluentui/react/lib/Separator';
 
+import { getDefaultFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import type { IFilterConfig } from '@interfaces/index';
 import {
   getRelevantSections,
   isFieldRelevant,
@@ -118,6 +120,55 @@ const FILTER_TYPE_TEXT: { [k: string]: string } = {
   tagbox: 'Tag box',
   toggle: 'Toggle',
 };
+
+export interface IRefinerUrlAliasValidationIssue {
+  alias: string;
+  refinerNames: string[];
+}
+
+function getRefinerLabel(refiner: IFiltersCollectionItem, index: number): string {
+  return refiner.displayName || refiner.managedProperty || 'Refiner ' + String(index + 1);
+}
+
+function getEffectiveUrlAlias(refiner: IFiltersCollectionItem): string | undefined {
+  const explicitAlias = sanitizeUrlAlias(refiner.urlAlias);
+  if (explicitAlias) {
+    return explicitAlias;
+  }
+
+  const managedProperty = (refiner.managedProperty || '').trim();
+  if (!managedProperty) {
+    return undefined;
+  }
+
+  return getDefaultFilterUrlAlias(
+    managedProperty,
+    refiner.filterType as IFilterConfig['filterType']
+  );
+}
+
+export function validateRefinerUrlAliases(refiners: IFiltersCollectionItem[]): IRefinerUrlAliasValidationIssue[] {
+  const byAlias = new Map<string, string[]>();
+
+  for (let i = 0; i < refiners.length; i++) {
+    const alias = getEffectiveUrlAlias(refiners[i]);
+    if (!alias) {
+      continue;
+    }
+    const existing = byAlias.get(alias) || [];
+    existing.push(getRefinerLabel(refiners[i], i));
+    byAlias.set(alias, existing);
+  }
+
+  const issues: IRefinerUrlAliasValidationIssue[] = [];
+  byAlias.forEach((names: string[], alias: string): void => {
+    if (names.length > 1) {
+      issues.push({ alias, refinerNames: names });
+    }
+  });
+
+  return issues;
+}
 
 function makeBlankRefiner(): IFiltersCollectionItem {
   return {
@@ -413,10 +464,11 @@ const FilterEditorForm: React.FC<IFilterEditorFormProps> = (formProps) => {
     return (
       <Section title='Audience targeting' key='audience' defaultCollapsed={!refiner.audience}>
         <TextField
-          label='Visible to (Azure AD group IDs)'
+          label='Visible to (Entra group object IDs)'
           value={refiner.audience || ''}
           onChange={(_e, v): void => onPatch({ audience: v || '' })}
-          placeholder='Comma-separated group IDs; leave blank for everyone'
+          description='Only Entra group or directory-role object IDs returned by Graph /me/memberOf are supported. User emails, UPNs, SharePoint group names, and nested group-only membership do not match.'
+          placeholder='Entra group object IDs only; leave blank for everyone'
           multiline
           rows={2}
         />
@@ -460,6 +512,12 @@ const FiltersCollectionControl: React.FC<IFiltersCollectionControlProps> = (prop
   // so admins can Cancel out of a session without polluting the saved JSON.
   const [draft, setDraft] = React.useState<IFiltersCollectionItem[]>(value);
   const [selectedId, setSelectedId] = React.useState<string | undefined>(undefined);
+  const aliasIssues = React.useMemo(
+    function (): IRefinerUrlAliasValidationIssue[] {
+      return validateRefinerUrlAliases(draft);
+    },
+    [draft]
+  );
 
   function openPanel(): void {
     setDraft(value);
@@ -472,6 +530,9 @@ const FiltersCollectionControl: React.FC<IFiltersCollectionControlProps> = (prop
   }
 
   function commitAndClose(): void {
+    if (aliasIssues.length > 0) {
+      return;
+    }
     onChange(draft);
     setIsPanelOpen(false);
   }
@@ -543,11 +604,18 @@ const FiltersCollectionControl: React.FC<IFiltersCollectionControlProps> = (prop
         onRenderFooterContent={((): React.ReactElement => (
           <Stack horizontal tokens={{ childrenGap: 8 }} horizontalAlign='end'>
             <DefaultButton text='Cancel' onClick={closePanel} />
-            <PrimaryButton text='Save' onClick={commitAndClose} />
+            <PrimaryButton text='Save' onClick={commitAndClose} disabled={aliasIssues.length > 0} />
           </Stack>
         )) as unknown as React.ComponentProps<typeof Panel>['onRenderFooterContent']}
         isFooterAtBottom
       >
+        {aliasIssues.length > 0 && (
+          <MessageBar messageBarType={MessageBarType.error} className={styles.validationBar}>
+            URL aliases must be unique. {aliasIssues.map((issue) => {
+              return "'" + issue.alias + "' is used by " + issue.refinerNames.join(', ');
+            }).join('; ')}. Set a unique URL alias on one of the refiners before saving.
+          </MessageBar>
+        )}
         <div className={styles.panelBody}>
           {/* ─── Left rail: refiner list ────────────────────── */}
           <div className={styles.leftRail} role='listbox' aria-label='Refiners'>

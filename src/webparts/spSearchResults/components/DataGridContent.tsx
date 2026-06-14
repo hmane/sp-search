@@ -10,6 +10,7 @@ import { ISearchResult, ISortField, ISortableProperty } from '@interfaces/index'
 import { PermissionKind } from '@pnp/sp/security';
 import { hasPermissions } from '@pnp/sp/security/funcs';
 import { buildDownloadUrl, copyTextToClipboard } from '@providers/actions/actionUtils';
+import { spLog } from '@store/utils/spLog';
 import { buildFormUrl, buildBrowserOpenUrl, formatTitleText, TitleDisplayMode } from './documentTitleUtils';
 import { resolveResultLink, type IResultLinkConfig } from './resultLink';
 import { getFileTypeIconProps } from '@fluentui/react-file-type-icons';
@@ -33,6 +34,7 @@ import {
 } from './renderCell';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
+import { buildAddToCollectionMenuItem } from './buildRowActionMenu';
 import styles from './SpSearchResults.module.scss';
 
 export interface IDataGridContentProps {
@@ -858,7 +860,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         m.triggerXlsxDownload(gridData, columnConfigs, 'search-results.xlsx');
       })
       .catch((): void => {
-        console.error('[SP Search] Failed to load XLSX export module');
+        spLog.error('Failed to load XLSX export module');
       });
   }, [gridData, columnConfigs]);
 
@@ -871,7 +873,9 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
     const permissionState = permissionCache[matchingItem.key];
     const viewUrl = buildFormUrl(matchingItem, 4);
     const editUrl = buildFormUrl(matchingItem, 6);
-    const menuItems: IContextualMenuItem[] = [
+    const buildMenuItems = (
+      openAddToCollection: (event?: { preventDefault?: () => void; stopPropagation?: () => void }) => void
+    ): IContextualMenuItem[] => [
       {
         key: 'view',
         text: 'View item',
@@ -906,6 +910,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
           window.open(buildBrowserOpenUrl(matchingItem), '_blank', 'noopener,noreferrer');
         }
       },
+      buildAddToCollectionMenuItem(openAddToCollection),
       {
         key: 'download',
         text: 'Download',
@@ -957,11 +962,11 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
                 }, 150);
               })
               .catch((error: Error): void => {
-                console.error('[SP Search] Failed to delete grid item.', error);
+                spLog.error('Failed to delete grid item', { error });
                 window.alert('Unable to delete this item.');
               });
           })().catch((error: Error): void => {
-            console.error('[SP Search] Failed to open delete confirmation.', error);
+            spLog.error('Failed to open delete confirmation', { error });
           });
         }
       }] : [])
@@ -1004,17 +1009,18 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
                 <AddToCollectionButton
                   item={matchingItem}
                   searchContextId={searchContextId}
-                  buttonClassName={styles.gridTitleActionButton}
-                />
-                <IconButton
-                  iconProps={{ iconName: 'MoreVertical' }}
-                  title="More actions"
-                  ariaLabel="More actions"
-                  menuProps={{ items: menuItems }}
-                  className={styles.gridTitleActionButton}
-                  onClick={(event): void => {
-                    event.stopPropagation();
-                  }}
+                  triggerRenderer={(openAddToCollection): React.ReactNode => (
+                    <IconButton
+                      iconProps={{ iconName: 'MoreVertical' }}
+                      title="More actions"
+                      ariaLabel="More actions"
+                      menuProps={{ items: buildMenuItems(openAddToCollection) }}
+                      className={styles.gridTitleActionButton}
+                      onClick={(event): void => {
+                        event.stopPropagation();
+                      }}
+                    />
+                  )}
                 />
               </div>
             </div>
@@ -1022,7 +1028,7 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
         )}
       </DocumentTitleHoverCard>
     );
-  }, [onItemClick, permissionCache, showDeleteConfirmation, titleDisplayMode]);
+  }, [linkConfig, onItemClick, onOpenInSidePanel, permissionCache, searchContextId, showDeleteConfirmation, titleDisplayMode]);
 
   const authorCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
     const name = formatTextValue(cellData.value);

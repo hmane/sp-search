@@ -3,7 +3,8 @@ import {
   ISearchStore,
   ISearchQuery,
   ISearchResponse,
-  ISearchDataProvider
+  ISearchDataProvider,
+  IRefiner
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
 import { TokenService, ITokenContext } from '@services/TokenService';
@@ -241,13 +242,14 @@ export class SearchOrchestrator {
    * T5.D2 — emits a `logNetworkEvent` entry per call (including the
    * retry-after-quota path) so the DebugPanel's Network tab can render
    * timing badges. `kind` distinguishes the main search from vertical-
-   * count fan-out; `verticalKey` is set for vertical counts only.
+   * count fan-out and self-excluding refiner refreshes; `verticalKey`
+   * carries the vertical key or refiner managed property for sub-requests.
    */
   private async _executeProviderWithRetry(
     provider: ISearchDataProvider,
     query: ISearchQuery,
     signal: AbortSignal,
-    kind: 'search' | 'verticalCount' = 'search',
+    kind: 'search' | 'verticalCount' | 'selfRefiner' = 'search',
     verticalKey?: string
   ): Promise<ISearchResponse> {
     const start = performance.now();
@@ -412,7 +414,11 @@ export class SearchOrchestrator {
         && state.displayRefiners.length === 0
         && query.refiners.length > 0;
 
-      // Execute main search + optional base refiner query in parallel.
+      const selfExcludingRefinerProperties = provider.supportsRefiners
+        ? this._getSelfExcludingRefinerProperties(state, query.refiners)
+        : [];
+
+      // Execute main search + optional base/self-refiner queries in parallel.
       // Wrapped with QuotaExceededError retry — PnPjs may throw when
       // localStorage is full during its caching step.
       const mainPromise: Promise<ISearchResponse> = this._executeProviderWithRetry(provider, query, signal);
@@ -432,8 +438,41 @@ export class SearchOrchestrator {
             refinementFilters: query.refinementFilters,
           }, signal).catch(function (): undefined { return undefined; })
         : Promise.resolve(undefined);
+      const selfExcludingPromise: Promise<Array<{ filterName: string; response: ISearchResponse }>> =
+        selfExcludingRefinerProperties.length > 0
+          ? Promise.all(selfExcludingRefinerProperties.map(async (filterName) => {
+              const response = await this._executeProviderWithRetry(provider, {
+                queryText: query.queryText,
+                queryTemplate: query.queryTemplate,
+                scope: query.scope,
+                filters: this._excludeFiltersForRefiner(query.filters, filterName),
+                operatorBetweenFilters: query.operatorBetweenFilters,
+                sort: undefined,
+                page: 1,
+                pageSize: 0,
+                selectedProperties: ['Title'],
+                refiners: [filterName],
+                resultSourceId: query.resultSourceId,
+                trimDuplicates: true,
+                enableQueryRules: query.enableQueryRules,
+                collapseSpecification: query.collapseSpecification,
+                refinementFilters: query.refinementFilters,
+                filterConfig: query.filterConfig,
+              }, signal, 'selfRefiner', filterName);
+              return { filterName, response };
+            }).map((promise) => promise.catch(function (): undefined { return undefined; })))
+              .then((responses) => responses.filter(function (
+                response
+              ): response is { filterName: string; response: ISearchResponse } {
+                return response !== undefined;
+              }))
+          : Promise.resolve([]);
 
-      const [response, baseResponse] = await Promise.all([mainPromise, basePromise]);
+      const [response, baseResponse, selfExcludingResponses] = await Promise.all([
+        mainPromise,
+        basePromise,
+        selfExcludingPromise,
+      ]);
 
       // Check if aborted during execution
       if (signal.aborted) {
@@ -453,6 +492,8 @@ export class SearchOrchestrator {
       }
       state.setResults(response.items, adjustedTotal);
 
+      const effectiveRefiners = this._mergeSelfExcludingRefiners(response.refiners, selfExcludingResponses);
+
       // Update refiners if provider supports them
       if (provider.supportsRefiners) {
         if (baseResponse && baseResponse.refiners.length > 0) {
@@ -460,11 +501,11 @@ export class SearchOrchestrator {
           state.setAvailableRefiners(baseResponse.refiners);
           // Now merge filtered refiners in — updates counts for matching values,
           // keeps all other values visible with count 0
-          if (response.refiners.length > 0) {
-            state.setAvailableRefiners(response.refiners);
+          if (effectiveRefiners.length > 0) {
+            state.setAvailableRefiners(effectiveRefiners);
           }
-        } else if (response.refiners.length > 0) {
-          state.setAvailableRefiners(response.refiners);
+        } else if (effectiveRefiners.length > 0) {
+          state.setAvailableRefiners(effectiveRefiners);
         }
       }
 
@@ -494,7 +535,7 @@ export class SearchOrchestrator {
         itemsReturned: response.items.length,
         currentPage: query.page,
         pageSize: query.pageSize,
-        refiners: response.refiners.map((r) => ({
+        refiners: effectiveRefiners.map((r) => ({
           name: r.filterName,
           values: r.values.map((v) => ({ value: v.value, count: v.count })),
         })),
@@ -503,7 +544,7 @@ export class SearchOrchestrator {
         response: {
           totalCount: adjustedTotal,
           itemCount: response.items.length,
-          refinersCount: response.refiners.length,
+          refinersCount: effectiveRefiners.length,
           promotedResultsCount: response.promotedResults.length,
           querySuggestion: response.querySuggestion || undefined,
           items: response.items.slice(0, 5).map((item) => ({
@@ -761,6 +802,100 @@ export class SearchOrchestrator {
       filterType === 'tagbox' ||
       filterType === 'slider' ||
       filterType === 'taxonomy';
+  }
+
+  private _getSelfExcludingRefinerProperties(state: ISearchStore, requestedRefiners: string[]): string[] {
+    if (state.activeFilters.length === 0 || requestedRefiners.length === 0) {
+      return [];
+    }
+
+    const requested = new Set<string>(requestedRefiners);
+    const configMap = new Map<string, ISearchStore['filterConfig'][number]>();
+    for (let i = 0; i < state.filterConfig.length; i++) {
+      configMap.set(state.filterConfig[i].managedProperty, state.filterConfig[i]);
+    }
+
+    const result: string[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < state.activeFilters.length; i++) {
+      const filterName = state.activeFilters[i].filterName;
+      if (seen.has(filterName) || !requested.has(filterName)) {
+        continue;
+      }
+      const config = configMap.get(filterName);
+      if (!config || !this._usesSelfExcludingRefiner(config)) {
+        continue;
+      }
+      seen.add(filterName);
+      result.push(filterName);
+    }
+
+    return result;
+  }
+
+  private _usesSelfExcludingRefiner(config: ISearchStore['filterConfig'][number]): boolean {
+    if (config.multiValues === false) {
+      return false;
+    }
+
+    return config.filterType === 'checkbox' ||
+      config.filterType === 'dropdown' ||
+      config.filterType === 'tagbox' ||
+      config.filterType === 'taxonomy';
+  }
+
+  private _excludeFiltersForRefiner(
+    filters: ISearchQuery['filters'],
+    filterName: string
+  ): ISearchQuery['filters'] {
+    return filters.filter(function (filter): boolean {
+      return filter.filterName !== filterName;
+    });
+  }
+
+  private _mergeSelfExcludingRefiners(
+    filteredRefiners: IRefiner[],
+    selfExcludingResponses: Array<{ filterName: string; response: ISearchResponse }>
+  ): IRefiner[] {
+    if (selfExcludingResponses.length === 0) {
+      return filteredRefiners;
+    }
+
+    const replacements = new Map<string, IRefiner>();
+    for (let i = 0; i < selfExcludingResponses.length; i++) {
+      const filterName = selfExcludingResponses[i].filterName;
+      const refiner = selfExcludingResponses[i].response.refiners.find(function (candidate): boolean {
+        return candidate.filterName === filterName;
+      });
+      if (refiner) {
+        replacements.set(filterName, refiner);
+      }
+    }
+
+    if (replacements.size === 0) {
+      return filteredRefiners;
+    }
+
+    const merged: IRefiner[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < filteredRefiners.length; i++) {
+      const filtered = filteredRefiners[i];
+      const replacement = replacements.get(filtered.filterName);
+      if (replacement) {
+        merged.push(replacement);
+        seen.add(filtered.filterName);
+      } else {
+        merged.push(filtered);
+      }
+    }
+
+    replacements.forEach((replacement, filterName) => {
+      if (!seen.has(filterName)) {
+        merged.push(replacement);
+      }
+    });
+
+    return merged;
   }
 
   private _splitActiveFilters(state: ISearchStore): {

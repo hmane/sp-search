@@ -21,6 +21,21 @@ export interface IBuildRowActionMenuOptions {
   onItemClick?: (item: ISearchResult, position: number) => void;
   /** Optional toast trigger fired after Copy link succeeds. */
   onCopyLinkSuccess?: (url: string) => void;
+  /** Opens the row's Add to collection dialog. */
+  onAddToCollection?: (event?: { preventDefault?: () => void; stopPropagation?: () => void }) => void;
+}
+
+export function buildAddToCollectionMenuItem(
+  onAddToCollection: (event?: { preventDefault?: () => void; stopPropagation?: () => void }) => void
+): IContextualMenuItem {
+  return {
+    key: 'addToCollection',
+    text: 'Add to collection',
+    iconProps: { iconName: 'FabricFolder' },
+    onClick: (event?: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>): void => {
+      onAddToCollection(event);
+    },
+  };
 }
 
 /**
@@ -34,8 +49,7 @@ export function buildRowActionMenu(
   const position: number = options.position ?? 1;
   const onItemClick = options.onItemClick;
   const onCopyLinkSuccess = options.onCopyLinkSuccess;
-
-  return [
+  const menuItems: IContextualMenuItem[] = [
     {
       key: 'open',
       text: 'Open in new tab',
@@ -47,6 +61,13 @@ export function buildRowActionMenu(
         window.open(buildBrowserOpenUrl(item), '_blank', 'noopener,noreferrer');
       },
     },
+  ];
+
+  if (options.onAddToCollection) {
+    menuItems.push(buildAddToCollectionMenuItem(options.onAddToCollection));
+  }
+
+  menuItems.push(
     {
       key: 'download',
       text: 'Download',
@@ -72,5 +93,7 @@ export function buildRowActionMenu(
           .catch((): void => { /* silent — caller decides UX */ });
       },
     },
-  ];
+  );
+
+  return menuItems;
 }

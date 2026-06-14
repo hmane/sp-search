@@ -335,26 +335,46 @@
   padding: 0;
 }
 
+.historyDateGroup {
+  margin: 0 0 12px 0;
+  padding: 0;
+}
+
+.historyDateHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 6px 12px;
+  border-bottom: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
+  background-color: "[theme:neutralLighterAlt, default: #faf9f8]";
+}
+
+.historyDateLabel {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: "[theme:bodyText, default: #323130]";
+}
+
+.historyDateCount {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: "[theme:bodySubtext, default: #605e5c]";
+  white-space: nowrap;
+}
+
 .historyItem {
   display: flex;
-  align-items: center;
-  padding: 10px 12px;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
   cursor: pointer;
   transition: background-color 150ms ease, box-shadow 150ms ease;
   // Stream C / #9 — no separator at rest; hover/focus carries the affordance.
   @include interactive-row;
-}
-
-.historyIcon {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  font-size: 14px;
-  color: "[theme:neutralSecondary, default: #605e5c]";
 }
 
 .historyBody {
@@ -363,6 +383,9 @@
 }
 
 .historyQuery {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
@@ -370,7 +393,8 @@
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .historyMeta {
@@ -398,9 +422,9 @@
 
 .historyTimestamp {
   font-size: 12px;
+  line-height: 20px;
   color: "[theme:neutralSecondary, default: #605e5c]";
   flex-shrink: 0;
-  margin-left: 8px;
   white-space: nowrap;
 }
 
@@ -1601,9 +1625,10 @@
 
 // Foundations Found.D6 — honor prefers-reduced-motion (T1.D9 will refine surface-by-surface in Sprint 5).
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  .spSearchManager,
+  .spSearchManager *,
+  .spSearchManager *::before,
+  .spSearchManager *::after {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
     animation-duration: 0.01ms !important;

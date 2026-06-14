@@ -13,11 +13,13 @@ import {
   ISortField,
   ISortableProperty,
   IActiveFilter,
-  IFilterConfig
+  IFilterConfig,
+  ISearchScope
 } from '@interfaces/index';
 import ResultToolbar from './ResultToolbar';
 import ActiveFilterPillBar from './ActiveFilterPillBar';
 import Pagination from './Pagination';
+import { spLog } from '@store/utils/spLog';
 
 // ─── Lazy-loaded layouts (code-split per layout) ─────────
 const ListLayout = lazyBridge(
@@ -103,6 +105,7 @@ function useStoreState(
   querySuggestion: string | undefined;
   showPaging: boolean;
   pageRange: number;
+  scope: ISearchScope;
 } {
   const { store } = props;
 
@@ -126,6 +129,7 @@ function useStoreState(
     querySuggestion: undefined as string | undefined,
     showPaging: true,
     pageRange: 5,
+    scope: { id: 'all', label: 'All SharePoint' } as ISearchScope,
   }), []);
 
   const getSnapshot = React.useCallback((): {
@@ -148,6 +152,7 @@ function useStoreState(
     querySuggestion: string | undefined;
     showPaging: boolean;
     pageRange: number;
+    scope: ISearchScope;
   } => {
     if (!store) {
       return emptyState;
@@ -173,6 +178,7 @@ function useStoreState(
       querySuggestion: state.querySuggestion,
       showPaging: state.showPaging,
       pageRange: state.pageRange,
+      scope: state.scope,
     };
   }, [store, emptyState]);
 
@@ -205,7 +211,8 @@ function useStoreState(
           prev.filterConfig === next.filterConfig &&
           prev.querySuggestion === next.querySuggestion &&
           prev.showPaging === next.showPaging &&
-          prev.pageRange === next.pageRange
+          prev.pageRange === next.pageRange &&
+          prev.scope === next.scope
         ) {
           return prev;
         }
@@ -531,7 +538,8 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
     filterConfig,
     querySuggestion,
     showPaging,
-    pageRange
+    pageRange,
+    scope
   } = useStoreState(props);
 
   // T5.D1 — DebugFab/Panel now mounted via shared DebugFabHost.
@@ -792,6 +800,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
           <ListLayout
             items={items}
             searchContextId={searchContextId}
+            scope={scope}
             titleDisplayMode={titleDisplayMode}
             onItemClick={handleItemClick}
             linkConfig={linkConfig}
@@ -834,12 +843,10 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
                   onClick={(): void => {
                     clearInitOrderDiagnostic(searchContextId);
                     // Re-fire the orchestrator's search with the now-loaded filterConfig.
-                    const orchestrator = (store.getState() as unknown as { triggerSearch?: () => void });
-                    if (typeof orchestrator.triggerSearch === 'function') {
-                      orchestrator.triggerSearch();
+                    if (orchestrator) {
+                      orchestrator.triggerSearch().catch(function noop(): void { /* handled in orchestrator */ });
                     } else {
-                      // Fallback — bump the store's queryText to trigger a re-search via the orchestrator subscription.
-                      store.setState({ queryText: store.getState().queryText });
+                      store.getState().setError('Search is not ready. Reload the page and try again.');
                     }
                   }}
                   style={{ padding: '4px 10px', cursor: 'pointer' }}
@@ -938,7 +945,7 @@ const SpSearchResults: React.FC<ISpSearchResultsProps> = (props) => {
             onExportXlsx={(): void => {
               exportItemsAsXlsx(items, {
                 configuredColumns: selectedPropertyColumns,
-              }).catch((err): void => { console.error('[SP Search] XLSX export failed', err); });
+              }).catch((err): void => { spLog.error('XLSX export failed', { error: err }); });
             }}
           />
         )}

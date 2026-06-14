@@ -18,6 +18,7 @@ import { DebugFabHost } from '../../../utilities/DebugFabHost';
 import { useLocalStorage } from 'spfx-toolkit/lib/hooks';
 import type { ISearchScope, ISuggestion, ISuggestionProvider, IManagedProperty, IRefiner } from '@interfaces/index';
 import { safeNavigate } from '@store/utils/safeNavigate';
+import { spLog } from '@store/utils/spLog';
 import type { IKqlCompletion, IKqlCompletionContext, IKqlValidation } from '../kql';
 import { getCompletionContext, getCompletions } from '../kql';
 import QueryBuilder from './QueryBuilder';
@@ -384,12 +385,12 @@ const SpSearchBox: React.FC<ISpSearchBoxProps> = (props) => {
         if ((isAbsoluteHttp || isRootRelative) && !isDangerous) {
           window.open(targetUrl, '_blank', 'noopener,noreferrer');
         } else {
-          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+          spLog.error('Invalid newPageUrl; must start with /, https://, or http://');
         }
       } else {
         // safeNavigate self-validates the same allowlist (BUG-004 hardening preserved).
         if (!safeNavigate(targetUrl)) {
-          console.error('[SP Search] Invalid newPageUrl — must start with /, https://, or http://');
+          spLog.error('Invalid newPageUrl; must start with /, https://, or http://');
         }
       }
       return;

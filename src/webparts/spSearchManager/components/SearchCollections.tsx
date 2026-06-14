@@ -18,6 +18,7 @@ import {
 } from '@interfaces/index';
 import { SearchManagerService } from '@services/index';
 import { buildDownloadUrl, normalizeUrl } from '@providers/actions/actionUtils';
+import { spLog } from '@store/utils/spLog';
 import { buildBrowserOpenUrl, buildFormUrl } from '@webparts/spSearchResults/components/documentTitleUtils';
 import TagBadges from './TagBadges';
 import ResultAnnotations from './ResultAnnotations';
@@ -193,7 +194,7 @@ const SearchCollections: React.FC<ISearchCollectionsProps> = (props) => {
       })
       .catch(function (err: unknown): void {
         setIsDeleting(false);
-        console.error('[SP Search] deleteCollection failed:', err);
+        spLog.error('deleteCollection failed', { error: err });
       });
   }
 

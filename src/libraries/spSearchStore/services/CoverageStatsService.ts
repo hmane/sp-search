@@ -2,6 +2,7 @@ import 'spfx-toolkit/lib/utilities/context/pnpImports/search';
 import type { ISearchQuery as IPnPSearchQuery, SearchResults } from '@pnp/sp/search';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import type { ISearchScope } from '@interfaces/index';
+import { spLog } from '@store/utils/spLog';
 
 export interface ICoverageConfig {
   queryTemplate: string;
@@ -112,7 +113,7 @@ export class CoverageStatsService {
             newest = new Date(val as string);
           }
         }
-        console.warn('[SP Search] LastModifiedTime may not be sortable — freshness data is limited');
+        spLog.warn('LastModifiedTime may not be sortable; freshness data is limited');
       } catch {
         // Fallback failed — leave dates undefined
       }

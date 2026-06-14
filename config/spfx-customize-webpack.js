@@ -202,7 +202,8 @@ module.exports = function (webpackConfig) {
   // PropertyFieldCollectionData renders fields vertically instead of as a table.
   //
   // Fix: exclude @pnp from the module CSS rule and add a plain CSS rule that
-  // injects their CSS without class name re-generation.
+  // injects their CSS without class name re-generation while still exporting
+  // the CSS-module locals expected by the shipped JS.
   // ---------------------------------------------------------------------------
   const moduleCssRule = (webpackConfig.module.rules || []).find(function (r) {
     return ruleMatchesModuleCss(r) && !ruleMatchesCss(r);
@@ -220,7 +221,6 @@ module.exports = function (webpackConfig) {
           options: {
             esModule: true,
             modules: {
-              auto: true,
               localIdentName: '[local]',
               namedExport: false,
               exportLocalsConvention: 'as-is',

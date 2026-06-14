@@ -12,7 +12,10 @@ import {
 import { SearchManagerService } from '@services/index';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { validateSearchState } from '@store/utils/searchStateSchema';
+import { spLog } from '@store/utils/spLog';
 import styles from './SpSearchManager.module.scss';
+import { getHistoryDisplay } from './historyDisplay';
+import { formatHistoryTime, groupSearchHistoryByDate } from './historyGrouping';
 
 export interface ISearchHistoryProps {
   store: StoreApi<ISearchStore>;
@@ -23,43 +26,15 @@ export interface ISearchHistoryProps {
 }
 
 /**
- * Format a date as a relative timestamp string.
- */
-function formatRelativeTimestamp(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-
-  if (diffSec < 60) {
-    return 'just now';
-  }
-  if (diffMin < 60) {
-    return diffMin === 1 ? '1 minute ago' : String(diffMin) + ' minutes ago';
-  }
-  if (diffHour < 24) {
-    return diffHour === 1 ? '1 hour ago' : String(diffHour) + ' hours ago';
-  }
-  if (diffDay < 7) {
-    return diffDay === 1 ? 'yesterday' : String(diffDay) + ' days ago';
-  }
-  if (diffWeek < 4) {
-    return diffWeek === 1 ? '1 week ago' : String(diffWeek) + ' weeks ago';
-  }
-
-  return date.toLocaleDateString();
-}
-
-/**
  * SearchHistory -- displays a chronological list of past searches.
- * Each item shows the query text, vertical, result count, and relative timestamp.
+ * Each item shows the query text, vertical, result count, and time.
  * Click to re-execute the search. Includes a "Clear history" button.
  */
 const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
   const { store, service, history, onDataChanged, onSearchLoaded } = props;
+  const historyGroups = React.useMemo(function () {
+    return groupSearchHistoryByDate(history || []);
+  }, [history]);
 
   // ─── Local state ──────────────────────────────────────────
   const [showClearDialog, setShowClearDialog] = React.useState<boolean>(false);
@@ -75,7 +50,7 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
     const validation = validateSearchState(entry.searchState);
     if (!validation.ok) {
       setRestoreError({ queryText: entry.queryText, errors: validation.errors });
-      console.warn('[SP Search] Skipping history-entry restore — schema validation failed:', validation.errors);
+      spLog.warn('Skipping history-entry restore; schema validation failed', { errors: validation.errors });
       return;
     }
     const savedState = validation.state;
@@ -168,45 +143,51 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
 
       {/* History list */}
       <div className={styles.historyList}>
-        {history.map(function (entry): React.ReactElement {
+        {historyGroups.map(function (group): React.ReactElement {
           return (
-            <div
-              key={entry.id}
-              className={styles.historyItem}
-              onClick={function (): void { handleReExecuteSearch(entry); }}
-              role="button"
-              aria-label={'Re-run search: ' + entry.queryText}
-            >
-              {/* Clock icon */}
-              <div className={styles.historyIcon}>
-                <Icon iconName="History" />
+            <section key={group.key} className={styles.historyDateGroup}>
+              <div className={styles.historyDateHeader}>
+                <h3 className={styles.historyDateLabel}>{group.label}</h3>
+                <span className={styles.historyDateCount}>
+                  {String(group.count)} {group.count === 1 ? 'search' : 'searches'}
+                </span>
               </div>
+              {group.entries.map(function (entry): React.ReactElement {
+                const display = getHistoryDisplay(entry);
+                return (
+                  <div
+                    key={entry.id}
+                    className={styles.historyItem}
+                    onClick={function (): void { handleReExecuteSearch(entry); }}
+                    role="button"
+                    aria-label={'Re-run search: ' + display.title}
+                  >
+                    {/* Body: query + meta */}
+                    <div className={styles.historyBody}>
+                      <p className={styles.historyQuery} title={display.title}>{display.title}</p>
+                      <div className={styles.historyMeta}>
+                        {display.metaParts.map(function (part: string, index: number): React.ReactElement {
+                          const isUsage = part.indexOf('Used ') === 0;
+                          return (
+                            <React.Fragment key={part + String(index)}>
+                              {index > 0 && <span className={styles.metaDot} />}
+                              <span className={isUsage ? styles.historyCountBadge : undefined}>
+                                {part}
+                              </span>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-              {/* Body: query + meta */}
-              <div className={styles.historyBody}>
-                <p className={styles.historyQuery}>{entry.queryText}</p>
-                <div className={styles.historyMeta}>
-                  {entry.vertical && (
-                    <span>{entry.vertical}</span>
-                  )}
-                  {entry.vertical && <span className={styles.metaDot} />}
-                  {entry.useCount > 1 && (
-                    <>
-                      <span className={styles.historyCountBadge}>
-                        Used {String(entry.useCount)} times
-                      </span>
-                      <span className={styles.metaDot} />
-                    </>
-                  )}
-                  <span>{String(entry.resultCount) + ' results'}</span>
-                </div>
-              </div>
-
-              {/* Timestamp */}
-              <span className={styles.historyTimestamp}>
-                {formatRelativeTimestamp(entry.searchTimestamp)}
-              </span>
-            </div>
+                    {/* Timestamp */}
+                    <span className={styles.historyTimestamp}>
+                      {formatHistoryTime(entry.searchTimestamp)}
+                    </span>
+                  </div>
+                );
+              })}
+            </section>
           );
         })}
       </div>
