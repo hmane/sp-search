@@ -618,33 +618,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-
-  :global {
-    .dx-tagbox {
-      border-radius: 2px;
-    }
-
-    .dx-tag {
-      border-radius: 12px;
-      background-color: "[theme:themeLighter, default: #deecf9]";
-      color: "[theme:themeDarkAlt, default: #106ebe]";
-      border: none;
-      font-size: 12px;
-    }
-
-    .dx-tag-remove-button::after {
-      color: "[theme:themeDarkAlt, default: #106ebe]";
-    }
-
-    .dx-tag-remove-button:hover::after {
-      color: "[theme:themePrimary, default: #0078d4]";
-    }
-
-    .dx-list-item-selected {
-      background-color: "[theme:themeLighter, default: #deecf9]";
-      color: "[theme:themeDarkAlt, default: #106ebe]";
-    }
-  }
 }
 
 /* ── Slider filter ──────────────────────────────────────── */
