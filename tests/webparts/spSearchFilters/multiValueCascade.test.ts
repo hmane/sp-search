@@ -262,13 +262,13 @@ describe('buildTaxonomyBatchPayload', () => {
       ['aaaa-bbbb-cccc-2', 'Books'],
     ]);
 
-    const payload = buildTaxonomyBatchPayload(
-      'owstaxIdProductCategory',
-      ['aaaa-bbbb-cccc-1', 'aaaa-bbbb-cccc-2'],
+    const payload = buildTaxonomyBatchPayload({
+      filterName: 'owstaxIdProductCategory',
+      selectedKeys: ['aaaa-bbbb-cccc-1', 'aaaa-bbbb-cccc-2'],
       tokenMap,
       labelMap,
-      'OR'
-    );
+      operator: 'OR',
+    });
 
     expect(payload).toEqual({
       filterName: 'owstaxIdProductCategory',
@@ -290,13 +290,13 @@ describe('buildTaxonomyBatchPayload', () => {
   });
 
   it('falls back to GP0|#<guid> when tokenMap has no entry for a key', () => {
-    const payload = buildTaxonomyBatchPayload(
-      'Cat',
-      ['unmapped-guid'],
-      new Map(),
-      new Map(),
-      'OR'
-    );
+    const payload = buildTaxonomyBatchPayload({
+      filterName: 'Cat',
+      selectedKeys: ['unmapped-guid'],
+      tokenMap: new Map(),
+      labelMap: new Map(),
+      operator: 'OR',
+    });
     expect(payload.values[0].value).toBe('GP0|#unmapped-guid');
     expect(payload.values[0].displayValue).toBeUndefined();
   });

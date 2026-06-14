@@ -154,13 +154,14 @@ function buildFallbackItems(values: IRefinerValue[], showCount: boolean): ITaxon
  * Falls back to `GP0|#<key>` when the tokenMap has no entry (e.g. lazy
  * selection of a node before its parent subtree mapped a token).
  */
-export function buildTaxonomyBatchPayload(
-  filterName: string,
-  selectedKeys: string[],
-  tokenMap: Map<string, string>,
-  labelMap: Map<string, string>,
-  operator: 'AND' | 'OR'
-): IReplaceRefinerValuesPayload {
+export function buildTaxonomyBatchPayload(input: {
+  filterName: string;
+  selectedKeys: string[];
+  tokenMap: Map<string, string>;
+  labelMap: Map<string, string>;
+  operator: 'AND' | 'OR';
+}): IReplaceRefinerValuesPayload {
+  const { filterName, selectedKeys, tokenMap, labelMap, operator } = input;
   return {
     filterName,
     values: selectedKeys.map(function (key: string): IActiveFilter {
@@ -301,7 +302,13 @@ const TaxonomyTreeFilter: React.FC<ITaxonomyTreeFilterProps> = (props: ITaxonomy
     // parent doesn't process N per-delta toggles against stale closures.
     if (onReplaceRefinerValues) {
       onReplaceRefinerValues(
-        buildTaxonomyBatchPayload(filterName, keys, tokenMap, labelMap, operator)
+        buildTaxonomyBatchPayload({
+          filterName,
+          selectedKeys: keys,
+          tokenMap,
+          labelMap,
+          operator,
+        })
       );
       return;
     }
