@@ -361,11 +361,16 @@ export function mapRefinersWithPreprocessing(
       for (let j = 0; j < tokens.length; j++) {
         const cleaned = preprocessValue(tokens[j], config ? config.dataType : undefined);
         const displayName = cleaned.length === 0 ? '(blank)' : cleaned;
+        // When the entry was split into multiple tokens, each bucket must carry
+        // its own per-token raw form so the KQL refinement clause matches just
+        // that token. When no split happened, keep the original RefinementToken
+        // /RefinementValue fallback to preserve any subtle differences.
+        const perTokenRaw = tokens.length === 1 ? rawToken : tokens[j];
         const existing = valueAggregator.get(displayName);
         if (existing) {
           existing.count += count;
         } else {
-          valueAggregator.set(displayName, { count: count, rawValue: rawToken });
+          valueAggregator.set(displayName, { count: count, rawValue: perTokenRaw });
         }
       }
     }

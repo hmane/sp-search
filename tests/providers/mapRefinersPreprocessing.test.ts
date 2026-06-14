@@ -177,4 +177,41 @@ describe('mapRefinersWithPreprocessing', () => {
     expect(byName.get('alpha')).toBe(4);
     expect(byName.get('beta')).toBe(4);
   });
+
+  it('split buckets carry per-token rawValue (KQL preservation on split path)', () => {
+    const config: IFilterConfig[] = [cfg({
+      managedProperty: 'Tags',
+      displayName: 'Tags',
+      filterType: 'tagbox',
+      valueSplitDelimiter: ',',
+    })];
+    const result = mapRefinersWithPreprocessing(
+      [refinerResponse('Tags', [
+        { value: 'finance, hot, urgent', count: 5 },
+      ])],
+      config
+    );
+    const finance = result[0].values.find(function (v) { return v.name === 'finance'; });
+    expect(finance).toBeDefined();
+    expect(finance!.value).toBe('finance');
+  });
+
+  it('split + strip: rawValue is the split token (with prefix), display is cleaned', () => {
+    const config: IFilterConfig[] = [cfg({
+      managedProperty: 'MultiTags',
+      displayName: 'MultiTags',
+      filterType: 'tagbox',
+      dataType: 'choiceMulti',
+      valueSplitDelimiter: '\n',
+    })];
+    const result = mapRefinersWithPreprocessing(
+      [refinerResponse('MultiTags', [
+        { value: 'string;#alpha\nstring;#beta', count: 4 },
+      ])],
+      config
+    );
+    const alpha = result[0].values.find(function (v) { return v.name === 'alpha'; });
+    expect(alpha).toBeDefined();
+    expect(alpha!.value).toBe('string;#alpha');
+  });
 });
