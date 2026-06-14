@@ -36,8 +36,48 @@ function compareAlphabetical(a: IRefinerValue, b: IRefinerValue): number {
   return 0;
 }
 
+/**
+ * Pure helper that builds the batched payload for `onReplaceRefinerValues`
+ * from the editor's full intended selection. Extracted (same shape as
+ * `buildTagBoxBatchPayload`) so the multi-select cascade can be tested
+ * without driving Fluent Dropdown's onChange under jsdom.
+ *
+ * Order of `nextSelectedTokens` is preserved. Display labels are looked
+ * up from the current refiner bucket; tokens not present get
+ * `displayValue: undefined` (URL/pill formatter falls back to raw token).
+ *
+ * Single-select dropdowns do NOT use this helper — they keep the
+ * per-delta `onToggleRefiner` path because there is only ever one
+ * delta per change.
+ */
+export function buildDropdownBatchPayload(input: {
+  filterName: string;
+  nextSelectedTokens: string[];
+  refinerValues: IRefinerValue[];
+  operator: 'AND' | 'OR';
+}): IReplaceRefinerValuesPayload {
+  const labelMap: Map<string, string> = new Map<string, string>();
+  for (let i = 0; i < input.refinerValues.length; i++) {
+    const rv = input.refinerValues[i];
+    labelMap.set(rv.value, rv.name || rv.value);
+  }
+
+  const values: IActiveFilter[] = [];
+  for (let i = 0; i < input.nextSelectedTokens.length; i++) {
+    const token: string = input.nextSelectedTokens[i];
+    values.push({
+      filterName: input.filterName,
+      value: token,
+      displayValue: labelMap.get(token),
+      operator: input.operator,
+    });
+  }
+
+  return { filterName: input.filterName, values: values };
+}
+
 const DropdownFilter: React.FC<IDropdownFilterProps> = (props: IDropdownFilterProps): React.ReactElement => {
-  const { filterName, values, config, activeFilters, onToggleRefiner } = props;
+  const { filterName, values, config, activeFilters, onToggleRefiner, onReplaceRefinerValues } = props;
 
   const showCount: boolean = config ? config.showCount : true;
   const sortBy: SortBy = config ? config.sortBy : 'count';
@@ -87,6 +127,24 @@ const DropdownFilter: React.FC<IDropdownFilterProps> = (props: IDropdownFilterPr
   }, [sortedValues]);
 
   function syncToSelection(nextSelectedValues: string[]): void {
+    if (allowMultiple && onReplaceRefinerValues) {
+      // Batched path — one call carrying the FULL intended selection.
+      // The per-delta loop below would otherwise capture a stale React
+      // closure over `activeFilters` and silently drop all but the last
+      // delta on multi-select.
+      const payload = buildDropdownBatchPayload({
+        filterName,
+        nextSelectedTokens: nextSelectedValues,
+        refinerValues: sortedValues,
+        operator,
+      });
+      onReplaceRefinerValues(payload);
+      return;
+    }
+
+    // Single-select mode (or callers that haven't migrated to the batched
+    // callback) — keep the per-delta path. Single-select only ever emits
+    // one delta per change so it is not affected by the stale-closure bug.
     for (let i = 0; i < nextSelectedValues.length; i++) {
       if (selectedValues.indexOf(nextSelectedValues[i]) < 0) {
         onToggleRefiner({
