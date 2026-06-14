@@ -8,7 +8,10 @@ import {
   PropertyPaneChoiceGroup,
   PropertyPaneToggle
 } from '@microsoft/sp-property-pane';
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import {
+  PropertyPaneCollectionData,
+  CustomCollectionFieldType,
+} from '../../propertyPaneControls/collectionData/PropertyPaneCollectionData';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { StoreApi } from 'zustand/vanilla';
@@ -24,7 +27,6 @@ import { getStore, initializeSearchContext, getManagerService, incrementContextR
 import { SharePointSearchProvider } from '@providers/index';
 import { registerBuiltInSuggestions } from './registerBuiltInSuggestions';
 import { DebugCollector } from '@store/debug';
-import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 // T4.D8 — shared validator for the newPageQueryParameter URL-key field.
 import { validateNewPageQueryParameter } from '../../propertyPaneControls/fieldValidation';
 // T4.D11 — context-sensitive help link helper.
@@ -170,8 +172,6 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
   }
 
   protected async onInit(): Promise<void> {
-    ensurePnpPropertyControlStyles();
-
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchBox');
@@ -462,7 +462,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
                   offText: strings.ToggleOffText
                 }),
                 ...(this.properties.enableScopeSelector ? [
-                  PropertyFieldCollectionData('searchScopes', {
+                  PropertyPaneCollectionData('searchScopes', {
                     key: 'searchScopes',
                     label: 'Search scopes',
                     panelHeader: 'Configure search scopes',

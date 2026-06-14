@@ -101,7 +101,6 @@ export const ColumnConfigControl: React.FC<IColumnConfigControlProps> = (props) 
         iconProps={{ iconName: 'Add' }}
         text="Add column"
         onClick={handleAdd}
-        disabled={availableProperties.length === 0}
       />
       <ColumnConfigPanel
         isOpen={editor.isOpen}

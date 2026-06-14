@@ -4,7 +4,6 @@ import { IManagedProperty } from '@interfaces/index';
 // ─── Constants ──────────────────────────────────────────────
 
 const SCHEMA_CACHE_KEY = 'sp-search-schema-v1';
-const SCHEMA_UNAVAILABLE_KEY = 'sp-search-schema-unavailable-v1';
 
 /** Maps SharePoint ManagedType integers to human-readable type names */
 const MANAGED_TYPE_MAP: Record<number, string> = {
@@ -60,17 +59,17 @@ export interface ISchemaResult {
  *
  * @param forceRefresh - Bypass sessionStorage cache and re-fetch from server
  */
-export async function fetchManagedProperties(forceRefresh?: boolean): Promise<ISchemaResult> {
-  // Check sessionStorage cache
-  if (!forceRefresh) {
-    if (isSchemaUnavailable()) {
-      return {
-        status: 'error',
-        properties: [],
-        errorMessage: 'Schema API unavailable on this site'
-      };
-    }
+const SCHEMA_UNAVAILABLE_MESSAGE =
+  'The Search schema API isn\'t available on this site (typically because ' +
+  'your account doesn\'t have the Search Administrator role). You can still ' +
+  'type managed property names manually.';
 
+export async function fetchManagedProperties(forceRefresh?: boolean): Promise<ISchemaResult> {
+  // Successful schema responses are still cached so the picker doesn't refetch
+  // every keystroke. Failure responses are NOT cached — re-attempts are cheap
+  // (a single REST 404/403) and admins shouldn't have to refresh the tab when
+  // their permissions change mid-session.
+  if (!forceRefresh) {
     const cached = readCache();
     if (cached) {
       return { status: 'success', properties: cached };
@@ -88,12 +87,11 @@ export async function fetchManagedProperties(forceRefresh?: boolean): Promise<IS
         return { status: 'unauthorized', properties: [] };
       }
       if (response.status === 404) {
-        markSchemaUnavailable();
         SPContext.logger.warn('SchemaService: Search schema endpoint not available on this site');
         return {
           status: 'error',
           properties: [],
-          errorMessage: 'Schema API unavailable on this site'
+          errorMessage: SCHEMA_UNAVAILABLE_MESSAGE
         };
       }
       const errorMsg = 'Schema API returned HTTP ' + String(response.status);
@@ -161,11 +159,12 @@ export async function fetchManagedProperties(forceRefresh?: boolean): Promise<IS
   } catch (error) {
     // Network errors, timeouts, etc. still throw
     const message = error instanceof Error ? error.message : 'Failed to fetch schema';
-    if (message.indexOf('404') >= 0) {
-      markSchemaUnavailable();
-    }
     SPContext.logger.error('SchemaService: Failed to fetch managed properties', error);
-    return { status: 'error', properties: [], errorMessage: message };
+    return {
+      status: 'error',
+      properties: [],
+      errorMessage: message.indexOf('404') >= 0 ? SCHEMA_UNAVAILABLE_MESSAGE : message
+    };
   }
 }
 
@@ -195,24 +194,7 @@ function readCache(): IManagedProperty[] | undefined {
 function writeCache(properties: IManagedProperty[]): void {
   try {
     sessionStorage.setItem(SCHEMA_CACHE_KEY, JSON.stringify(properties));
-    sessionStorage.removeItem(SCHEMA_UNAVAILABLE_KEY);
   } catch {
     // sessionStorage full or unavailable — ignore
-  }
-}
-
-function isSchemaUnavailable(): boolean {
-  try {
-    return sessionStorage.getItem(SCHEMA_UNAVAILABLE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markSchemaUnavailable(): void {
-  try {
-    sessionStorage.setItem(SCHEMA_UNAVAILABLE_KEY, '1');
-  } catch {
-    // ignore
   }
 }

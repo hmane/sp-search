@@ -1,0 +1,139 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.host {
+  margin-bottom: 8px;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: $ms-color-neutralPrimary;
+  margin-bottom: 4px;
+}
+
+.triggerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid $ms-color-neutralLight;
+  border-radius: 2px;
+  background-color: $ms-color-neutralLighterAlt;
+}
+
+.summary {
+  flex: 1;
+  font-size: 13px;
+  color: $ms-color-neutralSecondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ─── Panel body: table ────────────────────────────────────
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panelDescription {
+  font-size: 13px;
+  color: $ms-color-neutralSecondary;
+  margin: 0 0 4px 0;
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border: 1px solid $ms-color-neutralLight;
+  border-radius: 4px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.tableHead {
+  background-color: $ms-color-neutralLighterAlt;
+  font-size: 12px;
+  font-weight: 600;
+  color: $ms-color-neutralSecondary;
+  text-align: left;
+}
+
+.tableHeadCell {
+  padding: 8px 10px;
+  border-bottom: 1px solid $ms-color-neutralLight;
+  white-space: nowrap;
+}
+
+.tableHeadActions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.required {
+  color: $ms-color-redDark;
+  margin-left: 2px;
+}
+
+.tableRow {
+  border-bottom: 1px solid $ms-color-neutralLighter;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: $ms-color-neutralLighterAlt;
+  }
+}
+
+.tableCell {
+  padding: 6px 10px;
+  vertical-align: top;
+}
+
+.tableCellActions {
+  white-space: nowrap;
+  text-align: right;
+  padding: 4px 6px;
+}
+
+.fieldError {
+  color: $ms-color-redDark;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.emptyRow {
+  padding: 24px 12px;
+  text-align: center;
+  color: $ms-color-neutralSecondary;
+  font-size: 13px;
+}
+
+.addRow {
+  display: flex;
+  justify-content: flex-start;
+  padding: 8px 0;
+}
+
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 24px;
+}
+
+.footerError {
+  flex: 1;
+  color: $ms-color-redDark;
+  font-size: 13px;
+}

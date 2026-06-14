@@ -14,7 +14,11 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { type StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 
-import { PropertyFieldCollectionData, CustomCollectionFieldType, type ICustomCollectionField } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import {
+  PropertyPaneCollectionData,
+  CustomCollectionFieldType,
+} from '../../propertyPaneControls/collectionData/PropertyPaneCollectionData';
+import type { ICustomCollectionField } from '../../propertyPaneControls/collectionData/types';
 
 import * as strings from 'SpSearchVerticalsWebPartStrings';
 import SpSearchVerticals from './components/SpSearchVerticals';
@@ -26,7 +30,6 @@ import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGr
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { SharePointSearchProvider } from '@providers/index';
-import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 import { DebugCollector } from '@store/debug';
 import { DisplayMode } from '@microsoft/sp-core-library';
 import { AudienceGate, parseAudienceGroups } from '../../utilities/AudienceGate';
@@ -125,8 +128,6 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
   }
 
   protected async onInit(): Promise<void> {
-    ensurePnpPropertyControlStyles();
-
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchVerticals');
@@ -193,7 +194,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
 
     // Prefer collection data; fall back to legacy JSON
     if (this.properties.verticalsCollection && this.properties.verticalsCollection.length > 0) {
-      // Use array index as sortOrder — PropertyFieldCollectionData drag-and-drop
+      // Use array index as sortOrder — PropertyPaneCollectionData move up/down
       // reorders the array, so array position is the canonical order
       parsed = this.properties.verticalsCollection.map((item: IVerticalCollectionItem, idx: number) => ({
         key: item.key,
@@ -260,8 +261,8 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
     const verticalOptions = (this.properties.verticalsCollection || [])
       .filter((v: IVerticalCollectionItem) => !v.isLink)
       .map((v: IVerticalCollectionItem) => ({ key: v.key, text: v.label || v.key }));
-    // PropertyFieldCollectionData field configs have a broad union type; build them in steps
-    // so TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
+    // Field configs have a broad union type; build them in steps so
+    // TypeScript doesn't over-narrow the base array and reject advanced dropdown fields.
     const verticalFields: ICustomCollectionField[] = [
       {
         id: 'key',
@@ -384,7 +385,7 @@ export default class SpSearchVerticalsWebPart extends BaseClientSideWebPart<ISpS
                 PropertyPaneLabel('verticalsIntro', {
                   text: strings.VerticalsIntroLabel
                 }),
-                PropertyFieldCollectionData('verticalsCollection', {
+                PropertyPaneCollectionData('verticalsCollection', {
                   key: 'verticalsCollection',
                   label: strings.VerticalsFieldLabel,
                   panelHeader: strings.VerticalsPanelHeader,

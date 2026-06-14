@@ -53,26 +53,45 @@ function findFilterConfig(filterName: string, configs: IFilterConfig[]): IFilter
 }
 
 function buildDisplayRefiners(refiners: IRefiner[], configs: IFilterConfig[]): IRefiner[] {
-  const merged: IRefiner[] = refiners.slice();
-  const existing = new Set<string>();
-
+  // Admin-configured `configs` order is canonical — drive the loop from configs
+  // and look up the matching server-returned refiner bucket. Refiners that the
+  // server returned but the admin didn't configure get appended at the end so
+  // they're still discoverable.
+  const merged: IRefiner[] = [];
+  const used = new Set<string>();
+  const refinerByName = new Map<string, IRefiner>();
   for (let i: number = 0; i < refiners.length; i++) {
-    existing.add(refiners[i].filterName);
+    refinerByName.set(refiners[i].filterName, refiners[i]);
   }
 
   for (let i: number = 0; i < configs.length; i++) {
     const config = configs[i];
+    const bucket = refinerByName.get(config.managedProperty);
+
+    if (bucket) {
+      merged.push(bucket);
+      used.add(config.managedProperty);
+      continue;
+    }
+
     const canRenderWithoutBuckets =
       config.filterType === 'people' ||
       config.filterType === 'daterange' ||
       config.filterType === 'toggle' ||
       config.filterType === 'text';
 
-    if (canRenderWithoutBuckets && !existing.has(config.managedProperty)) {
+    if (canRenderWithoutBuckets) {
       merged.push({
         filterName: config.managedProperty,
         values: []
       });
+      used.add(config.managedProperty);
+    }
+  }
+
+  for (let i: number = 0; i < refiners.length; i++) {
+    if (!used.has(refiners[i].filterName)) {
+      merged.push(refiners[i]);
     }
   }
 

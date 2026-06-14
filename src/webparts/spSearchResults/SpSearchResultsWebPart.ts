@@ -18,8 +18,10 @@ import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
-import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
+import {
+  PropertyPaneCollectionData,
+  CustomCollectionFieldType,
+} from '../../propertyPaneControls/collectionData/PropertyPaneCollectionData';
 
 import * as strings from 'SpSearchResultsWebPartStrings';
 import SpSearchResults from './components/SpSearchResults';
@@ -272,8 +274,6 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
-    ensurePnpPropertyControlStyles();
-
     // Initialize SPContext for PnPjs
     // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
     await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchResults');
@@ -419,7 +419,9 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   private _normalizeSelectedPropertiesCollection(): ISelectedPropertyItem[] {
-    const raw = normalizeCollectionValue<ISelectedPropertyItem>(this.properties.selectedPropertiesCollection);
+    const persisted = this.properties.selectedPropertiesCollection;
+    const hasNoPersistedValue = persisted === undefined || persisted === null;
+    const raw = normalizeCollectionValue<ISelectedPropertyItem>(persisted);
     const result: ISelectedPropertyItem[] = [];
     const seen = new Set<string>();
     let titleItem: ISelectedPropertyItem | undefined;
@@ -454,6 +456,26 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
 
     if (!titleItem) {
       titleItem = { uniqueId: 'sp-title', property: 'Title', alias: 'Name' };
+    }
+
+    // Seed reasonable defaults when no value has ever been persisted (covers
+    // pages where the web part was provisioned before the manifest seeded
+    // `selectedPropertiesCollection`). Without these, the Grid/Compact "Add
+    // column" picker would be empty and disabled because every available
+    // property is filtered out by `isTitleProperty`.
+    if (hasNoPersistedValue && result.length === 0) {
+      const defaults: ISelectedPropertyItem[] = [
+        { uniqueId: 'sp-author', property: 'Author', alias: 'Author' },
+        { uniqueId: 'sp-lastmodified', property: 'LastModifiedTime', alias: 'Modified' },
+        { uniqueId: 'sp-filetype', property: 'FileType', alias: 'Type' },
+        { uniqueId: 'sp-size', property: 'Size', alias: 'Size' },
+        { uniqueId: 'sp-path', property: 'Path', alias: 'URL' },
+        { uniqueId: 'sp-sitename', property: 'SiteName', alias: 'Site' }
+      ];
+      for (const def of defaults) {
+        result.push(def);
+        seen.add(def.property.toLowerCase());
+      }
     }
 
     const normalized = [titleItem, ...result];
@@ -1194,7 +1216,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
                   label: strings.ResultSourceIdLabel,
                   description: strings.ResultSourceIdDescription
                 }),
-                PropertyFieldCollectionData('selectedPropertiesCollection', {
+                PropertyPaneCollectionData('selectedPropertiesCollection', {
                   key: 'selectedPropertiesCollection',
                   label: strings.SelectedPropertiesLabel,
                   panelHeader: strings.SelectedPropertiesPanelHeader,
@@ -1229,7 +1251,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.SortGroupName,
               groupFields: [
-                PropertyFieldCollectionData('sortablePropertiesCollection', {
+                PropertyPaneCollectionData('sortablePropertiesCollection', {
                   key: 'sortablePropertiesCollection',
                   label: strings.SortFieldLabel,
                   panelHeader: strings.SortPanelHeader,
@@ -1498,7 +1520,7 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
             {
               groupName: strings.AdvancedGroupName,
               groupFields: [
-                PropertyFieldCollectionData('refinementFiltersCollection', {
+                PropertyPaneCollectionData('refinementFiltersCollection', {
                   key: 'refinementFiltersCollection',
                   label: strings.RefinementFiltersLabel,
                   panelHeader: strings.RefinementFiltersPanelHeader,

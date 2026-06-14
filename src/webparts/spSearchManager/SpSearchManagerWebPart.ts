@@ -13,7 +13,10 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { SPPermission } from '@microsoft/sp-page-context';
 import { StoreApi } from 'zustand/vanilla';
 import { spfxToolkitStylesLoaded } from '../../styles/loadSpfxToolkitStyles';
-import { PropertyFieldCollectionData, CustomCollectionFieldType } from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
+import {
+  PropertyPaneCollectionData,
+  CustomCollectionFieldType,
+} from '../../propertyPaneControls/collectionData/PropertyPaneCollectionData';
 
 import * as strings from 'SpSearchManagerWebPartStrings';
 import SpSearchManager from './components/SpSearchManager';
@@ -25,7 +28,6 @@ import { ISearchStore } from '@interfaces/index';
 import { getStore, initializeSearchContext, incrementContextRef, decrementContextRef } from '@store/store';
 import { SharePointSearchProvider } from '@providers/index';
 import { SearchManagerService } from '@services/index';
-import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 // T4.D8 — shared property-pane field validator (expectedSiteUrls).
 // Centralised so AdminManager (which inherits this property-pane builder)
 // gets identical validation copy.
@@ -192,8 +194,6 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
-    ensurePnpPropertyControlStyles();
-
     const webPermissions = this.context.pageContext.web.permissions;
     // The cast satisfies TypeScript only — at runtime the call is direct.
     // spfx-toolkit pulls @microsoft/sp-component-base which re-bundles
@@ -427,7 +427,7 @@ export default class SpSearchManagerWebPart extends BaseClientSideWebPart<ISpSea
         groupName: strings.MonitoringGroupName,
         groupFields: [
           propertyPaneGroupHelp('adminmgr-coverage', 'Help: Coverage profiles and monitoring'),
-          PropertyFieldCollectionData('coverageProfilesCollection', {
+          PropertyPaneCollectionData('coverageProfilesCollection', {
             key: 'coverageProfilesCollection',
             label: strings.CoverageProfilesLabel,
             panelHeader: strings.CoverageProfilesPanelHeader,

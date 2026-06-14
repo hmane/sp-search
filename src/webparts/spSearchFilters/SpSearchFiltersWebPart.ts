@@ -36,7 +36,6 @@ import {
 import { propertyPaneGroupHelp } from '../../propertyPaneControls/propertyPaneGroupHelp';
 import { sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
 import { DebugCollector } from '@store/debug';
-import { ensurePnpPropertyControlStyles } from '../../styles/pnpPropertyControlsFix';
 
 // Bundle DevExtreme CSS — injected via style-loader at runtime.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -194,9 +193,6 @@ export default class SpSearchFiltersWebPart extends BaseClientSideWebPart<ISpSea
   }
 
   protected async onInit(): Promise<void> {
-    // Inject PnP property controls CSS fix (SPFx 1.22 re-hashes .module.css class names)
-    ensurePnpPropertyControlStyles();
-
     try {
       // Cast needed: spfx-toolkit uses SPFx 1.21.1 types; this project uses 1.22.2
       await SPContext.basic(this.context as unknown as Parameters<typeof SPContext.basic>[0], 'SPSearchFilters');
