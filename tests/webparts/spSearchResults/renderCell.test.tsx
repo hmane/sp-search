@@ -9,6 +9,7 @@ import {
   renderTags,
   renderUrl,
   renderFileType,
+  cleanSearchResultDisplayText,
 } from '../../../src/webparts/spSearchResults/components/renderCell';
 import type { IColumnConfigItem } from '../../../src/webparts/spSearchResults/components/ColumnConfigField/columnConfig';
 
@@ -39,6 +40,19 @@ describe('renderCell — Stream B / Phase 2', () => {
   describe('renderText', () => {
     it('emits the string value', () => {
       expect(html(renderText('hello world', col()))).toContain('hello world');
+    });
+
+    it('strips SharePoint calculated value type prefixes', () => {
+      const out = html(renderText('string;#Electronic Bank Statements', col()));
+      expect(out).toContain('Electronic Bank Statements');
+      expect(out).not.toContain('string;#');
+    });
+
+    it('does NOT strip values that merely contain a non-type prefix before ;#', () => {
+      // "Approved" is not a calculated-column output type, so this is a real
+      // value (e.g. a multi-value field), not a type prefix — keep it intact.
+      const out = html(renderText('Approved;#Rejected', col()));
+      expect(out).toContain('Approved;#Rejected');
     });
 
     it('emits the muted dash placeholder for empty values', () => {
@@ -140,6 +154,12 @@ describe('renderCell — Stream B / Phase 2', () => {
       expect(out).toContain('alpha, beta, gamma');
     });
 
+    it('strips SharePoint calculated prefixes before splitting tag text', () => {
+      const out = html(renderTags('string;#Electronic Bank Statements', col({ renderer: 'tags', multiValueSeparator: 'comma' })));
+      expect(out).toContain('Electronic Bank Statements');
+      expect(out).not.toContain('string;#');
+    });
+
     it('renders array values one per line when separator=newline', () => {
       const out = html(renderTags(['alpha', 'beta'], col({ renderer: 'tags', multiValueSeparator: 'newline' })));
       // newlines or <br> markers
@@ -177,6 +197,32 @@ describe('renderCell — Stream B / Phase 2', () => {
 
     it('emits muted dash for empty', () => {
       expect(html(renderFileType('', col({ renderer: 'fileType' })))).toContain('--');
+    });
+  });
+
+  describe('cleanSearchResultDisplayText', () => {
+    it('strips each documented calculated-column output type', () => {
+      expect(cleanSearchResultDisplayText('string;#Electronic Bank Statements')).toBe('Electronic Bank Statements');
+      expect(cleanSearchResultDisplayText('float;#42.5')).toBe('42.5');
+      expect(cleanSearchResultDisplayText('datetime;#2024-01-01T00:00:00Z')).toBe('2024-01-01T00:00:00Z');
+      expect(cleanSearchResultDisplayText('boolean;#1')).toBe('1');
+    });
+
+    it('keeps multi-line calculated values whole (does not stop at the newline)', () => {
+      expect(cleanSearchResultDisplayText('string;#Line one\nLine two')).toBe('Line one\nLine two');
+    });
+
+    it('leaves values intact when the prefix is not a calculated type', () => {
+      // Real multi-value / data values that happen to contain ";#" must survive.
+      expect(cleanSearchResultDisplayText('Approved;#Rejected')).toBe('Approved;#Rejected');
+      expect(cleanSearchResultDisplayText('Engineering;#Finance')).toBe('Engineering;#Finance');
+      expect(cleanSearchResultDisplayText('1;#Engineering;#2;#Finance')).toBe('1;#Engineering;#2;#Finance');
+    });
+
+    it('leaves plain values and other SharePoint encodings untouched', () => {
+      expect(cleanSearchResultDisplayText('Just a title')).toBe('Just a title');
+      expect(cleanSearchResultDisplayText('GP0|#guid;Label')).toBe('GP0|#guid;Label');
+      expect(cleanSearchResultDisplayText('')).toBe('');
     });
   });
 });

@@ -29,7 +29,7 @@
         "default": "Enterprise SharePoint Search Solution"
       },
       "longDescription": {
-        "default": "SP Search delivers six interconnected web parts that communicate via a shared Zustand store, providing rich search layouts, saved searches, sharing, collections, search history, comprehensive result detail, and an admin manager surface for telemetry and analytics."
+        "default": "SP Search delivers seven interconnected web parts that communicate via a shared Zustand store, providing rich search layouts, refiners, a full-width results and filters wrapper, saved searches, sharing, collections, search history, comprehensive result detail, and an admin manager surface for telemetry and analytics."
       },
       "screenshotPaths": [],
       "videoUrl": "",
@@ -38,7 +38,7 @@
     "features": [
       {
         "title": "SP Search",
-        "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Verticals, Search Manager, and Admin Manager web parts with shared Zustand store.",
+        "description": "Enterprise SharePoint Search Solution — Search Box, Results, Filters, Results + Filters, Verticals, Search Manager, and Admin Manager web parts with shared Zustand store.",
         "id": "8051ab65-8eae-4408-b5ad-b61c9e6a0baf",
         "version": "1.0.7.0"
       }

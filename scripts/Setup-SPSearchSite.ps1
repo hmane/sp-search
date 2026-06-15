@@ -586,10 +586,8 @@ try {
     Add-PnPPageWebPart -Page $PageName -Component $WP_SEARCH_RESULTS -Section 3 -Column 1 -WebPartProperties @{
         searchContextId                = $SearchContextId
         queryTemplate                  = "{searchTerms}"
-        selectedProperties             = ""
         selectedPropertiesCollection   = $defaultSelectedProperties
         resultSourceId                 = ""
-        refinementFilters              = ""
         refinementFiltersCollection    = $defaultRefinementFilters
         collapseSpecification          = ""
         enableQueryRules               = $true
@@ -600,7 +598,6 @@ try {
         defaultLayout                  = "list"
         showResultCount                = $true
         showSortDropdown               = $true
-        enableSelection                = $true
         sortablePropertiesCollection   = $defaultSortableProperties
     } -ErrorAction Stop | Out-Null
     Write-Host "  [OK] Search Results (List layout, 25/page, 4 sort options)" -ForegroundColor Green

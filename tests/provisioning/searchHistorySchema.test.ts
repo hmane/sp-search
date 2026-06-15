@@ -240,6 +240,50 @@ describe('PowerShell provisioning paths', () => {
       }
     }
   });
+
+  it('configuration export/import page lookup accepts URLs, folders, and recursive Site Pages matches', () => {
+    const scriptsToCheck = [
+      'scripts/Export-SPSearchPageConfig.ps1',
+      'scripts/Import-SPSearchPageConfig.ps1'
+    ];
+
+    for (const scriptPath of scriptsToCheck) {
+      const script = readRepoFile(scriptPath);
+
+      expect(script).toContain('function Get-PageServerRelativeCandidates');
+      expect(script).toContain('-split "[?#]"');
+      expect(script).toContain("<View Scope='RecursiveAll'>");
+      expect(script).toContain("<FieldRef Name='FileRef' />");
+      expect(script).toContain("<FieldRef Name='FileLeafRef' />");
+      expect(script).toContain("<FieldRef Name='Title' />");
+      expect(script).toContain('full page URL without needing to remove query-string parameters');
+    }
+  });
+
+  it('page resolver fails closed on off-target URLs and ambiguous matches', () => {
+    const scriptsToCheck = [
+      'scripts/Export-SPSearchPageConfig.ps1',
+      'scripts/Import-SPSearchPageConfig.ps1'
+    ];
+
+    for (const scriptPath of scriptsToCheck) {
+      const script = readRepoFile(scriptPath);
+
+      // #3 — only genuine http(s) URLs are treated as absolute.
+      expect(script).toContain('$absoluteUri.Scheme -eq "http"');
+      // #1 — a URL on a different host or site collection throws instead of
+      // silently falling through to a same-named page on the connected site.
+      expect(script).toContain('points to host');
+      expect(script).toContain('outside the connected site');
+      // #1 — the bare-leaf SitePages fallback is gated on the absence of an
+      // explicit caller-supplied path.
+      expect(script).toContain('if (-not $hasExplicitPath)');
+      // #2 — leaf-name / Title fallbacks fail closed when more than one page
+      // matches rather than silently taking the first row.
+      expect(script).toContain('to disambiguate');
+      expect(script).toContain('to select one');
+    }
+  });
 });
 
 describe('client-side page provisioning schema', () => {

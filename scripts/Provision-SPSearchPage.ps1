@@ -7,6 +7,7 @@
     - Section 1 (full width): Search Box
     - Section 2 (full width): Verticals (tab navigation)
     - Section 3 (two-column 66/33): Results (left) | Filters (right)
+      Or, with -UseFullWidthExperience, a one-column Results + Filters wrapper.
 
     All web parts share the same searchContextId for state synchronization.
     Optionally sets the page as the site home page.
@@ -33,6 +34,10 @@
 
 .PARAMETER IncludeAdminManager
     Add an Admin Search Manager web part below the results area (standalone mode). Defaults to true.
+
+.PARAMETER UseFullWidthExperience
+    Use the combined SP Search Results + Filters web part in a one-column section instead of
+    separate Results and Filters web parts in a two-column section.
 
 .PARAMETER Publish
     Publish the page after creation. Defaults to true.
@@ -89,6 +94,9 @@ param(
     [bool]$IncludeAdminManager = $true,
 
     [Parameter(Mandatory = $false)]
+    [switch]$UseFullWidthExperience,
+
+    [Parameter(Mandatory = $false)]
     [bool]$Publish = $true,
 
     # T4.D1 — bypass the destructive-op confirmation prompt for CI / scripted callers.
@@ -105,6 +113,7 @@ $ErrorActionPreference = "Stop"
 $WP_SEARCH_BOX       = "SP Search Box"
 $WP_SEARCH_RESULTS   = "SP Search Results"
 $WP_SEARCH_FILTERS   = "SP Search Filters"
+$WP_SEARCH_EXPERIENCE = "SP Search Results + Filters"
 $WP_SEARCH_VERTICALS = "SP Search Verticals"
 $WP_SEARCH_ADMIN_MANAGER = "SP Search Admin Manager"
 
@@ -172,6 +181,51 @@ $defaultVerticals = @(
         iconName      = "Globe"
         queryTemplate = "{searchTerms} contentclass:STS_Site"
         sortOrder     = 5
+    }
+) | ConvertTo-Json -Depth 4 -Compress
+
+# Default refiner configuration. Add-PnPPageWebPart does not reliably merge
+# manifest defaults when -WebPartProperties is supplied, so provisioners must
+# pass starter collections explicitly.
+$defaultFilters = @(
+    @{
+        uniqueId        = "starter-filter-0"
+        managedProperty = "FileType"
+        displayName     = "File type"
+        filterType      = "checkbox"
+        operator        = "OR"
+        maxValues       = 10
+        defaultExpanded = $true
+        showCount       = $true
+        sortBy          = "count"
+        sortDirection   = "desc"
+        multiValues     = $true
+    },
+    @{
+        uniqueId        = "starter-filter-1"
+        managedProperty = "LastModifiedTime"
+        displayName     = "Modified date"
+        filterType      = "daterange"
+        operator        = "OR"
+        maxValues       = 1
+        defaultExpanded = $true
+        showCount       = $false
+        sortBy          = "count"
+        sortDirection   = "desc"
+        multiValues     = $false
+    },
+    @{
+        uniqueId        = "starter-filter-2"
+        managedProperty = "AuthorOWSUSER"
+        displayName     = "Author"
+        filterType      = "people"
+        operator        = "OR"
+        maxValues       = 10
+        defaultExpanded = $false
+        showCount       = $false
+        sortBy          = "count"
+        sortDirection   = "desc"
+        multiValues     = $true
     }
 ) | ConvertTo-Json -Depth 4 -Compress
 
@@ -346,6 +400,9 @@ if ($SetAsHomePage) {
 if ($IncludeAdminManager) {
     Write-Host "  Admin:     Standalone (below results)" -ForegroundColor White
 }
+if ($UseFullWidthExperience) {
+    Write-Host "  Layout:    Full-width Results + Filters wrapper" -ForegroundColor White
+}
 Write-Host ""
 
 $totalSteps = 5
@@ -421,9 +478,15 @@ try {
     Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 2 -ErrorAction Stop
     Write-Host "  Section 2: OneColumn (Verticals)" -ForegroundColor Green
 
-    # Section 3: Two-column (66% left / 33% right) — Results | Filters
-    Add-PnPPageSection -Page $PageName -SectionTemplate TwoColumnLeft -Order 3 -ErrorAction Stop
-    Write-Host "  Section 3: TwoColumnLeft (Results | Filters)" -ForegroundColor Green
+    if ($UseFullWidthExperience) {
+        # Section 3: Full width — Results + Filters wrapper
+        Add-PnPPageSection -Page $PageName -SectionTemplate OneColumn -Order 3 -ErrorAction Stop
+        Write-Host "  Section 3: OneColumn (Results + Filters wrapper)" -ForegroundColor Green
+    } else {
+        # Section 3: Two-column (66% left / 33% right) — Results | Filters
+        Add-PnPPageSection -Page $PageName -SectionTemplate TwoColumnLeft -Order 3 -ErrorAction Stop
+        Write-Host "  Section 3: TwoColumnLeft (Results | Filters)" -ForegroundColor Green
+    }
 
     if ($IncludeAdminManager) {
         # Section 4: Full width — Admin Search Manager
@@ -461,27 +524,46 @@ try {
     }
     Write-Host "  [OK] Verticals (All, Documents, Pages, People, Sites)" -ForegroundColor Green
 
-    # Search Results (Section 3, Column 1 — left, wider)
-    Write-Host "  Adding Search Results..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_RESULTS -Section 3 -Column 1 -Properties @{
-        searchContextId  = $SearchContextId
-        pageSize         = 25
-        defaultLayout    = "list"
-        showResultCount  = $true
-        showSortDropdown = $true
-        enableSelection  = $true
-    }
-    Write-Host "  [OK] Search Results (List layout, 25 per page)" -ForegroundColor Green
+    if ($UseFullWidthExperience) {
+        # Search Experience (Section 3, Column 1 — full width)
+        Write-Host "  Adding Search Results + Filters..." -ForegroundColor Yellow
+        Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_EXPERIENCE -Section 3 -Column 1 -Properties @{
+            searchContextId        = $SearchContextId
+            filtersPlacement       = "right"
+            filtersWidth           = 360
+            pageSize               = 25
+            defaultLayout          = "list"
+            showResultCount        = $true
+            showSortDropdown       = $true
+            filtersCollection      = $defaultFilters
+            applyMode              = "instant"
+            operatorBetweenFilters = "AND"
+            showClearAll           = $true
+        }
+        Write-Host "  [OK] Search Results + Filters (full-width wrapper)" -ForegroundColor Green
+    } else {
+        # Search Results (Section 3, Column 1 — left, wider)
+        Write-Host "  Adding Search Results..." -ForegroundColor Yellow
+        Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_RESULTS -Section 3 -Column 1 -Properties @{
+            searchContextId  = $SearchContextId
+            pageSize         = 25
+            defaultLayout    = "list"
+            showResultCount  = $true
+            showSortDropdown = $true
+        }
+        Write-Host "  [OK] Search Results (List layout, 25 per page)" -ForegroundColor Green
 
-    # Search Filters (Section 3, Column 2 — right, narrower)
-    Write-Host "  Adding Search Filters..." -ForegroundColor Yellow
-    Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_FILTERS -Section 3 -Column 2 -Properties @{
-        searchContextId        = $SearchContextId
-        applyMode              = "instant"
-        operatorBetweenFilters = "AND"
-        showClearAll           = $true
+        # Search Filters (Section 3, Column 2 — right, narrower)
+        Write-Host "  Adding Search Filters..." -ForegroundColor Yellow
+        Add-SPSearchWebPart -Page $PageName -ComponentName $WP_SEARCH_FILTERS -Section 3 -Column 2 -Properties @{
+            searchContextId        = $SearchContextId
+            filtersCollection      = $defaultFilters
+            applyMode              = "instant"
+            operatorBetweenFilters = "AND"
+            showClearAll           = $true
+        }
+        Write-Host "  [OK] Search Filters (instant apply, AND operator)" -ForegroundColor Green
     }
-    Write-Host "  [OK] Search Filters (instant apply, AND operator)" -ForegroundColor Green
 
     Write-Host ""
 
@@ -544,12 +626,23 @@ try {
     Write-Host "  │ Search Box (full width)                              │"
     Write-Host "  ├──────────────────────────────────────────────────────┤"
     Write-Host "  │ Verticals: All │ Documents │ Pages │ People │ Sites │"
-    Write-Host "  ├────────────────────────────┬─────────────────────────┤"
-    Write-Host "  │ Results (66%)              │ Filters (33%)          │"
-    Write-Host "  │  - List layout, 25/page    │  - Instant apply       │"
-    Write-Host "  │  - Sort + selection        │  - AND operator        │"
+    if ($UseFullWidthExperience) {
+        Write-Host "  ├──────────────────────────────────────────────────────┤"
+        Write-Host "  │ Results + Filters wrapper (full width)               │"
+        Write-Host "  │  - List layout, 25/page                              │"
+        Write-Host "  │  - Right refiner rail, instant apply, AND operator   │"
+    } else {
+        Write-Host "  ├────────────────────────────┬─────────────────────────┤"
+        Write-Host "  │ Results (66%)              │ Filters (33%)          │"
+        Write-Host "  │  - List layout, 25/page    │  - Instant apply       │"
+        Write-Host "  │  - Sort + selection        │  - AND operator        │"
+    }
     if ($IncludeAdminManager) {
-        Write-Host "  ├────────────────────────────┴─────────────────────────┤"
+        if ($UseFullWidthExperience) {
+            Write-Host "  ├──────────────────────────────────────────────────────┤"
+        } else {
+            Write-Host "  ├────────────────────────────┴─────────────────────────┤"
+        }
         Write-Host "  │ Admin Search Manager (coverage, health, insights)    │"
     }
     Write-Host "  └──────────────────────────────────────────────────────┘"

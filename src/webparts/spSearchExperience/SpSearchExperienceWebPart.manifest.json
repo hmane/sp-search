@@ -1,16 +1,12 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "1836671c-a710-45b4-9a83-55c65344a3d5",
-  "alias": "SpSearchResultsWebPart",
+  "id": "d05a3316-ceca-4ec6-b684-d44d5266fd68",
+  "alias": "SpSearchExperienceWebPart",
   "componentType": "WebPart",
 
-  // The "*" signifies that the version should be taken from the package.json
   "version": "*",
   "manifestVersion": 2,
 
-  // If true, the component can only be installed on sites where Custom Script is allowed.
-  // Components that allow authors to embed arbitrary script code should set this to true.
-  // https://support.office.com/en-us/article/Turn-scripting-capabilities-on-or-off-1f2c515f-5d7e-448a-9fd7-835da935584f
   "requiresCustomScript": false,
   "supportedHosts": ["SharePointWebPart", "TeamsPersonalApp", "TeamsTab", "SharePointFullPage"],
   "supportsThemeVariants": true,
@@ -19,14 +15,15 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
-    "title": { "default": "SP Search Results" },
-    "description": { "default": "Search results with PnP-style starter defaults, multiple layouts, detail preview, and bulk actions" },
-    "officeFabricIconFontName": "GroupedList",
+    "title": { "default": "SP Search Results + Filters" },
+    "description": { "default": "Full-width search results and refiners in one coordinated web part" },
+    "officeFabricIconFontName": "SearchAndApps",
     "properties": {
       "searchContextId": "default",
+      "filtersPlacement": "right",
+      "filtersWidth": 360,
       "searchScope": "currentsite",
       "queryTemplate": "{searchTerms}",
-      "selectedProperties": "Title,Author,LastModifiedTime,FileType,Size,Path,SiteName",
       "selectedPropertiesCollection": [
         { "uniqueId": "starter-sp-0", "property": "Title", "alias": "Title" },
         { "uniqueId": "starter-sp-1", "property": "Author", "alias": "Author" },
@@ -50,7 +47,6 @@
         { "uniqueId": "starter-grid-4", "property": "Path",             "alias": "URL",      "visibility": "defaultOn", "renderer": "" },
         { "uniqueId": "starter-grid-5", "property": "SiteName",         "alias": "Site",     "visibility": "defaultOn", "renderer": "" }
       ],
-      "refinementFilters": "",
       "refinementFiltersCollection": [],
       "pageSize": 10,
       "showPaging": true,
@@ -78,7 +74,56 @@
       "resultClickTarget": "panel",
       "documentLinkMode": "file",
       "listItemLinkMode": "displayForm",
-      "audienceGroups": ""
+      "resultSourceId": "",
+      "collapseSpecification": "",
+      "enableQueryRules": true,
+      "trimDuplicates": true,
+      "applyMode": "instant",
+      "operatorBetweenFilters": "AND",
+      "showClearAll": true,
+      "enableVisualFilterBuilder": false,
+      "audienceGroups": "",
+      "filtersCollection": [
+        {
+          "uniqueId": "starter-filter-0",
+          "managedProperty": "FileType",
+          "displayName": "File type",
+          "filterType": "checkbox",
+          "operator": "OR",
+          "maxValues": 10,
+          "defaultExpanded": true,
+          "showCount": true,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": true
+        },
+        {
+          "uniqueId": "starter-filter-1",
+          "managedProperty": "LastModifiedTime",
+          "displayName": "Modified date",
+          "filterType": "daterange",
+          "operator": "OR",
+          "maxValues": 1,
+          "defaultExpanded": true,
+          "showCount": false,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": false
+        },
+        {
+          "uniqueId": "starter-filter-2",
+          "managedProperty": "AuthorOWSUSER",
+          "displayName": "Author",
+          "filterType": "people",
+          "operator": "OR",
+          "maxValues": 10,
+          "defaultExpanded": false,
+          "showCount": false,
+          "sortBy": "count",
+          "sortDirection": "desc",
+          "multiValues": true
+        }
+      ]
     }
   }]
 }

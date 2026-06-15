@@ -4,7 +4,7 @@ This file provides comprehensive guidance for Claude Code when working with the 
 
 ## Quick Reference
 
-1. **SPFx 1.22.2 + Heft solution** — 6 web parts + 1 library component in a single .sppkg
+1. **SPFx 1.22.2 + Heft solution** — 7 web parts + 1 library component in a single .sppkg
 2. **React 17 + TypeScript 5.3+** — Functional components only, strict mode
 3. **Zustand store via Library Component** — Shared state across web parts, NOT SPFx Dynamic Data
 4. **Multi-instance isolation** — `searchContextId` property on every web part; same ID = shared store
@@ -37,9 +37,10 @@ This file provides comprehensive guidance for Claude Code when working with the 
 | 2 | SpSearchBoxWebPart | Web Part | Query input, suggestions, scope selector, query builder (KQL mode) |
 | 3 | SpSearchResultsWebPart | Web Part | Result display with 6 layouts, detail panel, per-row ECB menu |
 | 4 | SpSearchFiltersWebPart | Web Part | Refinement filters with 9 registered filter types, phone-width drawer |
-| 5 | SpSearchVerticalsWebPart | Web Part | Tab navigation with badge counts, JS-measured overflow menu |
-| 6 | SpSearchManagerWebPart | Web Part | Saved searches, sharing, collections, history (end-user variant) |
-| 7 | SpSearchAdminManagerWebPart | Web Part | Subclass of Manager — Dashboard / Health / Insights / Pre-Flight (admin variant, gated by `manageWeb`) |
+| 5 | SpSearchExperienceWebPart | Web Part | Optional full-width wrapper that renders Results + Filters with one property bag |
+| 6 | SpSearchVerticalsWebPart | Web Part | Tab navigation with badge counts, JS-measured overflow menu |
+| 7 | SpSearchManagerWebPart | Web Part | Saved searches, sharing, collections, history (end-user variant) |
+| 8 | SpSearchAdminManagerWebPart | Web Part | Subclass of Manager — Dashboard / Health / Insights / Pre-Flight (admin variant, gated by `manageWeb`) |
 
 ---
 
@@ -267,6 +268,14 @@ sp-search/
 │   │   │   ├── loc/
 │   │   │   └── SpSearchFiltersWebPart.manifest.json
 │   │   │
+│   │   ├── spSearchExperience/
+│   │   │   ├── SpSearchExperienceWebPart.ts
+│   │   │   ├── components/
+│   │   │   │   ├── SpSearchExperience.tsx
+│   │   │   │   └── SpSearchExperience.module.scss
+│   │   │   ├── loc/
+│   │   │   └── SpSearchExperienceWebPart.manifest.json
+│   │   │
 │   │   ├── spSearchVerticals/
 │   │   │   ├── SpSearchVerticalsWebPart.ts
 │   │   │   ├── components/
@@ -349,7 +358,7 @@ sp-search/
 **v1.0.0** is the current GA tag. The historical Phase 1-5 model is retired; see `CHANGELOG.md` for the GA changelog and `docs/sp-search-launch-readiness-audit.md` for the launch-readiness audit. Every audit P0/P1/P2 item has either landed on main or is documented as won't-fix with rationale in the commit message.
 
 Shipped capabilities (one-line each):
-- 6 web parts + 1 library component, single .sppkg via Heft
+- 7 web parts + 1 library component, single .sppkg via Heft
 - 6 layouts (DataGrid, Card, List, Compact, People, Gallery) with type-aware cell renderers
 - 9 registered filter types (Checkbox, Dropdown, DateRange, Text, Toggle, TagBox, Slider, Taxonomy TagBox, People) + visual filter builder
 - Two data providers (SharePoint + Graph) with per-vertical `dataProviderId` routing

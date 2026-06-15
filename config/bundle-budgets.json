@@ -6,6 +6,7 @@
   "budgets": {
     "sp-search-filters-web-part.js": 1300000,
     "sp-search-results-web-part.js": 1100000,
+    "sp-search-experience-web-part.js": 1600000,
     "sp-search-admin-manager-web-part.js": 900000,
     "sp-search-manager-web-part.js": 900000,
     "sp-search-box-web-part.js": 850000,

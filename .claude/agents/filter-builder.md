@@ -12,7 +12,7 @@ Implement and maintain the 9 registered built-in filter types, the active-filter
 - **Formatters:** `src/webparts/spSearchFilters/formatters/`
 - **Components:** `src/webparts/spSearchFilters/components/`
 - **Pill bar:** `src/webparts/spSearchResults/components/ActiveFilterPillBar.tsx` (lives in Results because the pill bar is conceptually result chrome)
-- **Filter registry registration:** `src/webparts/spSearchFilters/registerBuiltInFilterTypes.ts` — invoked from `SpSearchFiltersWebPart.onInit()`
+- **Filter registry registration:** `src/webparts/spSearchFilters/registerBuiltInFilterTypes.ts` — invoked from `SpSearchFiltersWebPart.onInit()` and `SpSearchExperienceWebPart.onInit()`
 - **PnP reference:** PnP Modern Search v4 `search-parts/src/webparts/searchFilters/` for refiner handling
 
 ## 9 Built-in Filter Types

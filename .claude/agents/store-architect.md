@@ -24,7 +24,7 @@ Design, implement, and maintain the Zustand store + `SearchOrchestrator` distrib
 5. **Registries** (`dataProviders`, `actions`, `layouts`, `filterTypes`) freeze on first `_executeSearch` — NOT in `Results.onInit`. The `suggestions` registry never freezes (UI-only, late registration is safe)
 6. **`displayRefiners`** supports refiner stability mode — debounced transition from `availableRefiners` so the UI doesn't flicker mid-keystroke
 7. **All store config must be set BEFORE `initializeSearchContext()`** — it triggers the first search
-8. **Orchestrator subscription watches `filterConfig`** (in addition to query/filters/sort) because the Filters web part often loads AFTER the first search
+8. **Orchestrator subscription watches `filterConfig`** (in addition to query/filters/sort) because the separate Filters web part can load AFTER the first search. The combined `spSearchExperience` wrapper must still sync `filterConfig` before `initializeSearchContext()`.
 
 ## Refcounted dispose contract (T3.D1)
 

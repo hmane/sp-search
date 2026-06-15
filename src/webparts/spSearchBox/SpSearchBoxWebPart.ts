@@ -291,7 +291,7 @@ export default class SpSearchBoxWebPart extends BaseClientSideWebPart<ISpSearchB
             // T3.D4 — searchContextId is the first field every admin sees
             // on every search web part. Hoisted to page-1 / group-1 via the
             // shared helper so the label / description / required-error
-            // string match across all six panes.
+            // string match across all connected panes.
             {
               groupName: SEARCH_CONTEXT_ID_GROUP_NAME,
               groupFields: [

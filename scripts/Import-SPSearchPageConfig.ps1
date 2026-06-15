@@ -27,7 +27,9 @@
     AZURE_CLIENT_ID.
 
 .PARAMETER PageName
-    Target page file name, with or without .aspx. Defaults to Search.aspx.
+    Target page file name, SitePages-relative path, server-relative path, or
+    full page URL. Query-string and hash fragments are ignored. Defaults to
+    Search.aspx.
 
 .PARAMETER ConfigPath
     JSON export to import.
@@ -106,6 +108,7 @@ $script:SpSearchComponentIds = @{
     "13a82dbe-2c57-4e20-bfe8-ec4de5776191" = "SP Search Box"
     "1836671c-a710-45b4-9a83-55c65344a3d5" = "SP Search Results"
     "2eb68250-879f-45a8-af9b-9fc3e97b2050" = "SP Search Filters"
+    "d05a3316-ceca-4ec6-b684-d44d5266fd68" = "SP Search Results + Filters"
     "d0481c49-49f9-4219-90fe-be8338051f58" = "SP Search Verticals"
     "46308c1c-af6b-43c5-98b7-2d39082498cb" = "SP Search Manager"
     "17007020-148e-49b8-a628-972fa08139c6" = "SP Search Admin Manager"
@@ -151,12 +154,96 @@ function Normalize-PageLeafName {
         [string]$Value
     )
 
-    $leafName = [IO.Path]::GetFileName($Value.Trim())
+    $pageReference = $Value.Trim()
+    $absoluteUri = $null
+    if ([Uri]::TryCreate($pageReference, [UriKind]::Absolute, [ref]$absoluteUri) -and
+        ($absoluteUri.Scheme -eq "http" -or $absoluteUri.Scheme -eq "https")) {
+        # Only treat genuine http(s) URLs as absolute. A non-web scheme (e.g.
+        # "Draft:Page.aspx", which TryCreate also accepts) would otherwise throw
+        # on .AbsolutePath or yield a slashless/empty path.
+        $pageReference = $absoluteUri.AbsolutePath
+    }
+
+    $pageReference = ($pageReference -split "[?#]", 2)[0].Replace("\", "/").Trim("/")
+    $leafName = [IO.Path]::GetFileName($pageReference)
+    $leafName = [Uri]::UnescapeDataString($leafName)
+    if ([string]::IsNullOrWhiteSpace($leafName)) {
+        throw "PageName '$Value' does not contain a page file name."
+    }
+
     if (-not $leafName.EndsWith(".aspx", [StringComparison]::OrdinalIgnoreCase)) {
         $leafName = "$leafName.aspx"
     }
 
     return $leafName
+}
+
+function Escape-CamlValue {
+    param(
+        [AllowNull()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return $Value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("'", "&apos;").Replace('"', "&quot;")
+}
+
+function Get-PageServerRelativeCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PageReference,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SiteUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$LeafName
+    )
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $cleanReference = ($PageReference.Trim() -split "[?#]", 2)[0].Replace("\", "/")
+    $siteUri = [Uri]$SiteUrl
+    $sitePath = $siteUri.AbsolutePath.TrimEnd("/")
+    $hasExplicitPath = $false
+
+    $absoluteUri = $null
+    if ([Uri]::TryCreate($PageReference.Trim(), [UriKind]::Absolute, [ref]$absoluteUri) -and
+        ($absoluteUri.Scheme -eq "http" -or $absoluteUri.Scheme -eq "https")) {
+        # An absolute http(s) URL is only resolvable through the connected
+        # context if it actually targets the connected web. Fail closed on a
+        # different host or a different site collection so a stray cross-site
+        # URL can never silently fall through to a same-named page here.
+        if ($absoluteUri.Host -ne $siteUri.Host) {
+            throw "PageName '$PageReference' points to host '$($absoluteUri.Host)', but the connected site is '$($siteUri.Host)'. Connect to the page's site, or pass a page name/path relative to the connected site."
+        }
+        $absolutePath = [Uri]::UnescapeDataString($absoluteUri.AbsolutePath)
+        if ($sitePath.Length -gt 0 -and
+            $absolutePath -ne $sitePath -and
+            -not $absolutePath.StartsWith("$sitePath/", [StringComparison]::OrdinalIgnoreCase)) {
+            throw "PageName '$PageReference' resolves to '$absolutePath', which is outside the connected site '$sitePath'. Connect to the page's site collection, or pass a page name/path relative to the connected site."
+        }
+        $candidates.Add($absolutePath)
+        $hasExplicitPath = $true
+    } elseif ($cleanReference.StartsWith("/")) {
+        $candidates.Add([Uri]::UnescapeDataString($cleanReference))
+        $hasExplicitPath = $true
+    } elseif ($cleanReference -match "/") {
+        $relativePath = $cleanReference.TrimStart("/")
+        $candidates.Add([Uri]::UnescapeDataString("$sitePath/$relativePath"))
+        $hasExplicitPath = $true
+    }
+
+    # The bare-leaf SitePages fallback is only safe when the caller did NOT give
+    # an explicit location. Appending it for an explicit path/URL is what let a
+    # mis-targeted reference silently resolve to a same-named page.
+    if (-not $hasExplicitPath) {
+        $candidates.Add([Uri]::UnescapeDataString("$sitePath/SitePages/$LeafName"))
+    }
+
+    return @($candidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 }
 
 function ConvertTo-JsonCompatible {
@@ -252,6 +339,9 @@ function Normalize-SpSearchComponentName {
         "spsearchbox" { return "SP Search Box" }
         "spsearchresults" { return "SP Search Results" }
         "spsearchfilters" { return "SP Search Filters" }
+        "spsearchresults+filters" { return "SP Search Results + Filters" }
+        "spsearchresultsfilters" { return "SP Search Results + Filters" }
+        "spsearchexperience" { return "SP Search Results + Filters" }
         "spsearchverticals" { return "SP Search Verticals" }
         "spsearchmanager" { return "SP Search Manager" }
         "spsearchadminmanager" { return "SP Search Admin Manager" }
@@ -327,12 +417,22 @@ function Read-TokenFile {
 function Get-PageListItem {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$LeafName
+        [string]$LeafName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PageReference,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SiteUrl
     )
 
-    $escapedLeafName = $LeafName.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")
-    $query = @"
-<View>
+    $escapedLeafName = Escape-CamlValue -Value $LeafName
+    $pageTitle = [IO.Path]::GetFileNameWithoutExtension($LeafName)
+    $escapedPageTitle = Escape-CamlValue -Value $pageTitle
+    $serverRelativeCandidates = Get-PageServerRelativeCandidates -PageReference $PageReference -SiteUrl $SiteUrl -LeafName $LeafName
+
+    $leafNameQuery = @"
+<View Scope='RecursiveAll'>
   <Query>
     <Where>
       <Eq>
@@ -341,27 +441,96 @@ function Get-PageListItem {
       </Eq>
     </Where>
   </Query>
-  <RowLimit>1</RowLimit>
+  <RowLimit>20</RowLimit>
+</View>
+"@
+
+    $titleQuery = @"
+<View Scope='RecursiveAll'>
+  <Query>
+    <Where>
+      <Eq>
+        <FieldRef Name='Title' />
+        <Value Type='Text'>$escapedPageTitle</Value>
+      </Eq>
+    </Where>
+  </Query>
+  <RowLimit>20</RowLimit>
 </View>
 "@
 
     $candidateLists = @("Site Pages", "SitePages")
     foreach ($listName in $candidateLists) {
-        try {
-            $items = Get-PnPListItem -List $listName -Query $query -Fields "FileLeafRef", "FileRef", "CanvasContent1" -ErrorAction Stop
-            $item = $items | Select-Object -First 1
-            if ($item) {
-                return [ordered]@{
-                    ListName = $listName
-                    Item = $item
+        foreach ($serverRelativeCandidate in $serverRelativeCandidates) {
+            $escapedFileRef = Escape-CamlValue -Value $serverRelativeCandidate
+            $fileRefQuery = @"
+<View Scope='RecursiveAll'>
+  <Query>
+    <Where>
+      <Eq>
+        <FieldRef Name='FileRef' />
+        <Value Type='URL'>$escapedFileRef</Value>
+      </Eq>
+    </Where>
+  </Query>
+  <RowLimit>1</RowLimit>
+</View>
+"@
+            try {
+                $items = Get-PnPListItem -List $listName -Query $fileRefQuery -Fields "FileLeafRef", "FileRef", "Title", "CanvasContent1" -ErrorAction Stop
+                $item = $items | Select-Object -First 1
+                if ($item) {
+                    return [ordered]@{
+                        ListName = $listName
+                        Item = $item
+                    }
                 }
+            } catch {
+                Write-Verbose "Could not read '$serverRelativeCandidate' from '$listName' by FileRef: $($_.Exception.Message)"
             }
+        }
+
+        # FileLeafRef matches by leaf name across every folder (RecursiveAll), so
+        # it can return more than one page. Collect the matches and fail closed
+        # on ambiguity instead of silently taking the first.
+        $leafMatches = @()
+        try {
+            $leafMatches = @(Get-PnPListItem -List $listName -Query $leafNameQuery -Fields "FileLeafRef", "FileRef", "Title", "CanvasContent1" -ErrorAction Stop)
         } catch {
-            Write-Verbose "Could not read '$LeafName' from '$listName': $($_.Exception.Message)"
+            Write-Verbose "Could not read '$LeafName' from '$listName' by FileLeafRef: $($_.Exception.Message)"
+        }
+        if ($leafMatches.Count -gt 1) {
+            $matchPaths = ($leafMatches | ForEach-Object { $_["FileRef"] }) -join "', '"
+            throw "Page file name '$LeafName' matches $($leafMatches.Count) pages in '$listName' ('$matchPaths'). Pass the full page URL or server-relative path to disambiguate."
+        }
+        if ($leafMatches.Count -eq 1) {
+            return [ordered]@{
+                ListName = $listName
+                Item = $leafMatches[0]
+            }
+        }
+
+        # Title is author-editable and not unique, so a Title match is only
+        # trustworthy when exactly one page carries it.
+        $titleMatches = @()
+        try {
+            $titleMatches = @(Get-PnPListItem -List $listName -Query $titleQuery -Fields "FileLeafRef", "FileRef", "Title", "CanvasContent1" -ErrorAction Stop)
+        } catch {
+            Write-Verbose "Could not read page title '$pageTitle' from '$listName': $($_.Exception.Message)"
+        }
+        if ($titleMatches.Count -gt 1) {
+            $matchPaths = ($titleMatches | ForEach-Object { $_["FileRef"] }) -join "', '"
+            throw "Page title '$pageTitle' matches $($titleMatches.Count) pages in '$listName' ('$matchPaths'). Pass the full page URL or server-relative path to select one."
+        }
+        if ($titleMatches.Count -eq 1) {
+            return [ordered]@{
+                ListName = $listName
+                Item = $titleMatches[0]
+            }
         }
     }
 
-    throw "Page '$LeafName' was not found in Site Pages."
+    throw "Page '$PageReference' (resolved file name '$LeafName') was not found in Site Pages. Pass the exact page file name, for example -PageName '$LeafName', or the full page URL without needing to remove query-string parameters."
 }
 
 function Get-SpSearchControlsFromCanvas {
@@ -586,7 +755,7 @@ if ($existingConnection -and $currentConnectionUrl -eq $normalizedSiteUrl) {
     Write-Host "Connected to SharePoint" -ForegroundColor Green
 }
 
-$pageInfo = Get-PageListItem -LeafName $leafName
+$pageInfo = Get-PageListItem -LeafName $leafName -PageReference $PageName -SiteUrl $normalizedSiteUrl
 $item = $pageInfo.Item
 $canvasRaw = $item["CanvasContent1"]
 if ([string]::IsNullOrWhiteSpace($canvasRaw)) {

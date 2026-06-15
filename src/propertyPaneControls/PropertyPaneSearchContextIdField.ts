@@ -21,7 +21,7 @@ import {
 /** Group name for the dedicated "Search context" property-pane group. */
 export const SEARCH_CONTEXT_ID_GROUP_NAME = 'Search context';
 
-/** Pane-field label, identical across all six web parts. */
+/** Pane-field label, identical across all connected search web parts. */
 export const SEARCH_CONTEXT_ID_LABEL = 'Search context ID';
 
 /** Pane-field description — explains the multi-context wiring. */

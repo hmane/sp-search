@@ -2,6 +2,7 @@ import * as React from 'react';
 import { DefaultButton } from '@fluentui/react/lib/Button';
 import {
   IColumnConfigItem,
+  IColumnPropertyOption,
   normalizeColumnConfigItem,
   generateColumnUniqueId,
 } from './columnConfig';
@@ -14,7 +15,7 @@ export interface IColumnConfigControlProps {
   description?: string;
   value: IColumnConfigItem[];
   /** Available managed properties (sourced from selectedPropertiesCollection). */
-  availableProperties: Array<{ key: string; text: string }>;
+  availableProperties: IColumnPropertyOption[];
   onChange: (newValue: IColumnConfigItem[]) => void;
 }
 

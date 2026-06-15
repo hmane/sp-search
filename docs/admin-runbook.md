@@ -128,7 +128,7 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 ### Diagnose
 
 1. Open browser console. Look for errors prefixed `[SP Search]`. Common ones:
-   - `Cannot read properties of undefined (reading 'getState')` → store not yet initialised (race; fixed in current build with `_store` guards in all six web parts).
+   - `Cannot read properties of undefined (reading 'getState')` → store not yet initialised (race; fixed in current build with `_store` guards in all user-facing web parts).
    - `Failed to fetch` / `403` → permission or auth issue.
    - `Refused to display ... in a frame` → CSP / X-Frame-Options on the iframe target.
 2. Open `?debug=1` → DebugFab → check the **Multi-Context** tab. It lists every `searchContextId` on the page, refcount, init status, and registered web parts. If a web part is missing from the list, it never registered with the store.
@@ -138,9 +138,9 @@ If Pre-Flight passes and you still have a problem, jump to the matching symptom 
 
 | Cause | Fix |
 |---|---|
-| Web part renders before `onInit` completes | All six web parts now guard with `if (!this._store) return;` in `render()`. If you still see this on an upgraded build → hard-refresh + clear node_modules/.cache and re-deploy. |
+| Web part renders before `onInit` completes | All user-facing web parts now guard with `if (!this._store) return;` in `render()`. If you still see this on an upgraded build → hard-refresh + clear node_modules/.cache and re-deploy. |
 | `searchContextId` mismatch | Edit-mode banner tells you which web part is on the wrong context. Fix in property pane → first field on every web part. |
-| Filters web part renders late (after Results' first search) | Init-order diagnostic surfaces this as an edit-mode MessageBar. Re-arrange page sections so Filters loads before Results (Section 1 = Box, Section 2 = Verticals, Section 3 = Results + Filters as columns). |
+| Filters web part renders late (after Results' first search) | Init-order diagnostic surfaces this as an edit-mode MessageBar. Re-arrange page sections so Filters loads before Results, or use the combined **SP Search Results + Filters** wrapper so filter config is synced before the first search. |
 | Audience-targeted web part hidden for current user | See [Audience targeting problems](#audience-targeting-problems) below |
 | Old bundle cached | Hard-refresh (Cmd+Shift+R) + `npm run clean:cache` on the dev box if seeing locally |
 

@@ -8,8 +8,8 @@ Scaffold, implement, and maintain SPFx web parts and their React component roots
 
 ## Key Context
 
-- **Web parts:** `src/webparts/` — 6 web parts ship today:
-  - `spSearchBox`, `spSearchResults`, `spSearchFilters`, `spSearchVerticals`, `spSearchManager` (end-user), `spSearchAdminManager` (admin — subclass of Manager)
+- **Web parts:** `src/webparts/` — 7 web parts ship today:
+  - `spSearchBox`, `spSearchResults`, `spSearchFilters`, `spSearchExperience` (combined Results + Filters wrapper), `spSearchVerticals`, `spSearchManager` (end-user), `spSearchAdminManager` (admin — subclass of Manager)
 - **Library import alias:** `@store/store` exports `getStore`, `disposeStore`, `getOrchestrator`, `incrementContextRef`, `decrementContextRef`, `initializeSearchContext`
 - **spfx-toolkit (local):** `/Users/hemantmane/Development/spfx-toolkit` — ALWAYS direct path imports (`spfx-toolkit/lib/...`)
 - **Cross-bundle singleton hosts:** every user-facing web part mounts `<DebugFabHost store={store} />` AND `<ShortcutHelpModalHost />` — both owner-claim via a window flag so only one instance is "live" per page

@@ -39,7 +39,7 @@ Implement and maintain `ISearchDataProvider` and its built-in providers, `Search
 
 ### Per-vertical override
 
-Each `IVerticalDefinition` can specify `dataProviderId`. The Results web part routes the active vertical's provider; verticals fall back to the first registered provider if `dataProviderId` is unset. T3.D7 ships an edit-mode validator that surfaces "unknown providerId" issues to admins.
+Each `IVerticalDefinition` can specify `dataProviderId`. The Results web part, and the combined Results + Filters wrapper, route the active vertical's provider; verticals fall back to the first registered provider if `dataProviderId` is unset. T3.D7 ships an edit-mode validator that surfaces "unknown providerId" issues to admins.
 
 ## Audit-era contracts you MUST preserve
 

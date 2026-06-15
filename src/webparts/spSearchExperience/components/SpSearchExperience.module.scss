@@ -1,0 +1,54 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+@import '../../../styles/breakpoints';
+
+.spSearchExperience {
+  --spSearchExperienceFilterWidth: 360px;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText);
+  font-family: $ms-font-family-fallbacks;
+}
+
+.placementLeft {
+  flex-direction: row-reverse;
+}
+
+.placementTop {
+  flex-direction: column-reverse;
+}
+
+.resultsPane {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filtersPane {
+  flex: 0 0 var(--spSearchExperienceFilterWidth);
+  width: var(--spSearchExperienceFilterWidth);
+  min-width: 260px;
+  max-width: 520px;
+}
+
+.placementTop .filtersPane {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 1023px) {
+  .spSearchExperience,
+  .placementLeft,
+  .placementTop {
+    flex-direction: column-reverse;
+  }
+
+  .filtersPane {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+  }
+}

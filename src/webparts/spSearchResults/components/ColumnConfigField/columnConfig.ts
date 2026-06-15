@@ -40,6 +40,12 @@ export interface IColumnConfigItem {
   multiValueSeparator?: MultiValueSeparator;
 }
 
+export interface IColumnPropertyOption {
+  key: string;
+  text: string;
+  alias?: string;
+}
+
 /** Legacy shape stored by pre-Phase-1 pages. */
 export interface ILegacyColumnItem {
   uniqueId?: string;
@@ -128,5 +134,35 @@ export function normalizeColumnConfigItem(
       typeof raw.multiValueSeparator === 'string' && VALID_SEPARATORS.indexOf(raw.multiValueSeparator) >= 0
         ? raw.multiValueSeparator
         : undefined,
+  };
+}
+
+function getAliasFromOptionText(text: string, property: string): string {
+  const cleanText = String(text || '').trim().replace(/\s+\(already in use\)$/, '');
+  const suffix = ' (' + property + ')';
+  if (cleanText.length > suffix.length && cleanText.slice(-suffix.length) === suffix) {
+    return cleanText.slice(0, cleanText.length - suffix.length).trim();
+  }
+  return '';
+}
+
+export function applyColumnPropertySelection(
+  current: IColumnConfigItem,
+  option: IColumnPropertyOption
+): IColumnConfigItem {
+  const property = String(option.key || '').trim();
+  const currentProperty = String(current.property || '').trim();
+  const currentAlias = String(current.alias || '').trim();
+  const optionAlias = typeof option.alias === 'string' ? option.alias.trim() : '';
+  const textAlias = getAliasFromOptionText(option.text, property);
+  const aliasIsDefault = !currentAlias || currentAlias === currentProperty;
+  const nextAlias = optionAlias && optionAlias !== property
+    ? optionAlias
+    : (textAlias || optionAlias || property);
+
+  return {
+    ...current,
+    property,
+    alias: aliasIsDefault ? nextAlias : current.alias,
   };
 }

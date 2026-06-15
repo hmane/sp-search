@@ -1,5 +1,6 @@
 import {
   normalizeColumnConfigItem,
+  applyColumnPropertySelection,
   IColumnConfigItem,
   ColumnRenderer,
   ColumnVisibility,
@@ -166,5 +167,69 @@ describe('normalizeColumnConfigItem', () => {
       const result = normalizeColumnConfigItem({ uniqueId: 'x', property: 'p', width: 220 });
       expect(result.width).toBe(220);
     });
+  });
+});
+
+describe('applyColumnPropertySelection', () => {
+  it('uses the selected managed property alias when the column alias is still blank', () => {
+    const current = normalizeColumnConfigItem({ uniqueId: 'x', property: '' });
+    const result = applyColumnPropertySelection(current, {
+      key: 'LastModifiedTime',
+      text: 'Modified (LastModifiedTime)',
+      alias: 'Modified',
+    });
+
+    expect(result.property).toBe('LastModifiedTime');
+    expect(result.alias).toBe('Modified');
+  });
+
+  it('falls back to the managed property name when no alias is available', () => {
+    const current = normalizeColumnConfigItem({ uniqueId: 'x', property: '' });
+    const result = applyColumnPropertySelection(current, {
+      key: 'RefinableString100',
+      text: 'RefinableString100',
+    });
+
+    expect(result.property).toBe('RefinableString100');
+    expect(result.alias).toBe('RefinableString100');
+  });
+
+  it('derives the alias from option text when dropdown metadata is not preserved', () => {
+    const current = normalizeColumnConfigItem({ uniqueId: 'x', property: '' });
+    const result = applyColumnPropertySelection(current, {
+      key: 'LastModifiedTime',
+      text: 'Modified (LastModifiedTime)',
+    });
+
+    expect(result.property).toBe('LastModifiedTime');
+    expect(result.alias).toBe('Modified');
+  });
+
+  it('prefers the displayed alias when structured alias was defaulted to the property name', () => {
+    const current = normalizeColumnConfigItem({ uniqueId: 'x', property: '' });
+    const result = applyColumnPropertySelection(current, {
+      key: 'RefinableString100',
+      text: 'Document Type (RefinableString100)',
+      alias: 'RefinableString100',
+    });
+
+    expect(result.property).toBe('RefinableString100');
+    expect(result.alias).toBe('Document Type');
+  });
+
+  it('preserves a custom alias when the selected property changes', () => {
+    const current = normalizeColumnConfigItem({
+      uniqueId: 'x',
+      property: 'Author',
+      alias: 'Owner',
+    });
+    const result = applyColumnPropertySelection(current, {
+      key: 'LastModifiedTime',
+      text: 'Modified (LastModifiedTime)',
+      alias: 'Modified',
+    });
+
+    expect(result.property).toBe('LastModifiedTime');
+    expect(result.alias).toBe('Owner');
   });
 });

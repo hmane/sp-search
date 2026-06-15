@@ -15,8 +15,8 @@
 2. **`npm run type-check`** — exits 0; same clean result as `npx tsc --noEmit -p tsconfig.json` (gated on Found.D3).
 3. **`npm test`** — exits 0; reports ≥1 spec passed (gated on Found.D13). At minimum `tests/store/lifecycle.test.ts` runs.
 4. **`npm run package`** — exits 0; `sharepoint/solution/sp-search.sppkg` exists with current timestamp (gated on Found.D1).
-5. **`npm run check:bundles`** — exits 0; all 6 web parts within budget (gated on Found.D7).
-6. **Tenant upload smoke** — upload `sp-search.sppkg` to the test-tenant app catalog (`https://dodgeandcox.sharepoint.com/sites/SPSearch`). Approve pending Microsoft Graph API requests for `People.Read` and `User.Read`. Add each of the 6 web parts (Box, Results, Filters, Verticals, Manager, AdminManager) to a page. Verify zero console errors; basic search query returns ≥1 result; `?debug=1` opens DebugFab.
+5. **`npm run check:bundles`** — exits 0; all web parts remain within budget (gated on Found.D7).
+6. **Tenant upload smoke** — upload `sp-search.sppkg` to the test-tenant app catalog (`https://dodgeandcox.sharepoint.com/sites/SPSearch`). Approve pending Microsoft Graph API requests for `People.Read` and `User.Read`. Add each web part (Box, Results, Filters, Results + Filters, Verticals, Manager, AdminManager) to a page. Verify zero console errors; basic search query returns ≥1 result; `?debug=1` opens DebugFab.
 7. **Multi-context smoke** — provision a multi-context page manually (two pairs of Box/Results/Filters/Verticals with `searchContextId="ctx1"` and `searchContextId="ctx2"`); verify two independent search contexts maintain separate filter state and URL params.
 
 ## Result-log template

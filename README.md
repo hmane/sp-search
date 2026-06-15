@@ -9,11 +9,12 @@ Enterprise SharePoint search solution built as SPFx 1.22 web parts. Replaces PnP
 | **SP Search Box** | Query input with KQL mode, suggestions, scope selector |
 | **SP Search Results** | Results display with 6 layouts (DataGrid, Card, List, Compact, People, Gallery), detail panel, row actions |
 | **SP Search Filters** | Refinement filters (Checkbox, Date range, Slider, People, Taxonomy Tag Box, Tag Box, Toggle) |
+| **SP Search Results + Filters** | Optional full-width wrapper that renders Results and Filters from one web part |
 | **SP Search Verticals** | Tab navigation with badge counts |
 | **SP Search Manager** | Saved searches, sharing, collections, history |
 | **SP Search Admin Manager** | Tenant-wide admin dashboard |
 
-All six web parts share a single Zustand store via an SPFx Library Component (`spSearchStore`). Multi-instance isolation via `searchContextId`.
+All seven web parts share a single Zustand store via an SPFx Library Component (`spSearchStore`). Multi-instance isolation via `searchContextId`.
 
 ## First-time setup
 
@@ -34,7 +35,7 @@ cd spfx-toolkit && npm install && npm run build
 
 # Then sp-search
 cd ../sp-search && npm install
-npm test                # 524 tests
+npm test
 npm run type-check      # tsc --noEmit
 npm run package         # produces sharepoint/solution/sp-search.sppkg
 # upload sharepoint/solution/sp-search.sppkg to your tenant or site app catalog

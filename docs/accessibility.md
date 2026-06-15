@@ -18,7 +18,7 @@ We claim WCAG 2.1 Level AA conformance for the surfaces enumerated above. All ot
 ## Testing approach
 
 - **Static analysis (CI gate)** — `axe-core` via `jest-axe` on every PR. New violations on the four enumerated surfaces fail the build via `tests/a11y/smokeAxe.test.tsx`.
-- **Motion preference** — `prefers-reduced-motion: reduce` honored across all 6 module.scss files via the universal-selector media query (and the shared `src/styles/motion.scss` mixin available for surface-specific application by T1.D9). Verified via `grep -rn "prefers-reduced-motion" src/styles src/webparts` (>= 6 hits).
+- **Motion preference** — `prefers-reduced-motion: reduce` honored across module.scss files via the universal-selector media query (and the shared `src/styles/motion.scss` mixin available for surface-specific application by T1.D9). Verified via `grep -rn "prefers-reduced-motion" src/styles src/webparts`.
 - **Keyboard navigation** — Tab order verified manually for the Search Box, Filters drawer, Detail panel close button, and Manager tabs. Esc closes any open panel.
 - **Focus visible** — relies on Fluent UI v8 default focus rings; no custom focus-ring suppression in `*.module.scss`.
 

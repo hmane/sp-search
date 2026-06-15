@@ -6,14 +6,14 @@ import {
   PropertyPaneFieldType,
 } from '@microsoft/sp-property-pane';
 
-import { IColumnConfigItem } from './columnConfig';
+import { IColumnConfigItem, IColumnPropertyOption } from './columnConfig';
 import ColumnConfigControl from './ColumnConfigControl';
 
 export interface IColumnConfigFieldProps {
   label: string;
   description?: string;
   value: IColumnConfigItem[];
-  availableProperties: Array<{ key: string; text: string }>;
+  availableProperties: IColumnPropertyOption[];
 }
 
 /**

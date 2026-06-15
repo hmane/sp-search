@@ -1544,7 +1544,6 @@ function Provision-SearchPage {
         showResultCount              = $true
         showSortDropdown             = $true
         pageSize                     = 20
-        enableSelection              = $true
         trimDuplicates               = $false
     }
 

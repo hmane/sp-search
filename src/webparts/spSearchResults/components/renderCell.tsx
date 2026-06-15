@@ -35,12 +35,26 @@ function truncate(text: string, maxLength: number | undefined): string {
   return text.slice(0, maxLength) + ELLIPSIS;
 }
 
+// SharePoint surfaces Calculated-column values with a leading field-type
+// token, e.g. "string;#Electronic Bank Statements" or "datetime;#2024-01-01".
+// Calculated columns only emit one of four output types (string/float/datetime/
+// boolean), so we strip ONLY those exact prefixes — a legitimate value that
+// merely starts with another word followed by ";#" (e.g. "Approved;#Rejected")
+// is left intact. `[\s\S]*` keeps multi-line values whole (`.` stops at \n).
+const CALCULATED_TYPE_PREFIX = /^(?:string|float|datetime|boolean);#([\s\S]*)$/;
+
+export function cleanSearchResultDisplayText(value: string): string {
+  const raw = String(value || '');
+  const match = CALCULATED_TYPE_PREFIX.exec(raw);
+  return match ? match[1] : raw;
+}
+
 function toStringValue(value: unknown): string {
   if (value === undefined || value === null) {
     return '';
   }
   if (typeof value === 'string') {
-    return value;
+    return cleanSearchResultDisplayText(value);
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
@@ -51,7 +65,7 @@ function toStringValue(value: unknown): string {
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
     if (typeof obj.displayText === 'string') {
-      return obj.displayText;
+      return cleanSearchResultDisplayText(obj.displayText);
     }
     return JSON.stringify(value);
   }
@@ -182,10 +196,11 @@ function splitTagValue(value: unknown): string[] {
   if (!trimmed) {
     return [];
   }
+  const cleaned = cleanSearchResultDisplayText(trimmed);
   // Heuristic: taxonomy GP0|#GUID;Label format and pipe-separated user claims
   // are accepted as-is for Phase 2 — admin can switch separator as needed.
   // Default: split on commas or semicolons.
-  return trimmed.split(/\s*[,;]\s*/).map((part) => part.trim()).filter(Boolean);
+  return cleaned.split(/\s*[,;]\s*/).map((part) => cleanSearchResultDisplayText(part.trim()).trim()).filter(Boolean);
 }
 
 const SEPARATOR_JOIN: Record<MultiValueSeparator, string> = {

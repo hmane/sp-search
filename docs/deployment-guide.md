@@ -91,7 +91,7 @@ Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/search" -Interactiv
     -ClientId "<azure-ad-app-id>"
 ```
 
-`Setup-SPSearchSite.ps1` provisions the hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`, `SearchTelemetryConfig`, `SearchTelemetryOptIn`), creates the Search.aspx page, wires the five connected search web parts, and adds the Admin Manager surface when enabled. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
+`Setup-SPSearchSite.ps1` provisions the hidden lists (`SearchSavedQueries`, `SearchHistory`, `SearchCollections`, `SearchTelemetryConfig`, `SearchTelemetryOptIn`), creates the Search.aspx page, wires the standard connected search web parts, and adds the Admin Manager surface when enabled. See [provisioning-guide.md](./provisioning-guide.md) for schema details.
 
 ## Safe Re-Runs (T4.D1)
 
@@ -188,13 +188,14 @@ The exported JSON includes every SPFx `properties` value for these web parts:
 - SP Search Box
 - SP Search Results
 - SP Search Filters
+- SP Search Results + Filters
 - SP Search Verticals
 - SP Search Manager
 - SP Search Admin Manager
 
 This includes complex collection settings such as refiners, verticals, selected/result properties, compact and grid columns, sortable properties, coverage profiles, audience targeting, layout toggles, query behavior, and debug options. It intentionally does not migrate hidden-list data (`SearchHistory`, saved searches, collections), per-user state, page sections, or unrelated web parts.
 
-For a concrete example, see [`config/sp-search-page-config.sample.json`](../config/sp-search-page-config.sample.json). It shows the shape of a full export with all six SP Search web parts and tokenized URLs.
+For a concrete example, see [`config/sp-search-page-config.sample.json`](../config/sp-search-page-config.sample.json). It shows the shape of a full export with the standard six-web-part page and tokenized URLs. Pages that use the optional **SP Search Results + Filters** wrapper export the same raw `properties` shape, but the Results and Filters settings live together on that wrapper web part.
 
 For environment-specific values, use tokens. `-TokenizeSiteUrl` replaces the source site URL with `{siteUrl}` in the export; import replaces `{siteUrl}` with the target `-SiteUrl`. Additional replacements can be supplied through a token file:
 
@@ -251,7 +252,9 @@ Recommended authoring order:
 4. **SP Search Results**
 5. **SP Search Manager** in panel mode
 
-Then set the same `searchContextId` on all five connected search web parts.
+Then set the same `searchContextId` on all connected search web parts.
+
+For a full-width results area, replace steps 3 and 4 with **SP Search Results + Filters** in a full-width or one-column section. Keep **SP Search Box** and **SP Search Verticals** as separate web parts with the same `searchContextId`. The wrapper owns both the Results and Filters property sets, so export/import can move the combined configuration as one web part.
 
 Recommended starter page behavior:
 

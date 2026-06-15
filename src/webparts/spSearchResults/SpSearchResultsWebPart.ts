@@ -28,6 +28,7 @@ import SpSearchResults from './components/SpSearchResults';
 import { ISpSearchResultsProps, ISelectedPropertyColumn } from './components/ISpSearchResultsProps';
 import {
   IColumnConfigItem,
+  IColumnPropertyOption,
   ILegacyColumnItem,
   normalizeColumnConfigItem,
 } from './components/ColumnConfigField/columnConfig';
@@ -433,12 +434,13 @@ export default class SpSearchResultsWebPart extends BaseClientSideWebPart<ISpSea
     return normalized;
   }
 
-  private _getLayoutPropertyOptions(): Array<{ key: string; text: string }> {
+  private _getLayoutPropertyOptions(): IColumnPropertyOption[] {
     return this._normalizeSelectedPropertiesCollection()
       .filter((item: ISelectedPropertyItem) => !isTitleProperty(item.property))
       .map((item: ISelectedPropertyItem) => ({
         key: item.property,
-        text: item.alias ? (item.alias + ' (' + item.property + ')') : item.property
+        text: item.alias ? (item.alias + ' (' + item.property + ')') : item.property,
+        alias: item.alias || item.property
       }));
   }
 

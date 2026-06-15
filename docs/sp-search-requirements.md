@@ -490,7 +490,7 @@ All property pane fields follow the PnP Modern Search v4 pattern — configurati
 | showResultCount | boolean | true | Display total result count above results. |
 | showSortDropdown | boolean | true | Show sort dropdown in result toolbar. |
 | sortablePropertiesCollection | CollectionData | [] | Admin-configured sort options: managed property, display label, and default direction. Uses `PropertyFieldCollectionData` with drag-and-drop reordering. |
-| enableSelection | boolean | false | Enable checkbox selection on results for bulk actions. |
+| enableSelection | retired | n/a | Retired with the selection/bulk-action model; do not provision this property. |
 | collapseSpecification | string | (empty) | SharePoint CollapseSpecification value for result grouping (see 3.2.6) |
 
 ### 3.2.6 Result Collapsing (Thread Folding)

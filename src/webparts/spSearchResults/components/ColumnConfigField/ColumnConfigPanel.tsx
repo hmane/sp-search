@@ -7,10 +7,12 @@ import { Toggle } from '@fluentui/react/lib/Toggle';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import {
   IColumnConfigItem,
+  IColumnPropertyOption,
   ColumnRenderer,
   ColumnVisibility,
   MultiValueSeparator,
   PHASE_1_RENDERERS,
+  applyColumnPropertySelection,
 } from './columnConfig';
 import styles from './ColumnConfigField.module.scss';
 
@@ -20,7 +22,7 @@ export interface IColumnConfigPanelProps {
   /** Item being edited; null when add-mode. */
   initialItem: IColumnConfigItem | null;
   /** Available properties (from selectedPropertiesCollection). */
-  availableProperties: Array<{ key: string; text: string }>;
+  availableProperties: IColumnPropertyOption[];
   /** Already-taken properties (so add-mode disallows duplicates). */
   takenProperties: string[];
   onSave: (item: IColumnConfigItem) => void;
@@ -85,6 +87,7 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
     return {
       key: p.key,
       text: p.text + (taken ? ' (already in use)' : ''),
+      data: p,
       disabled: taken,
     };
   });
@@ -128,7 +131,11 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
           options={propertyOptions}
           onChange={(_e, option): void => {
             if (option) {
-              update({ property: String(option.key) });
+              const source = (option.data as IColumnPropertyOption | undefined) || {
+                key: String(option.key),
+                text: option.text,
+              };
+              setDraft((current) => current ? applyColumnPropertySelection(current, source) : current);
             }
           }}
           disabled={!isAddMode}

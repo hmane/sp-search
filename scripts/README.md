@@ -69,11 +69,11 @@ Import into the target page:
     -Force
 ```
 
-The import updates existing SP Search web parts only. Provision the target page first with `Deploy-SPSearchSolution.ps1 -ProvisionSite`, `Provision-SPSearchPage.ps1`, or `Search-ScenarioPresets.ps1`, then import the saved JSON. The JSON covers the complete SPFx `properties` object for Box, Results, Filters, Verticals, Search Manager, and Admin Manager, including collection fields such as refiners, verticals, grid columns, selected properties, coverage profiles, and audience targeting. It does not migrate hidden-list data, saved searches, history, collections, page sections, or non-SP Search web parts.
+The import updates existing SP Search web parts only. Provision the target page first with `Deploy-SPSearchSolution.ps1 -ProvisionSite`, `Provision-SPSearchPage.ps1`, or `Search-ScenarioPresets.ps1`, then import the saved JSON. The JSON covers the complete SPFx `properties` object for Box, Results, Filters, Results + Filters, Verticals, Search Manager, and Admin Manager, including collection fields such as refiners, verticals, grid columns, selected properties, coverage profiles, and audience targeting. It does not migrate hidden-list data, saved searches, history, collections, page sections, or non-SP Search web parts.
 
 Environment-specific values can be tokenized. Export `-TokenizeSiteUrl` replaces the source site URL with `{siteUrl}`; import always replaces `{siteUrl}` with the target `-SiteUrl`. Additional tokens can be supplied with `-TokenFile`.
 
-See [`config/sp-search-page-config.sample.json`](../config/sp-search-page-config.sample.json) for a representative full export with all six SP Search web parts, collection fields, fake instance IDs, and tokenized URLs.
+See [`config/sp-search-page-config.sample.json`](../config/sp-search-page-config.sample.json) for a representative full export with the standard six-web-part page, collection fields, fake instance IDs, and tokenized URLs. Use `Provision-SPSearchPage.ps1 -UseFullWidthExperience` when you want the optional combined Results + Filters wrapper instead of separate Results and Filters web parts.
 
 ## Fallback install
 

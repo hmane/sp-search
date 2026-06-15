@@ -1,6 +1,6 @@
 # SP Search — Admin Configuration Guide
 
-This guide documents the current SharePoint search solution as shipped through Sprint 4 (audit fixes). The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`.
+This guide documents the current SharePoint search solution as shipped through Sprint 4 (audit fixes). The default authoring model is intentionally close to PnP Modern Search: a Search Box, Results, Filters, and optional Verticals web part all share the same `searchContextId`. A combined **SP Search Results + Filters** web part is available when a page needs a full-width results/refiners layout.
 
 **Sprint 4 highlights:** operatorBetweenFilters now functional, queryInputTransformation triggers re-search, Clear All Filters button, XLSX export in DataGrid, scope collection editor in property pane, accessibility improvements, sovereign cloud Teams sharing.
 
@@ -10,7 +10,7 @@ Every connected web part on the page must use the same `searchContextId`.
 
 - Use a unique value such as `hr-search` or `policies-search` when a page hosts more than one search experience.
 - `default` is safe for a single search experience on a page.
-- The Results web part is the canonical source of truth. The Box, Filters, Verticals, and Manager web parts should match its context ID.
+- The Results web part, or the combined Results + Filters wrapper, is the canonical source of truth. The Box, Filters, Verticals, and Manager web parts should match its context ID.
 
 ## Starter Experience
 
@@ -21,6 +21,7 @@ Fresh installs now provision a usable starter experience without immediate manua
 | Search Box | Placeholder `Search this site`, suggestions enabled, Search Manager enabled, query input transformation set to `{searchTerms}` |
 | Search Results | Scope `This site`, query template `{searchTerms}`, 10 results per page, paging on, sort on, result count on, layouts `List`, `Compact`, `Grid` |
 | Search Filters | File type, modified date, and author filters |
+| Search Results + Filters | Same starter Results and Filters defaults in one full-width wrapper |
 | Search Verticals | `All`, `Documents`, `Pages`, `Sites` |
 | Search Manager | Panel mode, history/saved searches/collections enabled |
 
@@ -197,6 +198,20 @@ The Filters web part owns refiner configuration and how multiple filters combine
 - The **Data format** section can strip SharePoint `type;#` prefixes for display while preserving the raw refinement token for filtering. Use `text` to opt out if a real value intentionally starts with that pattern.
 - Taxonomy filters render as Tag Box controls with term-label resolution. Configure `termSetId` for production taxonomy refiners to avoid per-GUID label lookup fan-out.
 - Audience targeting fields accept Microsoft Entra group or directory-role object IDs returned by Graph `/me/memberOf`; user emails, UPNs, SharePoint group names, and nested group-only membership do not match.
+
+## Search Results + Filters
+
+The combined wrapper renders the existing Results and Filters React surfaces side by side from one SPFx web part. Use it when the page should place results and refiners in a full-width or one-column section instead of SharePoint's 66/33 section layout.
+
+| Property | Default | Notes |
+|----------|---------|-------|
+| `searchContextId` | `default` | Must match Search Box, Verticals, and Manager |
+| `filtersPlacement` | `right` | `right`, `left`, or `top` |
+| `filtersWidth` | `360` | Desktop refiner rail width in pixels |
+| Results properties | Starter Results defaults | Same selected properties, layouts, paging, query, scope, and link behavior as Search Results |
+| Filters properties | Starter Filters defaults | Same refiner collection and apply behavior as Search Filters |
+
+The wrapper syncs both property sets before the first search runs. That means URL-restored filters and cascading refiners are available during initial query execution without depending on separate web part initialization order. Export/import treats the wrapper as one web part, so the Results and Filters settings move together between environments.
 
 ## Search Verticals
 

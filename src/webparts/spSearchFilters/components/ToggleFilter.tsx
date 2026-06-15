@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Toggle } from '@fluentui/react/lib/Toggle';
 import styles from './SpSearchFilters.module.scss';
 import type { IActiveFilter, IFilterConfig, IRefinerValue } from '@interfaces/index';
 
@@ -41,6 +40,9 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
   }
 
   function setFilterValue(value: string): void {
+    if (currentActive && currentActive.value === value) {
+      return;
+    }
     if (currentActive && currentActive.value !== value) {
       onToggleRefiner(currentActive);
     }
@@ -55,12 +57,8 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
     onToggleRefiner(next);
   }
 
-  function handleToggleChange(_: React.MouseEvent<HTMLElement>, checked?: boolean): void {
-    if (checked) {
-      setFilterValue(invertBoolean ? '0' : '1');
-    } else {
-      clearFilter();
-    }
+  function handleYesClick(): void {
+    setFilterValue(invertBoolean ? '0' : '1');
   }
 
   function handleNoClick(): void {
@@ -72,27 +70,31 @@ const ToggleFilter: React.FC<IToggleFilterProps> = (props: IToggleFilterProps): 
   }
 
   return (
-    <div className={styles.toggleFilterContainer}>
-      <Toggle
-        label={config ? config.displayName : filterName}
-        checked={!!isYes}
-        onChange={handleToggleChange}
-        inlineLabel={true}
-      />
+    <div className={styles.toggleFilterContainer} role="group" aria-label={config ? config.displayName : filterName}>
       <div className={styles.toggleStateRow}>
-        <button
-          type="button"
-          className={isNo ? styles.toggleStateButtonActive : styles.toggleStateButton}
-          onClick={handleNoClick}
-        >
-          {falseLabel}
-        </button>
         <button
           type="button"
           className={!isYes && !isNo ? styles.toggleStateButtonActive : styles.toggleStateButton}
           onClick={handleAllClick}
+          aria-pressed={!isYes && !isNo}
         >
           All
+        </button>
+        <button
+          type="button"
+          className={isYes ? styles.toggleStateButtonActive : styles.toggleStateButton}
+          onClick={handleYesClick}
+          aria-pressed={isYes}
+        >
+          {trueLabel}
+        </button>
+        <button
+          type="button"
+          className={isNo ? styles.toggleStateButtonActive : styles.toggleStateButton}
+          onClick={handleNoClick}
+          aria-pressed={isNo}
+        >
+          {falseLabel}
         </button>
       </div>
     </div>

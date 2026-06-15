@@ -31,6 +31,7 @@ import {
   renderDate,
   renderUrl,
   renderFileType,
+  cleanSearchResultDisplayText,
 } from './renderCell';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
@@ -286,7 +287,7 @@ function formatTextValue(value: unknown): string {
     return '--';
   }
   if (typeof value === 'string') {
-    return value;
+    return cleanSearchResultDisplayText(value);
   }
   if (typeof value === 'number') {
     return value.toLocaleString();
@@ -299,7 +300,7 @@ function formatTextValue(value: unknown): string {
   }
   if (typeof value === 'object') {
     if ('displayText' in value && typeof value.displayText === 'string') {
-      return value.displayText;
+      return cleanSearchResultDisplayText(value.displayText);
     }
     return JSON.stringify(value);
   }

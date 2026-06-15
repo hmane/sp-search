@@ -399,10 +399,11 @@ Your layout component receives (matching the actual `IListLayoutProps` pattern u
 ```typescript
 interface ILayoutProps {
   items: ISearchResult[];
-  enableSelection: boolean;
-  selectedKeys: string[];
-  onToggleSelection: (key: string, multiSelect: boolean) => void;
+  searchContextId: string;
+  titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 ```
 
@@ -412,13 +413,16 @@ interface ILayoutProps {
 // TimelineLayout.tsx
 import * as React from 'react';
 import type { ISearchResult } from 'sp-search-store';
+import type { TitleDisplayMode } from './documentTitleUtils';
+import type { IResultLinkConfig } from './resultLink';
 
 export interface ITimelineLayoutProps {
   items: ISearchResult[];
-  enableSelection: boolean;
-  selectedKeys: string[];
-  onToggleSelection: (key: string, multiSelect: boolean) => void;
+  searchContextId: string;
+  titleDisplayMode: TitleDisplayMode;
   onItemClick?: (item: ISearchResult, position: number) => void;
+  linkConfig: IResultLinkConfig;
+  onOpenInSidePanel?: (item: ISearchResult) => void;
 }
 
 const TimelineLayout: React.FC<ITimelineLayoutProps> = function TimelineLayout(props) {
