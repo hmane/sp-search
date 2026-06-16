@@ -12,6 +12,7 @@ import {
   renderFileType,
   cleanSearchResultDisplayText,
   resolveBadgeColor,
+  extractPersonDisplayName,
 } from '../../../src/webparts/spSearchResults/components/renderCell';
 import type { IColumnConfigItem, IBadgeColorRule } from '../../../src/webparts/spSearchResults/components/ColumnConfigField/columnConfig';
 
@@ -297,6 +298,26 @@ describe('renderCell — Stream B / Phase 2', () => {
       const iso = new Date(0).toISOString();
       const out = html(renderDate(iso, col({ renderer: 'date' })));
       expect(out).not.toContain('--');
+    });
+  });
+
+  describe('extractPersonDisplayName', () => {
+    it('extracts the display name from the "Name" <email> header form', () => {
+      expect(extractPersonDisplayName('"Ravi Chandra" <Ravi.Chandra.Contractor@dodgeandcox.com>')).toBe('Ravi Chandra');
+    });
+
+    it('extracts the name from the unquoted Name <email> form', () => {
+      expect(extractPersonDisplayName('Ravi Chandra <ravi@x.com>')).toBe('Ravi Chandra');
+    });
+
+    it('leaves plain names (incl. service accounts) untouched', () => {
+      expect(extractPersonDisplayName('System Account')).toBe('System Account');
+      expect(extractPersonDisplayName('SharePoint App')).toBe('SharePoint App');
+    });
+
+    it('falls back to the email when there is no display name', () => {
+      expect(extractPersonDisplayName('<ravi@x.com>')).toBe('ravi@x.com');
+      expect(extractPersonDisplayName('ravi@x.com')).toBe('ravi@x.com');
     });
   });
 

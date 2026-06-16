@@ -394,18 +394,53 @@ function extractPersona(value: unknown): IPersonaLike | undefined {
   if (!raw) {
     return undefined;
   }
-  // Claim string: `i:0#.f|membership|user@tenant.onmicrosoft.com` — extract the
-  // upn portion as the email; display name is the upn until we resolve it.
-  const claimMatch = /^i:0#\.f\|membership\|(.+)$/.exec(raw);
+  return parsePersonToken(raw);
+}
+
+/**
+ * Parse a single person token into `{ displayName, email }`. Handles the
+ * email-header form SharePoint's `Author` property uses —
+ * `"Display Name" <email>` / `Display Name <email>` — plus claim strings,
+ * bare emails, and plain names.
+ */
+function parsePersonToken(raw: string): IPersonaLike {
+  // "Display Name" <email>  /  Display Name <email>  → split name from email.
+  const mailbox = /^(.*?)<([^<>]+)>\s*$/.exec(raw);
+  if (mailbox) {
+    const name = stripWrappingQuotes(mailbox[1].trim());
+    const email = mailbox[2].trim();
+    return { displayName: name || email, email: email || undefined };
+  }
+  const text = stripWrappingQuotes(raw);
+  // Claim string: `i:0#.f|membership|user@tenant.onmicrosoft.com` — the upn is
+  // both the email and (until resolved) the display name.
+  const claimMatch = /^i:0#\.f\|membership\|(.+)$/.exec(text);
   if (claimMatch) {
-    const upn = claimMatch[1];
-    return { displayName: upn, email: upn };
+    return { displayName: claimMatch[1], email: claimMatch[1] };
   }
-  // Email-like
-  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)) {
-    return { displayName: raw, email: raw };
+  // Bare email.
+  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(text)) {
+    return { displayName: text, email: text };
   }
-  return { displayName: raw };
+  return { displayName: text };
+}
+
+function stripWrappingQuotes(s: string): string {
+  const m = /^"(.*)"$/.exec(s);
+  return m ? m[1].trim() : s;
+}
+
+/**
+ * Display name for a single person token — used by the built-in Author column,
+ * which renders plain names (not full personas). Strips the `"Name" <email>`
+ * wrapper so the column shows "Ravi Chandra", not the raw header string.
+ */
+export function extractPersonDisplayName(raw: string): string {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  return parsePersonToken(trimmed).displayName;
 }
 
 /**

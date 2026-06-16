@@ -32,6 +32,7 @@ import {
   renderUrl,
   renderFileType,
   cleanSearchResultDisplayText,
+  extractPersonDisplayName,
 } from './renderCell';
 import Pagination from './Pagination';
 import AddToCollectionButton from './AddToCollectionButton';
@@ -314,14 +315,15 @@ function formatTextValue(value: unknown): string {
 function splitPeopleValue(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
-      .map((entry: unknown) => formatTextValue(entry).trim())
+      .map((entry: unknown) => extractPersonDisplayName(formatTextValue(entry)))
       .filter((s: string) => s.length > 0 && s !== '--');
   }
   const text = formatTextValue(value).trim();
   if (!text || text === '--') {
     return [];
   }
-  return text.split(/\s*;\s*/).map((s: string) => s.trim()).filter(Boolean);
+  // Each token may be a "Display Name" <email> header form — render just the name.
+  return text.split(/\s*;\s*/).map((s: string) => extractPersonDisplayName(s.trim())).filter(Boolean);
 }
 
 function getDxSortOrder(sort: ISortField | undefined, property: string): 'asc' | 'desc' | undefined {
