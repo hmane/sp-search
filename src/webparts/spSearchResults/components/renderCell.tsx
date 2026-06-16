@@ -185,7 +185,28 @@ export function renderBoolean(value: unknown, _column: IColumnConfigItem): React
 
 // ─── tags ─────────────────────────────────────────────────
 
-function splitTagValue(value: unknown): string[] {
+const SPLIT_REGEX_CACHE = new Map<string, RegExp>();
+
+function resolveSplitRegex(delimiter: string | undefined): RegExp {
+  if (!delimiter) {
+    return /\s*[,;]\s*/;
+  }
+  const cached = SPLIT_REGEX_CACHE.get(delimiter);
+  if (cached) {
+    return cached;
+  }
+  const normalized = delimiter.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /* eslint-disable @rushstack/security/no-unsafe-regexp -- input is fully
+   * regex-escaped above; pattern is \s*<literal>\s* with no nested
+   * quantifiers, so no injection or ReDoS is possible. */
+  const re = new RegExp('\\s*' + escaped + '\\s*');
+  /* eslint-enable @rushstack/security/no-unsafe-regexp */
+  SPLIT_REGEX_CACHE.set(delimiter, re);
+  return re;
+}
+
+function splitTagValue(value: unknown, delimiter?: string): string[] {
   if (Array.isArray(value)) {
     return value.map((v) => toStringValue(v).trim()).filter(Boolean);
   }
@@ -197,10 +218,10 @@ function splitTagValue(value: unknown): string[] {
     return [];
   }
   const cleaned = cleanSearchResultDisplayText(trimmed);
-  // Heuristic: taxonomy GP0|#GUID;Label format and pipe-separated user claims
-  // are accepted as-is for Phase 2 — admin can switch separator as needed.
-  // Default: split on commas or semicolons.
-  return cleaned.split(/\s*[,;]\s*/).map((part) => cleanSearchResultDisplayText(part.trim()).trim()).filter(Boolean);
+  return cleaned
+    .split(resolveSplitRegex(delimiter))
+    .map((part) => cleanSearchResultDisplayText(part.trim()).trim())
+    .filter(Boolean);
 }
 
 const SEPARATOR_JOIN: Record<MultiValueSeparator, string> = {
@@ -212,7 +233,7 @@ const SEPARATOR_JOIN: Record<MultiValueSeparator, string> = {
 };
 
 export function renderTags(value: unknown, column: IColumnConfigItem): React.ReactElement {
-  const parts = splitTagValue(value);
+  const parts = splitTagValue(value, column.splitDelimiter);
   if (parts.length === 0) {
     return muted();
   }

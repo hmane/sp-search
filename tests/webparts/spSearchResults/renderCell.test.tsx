@@ -169,6 +169,27 @@ describe('renderCell — Stream B / Phase 2', () => {
     it('emits muted dash for empty', () => {
       expect(html(renderTags([], col({ renderer: 'tags', multiValueSeparator: 'comma' })))).toContain('--');
     });
+
+    it('splits on a custom delimiter when splitDelimiter is set', () => {
+      const out = html(renderTags('HR|Finance|Legal', col({ renderer: 'tags', multiValueSeparator: 'newline', splitDelimiter: '|' })));
+      expect(out).toMatch(/HR[\s\S]*Finance[\s\S]*Legal/);
+    });
+
+    it('treats the \\n token in splitDelimiter as a newline split', () => {
+      const out = html(renderTags('alpha\nbeta', col({ renderer: 'tags', multiValueSeparator: 'comma', splitDelimiter: '\\n' })));
+      expect(out).toContain('alpha, beta');
+    });
+
+    it('still splits on the default , and ; when splitDelimiter is unset', () => {
+      const out = html(renderTags('a, b; c', col({ renderer: 'tags', multiValueSeparator: 'comma' })));
+      expect(out).toContain('a, b, c');
+    });
+
+    it('treats a regex-metachar delimiter (.) as a literal — does not split on non-dot chars', () => {
+      const out = html(renderTags('aXb', col({ renderer: 'tags', multiValueSeparator: 'comma', splitDelimiter: '.' })));
+      expect(out).toContain('aXb');
+      expect(out).not.toContain('aX,');
+    });
   });
 
   describe('renderUrl', () => {
