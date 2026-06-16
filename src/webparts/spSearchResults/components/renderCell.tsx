@@ -90,6 +90,17 @@ export function resolveBadgeColor(
   return { color: 'neutral' };
 }
 
+function buildBadgeColorMap(rules: IBadgeColorRule[] | undefined): Map<string, IBadgeColorRule> | undefined {
+  if (!rules || rules.length === 0) {
+    return undefined;
+  }
+  const map = new Map<string, IBadgeColorRule>();
+  for (const rule of rules) {
+    map.set(rule.value.trim().toLowerCase(), rule);
+  }
+  return map;
+}
+
 function toStringValue(value: unknown): string {
   if (value === undefined || value === null) {
     return '';
@@ -279,6 +290,31 @@ export function renderTags(value: unknown, column: IColumnConfigItem): React.Rea
     return muted();
   }
   const sep = column.multiValueSeparator || 'comma';
+  if (sep === 'badge') {
+    const colorMap = buildBadgeColorMap(column.valueColorMap);
+    const autoColor = column.autoColorUnmapped !== false;
+    const badgeStyles = styles as unknown as Record<string, string>;
+    return (
+      <span className={styles.gridTagsCell}>
+        {parts.map((part, idx) => {
+          const resolved = resolveBadgeColor(part, colorMap, autoColor);
+          const colorClass = badgeStyles['gridBadge--' + resolved.color] || '';
+          return (
+            <span
+              key={part + '-' + String(idx)}
+              className={styles.gridBadge + ' ' + colorClass}
+              title={part}
+            >
+              {resolved.icon ? (
+                <Icon iconName={resolved.icon} className={styles.gridBadgeIcon} aria-hidden={true} />
+              ) : null}
+              {part}
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
   if (sep === 'pill') {
     return (
       <span className={styles.gridTagsCell}>

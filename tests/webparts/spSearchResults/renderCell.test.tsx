@@ -191,6 +191,44 @@ describe('renderCell — Stream B / Phase 2', () => {
       expect(out).toContain('aXb');
       expect(out).not.toContain('aX,');
     });
+
+    it('renders mapped badge tokens with the color class, icon, and title', () => {
+      const out = html(renderTags('Approved', col({
+        renderer: 'tags',
+        multiValueSeparator: 'badge',
+        valueColorMap: [{ value: 'Approved', color: 'green', icon: 'CheckMark' }],
+      })));
+      expect(out).toContain('Approved');
+      expect(out).toContain('gridBadge--green');
+      expect(out).toContain('title="Approved"');
+      expect(out).toMatch(/CheckMark/i);  // icon propagates through renderTags
+    });
+
+    it('auto-colors unmapped badge values with a non-neutral class by default', () => {
+      const out = html(renderTags('Engineering;Finance', col({ renderer: 'tags', multiValueSeparator: 'badge' })));
+      expect(out).toContain('Engineering');
+      expect(out).toContain('Finance');
+      expect(out).toContain('gridBadge--');
+      expect(out).not.toContain('gridBadge--neutral');
+    });
+
+    it('uses neutral badges when auto-color is disabled and value is unmapped', () => {
+      const out = html(renderTags('Engineering', col({ renderer: 'tags', multiValueSeparator: 'badge', autoColorUnmapped: false })));
+      expect(out).toContain('gridBadge--neutral');
+    });
+
+    it('matches a badge value case-insensitively end-to-end', () => {
+      const out = html(renderTags('APPROVED', col({
+        renderer: 'tags',
+        multiValueSeparator: 'badge',
+        valueColorMap: [{ value: 'Approved', color: 'green' }],
+      })));
+      expect(out).toContain('gridBadge--green');
+    });
+
+    it('emits the muted dash for an empty badge value', () => {
+      expect(html(renderTags('', col({ renderer: 'tags', multiValueSeparator: 'badge' })))).toContain('--');
+    });
   });
 
   describe('renderUrl', () => {

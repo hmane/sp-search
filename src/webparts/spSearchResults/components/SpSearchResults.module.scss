@@ -2495,6 +2495,36 @@
   white-space: nowrap;
 }
 
+.gridBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #f3f2f1;
+  color: #323130;
+}
+
+.gridBadgeIcon {
+  font-size: 11px;
+}
+
+// Fixed, AA-contrast color pairs (soft fill + dark text). Intentionally not
+// theme accents so the nine options stay distinct and legible in any theme.
+.gridBadge--neutral { background: #f3f2f1; color: #323130; }
+.gridBadge--blue    { background: #deecf9; color: #004578; }
+.gridBadge--teal    { background: #cdeef2; color: #005b70; }
+.gridBadge--green   { background: #dff6dd; color: #0b6a0b; }
+.gridBadge--amber   { background: #fff4ce; color: #735c00; }
+.gridBadge--orange  { background: #fce4d6; color: #8a3707; }
+.gridBadge--red     { background: #fde7e9; color: #a4262c; }
+.gridBadge--purple  { background: #eddbf5; color: #5c2e91; }
+.gridBadge--magenta { background: #fce4f3; color: #9b0062; }
+
 .gridToolbarButton {
   :global(.ms-Button) {
     min-width: auto;
