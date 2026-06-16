@@ -3,7 +3,13 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
 import { formatFileSize, formatRelativeDate, formatDateTime } from './documentTitleUtils';
-import type { IColumnConfigItem, MultiValueSeparator } from './ColumnConfigField/columnConfig';
+import {
+  IColumnConfigItem,
+  MultiValueSeparator,
+  BadgeColor,
+  IBadgeColorRule,
+  AUTO_COLOR_PALETTE,
+} from './ColumnConfigField/columnConfig';
 import styles from './SpSearchResults.module.scss';
 
 // spfx-toolkit's UserPersona ships with stricter @types/react than this project
@@ -47,6 +53,41 @@ export function cleanSearchResultDisplayText(value: string): string {
   const raw = String(value || '');
   const match = CALCULATED_TYPE_PREFIX.exec(raw);
   return match ? match[1] : raw;
+}
+
+// ─── badge color resolution ──────────────────────────────
+
+export interface IResolvedBadge {
+  color: BadgeColor;
+  icon?: string;
+}
+
+function hashBadgeColorIndex(s: string, len: number): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) % len;
+}
+
+/**
+ * Resolve a badge token's color: an admin map entry (case-insensitive) wins;
+ * otherwise auto-color from a stable hash; otherwise neutral.
+ */
+export function resolveBadgeColor(
+  value: string,
+  map: Map<string, IBadgeColorRule> | undefined,
+  autoColorUnmapped: boolean
+): IResolvedBadge {
+  const key = value.trim().toLowerCase();
+  const mapped = map ? map.get(key) : undefined;
+  if (mapped) {
+    return mapped.icon ? { color: mapped.color, icon: mapped.icon } : { color: mapped.color };
+  }
+  if (autoColorUnmapped) {
+    return { color: AUTO_COLOR_PALETTE[hashBadgeColorIndex(key, AUTO_COLOR_PALETTE.length)] };
+  }
+  return { color: 'neutral' };
 }
 
 function toStringValue(value: unknown): string {

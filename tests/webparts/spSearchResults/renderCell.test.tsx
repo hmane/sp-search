@@ -10,8 +10,9 @@ import {
   renderUrl,
   renderFileType,
   cleanSearchResultDisplayText,
+  resolveBadgeColor,
 } from '../../../src/webparts/spSearchResults/components/renderCell';
-import type { IColumnConfigItem } from '../../../src/webparts/spSearchResults/components/ColumnConfigField/columnConfig';
+import type { IColumnConfigItem, IBadgeColorRule } from '../../../src/webparts/spSearchResults/components/ColumnConfigField/columnConfig';
 
 /**
  * Stream B / Phase 2 — snapshot-light tests for the new cell renderers.
@@ -244,6 +245,34 @@ describe('renderCell — Stream B / Phase 2', () => {
       expect(cleanSearchResultDisplayText('Just a title')).toBe('Just a title');
       expect(cleanSearchResultDisplayText('GP0|#guid;Label')).toBe('GP0|#guid;Label');
       expect(cleanSearchResultDisplayText('')).toBe('');
+    });
+  });
+
+  describe('resolveBadgeColor', () => {
+    const map = new Map<string, IBadgeColorRule>([
+      ['approved', { value: 'Approved', color: 'green' }],
+      ['overdue', { value: 'Overdue', color: 'red', icon: 'Warning' }],
+    ]);
+
+    it('returns the mapped color (case-insensitive) and icon', () => {
+      expect(resolveBadgeColor('APPROVED', map, true)).toEqual({ color: 'green' });
+      expect(resolveBadgeColor('overdue', map, true)).toEqual({ color: 'red', icon: 'Warning' });
+    });
+
+    it('auto-colors an unmapped value with a stable, non-neutral color', () => {
+      const a = resolveBadgeColor('Engineering', map, true);
+      const b = resolveBadgeColor('Engineering', map, true);
+      expect(a).toEqual(b);                 // stable
+      expect(a.color).not.toBe('neutral');  // from the auto palette
+    });
+
+    it('falls back to neutral when auto-color is off and value is unmapped', () => {
+      expect(resolveBadgeColor('Engineering', map, false)).toEqual({ color: 'neutral' });
+    });
+
+    it('works with no map at all', () => {
+      expect(resolveBadgeColor('Anything', undefined, false)).toEqual({ color: 'neutral' });
+      expect(resolveBadgeColor('Anything', undefined, true).color).not.toBe('neutral');
     });
   });
 });
