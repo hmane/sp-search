@@ -7,6 +7,7 @@ import {
 } from '@interfaces/index';
 import { getFilterValueFormatter } from '@store/formatters/FilterValueFormatters';
 import { assignFilterUrlAliases, getFilterUrlAlias, sanitizeUrlAlias } from '@store/utils/filterUrlAliases';
+import { stripDefaultToggleFilters } from '@store/utils/toggleDefaults';
 import { shouldPushHistory } from '@store/utils/historyMode';
 import { spLog } from '@store/utils/spLog';
 import { DebugCollector } from '../../debug';
@@ -366,12 +367,20 @@ function resolveUrlFilters(
  * @returns The full query-string (without leading `?`).
  */
 export function serializeToUrl(
-  state: Partial<IUrlSyncStoreSlice>,
+  rawState: Partial<IUrlSyncStoreSlice>,
   prefix?: string
 ): string {
   if (!isBrowser()) {
     return '';
   }
+
+  // Default-valued (auto-seeded) toggle filters are implicit — they're
+  // re-seeded on load, so omit them from the URL to keep shareable links clean.
+  // An override away from the default (e.g. "No") is kept.
+  const state: Partial<IUrlSyncStoreSlice> = {
+    ...rawState,
+    activeFilters: stripDefaultToggleFilters(rawState.activeFilters || [], rawState.filterConfig || []),
+  };
 
   const params = new URLSearchParams(window.location.search);
 

@@ -12,6 +12,7 @@ import {
 import { SearchManagerService } from '@services/index';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { validateSearchState } from '@store/utils/searchStateSchema';
+import { seedToggleDefaults } from '@store/utils/toggleDefaults';
 import { spLog } from '@store/utils/spLog';
 import styles from './SpSearchManager.module.scss';
 import { buildFilterAliasMap, getHistoryDisplay } from './historyDisplay';
@@ -60,13 +61,21 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
     }
     const savedState = validation.state;
 
+    // Re-seed toggle defaults: they were stripped from the stored history state
+    // (implicit), so re-apply any not already present so the re-run still
+    // honours admin defaults (e.g. "Hide Inactive Documents").
+    const restoredFilters = seedToggleDefaults(
+      savedState.activeFilters || [],
+      store.getState().filterConfig || []
+    );
+
     // Set ALL state atomically via store.setState() so the orchestrator
     // sees a single change notification and fires ONE search with
     // complete state (including filters).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const update: Record<string, any> = {
       queryText: savedState.queryText !== undefined ? savedState.queryText : entry.queryText,
-      activeFilters: savedState.activeFilters || [],
+      activeFilters: restoredFilters,
       currentPage: 1,
     };
 

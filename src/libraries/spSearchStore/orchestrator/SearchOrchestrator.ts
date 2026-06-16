@@ -11,6 +11,7 @@ import { TokenService, ITokenContext } from '@services/TokenService';
 import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { DebugCollector } from '../debug';
 import { spLog } from '@store/utils/spLog';
+import { stripDefaultToggleFilters } from '@store/utils/toggleDefaults';
 
 /**
  * SearchOrchestrator — subscribes to store changes and triggers
@@ -1028,8 +1029,12 @@ export class SearchOrchestrator {
       return;
     }
 
+    // Exclude default-valued (auto-seeded) toggle filters — they're implicit
+    // and shouldn't pollute history. A browse whose ONLY filter is a default
+    // therefore counts as passive and isn't logged.
+    const recordedFilters = stripDefaultToggleFilters(state.activeFilters, state.filterConfig);
     const hasQueryText = Boolean(state.queryText && state.queryText.trim());
-    const hasActiveFilters = state.activeFilters.length > 0;
+    const hasActiveFilters = recordedFilters.length > 0;
 
     // Skip passive browse loads. These are auto-triggered hydration searches,
     // not user-driven search history entries.
@@ -1040,7 +1045,7 @@ export class SearchOrchestrator {
     // Build the full search state for hashing and storage
     const searchState = JSON.stringify({
       queryText: state.queryText,
-      activeFilters: state.activeFilters,
+      activeFilters: recordedFilters,
       currentVerticalKey: state.currentVerticalKey,
       sort: state.sort,
     });

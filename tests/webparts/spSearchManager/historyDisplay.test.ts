@@ -74,6 +74,24 @@ describe('getHistoryDisplay', () => {
     expect(display.title).toBe('Status: Yes');
   });
 
+  it('decodes a SharePoint hex refinement token to its label', () => {
+    const aliases = buildFilterAliasMap([
+      { managedProperty: 'Accounts', displayName: 'Accounts' } as IFilterConfig,
+    ]);
+    // ǂǂ (U+01C2 ×2) + hex "31393534" → "1954". Build from char codes so the
+    // test doesn't depend on source-file encoding.
+    const token = String.fromCharCode(0x01C2, 0x01C2) + '31393534';
+    const display = getHistoryDisplay(historyEntry({
+      searchState: JSON.stringify({
+        activeFilters: [
+          { filterName: 'Accounts', value: token, operator: 'OR' },
+        ],
+      }),
+    }), aliases);
+
+    expect(display.title).toBe('Accounts: 1954');
+  });
+
   it('falls back to the managed-property name when no alias is configured', () => {
     const display = getHistoryDisplay(historyEntry({
       searchState: JSON.stringify({

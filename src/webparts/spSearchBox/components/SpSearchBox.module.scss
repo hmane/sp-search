@@ -25,8 +25,9 @@
   align-items: center;
   flex: 1 1 auto;
   min-width: 0;
-  background-color: "[theme:inputBackground, default: #ffffff]";
-  background-color: var(--inputBackground, #ffffff);
+  // Transparent so a section background (e.g. a stock image) shows through —
+  // the web part adds no opaque fill. The border + shadow still define the box.
+  background-color: transparent;
   border: 1.5px solid "[theme:neutralQuaternaryAlt, default: #dadada]";
   border: 1.5px solid var(--neutralQuaternaryAlt, #dadada);
   border-radius: 8px;

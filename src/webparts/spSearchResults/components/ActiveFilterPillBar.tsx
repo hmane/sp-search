@@ -208,11 +208,13 @@ const ActiveFilterPillBar: React.FC<IActiveFilterPillBarProps> = function Active
   }
 
   function getDisplayValue(filterName: string, rawValue: string, displayValue?: string): string {
-    if (displayValue && displayValue !== rawValue) {
-      return displayValue;
-    }
-    const key = filterName + '|' + rawValue;
-    return displayMap.get(key) || formatValueForDisplay(rawValue);
+    // Pick the best candidate, then ALWAYS run it through formatValueForDisplay
+    // so a raw FQL/hex token (e.g. "ǂǂ31393534") that slipped into displayValue
+    // or the formatter result still gets decoded to its label ("1954").
+    const candidate = (displayValue && displayValue !== rawValue)
+      ? displayValue
+      : (displayMap.get(filterName + '|' + rawValue) || rawValue);
+    return formatValueForDisplay(candidate);
   }
 
   return (

@@ -1,4 +1,5 @@
 import { seedToggleDefaults } from '@store/store/storeRegistry';
+import { stripDefaultToggleFilters } from '@store/utils/toggleDefaults';
 import type { IActiveFilter, IFilterConfig } from '@interfaces/index';
 
 /**
@@ -133,5 +134,43 @@ describe('seedToggleDefaults', () => {
     const current: IActiveFilter[] = [];
     const seeded = seedToggleDefaults(current, [noDefault]);
     expect(seeded).toBe(current);
+  });
+});
+
+describe('stripDefaultToggleFilters', () => {
+  const defaultFilter: IActiveFilter = {
+    filterName: 'IsConfidential', value: '1', displayValue: 'Yes', operator: 'OR',
+  };
+  const overrideFilter: IActiveFilter = {
+    filterName: 'IsConfidential', value: '0', displayValue: 'No', operator: 'OR',
+  };
+  const otherFilter: IActiveFilter = {
+    filterName: 'FileType', value: 'pdf', displayValue: 'pdf', operator: 'OR',
+  };
+
+  it('removes a toggle filter sitting at its configured default value', () => {
+    const result = stripDefaultToggleFilters([defaultFilter, otherFilter], [baseToggleConfig]);
+    expect(result).toEqual([otherFilter]);
+  });
+
+  it('keeps a toggle filter overridden away from its default', () => {
+    const result = stripDefaultToggleFilters([overrideFilter, otherFilter], [baseToggleConfig]);
+    expect(result).toEqual([overrideFilter, otherFilter]);
+  });
+
+  it('round-trips with seedToggleDefaults (seed then strip yields the original)', () => {
+    const seeded = seedToggleDefaults([otherFilter], [baseToggleConfig]);
+    expect(seeded).toHaveLength(2);
+    expect(stripDefaultToggleFilters(seeded, [baseToggleConfig])).toEqual([otherFilter]);
+  });
+
+  it('keeps everything when no toggle defaults are configured', () => {
+    const noDefault: IFilterConfig = { ...baseToggleConfig, defaultValue: undefined };
+    const current = [defaultFilter, otherFilter];
+    expect(stripDefaultToggleFilters(current, [noDefault])).toBe(current);
+  });
+
+  it('is a no-op for empty inputs', () => {
+    expect(stripDefaultToggleFilters([], [baseToggleConfig])).toEqual([]);
   });
 });

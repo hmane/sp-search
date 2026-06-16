@@ -1,5 +1,5 @@
 import { StoreApi } from 'zustand/vanilla';
-import { IActiveFilter, IFilterConfig, ISearchStore } from '@interfaces/index';
+import { ISearchStore } from '@interfaces/index';
 import { createRegistryContainer } from '@registries/index';
 import { createSearchStore } from './createStore';
 import { SearchOrchestrator } from '@orchestrator/SearchOrchestrator';
@@ -13,6 +13,12 @@ import { SPContext } from 'spfx-toolkit/lib/utilities/context';
 import { configureLegacyPnPBaseUrl } from 'spfx-toolkit/lib/utilities/context/urlSanitizer';
 import { initializeFileTypeIcons } from '@fluentui/react-file-type-icons';
 import { spLog } from '@store/utils/spLog';
+import { seedToggleDefaults } from '../utils/toggleDefaults';
+
+// Re-exported for back-compat with existing import paths (`@store/store/storeRegistry`).
+// The implementation lives in ../utils/toggleDefaults to avoid an import cycle
+// (this module imports the orchestrator + middleware, which now need the helper).
+export { seedToggleDefaults };
 
 /**
  * Context instance that holds the store, orchestrator, and services.
@@ -109,62 +115,6 @@ export function getOrchestrator(searchContextId: string): SearchOrchestrator {
 export function getManagerService(searchContextId: string): SearchManagerService | undefined {
   const context = getContextMap().get(searchContextId);
   return context?.managerService;
-}
-
-/**
- * Pure helper: for each `toggle` filter config that has `defaultValue`
- * set AND whose managed property is not already represented in the
- * current activeFilters, append a synthetic active-filter entry.
- *
- * URL-restore writes to activeFilters BEFORE this runs, so URL state
- * always wins over admin defaults — preserves shareable links.
- *
- * The synthetic entry is structurally identical to one a user would
- * produce by clicking the toggle: `'1'` for true, `'0'` for false,
- * `displayValue` honours trueLabel/falseLabel + invertBoolean, and the
- * operator is taken from the config (matches ToggleFilter.tsx).
- *
- * Exported for unit-testing in isolation.
- */
-export function seedToggleDefaults(
-  current: IActiveFilter[],
-  configs: IFilterConfig[]
-): IActiveFilter[] {
-  const activeNames = new Set<string>();
-  for (let i = 0; i < current.length; i++) {
-    activeNames.add(current[i].filterName);
-  }
-  const additions: IActiveFilter[] = [];
-  for (let i = 0; i < configs.length; i++) {
-    const c = configs[i];
-    if (c.filterType !== 'toggle') {
-      continue;
-    }
-    if (c.defaultValue === undefined) {
-      continue;
-    }
-    if (activeNames.has(c.managedProperty)) {
-      continue;
-    }
-    const trueLabel = c.trueLabel || 'Yes';
-    const falseLabel = c.falseLabel || 'No';
-    const invert = c.invertBoolean === true;
-    const value = c.defaultValue ? '1' : '0';
-    const rawIsTrue = value === '1';
-    const displayValue = rawIsTrue
-      ? (invert ? falseLabel : trueLabel)
-      : (invert ? trueLabel : falseLabel);
-    additions.push({
-      filterName: c.managedProperty,
-      value,
-      displayValue,
-      operator: c.operator,
-    });
-  }
-  if (additions.length === 0) {
-    return current;
-  }
-  return current.concat(additions);
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { IFilterConfig, ISearchHistoryEntry } from '@interfaces/index';
 import { validateSearchState, type IValidatedSearchState } from '@store/utils/searchStateSchema';
+import { formatRefinerValueForDisplay } from '@store/utils/refinerDisplay';
 
 export interface ISearchHistoryDisplay {
   title: string;
@@ -31,12 +32,9 @@ function isDefaultVertical(value: string | undefined): boolean {
   return normalized === '' || normalized === 'all';
 }
 
-function cleanFilterValue(value: string): string {
-  return value.replace(/^"|"$/g, '').trim();
-}
-
 function formatFilterLabel(filterName: string, value: string, filterAliases?: Record<string, string>): string {
-  const cleanedValue = cleanFilterValue(value);
+  // Decode FQL/hex/taxonomy tokens so history shows the label, not the raw id.
+  const cleanedValue = formatRefinerValueForDisplay(value);
   // Prefer the admin alias for the refiner; fall back to the managed-property name.
   const label = (filterAliases && filterAliases[(filterName || '').toLowerCase()]) || filterName;
   if (!label) {

@@ -8,6 +8,10 @@
   gap: 24px;
   width: 100%;
   min-width: 0;
+  // Inset the content so it doesn't sit flush against the web part / section
+  // edges (most noticeable in a full-bleed section). border-box keeps width:100%.
+  box-sizing: border-box;
+  padding: 16px 20px;
   color: "[theme:bodyText, default: #323130]";
   color: var(--bodyText);
   font-family: $ms-font-family-fallbacks;
