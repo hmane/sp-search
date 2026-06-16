@@ -97,7 +97,12 @@
   margin-bottom: 0;
   border: 1px solid "[theme:neutralLighter, default: #f3f2f1]";
   border-radius: 4px;
-  box-shadow: none;
+  // The toolkit Card renders `.spfx-card.elevation-1` with a drop-shadow whose
+  // rule out-specifies this single class, so a plain `box-shadow: none` is
+  // overridden (struck-through in dev tools) and the elevation shadow leaks
+  // through as a faux extra border. !important beats the `.elevation-*` /
+  // `:hover` shadow rules.
+  box-shadow: none !important;
 
   :global(.spfx-card-content.collapsed) {
     max-height: 0 !important;

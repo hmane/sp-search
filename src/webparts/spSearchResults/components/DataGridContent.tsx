@@ -242,7 +242,9 @@ function getColumnConfig(column: IColumnConfigItem): IGridColumnConfig {
     kind: dispatch.kind,
     column,
     width: adminWidth !== undefined ? adminWidth : dispatch.width,
-    minWidth: dispatch.minWidth,
+    // When the admin sets an explicit width, don't also impose the renderer's
+    // default minWidth — it would clamp a narrow admin width back up.
+    minWidth: adminWidth !== undefined ? undefined : dispatch.minWidth,
     alignment: dispatch.alignment,
   };
 }
@@ -437,12 +439,13 @@ function loadGridState(searchContextId: string, currentColumnKeys: string[]): an
       .map((column: {
         dataField?: string;
         visible?: boolean;
-        width?: number | string;
         visibleIndex?: number;
       }) => ({
         dataField: column.dataField,
         visible: column.visible,
-        width: column.width,
+        // NOTE: width is intentionally NOT restored. The admin-configured
+        // `<Column width>` is authoritative; restoring a saved/auto-computed
+        // width here used to override it, so admin width changes never applied.
         ...(allowSavedOrder && typeof column.visibleIndex === 'number' ? { visibleIndex: column.visibleIndex } : {})
       }));
 
@@ -472,12 +475,11 @@ function saveGridState(searchContextId: string, state: any): void {
         ? state.columns.map((column: {
           dataField?: string;
           visible?: boolean;
-          width?: number | string;
           visibleIndex?: number;
         }) => ({
           dataField: column.dataField,
           visible: column.visible,
-          width: column.width,
+          // width is not persisted — admin `<Column width>` stays authoritative.
           visibleIndex: column.visibleIndex
         }))
         : []
