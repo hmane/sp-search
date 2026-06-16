@@ -8,7 +8,12 @@
  * Usage: replace any direct `window.location.href = X` write with
  * `safeNavigate(X)`. ESLint rule (or grep guard) flags new direct writes.
  */
-export function safeNavigate(target: string | null | undefined): boolean {
+/**
+ * Pure predicate: is `target` a safe link to navigate to or render as an
+ * `href` — absolute http/https or root-relative only, rejecting javascript:,
+ * data:, vbscript:, protocol-relative (`//`), and everything else. Never throws.
+ */
+export function isSafeHttpUrl(target: string | null | undefined): boolean {
   if (typeof target !== 'string') return false;
   const trimmed = target.trim();
   if (trimmed.length === 0) return false;
@@ -31,8 +36,11 @@ export function safeNavigate(target: string | null | undefined): boolean {
   // Allowlist: absolute http/https or root-relative paths only.
   const isAbsoluteHttp = /^https?:\/\//i.test(trimmed);
   const isRootRelative = trimmed.startsWith('/') && !trimmed.startsWith('//');
-  if (!isAbsoluteHttp && !isRootRelative) return false;
+  return isAbsoluteHttp || isRootRelative;
+}
 
-  window.location.assign(trimmed);
+export function safeNavigate(target: string | null | undefined): boolean {
+  if (!isSafeHttpUrl(target)) return false;
+  window.location.assign((target as string).trim());
   return true;
 }

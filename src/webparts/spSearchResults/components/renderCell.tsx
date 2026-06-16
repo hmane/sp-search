@@ -3,6 +3,7 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { UserPersona as _UserPersona } from 'spfx-toolkit/lib/components/UserPersona';
 import { sanitizeHtml } from 'spfx-toolkit/lib/utilities/htmlUtils/sanitizeHtml';
 import { formatFileSize, formatRelativeDate, formatDateTime } from './documentTitleUtils';
+import { isSafeHttpUrl } from '@store/utils/safeNavigate';
 import {
   IColumnConfigItem,
   MultiValueSeparator,
@@ -156,13 +157,18 @@ export function renderRichText(value: unknown, column: IColumnConfigItem): React
   if (!raw) {
     return muted();
   }
-  // Sanitize first, then truncate the sanitized HTML's plain text length —
-  // safer than truncating raw HTML which could leave a tag half-open.
   const safe = sanitizeHtml(raw);
-  const display = column.maxLength && safe.length > column.maxLength
-    ? safe.slice(0, column.maxLength) + ELLIPSIS
-    : safe;
-  return <span className={styles.gridRichText} dangerouslySetInnerHTML={{ __html: display }} />;
+  // When a max length is set, truncate on the PLAIN text (tags stripped) so we
+  // never cut a tag in half and inject broken markup. The truncated form renders
+  // as text; the untruncated form keeps its formatting.
+  if (column.maxLength && column.maxLength > 0) {
+    const plain = safe.replace(/<[^>]*>/g, '').trim();
+    if (plain.length > column.maxLength) {
+      const clipped = plain.slice(0, column.maxLength) + ELLIPSIS;
+      return <span className={styles.gridRichText} title={plain}>{clipped}</span>;
+    }
+  }
+  return <span className={styles.gridRichText} dangerouslySetInnerHTML={{ __html: safe }} />;
 }
 
 // ─── number ───────────────────────────────────────────────
@@ -203,9 +209,14 @@ export function renderDate(value: unknown, _column: IColumnConfigItem): React.Re
   if (!raw) {
     return muted();
   }
+  const relative = formatRelativeDate(raw);
+  if (!relative) {
+    // Unparseable date string — show the muted dash, not a blank cell.
+    return muted();
+  }
   return (
     <span className={styles.gridDateCell} title={formatDateTime(raw)}>
-      {formatRelativeDate(raw)}
+      {relative}
     </span>
   );
 }
@@ -397,13 +408,26 @@ function extractPersona(value: unknown): IPersonaLike | undefined {
   return { displayName: raw };
 }
 
-export function renderPersona(value: unknown, _column: IColumnConfigItem): React.ReactElement {
-  const persona = extractPersona(value);
-  if (!persona) {
-    return muted();
+/**
+ * Split a people value into individual personas. People managed properties can
+ * carry several values joined by ';' (co-authors, service/app accounts). Split
+ * on ';' only — never comma — since a display name may contain a comma.
+ */
+function extractPersonaList(value: unknown): IPersonaLike[] {
+  if (Array.isArray(value)) {
+    return value.map(extractPersona).filter((p): p is IPersonaLike => !!p);
   }
+  if (typeof value === 'string' && value.indexOf(';') >= 0) {
+    return value.split(/\s*;\s*/).map((part) => extractPersona(part)).filter((p): p is IPersonaLike => !!p);
+  }
+  const single = extractPersona(value);
+  return single ? [single] : [];
+}
+
+function personaElement(persona: IPersonaLike, key?: string): React.ReactElement {
   return (
     <UserPersona
+      key={key}
       userIdentifier={persona.email || persona.displayName}
       displayName={persona.displayName}
       size={24}
@@ -412,17 +436,50 @@ export function renderPersona(value: unknown, _column: IColumnConfigItem): React
   );
 }
 
+export function renderPersona(value: unknown, _column: IColumnConfigItem): React.ReactElement {
+  const people = extractPersonaList(value);
+  if (people.length === 0) {
+    return muted();
+  }
+  if (people.length === 1) {
+    return personaElement(people[0]);
+  }
+  // One persona per line for a multi-value people field.
+  return (
+    <span className={styles.gridPersonaList}>
+      {people.map((persona, idx) => personaElement(persona, (persona.email || persona.displayName) + '-' + String(idx)))}
+    </span>
+  );
+}
+
 // ─── url ──────────────────────────────────────────────────
 
 export function renderUrl(value: unknown, column: IColumnConfigItem): React.ReactElement {
-  const raw = typeof value === 'string' ? value.trim() : '';
+  const raw = toStringValue(value).trim();
   if (!raw) {
     return muted();
   }
-  const visible = truncate(raw, column.maxLength);
+
+  let url = raw;
+  let label = raw;
+  // SharePoint Hyperlink fields surface as "https://url, Description". If the
+  // text before ", " is itself a valid URL, treat the remainder as the label.
+  // (isSafeHttpUrl only validates the scheme, so "https://x, Desc" would pass as
+  // a whole — we must split first to keep the description out of the href.)
+  const commaIdx = raw.indexOf(', ');
+  if (commaIdx > 0 && isSafeHttpUrl(raw.slice(0, commaIdx).trim())) {
+    url = raw.slice(0, commaIdx).trim();
+    label = raw.slice(commaIdx + 2).trim() || url;
+  }
+
+  // Only render a clickable link for safe http(s)/root-relative URLs — a raw
+  // managed-property value could be a javascript:/data: scheme (stored XSS).
+  if (!isSafeHttpUrl(url)) {
+    return <span title={raw}>{truncate(label, column.maxLength)}</span>;
+  }
   return (
-    <a href={raw} target="_blank" rel="noopener noreferrer" className={styles.gridTitleLink} title={raw}>
-      {visible}
+    <a href={url} target="_blank" rel="noopener noreferrer" className={styles.gridTitleLink} title={url}>
+      {truncate(label, column.maxLength)}
     </a>
   );
 }

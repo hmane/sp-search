@@ -2288,7 +2288,9 @@
 
 .gridTitleCell {
   display: flex;
-  align-items: center;
+  // Top-align so the file-type icon lines up with the FIRST line of a
+  // multi-line (wrapping) name rather than floating to the vertical middle.
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
   min-height: 24px;
@@ -2395,6 +2397,20 @@
 
 .gridTitleCell:hover .gridTitleActionButton {
   opacity: 1;
+}
+
+.gridAuthorList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gridPersonaList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .gridAuthorCell {

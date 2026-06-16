@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   renderText,
   renderRichText,
+  renderDate,
   renderNumber,
   renderFileSize,
   renderBoolean,
@@ -85,6 +86,14 @@ describe('renderCell — Stream B / Phase 2', () => {
 
     it('emits muted dash for empty', () => {
       expect(html(renderRichText('', col()))).toContain('--');
+    });
+
+    it('truncates on plain text without cutting a tag in half', () => {
+      const out = html(renderRichText('<strong>Hello</strong> there world', col({ renderer: 'richText', maxLength: 7 })));
+      // Plain text "Hello there world" truncated to 7 chars → "Hello t…"; no broken tag.
+      expect(out).toContain('Hello t');
+      expect(out).toContain('…');
+      expect(out).not.toContain('<stro');
     });
   });
 
@@ -258,6 +267,36 @@ describe('renderCell — Stream B / Phase 2', () => {
 
     it('emits muted dash for empty', () => {
       expect(html(renderUrl('', col({ renderer: 'url' })))).toContain('--');
+    });
+
+    it('does NOT render a javascript: scheme as a clickable link (XSS guard)', () => {
+      const out = html(renderUrl('javascript:alert(1)', col({ renderer: 'url' })));
+      expect(out).not.toContain('href=');
+      expect(out).not.toContain('<a ');
+    });
+
+    it('strips a calculated type prefix from the url before linking', () => {
+      const out = html(renderUrl('string;#https://example.com/doc', col({ renderer: 'url' })));
+      expect(out).toContain('href="https://example.com/doc"');
+      expect(out).not.toContain('string;#');
+    });
+
+    it('parses a SharePoint "url, description" hyperlink value', () => {
+      const out = html(renderUrl('https://example.com/doc, Annual Report', col({ renderer: 'url' })));
+      expect(out).toContain('href="https://example.com/doc"');
+      expect(out).toContain('Annual Report');
+    });
+  });
+
+  describe('renderDate', () => {
+    it('renders the muted dash for an unparseable date', () => {
+      expect(html(renderDate('not a date', col({ renderer: 'date' })))).toContain('--');
+    });
+
+    it('renders a relative date for a valid ISO string', () => {
+      const iso = new Date(0).toISOString();
+      const out = html(renderDate(iso, col({ renderer: 'date' })));
+      expect(out).not.toContain('--');
     });
   });
 

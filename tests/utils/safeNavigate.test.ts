@@ -1,4 +1,22 @@
-import { safeNavigate } from '../../src/libraries/spSearchStore/utils/safeNavigate';
+import { safeNavigate, isSafeHttpUrl } from '../../src/libraries/spSearchStore/utils/safeNavigate';
+
+describe('isSafeHttpUrl', () => {
+  it('accepts absolute http(s) and root-relative URLs', () => {
+    expect(isSafeHttpUrl('https://example.com/doc')).toBe(true);
+    expect(isSafeHttpUrl('http://example.com')).toBe(true);
+    expect(isSafeHttpUrl('/sites/SPSearch/x.aspx')).toBe(true);
+  });
+
+  it('rejects dangerous schemes, protocol-relative, and junk', () => {
+    expect(isSafeHttpUrl('javascript:alert(1)')).toBe(false);
+    expect(isSafeHttpUrl('data:text/html,<script>')).toBe(false);
+    expect(isSafeHttpUrl('vbscript:msgbox(1)')).toBe(false);
+    expect(isSafeHttpUrl('//evil.example.com')).toBe(false);
+    expect(isSafeHttpUrl('ftp://x')).toBe(false);
+    expect(isSafeHttpUrl('')).toBe(false);
+    expect(isSafeHttpUrl(undefined)).toBe(false);
+  });
+});
 
 describe('safeNavigate (Found.D4)', () => {
   let assignedTo: string | null = null;

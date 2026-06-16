@@ -307,6 +307,23 @@ function formatTextValue(value: unknown): string {
   return String(value);
 }
 
+// Author / people managed properties can carry several values joined by ';'
+// (co-authors, plus service/app accounts that created or modified the file).
+// Split on ';' ONLY — never comma — because a display name may itself contain a
+// comma ("Lastname, Firstname").
+function splitPeopleValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry: unknown) => formatTextValue(entry).trim())
+      .filter((s: string) => s.length > 0 && s !== '--');
+  }
+  const text = formatTextValue(value).trim();
+  if (!text || text === '--') {
+    return [];
+  }
+  return text.split(/\s*;\s*/).map((s: string) => s.trim()).filter(Boolean);
+}
+
 function getDxSortOrder(sort: ISortField | undefined, property: string): 'asc' | 'desc' | undefined {
   if (!sort || sort.property === 'Rank' || sort.property.toLowerCase() !== property.toLowerCase()) {
     return undefined;
@@ -1032,24 +1049,28 @@ const DataGridContent: React.FC<IDataGridContentProps> = (props) => {
   }, [linkConfig, onItemClick, onOpenInSidePanel, permissionCache, searchContextId, showDeleteConfirmation, titleDisplayMode]);
 
   const authorCellRender = React.useCallback((cellData: { value: unknown }): React.ReactElement => {
-    const name = formatTextValue(cellData.value);
+    const people = splitPeopleValue(cellData.value);
 
-    if (!cellData.value) {
+    if (people.length === 0) {
       return <span className={styles.gridCellMuted}>--</span>;
     }
 
-    const bgColor: string = getInitialsColor(name);
-
+    // One row per person — each gets its own avatar with that person's correct
+    // initials/color (a multi-value Author field shows several stacked rows).
     return (
-      <div className={styles.gridAuthorCell}>
-        <span
-          className={styles.gridAuthorAvatar}
-          style={{ backgroundColor: bgColor }}
-          title={name}
-        >
-          {getInitials(name)}
-        </span>
-        <span className={styles.gridAuthorName}>{name}</span>
+      <div className={styles.gridAuthorList}>
+        {people.map((person: string, idx: number) => (
+          <div key={person + '-' + String(idx)} className={styles.gridAuthorCell}>
+            <span
+              className={styles.gridAuthorAvatar}
+              style={{ backgroundColor: getInitialsColor(person) }}
+              title={person}
+            >
+              {getInitials(person)}
+            </span>
+            <span className={styles.gridAuthorName}>{person}</span>
+          </div>
+        ))}
       </div>
     );
   }, []);
