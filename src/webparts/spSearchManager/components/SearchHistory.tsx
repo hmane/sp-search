@@ -14,7 +14,7 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { validateSearchState } from '@store/utils/searchStateSchema';
 import { spLog } from '@store/utils/spLog';
 import styles from './SpSearchManager.module.scss';
-import { getHistoryDisplay } from './historyDisplay';
+import { buildFilterAliasMap, getHistoryDisplay } from './historyDisplay';
 import { formatHistoryTime, groupSearchHistoryByDate } from './historyGrouping';
 
 export interface ISearchHistoryProps {
@@ -35,6 +35,11 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
   const historyGroups = React.useMemo(function () {
     return groupSearchHistoryByDate(history || []);
   }, [history]);
+  // Map refiner managed-property → admin alias so history shows the friendly
+  // name (e.g. "Status: Yes") instead of "RefinableString06: Yes".
+  const filterAliases = React.useMemo(function () {
+    return buildFilterAliasMap(store.getState().filterConfig);
+  }, [store]);
 
   // ─── Local state ──────────────────────────────────────────
   const [showClearDialog, setShowClearDialog] = React.useState<boolean>(false);
@@ -153,7 +158,7 @@ const SearchHistory: React.FC<ISearchHistoryProps> = (props) => {
                 </span>
               </div>
               {group.entries.map(function (entry): React.ReactElement {
-                const display = getHistoryDisplay(entry);
+                const display = getHistoryDisplay(entry, filterAliases);
                 return (
                   <div
                     key={entry.id}

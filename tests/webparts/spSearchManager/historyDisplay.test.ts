@@ -1,5 +1,5 @@
-import type { ISearchHistoryEntry } from '@interfaces/index';
-import { getHistoryDisplay } from '@webparts/spSearchManager/components/historyDisplay';
+import type { IFilterConfig, ISearchHistoryEntry } from '@interfaces/index';
+import { buildFilterAliasMap, getHistoryDisplay } from '@webparts/spSearchManager/components/historyDisplay';
 
 function historyEntry(overrides: Partial<ISearchHistoryEntry>): ISearchHistoryEntry {
   return {
@@ -57,5 +57,49 @@ describe('getHistoryDisplay', () => {
     }));
 
     expect(display.title).toBe('FileType: xlsx');
+  });
+
+  it('uses the refiner alias instead of the managed-property name when provided', () => {
+    const aliases = buildFilterAliasMap([
+      { managedProperty: 'RefinableString06', displayName: 'Status' } as IFilterConfig,
+    ]);
+    const display = getHistoryDisplay(historyEntry({
+      searchState: JSON.stringify({
+        activeFilters: [
+          { filterName: 'RefinableString06', value: '1', displayValue: 'Yes', operator: 'OR' },
+        ],
+      }),
+    }), aliases);
+
+    expect(display.title).toBe('Status: Yes');
+  });
+
+  it('falls back to the managed-property name when no alias is configured', () => {
+    const display = getHistoryDisplay(historyEntry({
+      searchState: JSON.stringify({
+        activeFilters: [
+          { filterName: 'RefinableString06', value: '1', displayValue: 'Yes', operator: 'OR' },
+        ],
+      }),
+    }), buildFilterAliasMap([]));
+
+    expect(display.title).toBe('RefinableString06: Yes');
+  });
+});
+
+describe('buildFilterAliasMap', () => {
+  it('maps managed property (lowercased) to display name, skipping blanks', () => {
+    const map = buildFilterAliasMap([
+      { managedProperty: 'RefinableString06', displayName: 'Status' } as IFilterConfig,
+      { managedProperty: 'Author', displayName: '' } as IFilterConfig,
+      { managedProperty: '', displayName: 'Ignored' } as IFilterConfig,
+    ]);
+    expect(map['refinablestring06']).toBe('Status');
+    expect(map.author).toBeUndefined();
+    expect(Object.keys(map)).toHaveLength(1);
+  });
+
+  it('returns an empty map for undefined config', () => {
+    expect(buildFilterAliasMap(undefined)).toEqual({});
   });
 });

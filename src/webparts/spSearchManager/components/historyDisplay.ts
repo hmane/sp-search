@@ -1,9 +1,29 @@
-import type { ISearchHistoryEntry } from '@interfaces/index';
+import type { IFilterConfig, ISearchHistoryEntry } from '@interfaces/index';
 import { validateSearchState, type IValidatedSearchState } from '@store/utils/searchStateSchema';
 
 export interface ISearchHistoryDisplay {
   title: string;
   metaParts: string[];
+}
+
+/**
+ * Build a lookup from a refiner's managed-property name (lowercased) to its
+ * admin-configured display name (alias), so history shows "Status: Yes" rather
+ * than "RefinableString06: Yes".
+ */
+export function buildFilterAliasMap(filterConfig: IFilterConfig[] | undefined): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!filterConfig) {
+    return map;
+  }
+  for (const cfg of filterConfig) {
+    const key = (cfg.managedProperty || '').trim().toLowerCase();
+    const alias = (cfg.displayName || '').trim();
+    if (key && alias) {
+      map[key] = alias;
+    }
+  }
+  return map;
 }
 
 function isDefaultVertical(value: string | undefined): boolean {
@@ -15,15 +35,17 @@ function cleanFilterValue(value: string): string {
   return value.replace(/^"|"$/g, '').trim();
 }
 
-function formatFilterLabel(filterName: string, value: string): string {
+function formatFilterLabel(filterName: string, value: string, filterAliases?: Record<string, string>): string {
   const cleanedValue = cleanFilterValue(value);
-  if (!filterName) {
+  // Prefer the admin alias for the refiner; fall back to the managed-property name.
+  const label = (filterAliases && filterAliases[(filterName || '').toLowerCase()]) || filterName;
+  if (!label) {
     return cleanedValue;
   }
-  if (filterName.toLowerCase() === cleanedValue.toLowerCase()) {
+  if (label.toLowerCase() === cleanedValue.toLowerCase()) {
     return cleanedValue;
   }
-  return filterName + ': ' + cleanedValue;
+  return label + ': ' + cleanedValue;
 }
 
 function getValidatedState(entry: ISearchHistoryEntry): IValidatedSearchState | undefined {
@@ -35,7 +57,10 @@ function trimDefaultVerticalPrefix(title: string): string {
   return title.replace(/^all\s*[•-]\s*/i, '').trim();
 }
 
-export function getHistoryDisplay(entry: ISearchHistoryEntry): ISearchHistoryDisplay {
+export function getHistoryDisplay(
+  entry: ISearchHistoryEntry,
+  filterAliases?: Record<string, string>
+): ISearchHistoryDisplay {
   const state = getValidatedState(entry);
   const queryText = (state?.queryText || '').trim();
   const vertical = (state?.currentVerticalKey || entry.vertical || '').trim();
@@ -46,7 +71,7 @@ export function getHistoryDisplay(entry: ISearchHistoryEntry): ISearchHistoryDis
     const filter = filters[i];
     const value = filter.displayValue || filter.value;
     if (value) {
-      filterLabels.push(formatFilterLabel(filter.filterName, value));
+      filterLabels.push(formatFilterLabel(filter.filterName, value, filterAliases));
     }
   }
 
