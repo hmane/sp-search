@@ -11,8 +11,11 @@ import {
   ColumnRenderer,
   ColumnVisibility,
   MultiValueSeparator,
+  BadgeColor,
+  BADGE_COLORS,
   PHASE_1_RENDERERS,
   applyColumnPropertySelection,
+  IBadgeColorRule,
 } from './columnConfig';
 import styles from './ColumnConfigField.module.scss';
 
@@ -41,7 +44,7 @@ const RENDERER_LABELS: Record<ColumnRenderer, string> = {
   // future builds, but not exposed in Phase-1's PHASE_1_RENDERERS list.
   richText: 'Rich text',
   number: 'Number',
-  tags: 'Tags',
+  tags: 'Tags / badges',
   boolean: 'Boolean',
 };
 
@@ -56,7 +59,13 @@ const SEPARATOR_OPTIONS: IDropdownOption[] = [
   { key: 'newline', text: 'One per line' },
   { key: 'semicolon', text: 'Semicolon-separated' },
   { key: 'pill', text: 'Pills' },
+  { key: 'badge', text: 'Badges (colored)' },
 ];
+
+const BADGE_COLOR_OPTIONS: IDropdownOption[] = BADGE_COLORS.map((c) => ({
+  key: c,
+  text: c.charAt(0).toUpperCase() + c.slice(1),
+}));
 
 function rendererSupportsMaxLength(renderer: ColumnRenderer): boolean {
   return renderer === 'text' || renderer === 'richText' || renderer === 'url';
@@ -106,6 +115,11 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
 
   const update = (patch: Partial<IColumnConfigItem>): void => {
     setDraft((current) => current ? ({ ...current, ...patch }) : current);
+  };
+
+  const updateRule = (idx: number, patch: Partial<IBadgeColorRule>): void => {
+    const next = (draft.valueColorMap || []).map((r, i) => (i === idx ? { ...r, ...patch } : r));
+    update({ valueColorMap: next });
   };
 
   return (
@@ -196,16 +210,74 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
           </>
         )}
         {rendererSupportsSeparator(draft.renderer) && (
-          <Dropdown
-            label="Multi-value separator"
-            selectedKey={draft.multiValueSeparator || 'comma'}
-            options={SEPARATOR_OPTIONS}
-            onChange={(_e, option): void => {
-              if (option) {
-                update({ multiValueSeparator: option.key as MultiValueSeparator });
-              }
-            }}
-          />
+          <>
+            <TextField
+              label="Split character"
+              value={draft.splitDelimiter || ''}
+              placeholder=";  ,  |"
+              maxLength={8}
+              description={'Character to split the value on. Use \\n for a new line. Leave blank for the default ( , and ; ).'}
+              onChange={(_e, newValue): void => update({ splitDelimiter: newValue || undefined })}
+            />
+            <Dropdown
+              label="Display style"
+              selectedKey={draft.multiValueSeparator || 'comma'}
+              options={SEPARATOR_OPTIONS}
+              onChange={(_e, option): void => {
+                if (option) {
+                  update({ multiValueSeparator: option.key as MultiValueSeparator });
+                }
+              }}
+            />
+            {draft.multiValueSeparator === 'badge' && (
+              <div className={styles.panelSection}>
+                <Toggle
+                  label="Auto-color other values"
+                  checked={draft.autoColorUnmapped !== false}
+                  onChange={(_e, checked): void => update({ autoColorUnmapped: !!checked })}
+                />
+                {(draft.valueColorMap || []).map((rule, idx) => (
+                  <div key={'rule-' + String(idx)} className={styles.badgeRuleRow}>
+                    <TextField
+                      label={idx === 0 ? 'Value' : undefined}
+                      ariaLabel={idx === 0 ? undefined : 'Value for rule ' + String(idx + 1)}
+                      value={rule.value}
+                      placeholder="Approved"
+                      onChange={(_e, v): void => updateRule(idx, { value: v || '' })}
+                    />
+                    <Dropdown
+                      label={idx === 0 ? 'Color' : undefined}
+                      ariaLabel={idx === 0 ? undefined : 'Color for rule ' + String(idx + 1)}
+                      selectedKey={rule.color}
+                      options={BADGE_COLOR_OPTIONS}
+                      onChange={(_e, option): void => { if (option) { updateRule(idx, { color: option.key as BadgeColor }); } }}
+                    />
+                    <TextField
+                      label={idx === 0 ? 'Icon (optional)' : undefined}
+                      ariaLabel={idx === 0 ? undefined : 'Icon for rule ' + String(idx + 1)}
+                      value={rule.icon || ''}
+                      placeholder="CheckMark"
+                      onChange={(_e, v): void => updateRule(idx, { icon: v || undefined })}
+                    />
+                    <DefaultButton
+                      text="Remove"
+                      ariaLabel={'Remove rule ' + String(idx + 1)}
+                      onClick={(): void => {
+                        update({ valueColorMap: (draft.valueColorMap || []).filter((_r, i) => i !== idx) });
+                      }}
+                    />
+                  </div>
+                ))}
+                <DefaultButton
+                  text="Add value color"
+                  iconProps={{ iconName: 'Add' }}
+                  onClick={(): void => {
+                    update({ valueColorMap: [...(draft.valueColorMap || []), { value: '', color: 'blue' }] });
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </Panel>
