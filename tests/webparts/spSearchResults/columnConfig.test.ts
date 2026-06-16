@@ -1,6 +1,8 @@
 import {
   normalizeColumnConfigItem,
   applyColumnPropertySelection,
+  BADGE_COLORS,
+  AUTO_COLOR_PALETTE,
   IColumnConfigItem,
   ColumnRenderer,
   ColumnVisibility,
@@ -231,5 +233,71 @@ describe('applyColumnPropertySelection', () => {
 
     expect(result.property).toBe('LastModifiedTime');
     expect(result.alias).toBe('Owner');
+  });
+});
+
+describe('normalizeColumnConfigItem — badge/split fields', () => {
+  it('keeps a valid split delimiter and drops empty / over-long ones', () => {
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', splitDelimiter: '|' }).splitDelimiter).toBe('|');
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', splitDelimiter: '' }).splitDelimiter).toBeUndefined();
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', splitDelimiter: '123456789' }).splitDelimiter).toBeUndefined();
+  });
+
+  it('accepts the badge multi-value separator', () => {
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', multiValueSeparator: 'badge' }).multiValueSeparator).toBe('badge');
+  });
+
+  it('normalizes the value color map — trims, drops invalid colors, dedupes by lowercased value', () => {
+    const out = normalizeColumnConfigItem({
+      uniqueId: 'a',
+      property: 'P',
+      valueColorMap: [
+        { value: '  Approved ', color: 'green' },
+        { value: 'approved', color: 'red' },        // duplicate (case-insensitive) — dropped
+        { value: 'Pending', color: 'not-a-color' as never },  // invalid color — dropped
+        { value: '', color: 'blue' },               // empty value — dropped
+        { value: 'Overdue', color: 'red', icon: 'Warning' },
+      ],
+    });
+    expect(out.valueColorMap).toEqual([
+      { value: 'Approved', color: 'green' },
+      { value: 'Overdue', color: 'red', icon: 'Warning' },
+    ]);
+  });
+
+  it('returns undefined for an absent or fully-invalid color map', () => {
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P' }).valueColorMap).toBeUndefined();
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', valueColorMap: [] }).valueColorMap).toBeUndefined();
+  });
+
+  it('preserves autoColorUnmapped only when boolean', () => {
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', autoColorUnmapped: false }).autoColorUnmapped).toBe(false);
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P' }).autoColorUnmapped).toBeUndefined();
+  });
+
+  it('exposes the palette constants', () => {
+    expect(BADGE_COLORS).toContain('neutral');
+    expect(BADGE_COLORS).toContain('magenta');
+    expect(AUTO_COLOR_PALETTE).not.toContain('neutral');
+    expect(AUTO_COLOR_PALETTE.length).toBe(8);
+  });
+
+  it('drops a whitespace-only split delimiter and trims surrounding whitespace', () => {
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', splitDelimiter: '   ' }).splitDelimiter).toBeUndefined();
+    expect(normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', splitDelimiter: '  |  ' }).splitDelimiter).toBe('|');
+  });
+
+  it('caps the value color map at 50 entries', () => {
+    const map = Array.from({ length: 60 }, (_, i) => ({ value: 'v' + String(i), color: 'blue' as const }));
+    const out = normalizeColumnConfigItem({ uniqueId: 'a', property: 'P', valueColorMap: map });
+    expect(out.valueColorMap?.length).toBe(50);
+  });
+
+  it('drops whitespace-only icon strings', () => {
+    const out = normalizeColumnConfigItem({
+      uniqueId: 'a', property: 'P',
+      valueColorMap: [{ value: 'Approved', color: 'green', icon: '   ' }],
+    });
+    expect(out.valueColorMap![0]).toEqual({ value: 'Approved', color: 'green' });
   });
 });

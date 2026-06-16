@@ -26,7 +26,7 @@ export type ColumnRenderer =
   | 'url'
   | 'fileType';
 
-export type MultiValueSeparator = 'comma' | 'newline' | 'semicolon' | 'pill';
+export type MultiValueSeparator = 'comma' | 'newline' | 'semicolon' | 'pill' | 'badge';
 
 export interface IColumnConfigItem {
   uniqueId: string;
@@ -38,12 +38,41 @@ export interface IColumnConfigItem {
   maxLength?: number;
   seeMoreLink?: boolean;
   multiValueSeparator?: MultiValueSeparator;
+  /** Character(s) to split the value on for tags/badges. Unset → default , and ;. */
+  splitDelimiter?: string;
+  /** Admin value→color rules for the 'badge' display style. */
+  valueColorMap?: IBadgeColorRule[];
+  /** Auto-color unmapped badge values (default true). */
+  autoColorUnmapped?: boolean;
 }
 
 export interface IColumnPropertyOption {
   key: string;
   text: string;
   alias?: string;
+}
+
+export type BadgeColor =
+  | 'neutral' | 'blue' | 'teal' | 'green'
+  | 'amber'   | 'orange' | 'red' | 'purple' | 'magenta';
+
+/** All selectable badge colors, in dropdown order. */
+export const BADGE_COLORS: BadgeColor[] = [
+  'neutral', 'blue', 'teal', 'green', 'amber', 'orange', 'red', 'purple', 'magenta',
+];
+
+/** Colors used to auto-color unmapped values (excludes neutral). */
+export const AUTO_COLOR_PALETTE: BadgeColor[] = [
+  'blue', 'teal', 'green', 'amber', 'orange', 'red', 'purple', 'magenta',
+];
+
+const BADGE_COLOR_SET = new Set<string>(BADGE_COLORS);
+
+/** One admin-defined value→color rule for the badge display style. */
+export interface IBadgeColorRule {
+  value: string;
+  color: BadgeColor;
+  icon?: string;
 }
 
 /** Legacy shape stored by pre-Phase-1 pages. */
@@ -91,7 +120,7 @@ export const PHASE_1_RENDERERS: ColumnRenderer[] = [
   'fileType',
 ];
 
-const VALID_SEPARATORS: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill'];
+const VALID_SEPARATORS: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill', 'badge'];
 
 let _uniqueIdSeq = 0;
 
@@ -106,6 +135,36 @@ function pickEnum<T extends string>(value: unknown, allowed: T[], fallback: T): 
 
 function pickPositiveNumber(value: unknown): number | undefined {
   return typeof value === 'number' && isFinite(value) && value > 0 ? value : undefined;
+}
+
+function normalizeBadgeColorMap(raw: unknown): IBadgeColorRule[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: IBadgeColorRule[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+    const e = entry as Record<string, unknown>;
+    const value = typeof e.value === 'string' ? e.value.trim() : '';
+    const color = typeof e.color === 'string' && BADGE_COLOR_SET.has(e.color) ? (e.color as BadgeColor) : undefined;
+    if (!value || !color) {
+      continue;
+    }
+    const key = value.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    const icon = typeof e.icon === 'string' && e.icon.trim() ? e.icon.trim() : undefined;
+    result.push(icon ? { value, color, icon } : { value, color });
+    if (result.length >= 50) {
+      break;
+    }
+  }
+  return result.length > 0 ? result : undefined;
 }
 
 /**
@@ -134,6 +193,12 @@ export function normalizeColumnConfigItem(
       typeof raw.multiValueSeparator === 'string' && VALID_SEPARATORS.indexOf(raw.multiValueSeparator) >= 0
         ? raw.multiValueSeparator
         : undefined,
+    splitDelimiter:
+      typeof raw.splitDelimiter === 'string' && raw.splitDelimiter.trim().length > 0 && raw.splitDelimiter.trim().length <= 8
+        ? raw.splitDelimiter.trim()
+        : undefined,
+    valueColorMap: normalizeBadgeColorMap(raw.valueColorMap),
+    autoColorUnmapped: typeof raw.autoColorUnmapped === 'boolean' ? raw.autoColorUnmapped : undefined,
   };
 }
 

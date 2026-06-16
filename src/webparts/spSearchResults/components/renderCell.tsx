@@ -208,6 +208,7 @@ const SEPARATOR_JOIN: Record<MultiValueSeparator, string> = {
   semicolon: '; ',
   newline: '\n',
   pill: '',
+  badge: '',
 };
 
 export function renderTags(value: unknown, column: IColumnConfigItem): React.ReactElement {
