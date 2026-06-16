@@ -90,14 +90,28 @@ export function resolveBadgeColor(
   return { color: 'neutral' };
 }
 
+// Cache the built lookup map per column-config rules array. `renderTags` is the
+// DataGrid `cellRender` (called per cell); the rules array is the same stable
+// reference for every cell in a column, so this builds the map once per column
+// instead of once per cell. Keyed by the array reference → auto-GC'd when the
+// column config is replaced.
+const BADGE_COLOR_MAP_CACHE = new WeakMap<IBadgeColorRule[], Map<string, IBadgeColorRule>>();
+
 function buildBadgeColorMap(rules: IBadgeColorRule[] | undefined): Map<string, IBadgeColorRule> | undefined {
   if (!rules || rules.length === 0) {
     return undefined;
   }
+  const cached = BADGE_COLOR_MAP_CACHE.get(rules);
+  if (cached) {
+    return cached;
+  }
   const map = new Map<string, IBadgeColorRule>();
   for (const rule of rules) {
-    map.set(rule.value.trim().toLowerCase(), rule);
+    // Key by the cleaned display form so an admin who pastes a raw SharePoint
+    // value (e.g. "string;#Approved") still matches the cleaned cell token.
+    map.set(cleanSearchResultDisplayText(rule.value).trim().toLowerCase(), rule);
   }
+  BADGE_COLOR_MAP_CACHE.set(rules, map);
   return map;
 }
 

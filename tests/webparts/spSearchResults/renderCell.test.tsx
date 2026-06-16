@@ -226,6 +226,17 @@ describe('renderCell — Stream B / Phase 2', () => {
       expect(out).toContain('gridBadge--green');
     });
 
+    it('matches a map value entered with a raw SharePoint type prefix', () => {
+      // Admin pastes the raw calculated-column form; the cell token is cleaned,
+      // so the map key must be cleaned too for the rule to apply.
+      const out = html(renderTags('Approved', col({
+        renderer: 'tags',
+        multiValueSeparator: 'badge',
+        valueColorMap: [{ value: 'string;#Approved', color: 'green' }],
+      })));
+      expect(out).toContain('gridBadge--green');
+    });
+
     it('emits the muted dash for an empty badge value', () => {
       expect(html(renderTags('', col({ renderer: 'tags', multiValueSeparator: 'badge' })))).toContain('--');
     });

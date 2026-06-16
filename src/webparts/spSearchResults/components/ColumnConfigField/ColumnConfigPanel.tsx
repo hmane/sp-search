@@ -236,6 +236,10 @@ export const ColumnConfigPanel: React.FC<IColumnConfigPanelProps> = (props) => {
                   checked={draft.autoColorUnmapped !== false}
                   onChange={(_e, checked): void => update({ autoColorUnmapped: !!checked })}
                 />
+                {/* Index keys are intentional: rules have no stable id, and a
+                    value-based key would change on every keystroke and remount
+                    the focused TextField. Inputs are controlled, so values stay
+                    correct on add/remove. */}
                 {(draft.valueColorMap || []).map((rule, idx) => (
                   <div key={'rule-' + String(idx)} className={styles.badgeRuleRow}>
                     <TextField

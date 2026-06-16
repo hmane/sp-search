@@ -2505,17 +2505,20 @@
   line-height: 16px;
   font-weight: 600;
   white-space: nowrap;
-  background: #f3f2f1;
-  color: #323130;
+  // Neutral fallback uses theme tokens so the default chip blends with branded
+  // / dark themes; a color modifier below overrides this for the 9 named colors.
+  background: "[theme:neutralLighter, default: #f3f2f1]";
+  color: "[theme:bodyText, default: #323130]";
 }
 
 .gridBadgeIcon {
   font-size: 11px;
 }
 
-// Fixed, AA-contrast color pairs (soft fill + dark text). Intentionally not
-// theme accents so the nine options stay distinct and legible in any theme.
-.gridBadge--neutral { background: #f3f2f1; color: #323130; }
+// The 9 named colors use fixed, AA-contrast pairs (soft fill + dark text).
+// Intentionally not theme accents so the options stay distinct and legible in
+// any theme. Neutral follows the theme (see the base .gridBadge rule above).
+.gridBadge--neutral { background: "[theme:neutralLighter, default: #f3f2f1]"; color: "[theme:bodyText, default: #323130]"; }
 .gridBadge--blue    { background: #deecf9; color: #004578; }
 .gridBadge--teal    { background: #cdeef2; color: #005b70; }
 .gridBadge--green   { background: #dff6dd; color: #0b6a0b; }

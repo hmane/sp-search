@@ -127,7 +127,7 @@ describe('normalizeColumnConfigItem', () => {
   });
 
   describe('multiValueSeparator values', () => {
-    const valid: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill'];
+    const valid: MultiValueSeparator[] = ['comma', 'newline', 'semicolon', 'pill', 'badge'];
     valid.forEach((sep) => {
       it('accepts multiValueSeparator="' + sep + '"', () => {
         const result = normalizeColumnConfigItem({
@@ -299,5 +299,26 @@ describe('normalizeColumnConfigItem — badge/split fields', () => {
       valueColorMap: [{ value: 'Approved', color: 'green', icon: '   ' }],
     });
     expect(out.valueColorMap![0]).toEqual({ value: 'Approved', color: 'green' });
+  });
+
+  it('round-trips a fully-populated badge column through the normalizer', () => {
+    const out = normalizeColumnConfigItem({
+      uniqueId: 'col-1',
+      property: 'Status',
+      multiValueSeparator: 'badge',
+      splitDelimiter: '|',
+      autoColorUnmapped: false,
+      valueColorMap: [
+        { value: 'Approved', color: 'green', icon: 'CheckMark' },
+        { value: 'Overdue', color: 'red' },
+      ],
+    });
+    expect(out.multiValueSeparator).toBe('badge');
+    expect(out.splitDelimiter).toBe('|');
+    expect(out.autoColorUnmapped).toBe(false);
+    expect(out.valueColorMap).toEqual([
+      { value: 'Approved', color: 'green', icon: 'CheckMark' },
+      { value: 'Overdue', color: 'red' },
+    ]);
   });
 });

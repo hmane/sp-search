@@ -61,10 +61,12 @@ export const BADGE_COLORS: BadgeColor[] = [
   'neutral', 'blue', 'teal', 'green', 'amber', 'orange', 'red', 'purple', 'magenta',
 ];
 
-/** Colors used to auto-color unmapped values (excludes neutral). */
-export const AUTO_COLOR_PALETTE: BadgeColor[] = [
-  'blue', 'teal', 'green', 'amber', 'orange', 'red', 'purple', 'magenta',
-];
+/**
+ * Colors used to auto-color unmapped values. Derived from BADGE_COLORS (minus
+ * neutral) so a future color added to the palette can't be silently forgotten
+ * here.
+ */
+export const AUTO_COLOR_PALETTE: BadgeColor[] = BADGE_COLORS.filter((c) => c !== 'neutral');
 
 const BADGE_COLOR_SET = new Set<string>(BADGE_COLORS);
 
