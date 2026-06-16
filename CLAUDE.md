@@ -357,10 +357,12 @@ sp-search/
 
 **v1.0.0** is the current GA tag. The historical Phase 1-5 model is retired; see `CHANGELOG.md` for the GA changelog and `docs/sp-search-launch-readiness-audit.md` for the launch-readiness audit. Every audit P0/P1/P2 item has either landed on main or is documented as won't-fix with rationale in the commit message.
 
+**Open follow-ups** (deferred, not derivable from code) are tracked in `docs/known-issues.md` — currently: cascade-filtered refiner counts, and cross-site version history (the spfx-toolkit `VersionHistory` is current-web-only).
+
 Shipped capabilities (one-line each):
 - 7 web parts + 1 library component, single .sppkg via Heft
-- 6 layouts (DataGrid, Card, List, Compact, People, Gallery) with type-aware cell renderers
-- 9 registered filter types (Checkbox, Dropdown, DateRange, Text, Toggle, TagBox, Slider, Taxonomy TagBox, People) + visual filter builder
+- 6 layouts (DataGrid, Card, List, Compact, People, Gallery) with type-aware cell renderers; the DataGrid `tags` renderer ("Tags / badges") supports a configurable split delimiter + a colored-badge display style with admin value→color mapping (`ColumnConfigField/columnConfig.ts`, `renderCell.tsx`)
+- 9 registered filter types (Checkbox, Dropdown, DateRange, Text, Toggle, TagBox, Slider, Taxonomy TagBox, People) + visual filter builder. Default-valued toggle filters are implicit (excluded from URL + history; see `utils/toggleDefaults.ts`); refiner tokens are decoded for display via `utils/refinerDisplay.ts`
 - Two data providers (SharePoint + Graph) with per-vertical `dataProviderId` routing
 - Search Manager (end-user + admin variant) with saved/shared/collections/history/promoted results
 - AdminManager Dashboard / Health / Insights / Pre-Flight tabs

@@ -63,6 +63,8 @@ Implement and maintain the 9 registered built-in filter types, the active-filter
 - **BooleanFilterFormatter** — `"0"`/`"1"` → Yes/No or custom labels
 - **DefaultFilterFormatter** — pass-through for simple strings
 
+**Shared display decoder (`@store/utils/refinerDisplay.ts`):** `formatRefinerValueForDisplay` decodes the `ǂǂ` FQL hex token (via `decodeURIComponent` — NOT `TextDecoder`, which jsdom lacks), `GP0|#` taxonomy prefixes, and FQL `string()` wrappers to a readable label. Used by the active-filter pill bar AND the Search Manager history (`historyDisplay.ts`) so a stored token like `ǂǂ31393534` renders as `1954`. History also maps the refiner managed-property → admin alias via `buildFilterAliasMap`.
+
 ## Special-field handling (audit-grade requirements)
 
 ### Date fields

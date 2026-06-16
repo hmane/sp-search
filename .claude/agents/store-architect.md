@@ -44,6 +44,8 @@ Every user-facing web part calls:
 
 State versioning param `x=1`; `sid` deep-link fallback only when serialized state exceeds the threshold or admin opt-in.
 
+**Implicit toggle defaults (`utils/toggleDefaults.ts`):** a `toggle` filter with `defaultValue` is auto-applied via `seedToggleDefaults` (moved here from `storeRegistry`, which re-exports it; runs AFTER URL hydration so URL wins). Its inverse `stripDefaultToggleFilters` removes any filter sitting at its default so defaults are **excluded from the URL** (`serializeToUrl`) **and search history** (`SearchOrchestrator._logSearchToHistory`), then re-seeded on load / history re-run. Keep both pure (interfaces-only) to avoid an import cycle.
+
 ## Interfaces
 
 Live source of truth: `src/libraries/spSearchStore/interfaces/index.ts` + `IStoreSlices.ts`. NEVER cite docs as the interface contract — read the code.

@@ -4,7 +4,30 @@ All notable changes to SP Search are documented here. Format follows [Keep a Cha
 
 ## [Unreleased]
 
-This section covers Sprint 5 + Sprint 6 audit Roadmap deliverables landed since v1.0.0-rc.1. All P0 + P1 items are closed; remaining audit work is either P2-deferred-by-design (CI pipeline, design assets, telemetry transport) or out of repo scope. 433 tests pass; all 6 web part bundles within budget.
+### Post-RC.1 — 7th web part, DataGrid badges, refiner/history polish
+
+The solution is now **7 web parts + 1 library** (added **SpSearchExperience**). ~596 tests pass; all 7 web part bundles within budget.
+
+#### Added
+- **SpSearchExperience web part** ("SP Search Results + Filters") — a full-width wrapper that renders the Results + Filters web parts on one shared store from a single property bag.
+- **DataGrid badge/token cell renderer** — the `tags` renderer ("Tags / badges") gains a configurable **split delimiter** and a **"Badges (colored)"** display style with an admin **value→color map** (`IBadgeColorRule`) plus deterministic **auto-color** for unmapped values. New `columnConfig.ts` fields `splitDelimiter` / `valueColorMap` / `autoColorUnmapped` and `BadgeColor` / `AUTO_COLOR_PALETTE`.
+- `formatRefinerValueForDisplay` (`utils/refinerDisplay.ts`) — decodes `ǂǂ` FQL hex tokens, `GP0|#` taxonomy, and FQL `string()` wrappers for display (uses `decodeURIComponent`, not `TextDecoder`). Used by the active-filter pills and the Search Manager history.
+- `stripDefaultToggleFilters` (`utils/toggleDefaults.ts`, where `seedToggleDefaults` now also lives) + `isSafeHttpUrl` (`utils/safeNavigate.ts`) + `docs/known-issues.md`.
+
+#### Changed
+- **Default-valued toggle filters are now implicit** — excluded from search history and the URL, and re-seeded on load / history re-run (so a default like "Hide Inactive = Yes" no longer pollutes history or shareable links).
+- **Search history** shows the refiner **alias** (not the managed-property name) and decodes refinement tokens to labels.
+- **Author column** renders one persona per line for multi-value authors and parses the `"Name" <email>` header form to the display name.
+- **Admin-configured column width** is now authoritative (no longer overridden by persisted grid state); the `url`/`richText`/`date` renderers are hardened (XSS-safe `href`, plain-text truncation, muted dash for bad dates).
+
+#### Fixed
+- Active-filter pills decode FQL/hex/taxonomy tokens to their labels.
+- Title file-type icon top-aligns with the first line of a wrapping name.
+- Search Box web part background is transparent (section image shows through); Experience web part has edge padding; filter-group card no longer shows a double border.
+
+---
+
+This section also covers Sprint 5 + Sprint 6 audit Roadmap deliverables landed since v1.0.0-rc.1. All P0 + P1 items are closed; remaining audit work is either P2-deferred-by-design (CI pipeline, design assets, telemetry transport) or out of repo scope. (Historical note: these entries predate SpSearchExperience and reference the then-current 6 web parts.)
 
 ### Added
 

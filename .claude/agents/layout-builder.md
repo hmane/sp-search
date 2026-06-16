@@ -51,6 +51,8 @@ When adding a new layout that displays results: wire the ECB IconButton + `build
 
 `renderCell.tsx` exports per-kind helpers: `renderText`, `renderRichText`, `renderNumber`, `renderFileSize`, `renderBoolean`, `renderTags`, `renderPersona`, `renderDate`, `renderUrl`, `renderFileType`. The dispatch maps each `ColumnRenderer` to its helper. DO NOT split into one-file-per-kind — the single-file dispatch keeps bundle size + type inference cleaner.
 
+**`renderTags` "Tags / badges":** supports a per-column `splitDelimiter` (any char; `\n` token = newline) and a `'badge'` display style (`multiValueSeparator`) that renders colored chips. Badge color comes from `IColumnConfigItem.valueColorMap` (admin value→`BadgeColor`+icon) else a deterministic auto-color (`AUTO_COLOR_PALETTE`, gated by `autoColorUnmapped`). Color resolution + the `.gridBadge--<color>` classes are in `renderCell.tsx` / `SpSearchResults.module.scss`; the editor UI is in `ColumnConfigField/ColumnConfigPanel.tsx`. `renderUrl` is XSS-gated via `isSafeHttpUrl`; people values route through `extractPersonDisplayName` / `formatRefinerValueForDisplay` for clean labels.
+
 ## Detail Panel rules
 
 1. **Office docs** render via WOPI in a sandboxed iframe: `sandbox="allow-scripts allow-same-origin allow-popups"` — `allow-forms` is intentionally omitted (security audit). DO NOT add `allow-forms` back without a documented use case
